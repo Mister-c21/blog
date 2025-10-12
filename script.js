@@ -747,10 +747,17 @@ function setupSearch() {
     mainSearchInput.addEventListener('input', handleSearch);
 }
 
+//========================================================================
+// LÓGICA DE SIDEBAR: DESKTOP vs MOBILE (NOVO)
+//========================================================================
+
 function openSidebar() {
-    sidebar.classList.add('open');
-    overlay.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    // Só abre e aplica overflow:hidden no mobile (< 768px, conforme CSS)
+    if (window.innerWidth < 768) { 
+        sidebar.classList.add('open');
+        overlay.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
 }
 
 function closeSidebar() {
@@ -759,23 +766,55 @@ function closeSidebar() {
     document.body.style.overflow = 'auto';
 }
 
+function checkDesktopAndInit() {
+    // Se a tela for desktop (>= 768px), o CSS já garante que a sidebar está aberta.
+    if (window.innerWidth >= 768) {
+        // No desktop, garantimos que os estados de mobile sejam desativados.
+        sidebar.classList.remove('open'); 
+        overlay.style.display = 'none';
+        document.body.style.overflow = 'auto'; // Garante que o scroll não seja bloqueado
+    } else {
+        // No mobile, garante que a sidebar comece fechada (por padrão no CSS).
+        sidebar.classList.remove('open');
+        overlay.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
 function setupSidebarEvents() {
-    // Verificação adicionada: certifique-se de que o menu-toggle-btn exista no seu HTML
-    const menuToggleBtn = document.getElementById('menu-toggle-btn');
+    // Use o ID do novo botão de menu adicionado no HTML
+    const menuToggleBtn = document.getElementById('menu-toggle-btn'); 
+    
     if (menuToggleBtn) {
         menuToggleBtn.addEventListener('click', openSidebar);
     }
+    
     closeSidebarBtn.addEventListener('click', closeSidebar);
     overlay.addEventListener('click', closeSidebar);
+    
+    // Fecha a sidebar ao pressionar ESC (apenas no mobile)
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+        if (e.key === 'Escape' && sidebar.classList.contains('open') && window.innerWidth < 768) {
             closeSidebar();
         }
     });
+    
+    // Fecha a sidebar ao clicar em um link (apenas se estiver aberta, ou seja, no mobile)
     sidebar.querySelectorAll('.sidebar-nav a').forEach(link => {
-        link.addEventListener('click', closeSidebar);
+        link.addEventListener('click', () => {
+            if (window.innerWidth < 768) {
+                 closeSidebar();
+            }
+        });
     });
+    
+    // NOVO: Adiciona a verificação de estado inicial e a escuta para redimensionamento
+    checkDesktopAndInit();
+    window.addEventListener('resize', checkDesktopAndInit);
 }
+
+// FIM LÓGICA SIDEBAR
+//========================================================================
 
 function setupTabNavigation() {
     const tabContents = document.querySelectorAll('.tab-content');
