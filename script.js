@@ -1,8 +1,12 @@
 //========================================================================
 // VARIÁVEIS DE CONFIGURAÇÃO DO GITHUB (ATUALIZE AQUI!)
 //========================================================================
-// **SUBSTITUA** esta URL pela URL RAW do seu arquivo JSON no GitHub
-const GITHUB_RAW_URL = "https://raw.githubusercontent.com/Mister-c21/Dados/refs/heads/main/Sites.json"; 
+// **SUBSTITUA** esta URL pela URL RAW do seu arquivo JSON de Sites no GitHub
+const GITHUB_SITES_RAW_URL = "https://raw.githubusercontent.com/Mister-c21/Dados/refs/heads/main/Sites.json"; 
+// **SUBSTITUA** esta URL pela URL RAW do seu arquivo JSON de Quotes no GitHub
+const GITHUB_QUOTES_RAW_URL = "https://raw.githubusercontent.com/Mister-c21/Dados/refs/heads/main/Quotes.json";
+// **NOVO** - URL RAW do seu arquivo JSON de Imagens no GitHub (**ATUALIZE ESTA URL**)
+const GITHUB_IMAGES_RAW_URL = "https://raw.githubusercontent.com/Mister-c21/Dados/refs/heads/main/Images.json"; 
 
 // Elementos DOM
 const wikiListContainer = document.getElementById('wiki-list-container'); 
@@ -12,15 +16,26 @@ const loadMoreButton = document.getElementById('load-more-wiki');
 const tabButtons = document.querySelectorAll('.tab-button');
 const sidebar = document.getElementById('sidebar');
 const overlay = document.getElementById('overlay');
-const menuToggleBtn = document.getElementById('menu-toggle-btn');
 const closeSidebarBtn = document.getElementById('close-sidebar-btn');
 const sitesListContainer = document.getElementById('sites-list-container');
 const sitesLoadingIndicator = document.getElementById('sites-loading');
 const sitesFilterContainer = document.getElementById('sites-filter-container');
 
+// NOVAS VARIÁVEIS DOM PARA QUOTES
+const quotesListContainer = document.getElementById('quotes-list-container');
+const quotesLoadingIndicator = document.getElementById('quotes-loading');
+const quotesFilterContainer = document.getElementById('quotes-filter-container');
+
+// NOVAS VARIÁVEIS DOM PARA IMAGENS
+const imagesGridContainer = document.getElementById('images-grid-container');
+const imagesLoadingIndicator = document.getElementById('images-loading');
+const imagesFilterContainer = document.getElementById('images-filter-container');
+
 
 // VARIÁVEIS GLOBAIS
 let globalSitesData = []; 
+let globalQuotesData = []; 
+let globalImagesData = []; 
 let globalWikiFullTopicList = []; 
 let globalWikiLoadedArticles = []; 
 let globalWikiTopicCache = {}; 
@@ -31,7 +46,7 @@ const INITIAL_LOAD_COUNT = 15; // Número inicial de artigos
 const LOAD_INCREMENT = 12; // Número de artigos a carregar por clique
 
 //========================================================================
-// WIKIPÉDIA: LISTAS EXPANDIDAS E PAGINAÇÃO
+// WIKIPÉDIA: LISTAS EXPANDIDAS E PAGINAÇÃO 
 //========================================================================
 
 const wikiTopicMap = {
@@ -303,6 +318,13 @@ function renderSitesList(sites) {
 
 function filterSitesByTag(tag) {
     mainSearchInput.value = ''; 
+    sitesFilterContainer.querySelectorAll('.topic-button').forEach(btn => btn.classList.remove('active'));
+    
+    const activeBtn = document.querySelector(`#sites-filter-container .topic-button[data-tag="${tag}"]`);
+    if(activeBtn) {
+        activeBtn.classList.add('active');
+    }
+    
     if (tag === 'all') {
         renderSitesList(globalSitesData);
     } else {
@@ -362,8 +384,6 @@ function setupSitesFilters(data) {
     sitesFilterContainer.querySelectorAll('.topic-button').forEach(button => {
         button.addEventListener('click', (e) => {
             const selectedTag = e.currentTarget.getAttribute('data-tag');
-            sitesFilterContainer.querySelectorAll('.topic-button').forEach(btn => btn.classList.remove('active'));
-            e.currentTarget.classList.add('active');
             filterSitesByTag(selectedTag);
         });
     });
@@ -374,13 +394,13 @@ async function loadAndRenderSites() {
     sitesLoadingIndicator.style.display = 'block';
     sitesFilterContainer.innerHTML = ''; 
     try {
-        const response = await fetch(GITHUB_RAW_URL);
+        const response = await fetch(GITHUB_SITES_RAW_URL);
         if (!response.ok) {
-            throw new Error(`Erro ao carregar o JSON do GitHub. Status: ${response.status}. Verifique a URL RAW.`);
+            throw new Error(`Erro ao carregar o JSON de Sites do GitHub. Status: ${response.status}. Verifique a URL RAW.`);
         }
         const sitesData = await response.json();
         if (!Array.isArray(sitesData)) {
-            throw new Error("O JSON do GitHub não está no formato de lista (Array).");
+            throw new Error("O JSON de Sites do GitHub não está no formato de lista (Array).");
         }
         globalSitesData = sitesData;
         setupSitesFilters(globalSitesData);
@@ -398,6 +418,279 @@ async function loadAndRenderSites() {
 
 
 //========================================================================
+// LÓGICA DA ABA QUOTES
+//========================================================================
+
+function renderQuotesList(quotes) {
+    quotesListContainer.innerHTML = '';
+    if (quotes.length === 0) {
+        quotesListContainer.innerHTML = `
+            <div class="wiki-card" style="text-align: center; color: var(--accent-color);">
+                <i class="fas fa-info-circle"></i> Nenhuma quote encontrada para a busca ou filtro atual.
+            </div>
+        `;
+        return;
+    }
+    quotes.forEach(quote => {
+        // CORREÇÃO: Acessa a propriedade 'pt-br'
+        const text = (quote.text && quote.text['pt-br']) || 'Quote Indisponível';
+        const author = (quote.author && quote.author['pt-br']) || 'Autor Desconhecido';
+
+        const listItem = document.createElement('article');
+        listItem.classList.add('quote-card');
+        listItem.innerHTML = `
+            <p class="text">${text}</p>
+            <p class="author">${author}</p>
+        `;
+        quotesListContainer.appendChild(listItem);
+    });
+}
+
+function filterQuotesByTag(tag) {
+    mainSearchInput.value = ''; 
+    quotesFilterContainer.querySelectorAll('.topic-button').forEach(btn => btn.classList.remove('active'));
+    
+    const activeBtn = document.querySelector(`#quotes-filter-container .topic-button[data-tag="${tag}"]`);
+    if(activeBtn) {
+        activeBtn.classList.add('active');
+    }
+
+    if (tag === 'all') {
+        renderQuotesList(globalQuotesData);
+    } else {
+        const filteredQuotes = globalQuotesData.filter(quote => 
+            quote.tags && quote.tags.includes(tag)
+        );
+        renderQuotesList(filteredQuotes);
+    }
+}
+
+function searchQuotesContent(term) {
+    const lowerCaseTerm = term.toLowerCase();
+    quotesFilterContainer.querySelectorAll('.topic-button').forEach(btn => {
+        const tag = btn.getAttribute('data-tag');
+        if (tag !== 'all') {
+            btn.classList.remove('active');
+        } else {
+            btn.classList.add('active'); 
+        }
+    });
+
+    if (lowerCaseTerm === '') {
+        renderQuotesList(globalQuotesData); 
+        return;
+    }
+
+    const filteredQuotes = globalQuotesData.filter(quote => {
+        // CORREÇÃO: Acessa o texto e o autor em português para a pesquisa
+        const ptBrText = (quote.text && quote.text['pt-br']) || '';
+        const ptBrAuthor = (quote.author && quote.author['pt-br']) || '';
+        
+        const textMatch = ptBrText.toLowerCase().includes(lowerCaseTerm);
+        const authorMatch = ptBrAuthor.toLowerCase().includes(lowerCaseTerm);
+        
+        const tagsMatch = (quote.tags || []).some(tag => tag.toLowerCase().includes(lowerCaseTerm));
+        return textMatch || authorMatch || tagsMatch;
+    });
+    renderQuotesList(filteredQuotes);
+}
+
+function setupQuotesFilters(data) {
+    const allTags = new Set();
+    data.forEach(quote => {
+        if (quote.tags && Array.isArray(quote.tags)) {
+            quote.tags.forEach(tag => allTags.add(tag));
+        }
+    });
+    const sortedTags = Array.from(allTags).sort();
+    quotesFilterContainer.innerHTML = '';
+    const allButton = document.createElement('button');
+    allButton.classList.add('topic-button', 'active');
+    allButton.setAttribute('data-tag', 'all');
+    allButton.textContent = 'Todos';
+    quotesFilterContainer.appendChild(allButton);
+    sortedTags.forEach(tag => {
+        const tagButton = document.createElement('button');
+        tagButton.classList.add('topic-button');
+        tagButton.setAttribute('data-tag', tag);
+        tagButton.textContent = tag.charAt(0).toUpperCase() + tag.slice(1); 
+        quotesFilterContainer.appendChild(tagButton);
+    });
+    quotesFilterContainer.querySelectorAll('.topic-button').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const selectedTag = e.currentTarget.getAttribute('data-tag');
+            filterQuotesByTag(selectedTag);
+        });
+    });
+}
+
+async function loadAndRenderQuotes() {
+    quotesListContainer.innerHTML = '';
+    quotesLoadingIndicator.style.display = 'block';
+    quotesFilterContainer.innerHTML = '';
+    try {
+        const response = await fetch(GITHUB_QUOTES_RAW_URL);
+        if (!response.ok) {
+            throw new Error(`Erro ao carregar o JSON de Quotes do GitHub. Status: ${response.status}. Verifique a URL RAW.`);
+        }
+        const quotesData = await response.json();
+        if (!Array.isArray(quotesData)) {
+            throw new Error("O JSON de Quotes do GitHub não está no formato de lista (Array).");
+        }
+        globalQuotesData = quotesData;
+        setupQuotesFilters(globalQuotesData);
+        renderQuotesList(globalQuotesData);
+    } catch (error) {
+        console.error("Erro na API do GitHub Quotes:", error);
+        const errorItem = document.createElement('div');
+        errorItem.classList.add('wiki-card', 'warning');
+        errorItem.style.color = '#e74c3c';
+        errorItem.innerHTML = `<p><i class="fas fa-exclamation-triangle"></i> Erro ao carregar quotes: ${error.message}</p>`;
+        quotesListContainer.appendChild(errorItem);
+    } finally {
+        quotesLoadingIndicator.style.display = 'none';
+    }
+}
+
+
+//========================================================================
+// LÓGICA DA ABA IMAGENS (NOVA SEÇÃO)
+//========================================================================
+
+function renderImagesGrid(images) {
+    imagesGridContainer.innerHTML = '';
+    if (images.length === 0) {
+        imagesGridContainer.innerHTML = `
+            <div class="wiki-card" style="text-align: center; grid-column: 1 / -1; color: var(--accent-color);">
+                <i class="fas fa-info-circle"></i> Nenhuma imagem encontrada para a busca ou filtro atual.
+            </div>
+        `;
+        return;
+    }
+    
+    images.forEach(image => {
+        // Assume que o JSON tem: { url: "link_da_imagem", tags: ["tag1", "tag2"], title: "Título da imagem" }
+        const url = image.url || '';
+        const title = image.title || 'Imagem';
+
+        const imageCard = document.createElement('a');
+        imageCard.classList.add('image-card');
+        imageCard.href = url; // Abre a imagem em tela cheia ao clicar
+        imageCard.target = "_blank";
+        
+        // Estrutura para manter a proporção e exibir a imagem
+        imageCard.innerHTML = `
+            <div class="image-card-wrapper">
+                <img src="${url}" alt="${title}">
+            </div>
+            <div class="image-info">${title}</div>
+        `;
+        imagesGridContainer.appendChild(imageCard);
+    });
+}
+
+function filterImagesByTag(tag) {
+    mainSearchInput.value = ''; 
+    imagesFilterContainer.querySelectorAll('.topic-button').forEach(btn => btn.classList.remove('active'));
+    
+    const activeBtn = document.querySelector(`#images-filter-container .topic-button[data-tag="${tag}"]`);
+    if(activeBtn) {
+        activeBtn.classList.add('active');
+    }
+
+    if (tag === 'all') {
+        renderImagesGrid(globalImagesData);
+    } else {
+        const filteredImages = globalImagesData.filter(image => 
+            image.tags && image.tags.includes(tag)
+        );
+        renderImagesGrid(filteredImages);
+    }
+}
+
+function searchImagesContent(term) {
+    const lowerCaseTerm = term.toLowerCase();
+    imagesFilterContainer.querySelectorAll('.topic-button').forEach(btn => {
+        const tag = btn.getAttribute('data-tag');
+        if (tag !== 'all') {
+            btn.classList.remove('active');
+        } else {
+            btn.classList.add('active'); 
+        }
+    });
+
+    if (lowerCaseTerm === '') {
+        renderImagesGrid(globalImagesData); 
+        return;
+    }
+
+    const filteredImages = globalImagesData.filter(image => {
+        const titleMatch = (image.title || '').toLowerCase().includes(lowerCaseTerm);
+        const tagsMatch = (image.tags || []).some(tag => tag.toLowerCase().includes(lowerCaseTerm));
+        return titleMatch || tagsMatch;
+    });
+    renderImagesGrid(filteredImages);
+}
+
+function setupImagesFilters(data) {
+    const allTags = new Set();
+    data.forEach(image => {
+        if (image.tags && Array.isArray(image.tags)) {
+            image.tags.forEach(tag => allTags.add(tag));
+        }
+    });
+    const sortedTags = Array.from(allTags).sort();
+    imagesFilterContainer.innerHTML = '';
+    const allButton = document.createElement('button');
+    allButton.classList.add('topic-button', 'active');
+    allButton.setAttribute('data-tag', 'all');
+    allButton.textContent = 'Todas';
+    imagesFilterContainer.appendChild(allButton);
+    sortedTags.forEach(tag => {
+        const tagButton = document.createElement('button');
+        tagButton.classList.add('topic-button');
+        tagButton.setAttribute('data-tag', tag);
+        tagButton.textContent = tag.charAt(0).toUpperCase() + tag.slice(1); 
+        imagesFilterContainer.appendChild(tagButton);
+    });
+    imagesFilterContainer.querySelectorAll('.topic-button').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const selectedTag = e.currentTarget.getAttribute('data-tag');
+            filterImagesByTag(selectedTag);
+        });
+    });
+}
+
+async function loadAndRenderImages() {
+    imagesGridContainer.innerHTML = '';
+    imagesLoadingIndicator.style.display = 'block';
+    imagesFilterContainer.innerHTML = '';
+    try {
+        const response = await fetch(GITHUB_IMAGES_RAW_URL);
+        if (!response.ok) {
+            throw new Error(`Erro ao carregar o JSON de Imagens do GitHub. Status: ${response.status}. Verifique a URL RAW.`);
+        }
+        const imagesData = await response.json();
+        if (!Array.isArray(imagesData)) {
+            throw new Error("O JSON de Imagens do GitHub não está no formato de lista (Array).");
+        }
+        globalImagesData = imagesData;
+        setupImagesFilters(globalImagesData);
+        renderImagesGrid(globalImagesData);
+    } catch (error) {
+        console.error("Erro na API do GitHub Imagens:", error);
+        const errorItem = document.createElement('div');
+        errorItem.classList.add('wiki-card', 'warning');
+        errorItem.style.color = '#e74c3c';
+        errorItem.innerHTML = `<p><i class="fas fa-exclamation-triangle"></i> Erro ao carregar imagens: ${error.message}</p>`;
+        imagesGridContainer.appendChild(errorItem);
+    } finally {
+        imagesLoadingIndicator.style.display = 'none';
+    }
+}
+
+
+//========================================================================
 // LÓGICA DE BUSCA GLOBAL E INICIALIZAÇÃO
 //========================================================================
 
@@ -405,22 +698,48 @@ function handleSearch() {
     const searchTerm = mainSearchInput.value.trim();
     const activeTab = document.querySelector('.tab-button.active').getAttribute('data-tab');
     
-    if (searchTerm === '') {
-        if (activeTab === 'wiki') {
+    if (activeTab === 'wiki') {
+        if (searchTerm === '') {
             renderWikiCards(globalWikiLoadedArticles, true);
             updateLoadMoreButtonVisibility();
-        } else if (activeTab === 'sites') {
-            const activeTagButton = document.querySelector('#sites-filter-container .topic-button.active');
-            const activeTag = activeTagButton ? activeTagButton.getAttribute('data-tag') : 'all';
-            filterSitesByTag(activeTag); 
+        } else {
+             searchWikiContent(searchTerm);
         }
         return;
     }
 
-    if (activeTab === 'wiki') {
-        searchWikiContent(searchTerm);
-    } else if (activeTab === 'sites') {
-        searchSitesContent(searchTerm);
+    if (activeTab === 'sites') {
+        if (searchTerm === '') {
+            const activeTagButton = document.querySelector('#sites-filter-container .topic-button.active');
+            const activeTag = activeTagButton ? activeTagButton.getAttribute('data-tag') : 'all';
+            filterSitesByTag(activeTag); 
+        } else {
+             searchSitesContent(searchTerm);
+        }
+        return;
+    }
+    
+     if (activeTab === 'quotes') {
+        if (searchTerm === '') {
+            const activeTagButton = document.querySelector('#quotes-filter-container .topic-button.active');
+            const activeTag = activeTagButton ? activeTagButton.getAttribute('data-tag') : 'all';
+            filterQuotesByTag(activeTag); 
+        } else {
+             searchQuotesContent(searchTerm);
+        }
+        return;
+    }
+    
+    // NOVO: LÓGICA DA ABA IMAGENS
+    if (activeTab === 'images') {
+        if (searchTerm === '') {
+            const activeTagButton = document.querySelector('#images-filter-container .topic-button.active');
+            const activeTag = activeTagButton ? activeTagButton.getAttribute('data-tag') : 'all';
+            filterImagesByTag(activeTag); 
+        } else {
+             searchImagesContent(searchTerm);
+        }
+        return;
     }
 }
 
@@ -441,7 +760,11 @@ function closeSidebar() {
 }
 
 function setupSidebarEvents() {
-    menuToggleBtn.addEventListener('click', openSidebar);
+    // Verificação adicionada: certifique-se de que o menu-toggle-btn exista no seu HTML
+    const menuToggleBtn = document.getElementById('menu-toggle-btn');
+    if (menuToggleBtn) {
+        menuToggleBtn.addEventListener('click', openSidebar);
+    }
     closeSidebarBtn.addEventListener('click', closeSidebar);
     overlay.addEventListener('click', closeSidebar);
     document.addEventListener('keydown', (e) => {
@@ -457,12 +780,16 @@ function setupSidebarEvents() {
 function setupTabNavigation() {
     const tabContents = document.querySelectorAll('.tab-content');
 
+    // Configuração inicial para a aba 'wiki'
     const initialTabButton = document.querySelector('[data-tab="wiki"]');
     if (initialTabButton) initialTabButton.classList.add('active');
     document.getElementById('wiki-content').classList.add('active');
-    
+
     loadAndRenderInitialWikiContent('all'); 
+    // Carrega Sites, Quotes e Imagens em background ou na inicialização
     loadAndRenderSites(); 
+    loadAndRenderQuotes(); 
+    loadAndRenderImages(); 
 
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -475,7 +802,23 @@ function setupTabNavigation() {
             document.getElementById(targetTabId + '-content').classList.add('active');
 
             mainSearchInput.value = '';
-            handleSearch(); 
+
+            // Lógica de Carregamento Condicional (Garante que os dados sejam exibidos)
+            if (targetTabId === 'quotes' && globalQuotesData.length > 0) {
+                 renderQuotesList(globalQuotesData); // Apenas renderiza se já carregado
+            } else if (targetTabId === 'sites' && globalSitesData.length > 0) {
+                 renderSitesList(globalSitesData); // Apenas renderiza se já carregado
+            } else if (targetTabId === 'images' && globalImagesData.length > 0) { 
+                 renderImagesGrid(globalImagesData); // Apenas renderiza se já carregado
+            } else if (targetTabId === 'wiki') {
+                 // Garante que o filtro 'Todos' esteja ativo ao voltar para a Wiki sem pesquisa
+                 const activeWikiButton = document.querySelector('#wiki-content .topic-button.active');
+                 if (!activeWikiButton || activeWikiButton.getAttribute('data-topic') === 'all') {
+                     renderWikiCards(globalWikiLoadedArticles, true);
+                 }
+            }
+            
+            handleSearch(); // Para aplicar filtros ou restaurar o estado original após a troca
         });
     });
 }
