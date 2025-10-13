@@ -5,8 +5,10 @@
 const GITHUB_SITES_RAW_URL = "https://raw.githubusercontent.com/Mister-c21/Dados/refs/heads/main/Sites.json"; 
 // **SUBSTITUA** esta URL pela URL RAW do seu arquivo JSON de Quotes no GitHub
 const GITHUB_QUOTES_RAW_URL = "https://raw.githubusercontent.com/Mister-c21/Dados/refs/heads/main/Quotes.json";
-// **NOVO** - URL RAW do seu arquivo JSON de Imagens no GitHub (**ATUALIZE ESTA URL**)
+// **ATUALIZE** - URL RAW do seu arquivo JSON de Imagens no GitHub
 const GITHUB_IMAGES_RAW_URL = "https://raw.githubusercontent.com/Mister-c21/Dados/refs/heads/main/Images.json"; 
+// **NOVO** - URL RAW do seu arquivo JSON de GIFs no GitHub
+const GITHUB_GIFS_RAW_URL = "https://raw.githubusercontent.com/Mister-c21/Dados/refs/heads/main/Gifs.json"; 
 
 // Elementos DOM
 const wikiListContainer = document.getElementById('wiki-list-container'); 
@@ -31,11 +33,17 @@ const imagesGridContainer = document.getElementById('images-grid-container');
 const imagesLoadingIndicator = document.getElementById('images-loading');
 const imagesFilterContainer = document.getElementById('images-filter-container');
 
+// NOVAS VARIÁVEIS DOM PARA GIFS
+const gifsGridContainer = document.getElementById('gifs-grid-container');
+const gifsLoadingIndicator = document.getElementById('gifs-loading');
+const gifsFilterContainer = document.getElementById('gifs-filter-container');
+
 
 // VARIÁVEIS GLOBAIS
 let globalSitesData = []; 
 let globalQuotesData = []; 
 let globalImagesData = []; 
+let globalGifsData = []; // NOVO: Variável global para dados de GIFs
 let globalWikiFullTopicList = []; 
 let globalWikiLoadedArticles = []; 
 let globalWikiTopicCache = {}; 
@@ -400,9 +408,16 @@ async function loadAndRenderSites() {
         }
         const sitesData = await response.json();
         if (!Array.isArray(sitesData)) {
-            throw new Error("O JSON de Sites do GitHub não está no formato de lista (Array).");
+            // Suporte a JSON aninhado (Exemplo: { "sites": [...] })
+            const sitesArray = sitesData.sites || Object.values(sitesData)[0];
+             if (!Array.isArray(sitesArray)) {
+                throw new Error("O JSON de Sites do GitHub não está no formato de lista (Array).");
+             }
+             globalSitesData = sitesArray;
+        } else {
+            globalSitesData = sitesData;
         }
-        globalSitesData = sitesData;
+        
         setupSitesFilters(globalSitesData);
         renderSitesList(globalSitesData);
     } catch (error) {
@@ -535,9 +550,16 @@ async function loadAndRenderQuotes() {
         }
         const quotesData = await response.json();
         if (!Array.isArray(quotesData)) {
-            throw new Error("O JSON de Quotes do GitHub não está no formato de lista (Array).");
+            // Suporte a JSON aninhado (Exemplo: { "quotes": [...] })
+            const quotesArray = quotesData.quotes || Object.values(quotesData)[0];
+            if (!Array.isArray(quotesArray)) {
+                throw new Error("O JSON de Quotes do GitHub não está no formato de lista (Array).");
+            }
+            globalQuotesData = quotesArray;
+        } else {
+            globalQuotesData = quotesData;
         }
-        globalQuotesData = quotesData;
+
         setupQuotesFilters(globalQuotesData);
         renderQuotesList(globalQuotesData);
     } catch (error) {
@@ -554,7 +576,7 @@ async function loadAndRenderQuotes() {
 
 
 //========================================================================
-// LÓGICA DA ABA IMAGENS (NOVA SEÇÃO)
+// LÓGICA DA ABA IMAGENS 
 //========================================================================
 
 function renderImagesGrid(images) {
@@ -672,9 +694,16 @@ async function loadAndRenderImages() {
         }
         const imagesData = await response.json();
         if (!Array.isArray(imagesData)) {
-            throw new Error("O JSON de Imagens do GitHub não está no formato de lista (Array).");
+            // Suporte a JSON aninhado (Exemplo: { "images": [...] })
+            const imagesArray = imagesData.images || Object.values(imagesData)[0];
+            if (!Array.isArray(imagesArray)) {
+                throw new Error("O JSON de Imagens do GitHub não está no formato de lista (Array).");
+            }
+            globalImagesData = imagesArray;
+        } else {
+            globalImagesData = imagesData;
         }
-        globalImagesData = imagesData;
+
         setupImagesFilters(globalImagesData);
         renderImagesGrid(globalImagesData);
     } catch (error) {
@@ -686,6 +715,158 @@ async function loadAndRenderImages() {
         imagesGridContainer.appendChild(errorItem);
     } finally {
         imagesLoadingIndicator.style.display = 'none';
+    }
+}
+
+//========================================================================
+// LÓGICA DA ABA GIFS (COM CORREÇÃO PARA JSON ANINHADO)
+//========================================================================
+
+function renderGifsGrid(gifs) {
+    gifsGridContainer.innerHTML = '';
+    if (gifs.length === 0) {
+        gifsGridContainer.innerHTML = `
+            <div class="wiki-card" style="text-align: center; grid-column: 1 / -1; color: var(--accent-color);">
+                <i class="fas fa-info-circle"></i> Nenhum GIF encontrado para a busca ou filtro atual.
+            </div>
+        `;
+        return;
+    }
+    
+    gifs.forEach(gif => {
+        const url = gif.url || '';
+        // Prioriza 'titulo' e usa 'descricao' como fallback para o texto
+        const title = gif.titulo || gif.descricao || 'GIF Animado'; 
+
+        const gifCard = document.createElement('a');
+        gifCard.classList.add('image-card'); // Reutiliza o estilo de card de imagem
+        gifCard.href = url; 
+        gifCard.target = "_blank";
+        
+        gifCard.innerHTML = `
+            <div class="image-card-wrapper">
+                <img src="${url}" alt="${title}">
+            </div>
+            <div class="image-info">${title}</div>
+        `;
+        gifsGridContainer.appendChild(gifCard);
+    });
+}
+
+function filterGifsByTag(tag) {
+    mainSearchInput.value = ''; 
+    gifsFilterContainer.querySelectorAll('.topic-button').forEach(btn => btn.classList.remove('active'));
+    
+    const activeBtn = document.querySelector(`#gifs-filter-container .topic-button[data-tag="${tag}"]`);
+    if(activeBtn) {
+        activeBtn.classList.add('active');
+    }
+
+    if (tag === 'all') {
+        renderGifsGrid(globalGifsData);
+    } else {
+        const filteredGifs = globalGifsData.filter(gif => 
+            // Filtra por tags OU pela categoria (que é uma string, não um array)
+            (gif.tags && gif.tags.includes(tag)) || 
+            (gif.categoria && gif.categoria.toLowerCase() === tag)
+        );
+        renderGifsGrid(filteredGifs);
+    }
+}
+
+function searchGifsContent(term) {
+    const lowerCaseTerm = term.toLowerCase();
+    gifsFilterContainer.querySelectorAll('.topic-button').forEach(btn => {
+        const tag = btn.getAttribute('data-tag');
+        if (tag !== 'all') {
+            btn.classList.remove('active');
+        } else {
+            btn.classList.add('active'); 
+        }
+    });
+
+    if (lowerCaseTerm === '') {
+        renderGifsGrid(globalGifsData); 
+        return;
+    }
+
+    const filteredGifs = globalGifsData.filter(gif => {
+        const titleMatch = (gif.titulo || '').toLowerCase().includes(lowerCaseTerm);
+        const descriptionMatch = (gif.descricao || '').toLowerCase().includes(lowerCaseTerm);
+        const categoryMatch = (gif.categoria || '').toLowerCase().includes(lowerCaseTerm);
+        const tagsMatch = (gif.tags || []).some(tag => tag.toLowerCase().includes(lowerCaseTerm));
+        return titleMatch || tagsMatch || descriptionMatch || categoryMatch;
+    });
+    renderGifsGrid(filteredGifs);
+}
+
+function setupGifsFilters(data) {
+    const allTags = new Set();
+    data.forEach(gif => {
+        // Usa 'categoria' como tag
+        if (gif.categoria) allTags.add(gif.categoria.toLowerCase());
+        // Usa 'tags' do array
+        if (gif.tags && Array.isArray(gif.tags)) {
+            gif.tags.forEach(tag => allTags.add(tag.toLowerCase()));
+        }
+    });
+    const sortedTags = Array.from(allTags).sort();
+    gifsFilterContainer.innerHTML = '';
+    const allButton = document.createElement('button');
+    allButton.classList.add('topic-button', 'active');
+    allButton.setAttribute('data-tag', 'all');
+    allButton.textContent = 'Todos';
+    gifsFilterContainer.appendChild(allButton);
+    sortedTags.forEach(tag => {
+        const tagButton = document.createElement('button');
+        tagButton.classList.add('topic-button');
+        tagButton.setAttribute('data-tag', tag);
+        tagButton.textContent = tag.charAt(0).toUpperCase() + tag.slice(1); 
+        gifsFilterContainer.appendChild(tagButton);
+    });
+    gifsFilterContainer.querySelectorAll('.topic-button').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const selectedTag = e.currentTarget.getAttribute('data-tag');
+            filterGifsByTag(selectedTag);
+        });
+    });
+}
+
+async function loadAndRenderGifs() {
+    gifsGridContainer.innerHTML = '';
+    gifsLoadingIndicator.style.display = 'block';
+    gifsFilterContainer.innerHTML = '';
+    try {
+        const response = await fetch(GITHUB_GIFS_RAW_URL); 
+        if (!response.ok) {
+            throw new Error(`Erro ao carregar o JSON de GIFs do GitHub. Status: ${response.status}. Verifique a URL RAW.`);
+        }
+        
+        const gifsObject = await response.json();
+        let gifsData = [];
+        
+        // CORREÇÃO: Acessa o array dentro da chave 'gifs' (suporta a estrutura aninhada)
+        if (gifsObject && Array.isArray(gifsObject.gifs)) {
+            gifsData = gifsObject.gifs;
+        } else if (Array.isArray(gifsObject)) {
+             // Caso a URL tenha mudado para o formato de array (ótimo!)
+            gifsData = gifsObject;
+        } else {
+            throw new Error("O JSON de GIFs do GitHub não está no formato de lista (Array) ou não possui a chave 'gifs'.");
+        }
+        
+        globalGifsData = gifsData;
+        setupGifsFilters(globalGifsData);
+        renderGifsGrid(globalGifsData);
+    } catch (error) {
+        console.error("Erro na API do GitHub GIFs:", error);
+        const errorItem = document.createElement('div');
+        errorItem.classList.add('wiki-card', 'warning');
+        errorItem.style.color = '#e74c3c';
+        errorItem.innerHTML = `<p><i class="fas fa-exclamation-triangle"></i> Erro ao carregar GIFs: ${error.message}</p>`;
+        gifsGridContainer.appendChild(errorItem);
+    } finally {
+        gifsLoadingIndicator.style.display = 'none';
     }
 }
 
@@ -730,7 +911,7 @@ function handleSearch() {
         return;
     }
     
-    // NOVO: LÓGICA DA ABA IMAGENS
+    // LÓGICA DA ABA IMAGENS
     if (activeTab === 'images') {
         if (searchTerm === '') {
             const activeTagButton = document.querySelector('#images-filter-container .topic-button.active');
@@ -741,23 +922,28 @@ function handleSearch() {
         }
         return;
     }
+    
+    // LÓGICA DA ABA GIFS
+    if (activeTab === 'gifs') {
+        if (searchTerm === '') {
+            const activeTagButton = document.querySelector('#gifs-filter-container .topic-button.active');
+            const activeTag = activeTagButton ? activeTagButton.getAttribute('data-tag') : 'all';
+            filterGifsByTag(activeTag); 
+        } else {
+             searchGifsContent(searchTerm);
+        }
+        return;
+    }
 }
 
 function setupSearch() {
     mainSearchInput.addEventListener('input', handleSearch);
 }
 
-//========================================================================
-// LÓGICA DE SIDEBAR: DESKTOP vs MOBILE (NOVO)
-//========================================================================
-
 function openSidebar() {
-    // Só abre e aplica overflow:hidden no mobile (< 768px, conforme CSS)
-    if (window.innerWidth < 768) { 
-        sidebar.classList.add('open');
-        overlay.style.display = 'block';
-        document.body.style.overflow = 'hidden';
-    }
+    sidebar.classList.add('open');
+    overlay.style.display = 'block';
+    document.body.style.overflow = 'hidden';
 }
 
 function closeSidebar() {
@@ -766,55 +952,22 @@ function closeSidebar() {
     document.body.style.overflow = 'auto';
 }
 
-function checkDesktopAndInit() {
-    // Se a tela for desktop (>= 768px), o CSS já garante que a sidebar está aberta.
-    if (window.innerWidth >= 768) {
-        // No desktop, garantimos que os estados de mobile sejam desativados.
-        sidebar.classList.remove('open'); 
-        overlay.style.display = 'none';
-        document.body.style.overflow = 'auto'; // Garante que o scroll não seja bloqueado
-    } else {
-        // No mobile, garante que a sidebar comece fechada (por padrão no CSS).
-        sidebar.classList.remove('open');
-        overlay.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    }
-}
-
 function setupSidebarEvents() {
-    // Use o ID do novo botão de menu adicionado no HTML
-    const menuToggleBtn = document.getElementById('menu-toggle-btn'); 
-    
+    const menuToggleBtn = document.getElementById('menu-toggle-btn');
     if (menuToggleBtn) {
         menuToggleBtn.addEventListener('click', openSidebar);
     }
-    
     closeSidebarBtn.addEventListener('click', closeSidebar);
     overlay.addEventListener('click', closeSidebar);
-    
-    // Fecha a sidebar ao pressionar ESC (apenas no mobile)
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && sidebar.classList.contains('open') && window.innerWidth < 768) {
+        if (e.key === 'Escape' && sidebar.classList.contains('open')) {
             closeSidebar();
         }
     });
-    
-    // Fecha a sidebar ao clicar em um link (apenas se estiver aberta, ou seja, no mobile)
     sidebar.querySelectorAll('.sidebar-nav a').forEach(link => {
-        link.addEventListener('click', () => {
-            if (window.innerWidth < 768) {
-                 closeSidebar();
-            }
-        });
+        link.addEventListener('click', closeSidebar);
     });
-    
-    // NOVO: Adiciona a verificação de estado inicial e a escuta para redimensionamento
-    checkDesktopAndInit();
-    window.addEventListener('resize', checkDesktopAndInit);
 }
-
-// FIM LÓGICA SIDEBAR
-//========================================================================
 
 function setupTabNavigation() {
     const tabContents = document.querySelectorAll('.tab-content');
@@ -825,10 +978,11 @@ function setupTabNavigation() {
     document.getElementById('wiki-content').classList.add('active');
 
     loadAndRenderInitialWikiContent('all'); 
-    // Carrega Sites, Quotes e Imagens em background ou na inicialização
+    // Carrega Sites, Quotes, Imagens e GIFS em background ou na inicialização
     loadAndRenderSites(); 
     loadAndRenderQuotes(); 
     loadAndRenderImages(); 
+    loadAndRenderGifs(); // NOVO: Carrega os GIFs
 
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -849,6 +1003,8 @@ function setupTabNavigation() {
                  renderSitesList(globalSitesData); // Apenas renderiza se já carregado
             } else if (targetTabId === 'images' && globalImagesData.length > 0) { 
                  renderImagesGrid(globalImagesData); // Apenas renderiza se já carregado
+            } else if (targetTabId === 'gifs' && globalGifsData.length > 0) { 
+                 renderGifsGrid(globalGifsData); // Apenas renderiza se já carregado
             } else if (targetTabId === 'wiki') {
                  // Garante que o filtro 'Todos' esteja ativo ao voltar para a Wiki sem pesquisa
                  const activeWikiButton = document.querySelector('#wiki-content .topic-button.active');
