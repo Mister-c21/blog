@@ -43,15 +43,74 @@ const gifsFilterContainer = document.getElementById('gifs-filter-container');
 let globalSitesData = []; 
 let globalQuotesData = []; 
 let globalImagesData = []; 
-let globalGifsData = []; // NOVO: Variável global para dados de GIFs
+let globalGifsData = []; 
 let globalWikiFullTopicList = []; 
 let globalWikiLoadedArticles = []; 
 let globalWikiTopicCache = {}; 
 let currentWikiArticleIndex = 0; 
 
 // CONSTANTES DE PAGINAÇÃO
-const INITIAL_LOAD_COUNT = 15; // Número inicial de artigos
-const LOAD_INCREMENT = 12; // Número de artigos a carregar por clique
+const INITIAL_LOAD_COUNT = 15; 
+const LOAD_INCREMENT = 12; 
+
+//========================================================================
+// FUNÇÕES DE UTILIDADE PARA UX
+//========================================================================
+
+function isDesktop() {
+    // Retorna true se a largura da tela for maior ou igual a 1024px
+    return window.matchMedia("(min-width: 1024px)").matches;
+}
+
+function openSidebar() {
+    // Abrir apenas se não for desktop
+    if (!isDesktop()) {
+        sidebar.classList.add('open');
+        overlay.style.display = 'block';
+        document.body.style.overflow = 'hidden'; // Impede o scroll do corpo da página
+    }
+}
+
+function closeSidebar() {
+    // Fechar apenas se não for desktop
+    if (!isDesktop()) {
+        sidebar.classList.remove('open');
+        overlay.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
+function setupSidebarEvents() {
+    const menuToggleBtn = document.getElementById('menu-toggle-btn');
+    if (menuToggleBtn) {
+        // O ícone de menu só é visível no mobile/tablet
+        menuToggleBtn.addEventListener('click', openSidebar);
+    }
+    closeSidebarBtn.addEventListener('click', closeSidebar);
+    overlay.addEventListener('click', closeSidebar);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && sidebar.classList.contains('open') && !isDesktop()) {
+            closeSidebar();
+        }
+    });
+    sidebar.querySelectorAll('.sidebar-nav a').forEach(link => {
+        // No mobile, fechar o menu ao clicar em um link
+        link.addEventListener('click', () => {
+             if (!isDesktop()) closeSidebar();
+        });
+    });
+    
+    // Lida com a transição entre mobile e desktop
+    window.addEventListener('resize', () => {
+        if (isDesktop()) {
+            // Garante que a classe 'open' seja removida se o usuário redimensionar
+            sidebar.classList.remove('open');
+            overlay.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+    });
+}
+
 
 //========================================================================
 // WIKIPÉDIA: LISTAS EXPANDIDAS E PAGINAÇÃO 
@@ -159,7 +218,7 @@ function renderWikiCards(articles, clear = true) {
              // Se houve falha e não estamos em modo de busca, mostra o aviso
              if (validArticles.length < articlesToCheck.length && articlesToCheck.length > 0) {
                 const warning = document.createElement('div');
-                warning.classList.add('wiki-card', 'warning'); // Aplica a classe CSS para o estilo BlueViolet/Aviso
+                warning.classList.add('wiki-card', 'warning'); 
                 warning.innerHTML = `<p><i class="fas fa-exclamation-triangle"></i> **Aviso:** O carregamento inicial de **${articlesToCheck.length}** artigos foi concluído. Alguns tópicos podem não ter resumo. Clique em **"Carregar Mais"** para os artigos restantes.</p>`;
                 wikiListContainer.appendChild(warning);
             }
@@ -597,7 +656,7 @@ function renderImagesGrid(images) {
 
         const imageCard = document.createElement('a');
         imageCard.classList.add('image-card');
-        imageCard.href = url; // Abre a imagem em tela cheia ao clicar
+        imageCard.href = url; 
         imageCard.target = "_blank";
         
         // Estrutura para manter a proporção e exibir a imagem
@@ -940,34 +999,6 @@ function setupSearch() {
     mainSearchInput.addEventListener('input', handleSearch);
 }
 
-function openSidebar() {
-    sidebar.classList.add('open');
-    overlay.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeSidebar() {
-    sidebar.classList.remove('open');
-    overlay.style.display = 'none';
-    document.body.style.overflow = 'auto';
-}
-
-function setupSidebarEvents() {
-    const menuToggleBtn = document.getElementById('menu-toggle-btn');
-    if (menuToggleBtn) {
-        menuToggleBtn.addEventListener('click', openSidebar);
-    }
-    closeSidebarBtn.addEventListener('click', closeSidebar);
-    overlay.addEventListener('click', closeSidebar);
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && sidebar.classList.contains('open')) {
-            closeSidebar();
-        }
-    });
-    sidebar.querySelectorAll('.sidebar-nav a').forEach(link => {
-        link.addEventListener('click', closeSidebar);
-    });
-}
 
 function setupTabNavigation() {
     const tabContents = document.querySelectorAll('.tab-content');
@@ -982,7 +1013,7 @@ function setupTabNavigation() {
     loadAndRenderSites(); 
     loadAndRenderQuotes(); 
     loadAndRenderImages(); 
-    loadAndRenderGifs(); // NOVO: Carrega os GIFs
+    loadAndRenderGifs(); 
 
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -998,13 +1029,13 @@ function setupTabNavigation() {
 
             // Lógica de Carregamento Condicional (Garante que os dados sejam exibidos)
             if (targetTabId === 'quotes' && globalQuotesData.length > 0) {
-                 renderQuotesList(globalQuotesData); // Apenas renderiza se já carregado
+                 renderQuotesList(globalQuotesData); 
             } else if (targetTabId === 'sites' && globalSitesData.length > 0) {
-                 renderSitesList(globalSitesData); // Apenas renderiza se já carregado
+                 renderSitesList(globalSitesData); 
             } else if (targetTabId === 'images' && globalImagesData.length > 0) { 
-                 renderImagesGrid(globalImagesData); // Apenas renderiza se já carregado
+                 renderImagesGrid(globalImagesData); 
             } else if (targetTabId === 'gifs' && globalGifsData.length > 0) { 
-                 renderGifsGrid(globalGifsData); // Apenas renderiza se já carregado
+                 renderGifsGrid(globalGifsData); 
             } else if (targetTabId === 'wiki') {
                  // Garante que o filtro 'Todos' esteja ativo ao voltar para a Wiki sem pesquisa
                  const activeWikiButton = document.querySelector('#wiki-content .topic-button.active');
