@@ -183,7 +183,7 @@ searchBar.addEventListener('input', () => {
 // =================================================================
 async function loadDataFromGitHub() {
     try {
-        console.log("Tentando carregar dados do GitHub...");
+        console.log("Tentando carregar dados do servidor...");
         // Exibe uma mensagem de carregamento enquanto aguarda a resposta
         contentRowsContainer.innerHTML = '<p style="padding: 100px; text-align: center; color: var(--text-dark);">Carregando dados...</p>';
         
@@ -201,8 +201,8 @@ async function loadDataFromGitHub() {
         console.log(`Dados carregados com sucesso: ${data.length} itens.`);
         
     } catch (error) {
-        console.error("Erro ao carregar dados do GitHub. Nenhuma informação será exibida.", error);
-        contentRowsContainer.innerHTML = '<p style="padding: 100px; text-align: center; color: red;">Não foi possível carregar os dados do GitHub. Verifique a URL RAW e a conexão.</p>';
+        console.error("Erro ao carregar dados do Servidor. Nenhuma informação será exibida.", error);
+        contentRowsContainer.innerHTML = '<p style="padding: 100px; text-align: center; color: red;">Não foi possível carregar os dados do Servidor. Verifique a sua conexão.</p>';
         // Limpa 'data' em caso de falha para evitar erros de renderização com dados incompletos.
         data = []; 
     }
