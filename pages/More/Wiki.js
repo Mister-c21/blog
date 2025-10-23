@@ -22,7 +22,7 @@ let currentFilter = 'all';
 const SUBTHEMES_MAP = {
     'series': ['Fantasia Épica', 'Terror & Suspense', 'Dramas Policiais Premiados', 'Comédias Sitcom Clássicas', 'Ficção Científica Distópica'],
     'filmes': ['Ficção Científica', 'Comédias Irreverentes', 'Aventura e Família'],
-    'jogos': ['RPGs de Ação em Destaque', 'Aventura Narrativa', 'E-Sports e FPS Competitivos','Metroidvania de Ação e Aventura'],
+    'jogos': ['RPGs de Ação em Destaque', 'Aventura Narrativa', 'E-Sports e FPS Competitivos','Metroidvania'],
     'musicas': ['Rock Clássico e Grunge', 'Pop Internacional', 'Sertanejo Universitário'],
     'anime': ['Animes Shonen Populares', 'Animes de Fantasia e Magia'], 
     'cartoon': ['Animação para Adultos', 'Desenhos Clássicos da Manhã'] 
