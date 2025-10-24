@@ -1,3 +1,5 @@
+export const Data_Quiz = [
+
 {
     "solo-leveling": {
         "card_title": "Solo Leveling",
@@ -285,3 +287,4 @@
         ]
     }
 }
+]
