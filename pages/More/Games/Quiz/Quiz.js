@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // O arquivo deve estar na mesma pasta do seu HTML.
     // Se estivesse em uma subpasta 'data', seria: 'data/dados.json'
     // =========================================================================
-    const DATA_URL = '../../../../dados.json'; 
+    const DATA_URL = '../../../../Quiz.json'; 
     
     // Variável que irá armazenar os dados do quiz após o fetch
     let quizData = {}; 
