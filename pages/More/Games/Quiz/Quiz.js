@@ -3,7 +3,7 @@
 // =========================================================================
 // === 0. IMPORTAÇÃO DOS DADOS (AGORA VIA ES6 MODULE) ===
 // =========================================================================
-import { DATA_URL } from './Quiz-data.js'; // ⬅️ Importa a URL do arquivo config.js
+import { DATA_URL } from 'Quiz-data.js'; // ⬅️ Importa a URL do arquivo config.js
 
 
 document.addEventListener('DOMContentLoaded', () => {
