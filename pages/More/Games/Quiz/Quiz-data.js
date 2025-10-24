@@ -1,4 +1,4 @@
-//Quiz-data.js//
+// quizData.js
 
 export const DADOS_DO_QUIZ = [
 
