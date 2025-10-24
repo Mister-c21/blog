@@ -3,7 +3,7 @@
 // =================================================================
 // 0. IMPORTAÇÃO DOS DADOS (AGORA VIA ES6 MODULE)
 // =================================================================
-import { DADOS_DA_WIKI } from './Wiki-dados.js'; // ✅ CORREÇÃO: Adicionado './' para path relativo
+import { DADOS_DA_WIKI } from 'Wiki-dados.js'; // ✅ CORREÇÃO: Adicionado './' para path relativo
 
 // =================================================================
 // 1. CONFIGURAÇÃO DE DADOS DINÂMICOS
