@@ -1,525 +1,668 @@
-// =================================================================
-// 1. CONFIGURAÇÃO DE DADOS DINÂMICOS (MANTIDO)
-// =================================================================
-const DATA_SOURCE_URL = 'Wiki.json'; 
-let data = []; 
+// seu-script-principal.js
 
-const contentRowsContainer = document.getElementById('content-rows');
-const navButtons = document.querySelectorAll('.nav-btn');
-const searchBar = document.getElementById('search-bar');
-const modal = document.getElementById('info-modal');
-const closeModalBtn = document.querySelector('.close-btn');
-const modalBody = document.getElementById('modal-body');
+// =========================================================================
+// === 0. IMPORTAÇÃO DOS DADOS (AGORA VIA ES6 MODULE) ===
+// =========================================================================
+import { DATA_URL } from './Quiz-data.js'; // ⬅️ Importa a URL do arquivo config.js
 
-let currentFilter = 'all';
 
-// Mapeamento de Subtemas (MANTIDO)
-const SUBTHEMES_MAP = {
-    'series': ['Fantasia Épica', 'Terror & Suspense', 'Dramas Policiais Premiados', 'Comédias Sitcom Clássicas', 'Ficção Científica Distópica'],
-    'filmes': ['Ficção Científica', 'Comédias Irreverentes', 'Aventura e Família'],
-    'jogos': ['RPGs de Ação em Destaque', 'Aventura Narrativa', 'E-Sports','Metroidvania'],
-    'musicas': ['Rock Clássico e Grunge', 'Pop Internacional', 'Sertanejo Universitário'],
-    'anime': ['Animes Shonen Populares', 'Animes de Fantasia e Magia'], 
-    'cartoon': ['Animação para Adultos', 'Desenhos Clássicos da Manhã'] 
-};
-
-// =================================================================
-// 2. FUNÇÕES DE RENDERIZAÇÃO DOS CARROSSÉIS (MANTIDO) 
-// =================================================================
-
-function createCardHTML(item) {
-    const card = document.createElement('div');
-    card.classList.add('card');
-    card.dataset.id = item.id;
-    card.title = item.title;
-
-    card.innerHTML = `
-        <img src="${item.image}" alt="${item.title}" class="card-image">
-        <div class="card-info">
-            <h3>${item.title}</h3>
-        </div>
-    `;
-    card.addEventListener('click', () => openModal(item));
-    return card;
-}
-
-function createRowContainer(title, items) {
-    const rowContainer = document.createElement('section');
-    rowContainer.classList.add('category-row');
+document.addEventListener('DOMContentLoaded', () => {
     
-    rowContainer.innerHTML = `<h2 class="row-title">${title}</h2>`;
-    
-    const cardsList = document.createElement('div');
-    cardsList.classList.add('cards-list');
-    
-    items.forEach(item => {
-        cardsList.appendChild(createCardHTML(item));
-    });
-    
-    rowContainer.appendChild(cardsList);
-    return rowContainer;
-}
+    // Variável que irá armazenar os dados do quiz após o fetch
+    let quizData = {}; 
 
-function renderThemedRows(category, dataList) {
-    contentRowsContainer.innerHTML = '';
+    // === Elementos da Página Principal ===
+    const tabsList = document.getElementById('tabs-list');
+    const searchInput = document.getElementById('search-input');
+    const cardsGrid = document.getElementById('cards-grid');
     
-    const categoryData = dataList.filter(item => item.category === category);
-    const subthemes = SUBTHEMES_MAP[category] || [];
+    let cardItems = []; 
+    let playButtons = [];
+
+    // === Elementos do Modal do Quiz ===
+    const quizModal = document.getElementById('quiz-modal');
+    const closeModalButton = document.querySelector('.close-modal-button');
+    const quizArea = document.querySelector('.quiz-area');
+    const quizQuestionText = document.getElementById('quiz-question-text');
+    const currentQuestionNumber = document.getElementById('current-question-number');
+    const currentScoreDisplay = document.getElementById('current-score'); 
+    const quizOptionsContainer = document.getElementById('quiz-options-container');
+    const quizFeedback = document.getElementById('quiz-feedback');
+    const quizNextButton = document.getElementById('quiz-next-button');
+    const quizResultsArea = document.getElementById('quiz-results-area');
+    const quizFinalScore = document.getElementById('quiz-final-score');
+    const restartQuizButton = document.getElementById('restart-quiz-button');
+    const backToThemesButton = document.getElementById('back-to-themes-button');
     
-    if (subthemes.length === 0) {
-        contentRowsContainer.innerHTML = `<p style="padding: 50px; text-align: center; color: var(--text-dark);">Nenhum subtema definido para ${category.toUpperCase()}.</p>`;
-        return;
-    }
+    // === Elementos Vidas e GIF ===
+    const lifeContainer = document.getElementById('life-container');
+    const quizBackgroundGif = document.getElementById('quiz-background-gif');
     
-    subthemes.forEach((subthemeTitle) => {
-        let itemsForCarousel = categoryData.filter(item => item.subtheme === subthemeTitle);
-        
-        if (itemsForCarousel.length >= 3) {
-            const shuffledItems = itemsForCarousel.sort(() => 0.5 - Math.random()).slice(0, 10); 
-            const rowContainer = createRowContainer(subthemeTitle, shuffledItems);
-            contentRowsContainer.appendChild(rowContainer);
-        } else if (itemsForCarousel.length > 0) {
-            const rowContainer = createRowContainer(subthemeTitle + ' (Destaques)', itemsForCarousel);
-            contentRowsContainer.appendChild(rowContainer);
-        }
-    });
-}
+    // === Variáveis de Controle e Configuração ===
+    const MAX_QUESTIONS_PER_QUIZ = 15; // Mantido aqui como uma constante local
+    let currentQuizQuestions = [];   
+    let questionsAttempted = [];     
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let lives = 3; 
+    let quizActive = false;
+    let animationFrame; 
+    let activeQuizThemeId = ''; 
+    let startTime;                   
+    let currentDifficulty = 1;       
+    let TIME_PER_QUESTION = 15;      
+    let timeLeft = TIME_PER_QUESTION;
 
-function groupDataByCategory(dataList) {
-    const groups = dataList.reduce((acc, item) => {
-        const category = item.category;
-        if (!acc[category]) {
-            acc[category] = [];
-        }
-        acc[category].push(item);
-        return acc;
-    }, {});
-    
-    const categoriesOrder = ['series', 'filmes', 'jogos', 'musicas', 'anime', 'cartoon']; 
-    const rows = categoriesOrder.map(category => ({
-        title: category.charAt(0).toUpperCase() + category.slice(1), 
-        category: category,
-        items: groups[category] || []
-    }));
-    
-    return rows.filter(row => row.items.length > 0);
-}
-
-function renderRowsStandard(dataToRender) {
-    contentRowsContainer.innerHTML = '';
-    
-    if (dataToRender.length === 0) {
-        contentRowsContainer.innerHTML = '<p style="padding: 50px; text-align: center; color: var(--text-dark);">Nenhum item encontrado.</p>';
-        return;
-    }
-
-    const groupedData = groupDataByCategory(dataToRender);
-    
-    groupedData.forEach(row => {
-        if (row.items.length > 0) {
-            const shuffledItems = row.items.sort(() => 0.5 - Math.random());
-            contentRowsContainer.appendChild(createRowContainer(row.title + ' em Destaque', shuffledItems));
-        }
-    });
-}
-
-// =================================================================
-// 3. LÓGICA DE FILTRO E BUSCA PRINCIPAL (MANTIDO)
-// =================================================================
-
-function applyFiltersAndSearch() {
-    // Garante que 'data' foi carregado antes de tentar filtrar
-    if (data.length === 0) {
-        // Se a busca falhou ou está vazia, sai da função.
-        // A mensagem de erro ou carregamento já deve estar na tela.
-        return; 
-    }
-    
-    const searchText = searchBar.value.toLowerCase().trim();
-    
-    if (searchText.length > 0) {
-        const filteredData = data.filter(item => {
-            return item.title.toLowerCase().includes(searchText) || 
-                   item.description.toLowerCase().includes(searchText) ||
-                   item.category.toLowerCase().includes(searchText);
-        });
-        
-        renderRowsStandard(filteredData);
-        return;
-    }
-
-    if (currentFilter === 'all') {
-        renderRowsStandard(data);
-    } else {
-        renderThemedRows(currentFilter, data);
-    }
-}
-
-// OS EVENT LISTENERS FORAM MOVIDOS PARA A FUNÇÃO initApp() ABAIXO
-// para garantir que applyFiltersAndSearch() tenha acesso aos dados.
-
-
-// =================================================================
-// 4. FUNÇÃO DE CARREGAMENTO DE DADOS (AJUSTADA)
-// =================================================================
-async function loadData() {
-    console.log(`Buscando dados da URL local: ${DATA_SOURCE_URL}...`);
-    // Exibe uma mensagem de carregamento enquanto aguarda a resposta
-    contentRowsContainer.innerHTML = '<p style="padding: 100px; text-align: center; color: var(--text-dark);">Carregando dados...</p>';
-    
-    try {
-        const response = await fetch(DATA_SOURCE_URL);
-        
-        if (!response.ok) {
-            // Se o status HTTP não for 200-299, lança um erro
-            throw new Error(`Erro HTTP! Status: ${response.status}. Arquivo JSON não encontrado ou problema de servidor local.`);
-        }
-        
-        const fetchedData = await response.json();
-        
-        // Popula a variável global 'data' com os dados
-        data = fetchedData; 
-        console.log(`Dados carregados com sucesso: ${data.length} itens.`);
-        
-        // SUCESSO: Renderiza o conteúdo inicial
-        applyFiltersAndSearch();
-        
-    } catch (error) {
-        console.error("Falha ao carregar dados. Nenhuma informação será exibida.", error);
-        contentRowsContainer.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 50px; font-size: 1.2rem; color: #D0021B;"><i class="fa-solid fa-circle-exclamation"></i> Falha ao carregar dados! <p style="font-size: 0.9rem; margin-top: 10px;">Verifique o nome do arquivo **Wiki.json** e se você está usando um **servidor local** (ex: Live Server do VS Code).</p>';
-        // Limpa 'data' em caso de falha.
-        data = []; 
-        
-        // Opcional: Se a falha ocorreu e a renderização inicial não rodou, podemos rodar
-        // uma versão da busca que vai cair no if (data.length === 0) e renderizar a mensagem de erro.
-        // applyFiltersAndSearch(); 
-    }
-}
-
-// =================================================================
-// 5. WIKIPEDIA API & COMPONENTES DO MODAL (MANTIDO)
-// =================================================================
-
-async function fetchWikipediaArticles(query, limit = 5) {
-    const API_URL = 'https://pt.wikipedia.org/w/api.php';
-    const params = {
-        action: 'query',
-        list: 'search',
-        srsearch: query,
-        srlimit: limit,
-        format: 'json',
-        srwhat: 'text', 
-        srprop: 'snippet|timestamp', 
-        origin: '*' 
+    const ADAPTIVE_CONFIG = {
+        EASY: { id: 1, maxTime: 15, avgReactionGoal: 3000 },  
+        MEDIUM: { id: 2, maxTime: 10, avgReactionGoal: 2000 }, 
+        HARD: { id: 3, maxTime: 7, avgReactionGoal: 1500 },    
+        CHECK_INTERVAL: 5,                                 
+        WIN_RATE_THRESHOLD: 0.8,                           
+        LOSE_RATE_THRESHOLD: 0.5,                          
+        REACTION_BONUS_THRESHOLD: 500,                     
+        REACTION_PENALTY_THRESHOLD: 1000                   
     };
-
-    const url = new URL(API_URL);
-    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-
-    try {
-        const response = await fetch(url.toString());
-        if (!response.ok) {
-            throw new Error(`Erro de rede: ${response.status}`);
-        }
-        const data = await response.json();
-        
-        return data.query && data.query.search ? data.query.search : [];
-    } catch (error) {
-        console.error('Erro ao buscar artigos da Wikipedia:', error);
-        return [];
-    }
-}
-
-function createWikipediaPreviewsHTML(itemTitle) {
-    return `
-        <div class="wikipedia-box">
-            <h3>Artigos Relacionados (Wikipedia)</h3>
-            <div id="wikipedia-previews-container" class="wikipedia-previews-container">
-                <p style="padding: 10px; flex-shrink: 0; color: var(--text-dark);">Carregando artigos relacionados a <strong>${itemTitle}</strong>...</p>
-            </div>
-            <p style="font-size: 0.8em; margin-top: 10px;">Busca por: <strong>${itemTitle}</strong></p>
-        </div>
-    `;
-}
-
-function createCastListHTML(castArray) {
-    if (!Array.isArray(castArray) || castArray.length === 0) {
-        return '<p>Informação do elenco indisponível.</p>';
-    }
-
-    const castItems = castArray.map(member => `
-        <div class="cast-member" title="${member.name}">
-            <img src="${member.img}" alt="${member.name}" class="cast-photo">
-            <span class="cast-name">${member.name.split(' ')[0]}</span>
-        </div>
-    `).join('');
-
-    return `<div class="cast-list-container">${castItems}</div>`;
-}
-
-function createSpotifyPlayerHTML(item) {
-    if (!item.spotifyEmbedUrl || item.spotifyEmbedUrl.includes('googleusercontent.com')) {
-        // Se a URL ainda for um placeholder ou estiver faltando.
-        return ''; 
-    }
     
-    const iframeSrc = item.spotifyEmbedUrl;
-
-    const iframeHTML = `
-        <iframe 
-            data-testid="embed-iframe" 
-            style="border-radius:12px" 
-            src="${iframeSrc}" 
-            width="100%" 
-            height="352" 
-            frameBorder="0" 
-            allowfullscreen="" 
-            allow="autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-            loading="lazy">
-        </iframe>
-    `;
-
-    return `
-        <div class="spotify-section">
-            <h3>Trilha Sonora Oficial (Embed)</h3>
-            <div class="spotify-player-container">
-                ${iframeHTML}
-            </div>
-        </div>
-    `;
-}
-
-function createRelatedSitesHTML(sitesArray) {
-    if (!sitesArray || sitesArray.length === 0) {
-        return '';
-    }
-
-    const sitesListHTML = sitesArray.map(site => `
-        <a href="${site.url}" target="_blank" class="site-link-item" title="Acessar ${site.name}">
-            <i class="fas fa-link"></i> 
-            <div class="site-info">
-                <strong>${site.name}</strong>
-                <span>Tipo: ${site.type}</span>
-            </div>
-            <i class="fas fa-chevron-right"></i>
-        </a>
-    `).join('');
-
-    return `
-        <div class="related-sites-section">
-            <h4>Sites e Referências Relacionadas</h4>
-            <div>
-                ${sitesListHTML}
-            </div>
-        </div>
-    `;
-}
-
-function createTrailerCarrosselHTML(trailers) {
-    if (!trailers || trailers.length === 0) {
-        return '<div><h3 class="trailer-title">Trailer Oficial</h3><p>Trailer indisponível.</p></div>';
-    }
-
-    const defaultTrailerUrl = trailers[0].url;
+    const DIFFICULTY_NAMES = { 1: 'Fácil', 2: 'Médio', 3: 'Difícil', 4: 'Expert' };
+    const MAX_DIFFICULTY_NAMES = { 1: 'Fácil', 2: 'Médio', 3: 'Difícil', 4: 'Expert' };
     
-    const thumbnailsHTML = trailers.map((trailer, index) => {
-        const videoId = trailer.url.split('/').pop().split('?')[0]; 
-        const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`; 
+    // === Elementos do Canvas do Temporizador ===
+    const timerCanvas = document.getElementById('timerCanvas');
+    // Verifica se timerCanvas existe antes de tentar obter o contexto
+    const ctx = timerCanvas ? timerCanvas.getContext('2d') : null;
+    const centerX = timerCanvas ? timerCanvas.width / 2 : 0;
+    const centerY = timerCanvas ? timerCanvas.height / 2 : 0;
+    const radius = timerCanvas ? timerCanvas.width / 2 - 5 : 0; 
+    const timerTextSize = 36; 
+
+    // =======================================================
+    // === FUNÇÃO CENTRAL: BUSCAR DADOS (Utiliza a DATA_URL importada) ===
+    // =======================================================
+    async function fetchQuizData() {
+        console.log("Buscando dados da URL do Google Drive:", DATA_URL);
         
-        return `
-            <div 
-                class="trailer-thumbnail-item ${index === 0 ? 'active' : ''}" 
-                data-trailer-url="${trailer.url}"
-                title="${trailer.title}"
-            >
-                <img src="${thumbnailUrl}" alt="Miniatura: ${trailer.title}">
-                <div class="thumbnail-overlay">
-                    <i class="fas fa-play"></i>
-                    <span>${trailer.title}</span>
-                </div>
-            </div>
-        `;
-    }).join('');
+        cardsGrid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 50px; font-size: 1.2rem; color: #5f6368;">Carregando temas do servidor... <i class="fa-solid fa-spinner fa-spin"></i></div>';
 
-    return `
-        <h3 class="trailer-title">Trailers e Clipes</h3>
-        
-        <div class="trailer-container">
-            <iframe 
-                id="main-trailer-player"
-                src="${defaultTrailerUrl}?rel=0&autoplay=0&mute=0" 
-                title="${trailers[0].title}" 
-                frameborder="0" 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                allowfullscreen>
-            </iframe>
-        </div>
-        
-        <div class="trailer-thumbnails-list">
-            ${thumbnailsHTML}
-        </div>
-    `;
-}
-
-function switchMainTrailer(url, title) {
-    const player = document.getElementById('main-trailer-player');
-    
-    if (player) {
-        // Pausa e reseta a reprodução ao trocar a fonte
-        player.src = `${url}?rel=0&autoplay=0&mute=0`; 
-        player.title = title;
-    }
-}
-
-
-function openModal(item) {
-    
-    modalBody.innerHTML = `
-        <div class="modal-header-info">
-            <h2 class="modal-title">${item.title}</h2>
-            <span class="modal-category-tag">${item.category.toUpperCase()}</span>
-        </div>
-
-        <div class="modal-flex-content">
-            <div class="modal-sidebar">
-                <img src="${item.image}" alt="${item.title}" class="modal-cover-image"> 
-                
-                ${createWikipediaPreviewsHTML(item.title)}
-
-                ${createRelatedSitesHTML(item.relatedSites)}
-            </div>
-
-            <div class="modal-main-content">
-                
-                <h3>Sinopse Oficial</h3>
-                <p>${item.description}</p>
-
-                ${createSpotifyPlayerHTML(item)}
-
-                <h3 class="cast-title">Elenco Principal</h3>
-                ${createCastListHTML(item.cast)} 
-                
-                ${createTrailerCarrosselHTML(item.trailers)}
-                
-            </div>
-        </div>
-    `;
-
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden'; 
-    
-    const previewsContainer = document.getElementById('wikipedia-previews-container');
-
-    fetchWikipediaArticles(item.title).then(results => {
-        
-        previewsContainer.innerHTML = ''; 
-
-        if (results.length === 0) {
-            previewsContainer.innerHTML = `<p style="padding: 10px; flex-shrink: 0; color: var(--text-dark);">Nenhum artigo encontrado para "${item.title}".</p>`;
-            return;
-        }
-
-        results.forEach(article => {
-            const snippetClean = article.snippet.replace(/<[^>]*>?/gm, ''); 
-            const articleUrl = `https://pt.wikipedia.org/wiki/${encodeURIComponent(article.title)}`;
+        try {
+            const response = await fetch(DATA_URL);
             
-            const previewItem = document.createElement('div');
-            previewItem.classList.add('wikipedia-preview-item');
+            if (!response.ok) {
+                throw new Error(`Erro HTTP! Status: ${response.status}. Certifique-se que o arquivo está compartilhado.`);
+            }
             
-            previewItem.innerHTML = `
-                <div class="wikipedia-preview-header" title="${article.title}">
-                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${article.title}</span>
-                    <i class="fas fa-chevron-down"></i>
+            // Tenta obter o JSON. Adicionamos um fallback caso o Content-Type do Google Drive não seja 'application/json'.
+            try {
+                quizData = await response.json();
+            } catch (jsonError) {
+                console.warn("Falha ao fazer parse direto para JSON. Tentando como texto...", jsonError);
+                const textData = await response.text();
+                // Tenta fazer o parse do texto puro, contornando o erro de Content-Type.
+                quizData = JSON.parse(textData);
+            }
+            
+            console.log("Dados carregados com sucesso:", quizData);
+            
+            // SUCESSO: Inicializamos a interface do usuário
+            generateThemeCards(); 
+            setupAllEventListeners();
+
+        } catch (error) {
+            console.error("Falha ao carregar dados do quiz:", error);
+            cardsGrid.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 50px; font-size: 1.2rem; color: #D0021B;">
+                    <i class="fa-solid fa-circle-exclamation"></i> Falha ao carregar dados! 
+                    <p style="font-size: 0.9rem; margin-top: 10px;">Verifique se o arquivo JSON no Google Drive está **público** e se o ID está correto.</p>
                 </div>
-                <div class="wikipedia-preview-content">
-                    <p>${snippetClean}...</p>
-                    <a href="${articleUrl}" target="_blank">Ler artigo completo <i class="fas fa-external-link-alt"></i></a>
+            `;
+        }
+    }
+
+
+    // --- FUNÇÕES DE GERAÇÃO E INICIALIZAÇÃO DE CARDS (RESTANTE DO CÓDIGO) ---
+    
+    function generateThemeCards() {
+        if (!cardsGrid || Object.keys(quizData).length === 0) return;
+        cardsGrid.innerHTML = '';
+        
+        Object.keys(quizData).forEach(themeId => {
+            const data = quizData[themeId];
+            
+            const cardElement = document.createElement('div');
+            const dataName = data.card_title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); 
+
+            cardElement.classList.add('card-item');
+            cardElement.setAttribute('data-theme', data.card_category);
+            cardElement.setAttribute('data-name', dataName); 
+            
+            // Verifica se as propriedades essenciais existem antes de usar
+            const cardTitle = data.card_title || 'Tema Desconhecido';
+            const cardCategory = data.card_category || 'geral';
+            const cardLevel = data.card_level || 1;
+            const cardImage = data.card_image || 'https://via.placeholder.com/300x168/AAAAAA/FFFFFF?text=Sem+Imagem';
+
+            cardElement.innerHTML = `
+                <img src="${cardImage}" alt="${cardTitle}">
+                <div class="card-info">
+                    <h3>${cardTitle}</h3>
+                    <p>${cardCategory.charAt(0).toUpperCase() + cardCategory.slice(1)} | Nível: ${MAX_DIFFICULTY_NAMES[cardLevel] || 'Fácil'}</p>
+                    <button class="play-button" data-quiz-theme="${themeId}">JOGAR</button>
                 </div>
             `;
             
-            previewsContainer.appendChild(previewItem);
+            cardsGrid.appendChild(cardElement);
         });
 
-        document.querySelectorAll('.wikipedia-preview-item').forEach(itemToggle => {
-            itemToggle.addEventListener('click', () => {
-                document.querySelectorAll('.wikipedia-preview-item').forEach(otherItem => {
-                    if (otherItem !== itemToggle && otherItem.classList.contains('active')) {
-                        otherItem.classList.remove('active');
-                    }
-                });
-                itemToggle.classList.toggle('active');
+        cardItems = cardsGrid.querySelectorAll('.card-item');
+        playButtons = cardsGrid.querySelectorAll('.play-button');
+        
+        setupPlayButtonListeners();
+        
+        filterCards('all', '');
+        if (tabsList && tabsList.querySelector('[data-filter="all"]')) {
+            tabsList.querySelector('[data-filter="all"]').classList.add('active');
+        }
+    }
+    
+    function setupPlayButtonListeners() {
+        playButtons.forEach(button => {
+            button.removeEventListener('click', handlePlayButtonClick); 
+            button.addEventListener('click', handlePlayButtonClick);
+        });
+    }
+
+    function handlePlayButtonClick(event) {
+        const themeId = event.target.getAttribute('data-quiz-theme');
+        loadQuizQuestions(themeId); 
+        openQuizModal();
+    }
+
+
+    // --- FUNÇÕES DE LÓGICA GERAL ---
+    
+    function shuffleArray(array) {
+        const shuffled = [...array]; 
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    }
+    
+    function getAverageReactionTime(n) {
+        const recentCorrectTimes = questionsAttempted
+            .filter(q => q.isCorrect && q.reactionTime !== null)
+            .slice(-n)
+            .map(q => q.reactionTime);
+
+        if (recentCorrectTimes.length === 0) return ADAPTIVE_CONFIG.EASY.avgReactionGoal * 2; 
+
+        const sum = recentCorrectTimes.reduce((a, b) => a + b, 0);
+        return sum / recentCorrectTimes.length;
+    }
+    
+    function updateDifficulty() {
+        if (questionsAttempted.length === 0) return;
+
+        const recentAttempts = questionsAttempted.slice(-ADAPTIVE_CONFIG.CHECK_INTERVAL);
+        const correctCount = recentAttempts.filter(q => q.isCorrect).length;
+        const winRate = correctCount / recentAttempts.length;
+
+        // Regra de taxa de acerto
+        if (winRate >= ADAPTIVE_CONFIG.WIN_RATE_THRESHOLD && currentDifficulty < ADAPTIVE_CONFIG.HARD.id) {
+            currentDifficulty = Math.min(ADAPTIVE_CONFIG.HARD.id, currentDifficulty + 1);
+        } else if (winRate <= ADAPTIVE_CONFIG.LOSE_RATE_THRESHOLD && currentDifficulty > ADAPTIVE_CONFIG.EASY.id) {
+            currentDifficulty = Math.max(ADAPTIVE_CONFIG.EASY.id, currentDifficulty - 1);
+        }
+
+        // Regra de tempo de reação
+        const avgReaction = getAverageReactionTime(3);
+        const currentGoal = Object.values(ADAPTIVE_CONFIG).find(c => c.id === currentDifficulty).avgReactionGoal;
+
+        if (avgReaction < currentGoal - ADAPTIVE_CONFIG.REACTION_BONUS_THRESHOLD && currentDifficulty < ADAPTIVE_CONFIG.HARD.id) {
+            currentDifficulty = Math.min(ADAPTIVE_CONFIG.HARD.id, currentDifficulty + 1);
+        } else if (avgReaction > currentGoal + ADAPTIVE_CONFIG.REACTION_PENALTY_THRESHOLD && currentDifficulty > ADAPTIVE_CONFIG.EASY.id) {
+            currentDifficulty = Math.max(ADAPTIVE_CONFIG.EASY.id, currentDifficulty - 1);
+        }
+        
+        // Aplica o novo tempo máximo
+        TIME_PER_QUESTION = Object.values(ADAPTIVE_CONFIG).find(c => c.id === currentDifficulty).maxTime;
+    }
+    
+    // --- LÓGICA DO QUIZ PRINCIPAL ---
+
+    function loadQuizQuestions(themeId) {
+        activeQuizThemeId = themeId; 
+        
+        if (!quizData[themeId]) {
+            console.error(`Tema ${themeId} não encontrado nos dados carregados.`);
+            return;
+        }
+        
+        currentQuizQuestions = [];
+    }
+
+    function startQuiz() {
+        currentQuestionIndex = 0;
+        score = 0;
+        lives = 3; 
+        currentDifficulty = 1; 
+        questionsAttempted = [];
+        TIME_PER_QUESTION = ADAPTIVE_CONFIG.EASY.maxTime; 
+        currentScoreDisplay.textContent = score; 
+        quizArea.style.display = 'flex';
+        quizResultsArea.style.display = 'none';
+        
+        updateLivesDisplay(); 
+        
+        const themeGifs = quizData[activeQuizThemeId]?.gif_urls;
+        const defaultGifUrl = themeGifs 
+            ? themeGifs.default 
+            : 'https://via.placeholder.com/1920x1080/f0f2f5/3c4043?text=QUIZ+BACKGROUND+NEUTRO'; 
+            
+        quizBackgroundGif.innerHTML = `<img src="${defaultGifUrl}" alt="Background Neutro">`;
+        
+        loadQuestion();
+    }
+    
+    function getNextAdaptiveQuestion() {
+        if (questionsAttempted.length >= MAX_QUESTIONS_PER_QUIZ) {
+            return null; 
+        }
+
+        const allQuestions = quizData[activeQuizThemeId]?.questions || [];
+        
+        const availableQuestions = allQuestions.filter(q => 
+            q.difficulty === currentDifficulty || q.difficulty === Math.max(1, currentDifficulty - 1)
+        );
+
+        const availableUnattempted = availableQuestions.filter(q => 
+            !questionsAttempted.some(a => a.question === q.question)
+        );
+        
+        let pool = availableUnattempted.length > 0 ? availableUnattempted : availableQuestions;
+        
+        if (pool.length === 0) {
+            pool = allQuestions;
+            if (pool.length < ADAPTIVE_CONFIG.CHECK_INTERVAL) questionsAttempted = []; 
+        }
+        
+        if (pool.length === 0) return null; 
+
+        return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function loadQuestion() {
+        if (questionsAttempted.length > 0 && questionsAttempted.length % ADAPTIVE_CONFIG.CHECK_INTERVAL === 0) {
+            updateDifficulty();
+        }
+
+        const questionData = getNextAdaptiveQuestion();
+        
+        if (!questionData) {
+            showQuizResults(false, true); 
+            return;
+        }
+        
+        currentQuizQuestions[currentQuestionIndex] = questionData; 
+
+        const currentQNum = questionsAttempted.length + 1;
+        const totalQMax = MAX_QUESTIONS_PER_QUIZ;
+
+        quizFeedback.textContent = `Nível: ${DIFFICULTY_NAMES[currentDifficulty]} - Tempo: ${TIME_PER_QUESTION}s`; 
+        quizNextButton.style.display = 'none';
+        quizActive = true;
+        
+        currentQuestionNumber.textContent = `${currentQNum} / ${totalQMax}`;
+        quizQuestionText.textContent = questionData.question;
+        quizOptionsContainer.innerHTML = '';
+
+        const shuffledOptions = shuffleArray(questionData.options);
+
+        shuffledOptions.forEach(option => {
+            const button = document.createElement('button');
+            button.textContent = option;
+            button.classList.add('option-button-quiz');
+            button.onclick = () => checkAnswer(option, questionData.answer, questionData.difficulty);
+            quizOptionsContainer.appendChild(button);
+        });
+
+        startTime = Date.now();
+        startTimer(); 
+    }
+
+    function checkAnswer(selectedOption, correctAnswer, questionDifficulty) {
+        if (!quizActive) return; 
+        stopTimer(); 
+        
+        const endTime = Date.now();
+        const reactionTime = selectedOption !== null ? (endTime - startTime) : (TIME_PER_QUESTION * 1000); 
+        
+        quizActive = false; 
+
+        const buttons = quizOptionsContainer.querySelectorAll('.option-button-quiz');
+        let isCorrect = (selectedOption === correctAnswer);
+        let lostLife = false;
+        let gifResult;
+
+        buttons.forEach(button => {
+            button.disabled = true; 
+            if (button.textContent === selectedOption) {
+                if (isCorrect) {
+                    button.classList.add('correct');
+                } else if (selectedOption !== null) {
+                    button.classList.add('incorrect');
+                }
+            }
+            if (button.textContent === correctAnswer) {
+                button.classList.add('correct');
+            }
+        });
+        
+        let currentReactionTime = null;
+
+        if (isCorrect) {
+            quizFeedback.textContent = `Resposta Correta! Reação: ${(reactionTime / 1000).toFixed(2)}s 🎉`;
+            score++;
+            currentScoreDisplay.textContent = score; 
+            gifResult = 'correct';
+            currentReactionTime = reactionTime;
+        } else if (selectedOption === null) {
+             quizFeedback.textContent = `Tempo esgotado! A resposta era: ${correctAnswer}. 😔`;
+             loseLife();
+             lostLife = true;
+             gifResult = 'timeout';
+             currentReactionTime = reactionTime;
+        } else {
+            quizFeedback.textContent = `Resposta Incorreta. Era: ${correctAnswer}. Reação: ${(reactionTime / 1000).toFixed(2)}s 😥`;
+            loseLife();
+            lostLife = true;
+            gifResult = 'incorrect';
+            currentReactionTime = reactionTime;
+        }
+        
+        questionsAttempted.push({
+            question: currentQuizQuestions[currentQuestionIndex].question,
+            isCorrect: isCorrect,
+            difficulty: questionDifficulty,
+            reactionTime: currentReactionTime
+        });
+
+        triggerBackgroundTransition(gifResult);
+        
+        if (lostLife && lives <= 0) {
+            return; 
+        }
+
+        if (questionsAttempted.length >= MAX_QUESTIONS_PER_QUIZ) {
+            quizNextButton.textContent = 'Ver Resultados';
+            quizNextButton.classList.add('primary-button');
+        } else {
+            quizNextButton.textContent = 'Continuar ';
+            quizNextButton.classList.remove('primary-button');
+        }
+        quizNextButton.style.display = 'block';
+    }
+
+    // --- FUNÇÕES DE CONTROLE E DISPLAY ---
+
+    function filterCards(themeFilter, searchFilter) {
+        const searchValue = searchFilter.toLowerCase().trim();
+        cardItems.forEach(card => {
+            const cardTheme = card.getAttribute('data-theme');
+            const cardName = card.getAttribute('data-name');
+            const filterValue = tabsList.querySelector('.tab-button.active')?.getAttribute('data-filter') || 'all'; 
+            let matchesTheme = (filterValue === 'all' || cardTheme === filterValue);
+            let matchesSearch = (!searchValue || cardName.includes(searchValue));
+
+            if (matchesTheme && matchesSearch) {
+                card.style.display = 'flex'; 
+            } else {
+                card.style.display = 'none'; 
+            }
+        });
+    }
+
+    function openQuizModal() {
+        quizModal.classList.add('active');
+        document.body.style.overflow = 'hidden'; 
+        quizActive = true;
+        startQuiz();
+    }
+
+    function closeQuizModal() {
+        quizModal.classList.remove('active');
+        document.body.style.overflow = '';
+        quizActive = false;
+        stopTimer();
+        resetQuiz();
+    }
+    
+    function resetQuiz() {
+        currentQuestionIndex = 0;
+        score = 0;
+        lives = 3;
+        currentQuizQuestions = [];
+        questionsAttempted = []; 
+        currentDifficulty = 1; 
+        TIME_PER_QUESTION = ADAPTIVE_CONFIG.EASY.maxTime; 
+        quizFeedback.textContent = '';
+        quizOptionsContainer.innerHTML = '';
+        quizNextButton.style.display = 'none';
+        stopTimer();
+        // Verifica se ctx existe antes de desenhar o timer
+        if (ctx) drawTimer(1); 
+        updateLivesDisplay(); 
+        activeQuizThemeId = '';
+    }
+    
+    function updateLivesDisplay() {
+        const lifeIcons = lifeContainer.querySelectorAll('.life-icon');
+        lifeIcons.forEach((icon, index) => {
+            if (index < lives) {
+                icon.classList.remove('broken', 'fa-heart-crack');
+                icon.classList.add('fa-heart');
+                icon.style.color = '#8A2BE2';
+            } else {
+                icon.classList.remove('fa-heart');
+                icon.classList.add('fa-heart-crack', 'broken'); 
+            }
+        });
+    }
+
+    function loseLife() {
+        lives--;
+        updateLivesDisplay();
+        
+        if (lives <= 0) {
+            setTimeout(() => showQuizResults(true), 1000); 
+        }
+    }
+
+    function triggerBackgroundTransition(result) {
+        const fallbackGifs = {
+            correct: 'https://via.placeholder.com/1920x1080/4CAF50/FFFFFF?text=ACERTO+PERFEITO!+%28GIF%29',
+            incorrect: 'https://via.placeholder.com/1920x1080/D0021B/FFFFFF?text=ERRO+COMETIDO!+%28GIF%29',
+            timeout: 'https://via.placeholder.com/1920x1080/FFC107/333333?text=TEMPO+ACABOU!+%28GIF%29',
+            default: 'https://via.placeholder.com/1920x1080/f0f2f5/3c4043?text=QUIZ+BACKGROUND+NEUTRO', 
+            finish: 'https://via.placeholder.com/1920x1080/8A2BE2/FFFFFF?text=QUIZ+FINALIZADO!+%28GIF%29',
+        };
+        
+        const themeGifs = quizData[activeQuizThemeId]?.gif_urls || fallbackGifs;
+        const gifUrl = themeGifs[result] || themeGifs.default;
+        
+        const newGif = document.createElement('img');
+        newGif.src = gifUrl;
+        newGif.alt = `${result.toUpperCase()} GIF`;
+        
+        quizBackgroundGif.innerHTML = '';
+        quizBackgroundGif.appendChild(newGif);
+        
+        quizBackgroundGif.classList.add('active-transition');
+
+        setTimeout(() => {
+            quizBackgroundGif.classList.remove('active-transition');
+            // Retorna ao GIF padrão do tema
+            quizBackgroundGif.innerHTML = `<img src="${themeGifs.default}" alt="Background Neutro">`;
+        }, 800);
+    }
+    
+    function showQuizResults(lostByLives = false, finishedByLimit = false) {
+        stopTimer();
+        quizArea.style.display = 'none';
+        quizResultsArea.style.display = 'flex';
+        
+        triggerBackgroundTransition('finish'); 
+
+        const totalAttempts = questionsAttempted.length; 
+        
+        if (lostByLives) {
+            document.querySelector('#quiz-results-area h2').textContent = 'Fim de Jogo!';
+            quizFinalScore.textContent = `Você perdeu todas as vidas! Sua pontuação final foi de ${score} pontos em ${totalAttempts} perguntas.`;
+        } else if (finishedByLimit && totalAttempts > 0) {
+             document.querySelector('#quiz-results-area h2').textContent = 'Quiz Completo!';
+            quizFinalScore.textContent = `Parabéns! Você completou ${totalAttempts} perguntas e acertou ${score}!`;
+        } else {
+            document.querySelector('#quiz-results-area h2').textContent = 'Quiz Completo!';
+            quizFinalScore.textContent = `Você acertou ${score} de ${totalAttempts} perguntas!`;
+        }
+    }
+    
+    // --- LÓGICA DO TEMPORIZADOR (Canvas) ---
+    function drawTimer(progress) {
+        // Verifica se ctx (o contexto do canvas) existe
+        if (!ctx) return; 
+
+        ctx.clearRect(0, 0, timerCanvas.width, timerCanvas.height); 
+        
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#e0e0e0';
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * progress));
+        ctx.lineTo(centerX, centerY); 
+        ctx.fillStyle = '#8A2BE2'; 
+        ctx.fill();
+
+        ctx.fillStyle = '#202124'; 
+        ctx.font = `${timerTextSize}px Roboto, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        const displayTime = Math.ceil(timeLeft);
+        ctx.fillText(displayTime, centerX, centerY);
+    }
+
+    function startTimer() {
+        stopTimer();
+        timeLeft = TIME_PER_QUESTION; 
+        // Verifica se ctx existe antes de desenhar
+        if (ctx) drawTimer(1); 
+        
+        const timeLimit = TIME_PER_QUESTION * 1000;
+        const endTime = Date.now() + timeLimit;
+
+        function animateTimer() {
+            if (!quizActive) {
+                stopTimer();
+                return;
+            }
+
+            const now = Date.now();
+            const remainingTime = Math.max(0, endTime - now);
+            
+            timeLeft = remainingTime / 1000;
+            
+            const progress = remainingTime / timeLimit; 
+
+            if (ctx) drawTimer(progress);
+
+            if (remainingTime <= 0) {
+                stopTimer();
+                // Passa 'null' para indicar que foi um timeout
+                checkAnswer(null, currentQuizQuestions[currentQuestionIndex].answer, currentQuizQuestions[currentQuestionIndex].difficulty); 
+            } else {
+                animationFrame = requestAnimationFrame(animateTimer);
+            }
+        }
+        animationFrame = requestAnimationFrame(animateTimer);
+    }
+
+    function stopTimer() {
+        if (animationFrame) {
+            cancelAnimationFrame(animationFrame);
+            animationFrame = null;
+        }
+    }
+
+
+    // --- EVENT LISTENERS E CHAMADA INICIAL ---
+    
+    function setupAllEventListeners() {
+        // Filtros por Tabs
+        if (tabsList) {
+            tabsList.addEventListener('click', (event) => {
+                const targetButton = event.target.closest('.tab-button');
+                if (targetButton) {
+                    const filterValue = targetButton.getAttribute('data-filter');
+                    tabsList.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                    targetButton.classList.add('active');
+                    searchInput.value = '';
+                    filterCards(filterValue, '');
+                }
             });
+        }
+
+        // Filtros por Pesquisa
+        if (searchInput) {
+            searchInput.addEventListener('input', (event) => {
+                const searchValue = event.target.value.toLowerCase().trim();
+                tabsList.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                
+                if (searchValue === '' && tabsList.querySelector('[data-filter="all"]')) {
+                    tabsList.querySelector('[data-filter="all"]').classList.add('active');
+                    filterCards('all', ''); 
+                } else {
+                    filterCards('all', searchValue); 
+                }
+            });
+        }
+        
+        // Fechar/Voltar (do Modal)
+        if (closeModalButton) closeModalButton.addEventListener('click', closeQuizModal);
+        if (backToThemesButton) backToThemesButton.addEventListener('click', closeQuizModal);
+        
+        // Próxima Pergunta 
+        if (quizNextButton) {
+            quizNextButton.addEventListener('click', () => {
+                if (questionsAttempted.length >= MAX_QUESTIONS_PER_QUIZ) {
+                    showQuizResults(false, true); 
+                } else {
+                    currentQuestionIndex++;
+                    loadQuestion(); 
+                }
+            });
+        }
+
+        // Reiniciar Quiz 
+        if (restartQuizButton) {
+            restartQuizButton.addEventListener('click', () => {
+                // Reinicia o quiz com o mesmo tema ativo
+                loadQuizQuestions(activeQuizThemeId); 
+                startQuiz(); 
+            });
+        }
+
+        // Tecla ESC para fechar 
+        document.addEventListener('keydown', (e) => {
+            if (e.key === "Escape" && quizModal && quizModal.classList.contains('active')) {
+                closeQuizModal();
+            }
         });
-
-    });
-
-    document.querySelectorAll('.trailer-thumbnail-item').forEach(thumbnail => {
-        thumbnail.addEventListener('click', function() {
-            const url = this.dataset.trailerUrl;
-            const title = this.title;
-            
-            switchMainTrailer(url, title);
-            
-            document.querySelectorAll('.trailer-thumbnail-item').forEach(item => item.classList.remove('active'));
-            this.classList.add('active');
-        });
-    });
-}
-
-
-function closeModal() {
-    const trailerPlayer = document.getElementById('main-trailer-player');
-    if (trailerPlayer) {
-        // Para o vídeo ao fechar o modal
-        trailerPlayer.src = ''; 
     }
 
-    modalBody.innerHTML = ''; 
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto'; 
-}
-
-closeModalBtn.addEventListener('click', closeModal);
-window.addEventListener('click', (event) => {
-    if (event.target === modal) {
-        closeModal();
-    }
+    // Chamada de Inicialização
+    fetchQuizData();
 });
-document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && modal.style.display === 'block') {
-        closeModal();
-    }
-});
-
-
-// =================================================================
-// 6. INICIALIZAÇÃO ASSÍNCRONA (AJUSTADA)
-// =================================================================
-
-function initApp() {
-    // 1. Inicia o carregamento dos dados (função assíncrona)
-    loadData();
-    
-    // 2. Configura os Event Listeners (Eles chamarão applyFiltersAndSearch(), 
-    // que só renderizará se 'data' estiver preenchido)
-
-    navButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            currentFilter = button.dataset.category;
-            navButtons.forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            searchBar.value = ''; 
-            applyFiltersAndSearch();
-        });
-    });
-    
-    searchBar.addEventListener('input', () => {
-        const homeButton = document.querySelector('.nav-btn[data-category="all"]');
-        navButtons.forEach(btn => btn.classList.remove('active'));
-        homeButton.classList.add('active');
-        currentFilter = 'all'; 
-        applyFiltersAndSearch();
-    });
-}
-
-document.addEventListener('DOMContentLoaded', initApp);
