@@ -1,10 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
-    
+
     // =========================================================================
-    // === 🚨 URL DO JSON NO GITHUB (SUBSTITUA ESTE LINK PELO SEU RAW LINK) 🚨 ===
-    // Exemplo: 'https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPOSITORIO/master/quiz-data.json'
+    // === 🔗 URL DO JSON LOCAL (NA PRÓPRIA PASTA) 🔗 ===
+    // Renomeie 'dados.json' para o nome do seu arquivo JSON.
+    // O arquivo deve estar na mesma pasta do seu HTML.
+    // Se estivesse em uma subpasta 'data', seria: 'data/dados.json'
     // =========================================================================
-    const DATA_URL = 'https://raw.githubusercontent.com/Mister-c21/Dados/refs/heads/main/Quiz.json'; 
+    const DATA_URL = '../../../../dados.json'; 
     
     // Variável que irá armazenar os dados do quiz após o fetch
     let quizData = {}; 
@@ -67,29 +69,32 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // === Elementos do Canvas do Temporizador ===
     const timerCanvas = document.getElementById('timerCanvas');
-    const ctx = timerCanvas.getContext('2d');
-    const centerX = timerCanvas.width / 2;
-    const centerY = timerCanvas.height / 2;
-    const radius = timerCanvas.width / 2 - 5; 
+    // Verifica se timerCanvas existe antes de tentar obter o contexto
+    const ctx = timerCanvas ? timerCanvas.getContext('2d') : null;
+    const centerX = timerCanvas ? timerCanvas.width / 2 : 0;
+    const centerY = timerCanvas ? timerCanvas.height / 2 : 0;
+    const radius = timerCanvas ? timerCanvas.width / 2 - 5 : 0; 
     const timerTextSize = 36; 
 
     // =======================================================
-    // === FUNÇÃO CENTRAL: BUSCAR DADOS DO GITHUB (FETCH) ===
+    // === FUNÇÃO CENTRAL: BUSCAR DADOS (Atualizada para Local) ===
     // =======================================================
     async function fetchQuizData() {
-        console.log("Buscando dados do GitHub...");
+        console.log(`Buscando dados da URL local: ${DATA_URL}...`);
         
-        // Exibe um texto de carregamento enquanto espera
-        cardsGrid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 50px; font-size: 1.2rem; color: #5f6368;">Carregando temas do servidor... <i class="fa-solid fa-spinner fa-spin"></i></div>';
+        cardsGrid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 50px; font-size: 1.2rem; color: #5f6368;">Carregando temas... <i class="fa-solid fa-spinner fa-spin"></i></div>';
 
         try {
             const response = await fetch(DATA_URL);
             
             if (!response.ok) {
-                throw new Error(`Erro HTTP! Status: ${response.status}`);
+                // Se a URL local falhar, geralmente é um erro de arquivo não encontrado (404)
+                throw new Error(`Erro HTTP! Status: ${response.status}. Arquivo JSON não encontrado ou problema de servidor local.`);
             }
             
+            // O fetch local é mais confiável para retornar JSON puro
             quizData = await response.json();
+            
             console.log("Dados carregados com sucesso:", quizData);
             
             // SUCESSO: Inicializamos a interface do usuário
@@ -101,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cardsGrid.innerHTML = `
                 <div style="grid-column: 1 / -1; text-align: center; padding: 50px; font-size: 1.2rem; color: #D0021B;">
                     <i class="fa-solid fa-circle-exclamation"></i> Falha ao carregar dados! 
-                    <p style="font-size: 0.9rem; margin-top: 10px;">Verifique se o link RAW do GitHub está correto e acessível.</p>
+                    <p style="font-size: 0.9rem; margin-top: 10px;">Verifique o nome do arquivo JSON e se você está usando um **servidor local** (ex: Live Server do VS Code).</p>
                 </div>
             `;
         }
@@ -225,7 +230,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (!quizData[themeId]) {
             console.error(`Tema ${themeId} não encontrado nos dados carregados.`);
-            // Implementar um fallback visual para o usuário se necessário
             return;
         }
         
@@ -440,7 +444,8 @@ document.addEventListener('DOMContentLoaded', () => {
         quizOptionsContainer.innerHTML = '';
         quizNextButton.style.display = 'none';
         stopTimer();
-        drawTimer(1); 
+        // Verifica se ctx existe antes de desenhar o timer
+        if (ctx) drawTimer(1); 
         updateLivesDisplay(); 
         activeQuizThemeId = '';
     }
@@ -519,6 +524,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- LÓGICA DO TEMPORIZADOR (Canvas) ---
     function drawTimer(progress) {
+        // Verifica se ctx (o contexto do canvas) existe
+        if (!ctx) return; 
+
         ctx.clearRect(0, 0, timerCanvas.width, timerCanvas.height); 
         
         ctx.beginPath();
@@ -544,7 +552,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function startTimer() {
         stopTimer();
         timeLeft = TIME_PER_QUESTION; 
-        drawTimer(1); 
+        // Verifica se ctx existe antes de desenhar
+        if (ctx) drawTimer(1); 
         
         const timeLimit = TIME_PER_QUESTION * 1000;
         const endTime = Date.now() + timeLimit;
@@ -562,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const progress = remainingTime / timeLimit; 
 
-            drawTimer(progress);
+            if (ctx) drawTimer(progress);
 
             if (remainingTime <= 0) {
                 stopTimer();
@@ -585,7 +594,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- EVENT LISTENERS E CHAMADA INICIAL ---
     
-    // Esta função agrupa todos os event listeners que dependem do carregamento dos cards
     function setupAllEventListeners() {
         // Filtros por Tabs
         if (tabsList) {
@@ -647,10 +655,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeQuizModal();
             }
         });
-        
-        // O novo botão .home-button-main não precisa de listener no JS
     }
 
-    // Chamada de Inicialização: Começa buscando os dados do GitHub
+    // Chamada de Inicialização
     fetchQuizData();
 });
