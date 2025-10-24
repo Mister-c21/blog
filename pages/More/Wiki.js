@@ -1,10 +1,9 @@
 // =================================================================
-// 1. CONFIGURAÇÃO DE DADOS DINÂMICOS
+// 1. CONFIGURAÇÃO DE DADOS DINÂMICOS (ATUALIZADA)
 // =================================================================
 
-// 🚨 IMPORTANTE: Substitua esta URL pelo link RAW do seu arquivo JSON no GitHub.
-// O arquivo JSON deve conter o array de objetos que estava hardcoded anteriormente.
-const GITHUB_JSON_URL = 'https://raw.githubusercontent.com/Mister-c21/Dados/refs/heads/main/Wiki.json'; 
+// ✅ ALTERADO: O caminho aponta agora para um arquivo local na mesma pasta.
+const DATA_SOURCE_URL = './Wiki.json'; 
 
 // A variável 'data' agora é declarada com 'let' e será preenchida via fetch.
 let data = []; 
@@ -179,30 +178,30 @@ searchBar.addEventListener('input', () => {
 
 
 // =================================================================
-// 4. FUNÇÃO DE CARREGAMENTO DE DADOS DO GITHUB
+// 4. FUNÇÃO DE CARREGAMENTO DE DADOS (ATUALIZADA)
 // =================================================================
-async function loadDataFromGitHub() {
+async function loadData() {
     try {
-        console.log("Tentando carregar dados do servidor...");
+        console.log("Tentando carregar dados do arquivo local (Wiki.json)...");
         // Exibe uma mensagem de carregamento enquanto aguarda a resposta
         contentRowsContainer.innerHTML = '<p style="padding: 100px; text-align: center; color: var(--text-dark);">Carregando dados...</p>';
         
-        const response = await fetch(GITHUB_JSON_URL);
+        const response = await fetch(DATA_SOURCE_URL);
         
         if (!response.ok) {
             // Se o status HTTP não for 200-299, lança um erro
-            throw new Error(`Erro de rede ao carregar dados: ${response.status} ${response.statusText}`);
+            throw new Error(`Erro de rede ao carregar dados: ${response.status} ${response.statusText}. Certifique-se de que o arquivo "Wiki.json" existe.`);
         }
         
         const fetchedData = await response.json();
         
-        // Popula a variável global 'data' com os dados do GitHub
+        // Popula a variável global 'data' com os dados
         data = fetchedData; 
         console.log(`Dados carregados com sucesso: ${data.length} itens.`);
         
     } catch (error) {
-        console.error("Erro ao carregar dados do Servidor. Nenhuma informação será exibida.", error);
-        contentRowsContainer.innerHTML = '<p style="padding: 100px; text-align: center; color: red;">Não foi possível carregar os dados do Servidor. Verifique a sua conexão.</p>';
+        console.error("Erro ao carregar dados. Nenhuma informação será exibida.", error);
+        contentRowsContainer.innerHTML = '<p style="padding: 100px; text-align: center; color: red;">Não foi possível carregar os dados. Verifique se o arquivo **Wiki.json** está na mesma pasta e se seu navegador permite requisições locais (usando um Live Server).</p>';
         // Limpa 'data' em caso de falha para evitar erros de renderização com dados incompletos.
         data = []; 
     }
@@ -210,7 +209,7 @@ async function loadDataFromGitHub() {
 
 
 // =================================================================
-// 5. WIKIPEDIA API & COMPONENTES DO MODAL 
+// 5. WIKIPEDIA API & COMPONENTES DO MODAL (MANTIDO)
 // =================================================================
 
 async function fetchWikipediaArticles(query, limit = 5) {
@@ -506,11 +505,11 @@ document.addEventListener('keydown', (event) => {
 
 
 // =================================================================
-// 6. INICIALIZAÇÃO ASSÍNCRONA
+// 6. INICIALIZAÇÃO ASSÍNCRONA (ATUALIZADA)
 // =================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Carrega os dados do GitHub e preenche a variável 'data'
-    await loadDataFromGitHub();
+    // 1. Carrega os dados do arquivo local
+    await loadData();
     
     // 2. Renderiza o conteúdo APÓS o carregamento dos dados
     applyFiltersAndSearch();
