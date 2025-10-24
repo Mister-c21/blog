@@ -1,12 +1,16 @@
+// seu-script-principal.js
+
 // =================================================================
-// 1. CONFIGURAÇÃO DE DADOS DINÂMICOS (ATUALIZADA)
+// 0. IMPORTAÇÃO DOS DADOS (AGORA VIA ES6 MODULE)
+// =================================================================
+import { DADOS_DA_WIKI } from './Quiz-dados.js'; // Ajuste o caminho se necessário
+
+// =================================================================
+// 1. CONFIGURAÇÃO DE DADOS DINÂMICOS
 // =================================================================
 
-// ✅ ALTERADO: O caminho aponta agora para um arquivo local na mesma pasta.
-const DATA_SOURCE_URL = 'Wiki.json'; 
-
-// A variável 'data' agora é declarada com 'let' e será preenchida via fetch.
-let data = []; 
+// ✅ ALTERADO: 'data' é preenchida com o array importado
+let data = DADOS_DA_WIKI; 
 
 const contentRowsContainer = document.getElementById('content-rows');
 const navButtons = document.querySelectorAll('.nav-btn');
@@ -79,6 +83,7 @@ function renderThemedRows(category, dataList) {
         let itemsForCarousel = categoryData.filter(item => item.subtheme === subthemeTitle);
         
         if (itemsForCarousel.length >= 3) {
+            // Embaralha e pega no máximo 10 itens
             const shuffledItems = itemsForCarousel.sort(() => 0.5 - Math.random()).slice(0, 10); 
             const rowContainer = createRowContainer(subthemeTitle, shuffledItems);
             contentRowsContainer.appendChild(rowContainer);
@@ -134,7 +139,7 @@ function renderRowsStandard(dataToRender) {
 function applyFiltersAndSearch() {
     // Garante que 'data' foi carregado antes de tentar filtrar
     if (data.length === 0) {
-        // Se a busca falhou ou está vazia, sai da função. A mensagem de erro já deve estar na tela.
+        contentRowsContainer.innerHTML = '<p style="padding: 100px; text-align: center; color: red;">Os dados da Wiki estão vazios. Verifique o array DADOS_DA_WIKI no arquivo dados.js.</p>';
         return; 
     }
     
@@ -143,7 +148,7 @@ function applyFiltersAndSearch() {
     if (searchText.length > 0) {
         const filteredData = data.filter(item => {
             return item.title.toLowerCase().includes(searchText) || 
-                   item.description.toLowerCase().includes(searchText) ||
+                   (item.description && item.description.toLowerCase().includes(searchText)) || 
                    item.category.toLowerCase().includes(searchText);
         });
         
@@ -178,32 +183,17 @@ searchBar.addEventListener('input', () => {
 
 
 // =================================================================
-// 4. FUNÇÃO DE CARREGAMENTO DE DADOS (ATUALIZADA)
+// 4. FUNÇÃO DE CARREGAMENTO DE DADOS (SIMPLIFICADA)
 // =================================================================
-async function loadData() {
-    try {
-        console.log("Tentando carregar dados do arquivo local (Wiki.json)...");
-        // Exibe uma mensagem de carregamento enquanto aguarda a resposta
-        contentRowsContainer.innerHTML = '<p style="padding: 100px; text-align: center; color: var(--text-dark);">Carregando dados...</p>';
-        
-        const response = await fetch(DATA_SOURCE_URL);
-        
-        if (!response.ok) {
-            // Se o status HTTP não for 200-299, lança um erro
-            throw new Error(`Erro de rede ao carregar dados: ${response.status} ${response.statusText}. Certifique-se de que o arquivo "Wiki.json" existe.`);
-        }
-        
-        const fetchedData = await response.json();
-        
-        // Popula a variável global 'data' com os dados
-        data = fetchedData; 
-        console.log(`Dados carregados com sucesso: ${data.length} itens.`);
-        
-    } catch (error) {
-        console.error("Erro ao carregar dados. Nenhuma informação será exibida.", error);
-        contentRowsContainer.innerHTML = '<p style="padding: 100px; text-align: center; color: red;">Não foi possível carregar os dados. Verifique se o arquivo **Wiki.json** está na mesma pasta e se seu navegador permite requisições locais (usando um Live Server).</p>';
-        // Limpa 'data' em caso de falha para evitar erros de renderização com dados incompletos.
-        data = []; 
+// Esta função é agora apenas um verificador de dados
+
+function checkDataLoad() {
+    if (data && data.length > 0) {
+        console.log(`Dados carregados via import com sucesso: ${data.length} itens.`);
+        return true;
+    } else {
+        contentRowsContainer.innerHTML = '<p style="padding: 100px; text-align: center; color: red;">Os dados da Wiki estão vazios. Verifique o array DADOS_DA_WIKI no arquivo dados.js.</p>';
+        return false;
     }
 }
 
@@ -270,8 +260,7 @@ function createCastListHTML(castArray) {
 }
 
 function createSpotifyPlayerHTML(item) {
-    if (!item.spotifyEmbedUrl || item.spotifyEmbedUrl.includes('googleusercontent.com')) {
-        // Se a URL ainda for um placeholder ou estiver faltando.
+    if (!item.spotifyEmbedUrl || item.spotifyEmbedUrl.includes('googleusercontent.com') || item.spotifyEmbedUrl.trim() === '') {
         return ''; 
     }
     
@@ -335,7 +324,12 @@ function createTrailerCarrosselHTML(trailers) {
     const defaultTrailerUrl = trailers[0].url;
     
     const thumbnailsHTML = trailers.map((trailer, index) => {
-        const videoId = trailer.url.split('/').pop().split('?')[0]; 
+        // Assume que a URL é do YouTube (e.g., https://www.youtube.com/embed/videoId)
+        const videoIdMatch = trailer.url.match(/youtube\.com\/embed\/([^?]+)/);
+        const videoId = videoIdMatch ? videoIdMatch[1] : null;
+
+        if (!videoId) return ''; // Ignora se não for um embed válido do YouTube
+
         const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`; 
         
         return `
@@ -404,7 +398,7 @@ function openModal(item) {
             <div class="modal-main-content">
                 
                 <h3>Sinopse Oficial</h3>
-                <p>${item.description}</p>
+                <p>${item.description || 'Sinopse indisponível.'}</p>
 
                 ${createSpotifyPlayerHTML(item)}
 
@@ -465,6 +459,7 @@ function openModal(item) {
 
     });
 
+    // Configura o evento para a troca de trailers
     document.querySelectorAll('.trailer-thumbnail-item').forEach(thumbnail => {
         thumbnail.addEventListener('click', function() {
             const url = this.dataset.trailerUrl;
@@ -505,12 +500,14 @@ document.addEventListener('keydown', (event) => {
 
 
 // =================================================================
-// 6. INICIALIZAÇÃO ASSÍNCRONA (ATUALIZADA)
+// 6. INICIALIZAÇÃO 
 // =================================================================
-document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Carrega os dados do arquivo local
-    await loadData();
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Verifica se há dados para renderizar
+    const dataIsReady = checkDataLoad();
     
-    // 2. Renderiza o conteúdo APÓS o carregamento dos dados
-    applyFiltersAndSearch();
+    // 2. Renderiza o conteúdo se houver dados
+    if (dataIsReady) {
+        applyFiltersAndSearch();
+    }
 });
