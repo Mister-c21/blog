@@ -3,7 +3,7 @@
 // =================================================================
 
 // ✅ ALTERADO: O caminho aponta agora para um arquivo local na mesma pasta.
-const DATA_SOURCE_URL = './Wiki.json'; 
+const DATA_SOURCE_URL = 'Wiki.json'; 
 
 // A variável 'data' agora é declarada com 'let' e será preenchida via fetch.
 let data = []; 
