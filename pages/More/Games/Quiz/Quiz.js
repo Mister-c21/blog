@@ -1,11 +1,7 @@
 // =================================================================
-// 1. CONFIGURAÇÃO DE DADOS DINÂMICOS (ATUALIZADA)
+// 1. CONFIGURAÇÃO DE DADOS DINÂMICOS (MANTIDO)
 // =================================================================
-
-// ✅ ALTERADO: O caminho aponta agora para um arquivo local na mesma pasta.
 const DATA_SOURCE_URL = 'Wiki.json'; 
-
-// A variável 'data' agora é declarada com 'let' e será preenchida via fetch.
 let data = []; 
 
 const contentRowsContainer = document.getElementById('content-rows');
@@ -28,7 +24,7 @@ const SUBTHEMES_MAP = {
 };
 
 // =================================================================
-// 2. FUNÇÕES DE RENDERIZAÇÃO DOS CARROSSÉIS 
+// 2. FUNÇÕES DE RENDERIZAÇÃO DOS CARROSSÉIS (MANTIDO) 
 // =================================================================
 
 function createCardHTML(item) {
@@ -128,13 +124,14 @@ function renderRowsStandard(dataToRender) {
 }
 
 // =================================================================
-// 3. LÓGICA DE FILTRO E BUSCA PRINCIPAL 
+// 3. LÓGICA DE FILTRO E BUSCA PRINCIPAL (MANTIDO)
 // =================================================================
 
 function applyFiltersAndSearch() {
     // Garante que 'data' foi carregado antes de tentar filtrar
     if (data.length === 0) {
-        // Se a busca falhou ou está vazia, sai da função. A mensagem de erro já deve estar na tela.
+        // Se a busca falhou ou está vazia, sai da função.
+        // A mensagem de erro ou carregamento já deve estar na tela.
         return; 
     }
     
@@ -158,27 +155,12 @@ function applyFiltersAndSearch() {
     }
 }
 
-navButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        currentFilter = button.dataset.category;
-        navButtons.forEach(btn => btn.classList.remove('active'));
-        button.classList.add('active');
-        searchBar.value = ''; 
-        applyFiltersAndSearch();
-    });
-});
-
-searchBar.addEventListener('input', () => {
-    const homeButton = document.querySelector('.nav-btn[data-category="all"]');
-    navButtons.forEach(btn => btn.classList.remove('active'));
-    homeButton.classList.add('active');
-    currentFilter = 'all'; 
-    applyFiltersAndSearch();
-});
+// OS EVENT LISTENERS FORAM MOVIDOS PARA A FUNÇÃO initApp() ABAIXO
+// para garantir que applyFiltersAndSearch() tenha acesso aos dados.
 
 
 // =================================================================
-// 4. FUNÇÃO DE CARREGAMENTO DE DADOS (MODIFICADA)
+// 4. FUNÇÃO DE CARREGAMENTO DE DADOS (AJUSTADA)
 // =================================================================
 async function loadData() {
     console.log(`Buscando dados da URL local: ${DATA_SOURCE_URL}...`);
@@ -199,18 +181,20 @@ async function loadData() {
         data = fetchedData; 
         console.log(`Dados carregados com sucesso: ${data.length} itens.`);
         
-        // 🚨 NOVO: Chama a função de renderização aqui após o sucesso,
-        // replicando o comportamento do fetchQuizData.
+        // SUCESSO: Renderiza o conteúdo inicial
         applyFiltersAndSearch();
         
     } catch (error) {
         console.error("Falha ao carregar dados. Nenhuma informação será exibida.", error);
         contentRowsContainer.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 50px; font-size: 1.2rem; color: #D0021B;"><i class="fa-solid fa-circle-exclamation"></i> Falha ao carregar dados! <p style="font-size: 0.9rem; margin-top: 10px;">Verifique o nome do arquivo **Wiki.json** e se você está usando um **servidor local** (ex: Live Server do VS Code).</p>';
-        // Limpa 'data' em caso de falha para evitar erros de renderização com dados incompletos.
+        // Limpa 'data' em caso de falha.
         data = []; 
+        
+        // Opcional: Se a falha ocorreu e a renderização inicial não rodou, podemos rodar
+        // uma versão da busca que vai cair no if (data.length === 0) e renderizar a mensagem de erro.
+        // applyFiltersAndSearch(); 
     }
 }
-
 
 // =================================================================
 // 5. WIKIPEDIA API & COMPONENTES DO MODAL (MANTIDO)
@@ -509,10 +493,33 @@ document.addEventListener('keydown', (event) => {
 
 
 // =================================================================
-// 6. INICIALIZAÇÃO ASSÍNCRONA (MODIFICADA)
+// 6. INICIALIZAÇÃO ASSÍNCRONA (AJUSTADA)
 // =================================================================
-document.addEventListener('DOMContentLoaded', () => {
-    // A função loadData() agora cuida da inicialização da interface 
-    // após o sucesso do fetch, de forma similar ao exemplo do Quiz.
+
+function initApp() {
+    // 1. Inicia o carregamento dos dados (função assíncrona)
     loadData();
-});
+    
+    // 2. Configura os Event Listeners (Eles chamarão applyFiltersAndSearch(), 
+    // que só renderizará se 'data' estiver preenchido)
+
+    navButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            currentFilter = button.dataset.category;
+            navButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            searchBar.value = ''; 
+            applyFiltersAndSearch();
+        });
+    });
+    
+    searchBar.addEventListener('input', () => {
+        const homeButton = document.querySelector('.nav-btn[data-category="all"]');
+        navButtons.forEach(btn => btn.classList.remove('active'));
+        homeButton.classList.add('active');
+        currentFilter = 'all'; 
+        applyFiltersAndSearch();
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
