@@ -1,14 +1,13 @@
 // seu-script-principal.js
 
 // =========================================================================
-// === 0. IMPORTAÇÃO DOS DADOS (AGORA VIA ES6 MODULE) ===
+// === 0. IMPORTAÇÃO DOS DADOS (Array DADOS_DO_QUIZ) ===
 // =========================================================================
-import { DADOS_DO_QUIZ } from './Quiz-data.js'; //  Importa a URL do arquivo config.js
-
+import { DADOS_DO_QUIZ } from './quizData.js'; 
 
 document.addEventListener('DOMContentLoaded', () => {
     
-    // Variável que irá armazenar os dados do quiz após o fetch
+    // Variável que irá armazenar os dados do quiz, CONVERTIDOS para o formato de Objeto.
     let quizData = {}; 
 
     // === Elementos da Página Principal ===
@@ -39,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const quizBackgroundGif = document.getElementById('quiz-background-gif');
     
     // === Variáveis de Controle e Configuração ===
-    const MAX_QUESTIONS_PER_QUIZ = 15; // Mantido aqui como uma constante local
+    const MAX_QUESTIONS_PER_QUIZ = 15; 
     let currentQuizQuestions = [];   
     let questionsAttempted = [];     
     let currentQuestionIndex = 0;
@@ -69,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // === Elementos do Canvas do Temporizador ===
     const timerCanvas = document.getElementById('timerCanvas');
-    // Verifica se timerCanvas existe antes de tentar obter o contexto
     const ctx = timerCanvas ? timerCanvas.getContext('2d') : null;
     const centerX = timerCanvas ? timerCanvas.width / 2 : 0;
     const centerY = timerCanvas ? timerCanvas.height / 2 : 0;
@@ -77,49 +75,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const timerTextSize = 36; 
 
     // =======================================================
-    // === FUNÇÃO CENTRAL: BUSCAR DADOS (Utiliza a DATA_URL importada) ===
+    // === FUNÇÃO CENTRAL: INICIALIZAÇÃO E CONVERSÃO DOS DADOS ===
     // =======================================================
-    async function fetchQuizData() {
-        console.log("Buscando dados da URL do Google Drive:", DATA_URL);
+    function initializeQuizData() {
+        // Converte o Array de Objetos ([{tema1: {...}}, {tema2: {...}}]) 
+        // em um único Objeto ({tema1: {...}, tema2: {...}}) para facilitar o lookup.
+        // O Object.assign usa o spread operator (...) para mesclar todos os objetos do array.
+        quizData = Object.assign({}, ...DADOS_DO_QUIZ); 
         
-        cardsGrid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 50px; font-size: 1.2rem; color: #5f6368;">Carregando temas do servidor... <i class="fa-solid fa-spinner fa-spin"></i></div>';
+        console.log("Dados do quiz carregados e processados:", quizData);
+        
+        // SUCESSO: Inicializamos a interface do usuário
+        generateThemeCards(); 
+        setupAllEventListeners();
 
-        try {
-            const response = await fetch(DATA_URL);
-            
-            if (!response.ok) {
-                throw new Error(`Erro HTTP! Status: ${response.status}. Certifique-se que o arquivo está compartilhado.`);
-            }
-            
-            // Tenta obter o JSON. Adicionamos um fallback caso o Content-Type do Google Drive não seja 'application/json'.
-            try {
-                quizData = await response.json();
-            } catch (jsonError) {
-                console.warn("Falha ao fazer parse direto para JSON. Tentando como texto...", jsonError);
-                const textData = await response.text();
-                // Tenta fazer o parse do texto puro, contornando o erro de Content-Type.
-                quizData = JSON.parse(textData);
-            }
-            
-            console.log("Dados carregados com sucesso:", quizData);
-            
-            // SUCESSO: Inicializamos a interface do usuário
-            generateThemeCards(); 
-            setupAllEventListeners();
-
-        } catch (error) {
-            console.error("Falha ao carregar dados do quiz:", error);
+        if (Object.keys(quizData).length === 0) {
             cardsGrid.innerHTML = `
                 <div style="grid-column: 1 / -1; text-align: center; padding: 50px; font-size: 1.2rem; color: #D0021B;">
                     <i class="fa-solid fa-circle-exclamation"></i> Falha ao carregar dados! 
-                    <p style="font-size: 0.9rem; margin-top: 10px;">Verifique se o arquivo JSON no Google Drive está **público** e se o ID está correto.</p>
+                    <p style="font-size: 0.9rem; margin-top: 10px;">O array DADOS_DO_QUIZ está vazio ou malformado.</p>
                 </div>
             `;
         }
     }
 
 
-    // --- FUNÇÕES DE GERAÇÃO E INICIALIZAÇÃO DE CARDS (RESTANTE DO CÓDIGO) ---
+    // --- FUNÇÕES DE GERAÇÃO E INICIALIZAÇÃO DE CARDS ---
     
     function generateThemeCards() {
         if (!cardsGrid || Object.keys(quizData).length === 0) return;
@@ -450,7 +431,6 @@ document.addEventListener('DOMContentLoaded', () => {
         quizOptionsContainer.innerHTML = '';
         quizNextButton.style.display = 'none';
         stopTimer();
-        // Verifica se ctx existe antes de desenhar o timer
         if (ctx) drawTimer(1); 
         updateLivesDisplay(); 
         activeQuizThemeId = '';
@@ -530,7 +510,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- LÓGICA DO TEMPORIZADOR (Canvas) ---
     function drawTimer(progress) {
-        // Verifica se ctx (o contexto do canvas) existe
         if (!ctx) return; 
 
         ctx.clearRect(0, 0, timerCanvas.width, timerCanvas.height); 
@@ -558,7 +537,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function startTimer() {
         stopTimer();
         timeLeft = TIME_PER_QUESTION; 
-        // Verifica se ctx existe antes de desenhar
         if (ctx) drawTimer(1); 
         
         const timeLimit = TIME_PER_QUESTION * 1000;
@@ -581,7 +559,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (remainingTime <= 0) {
                 stopTimer();
-                // Passa 'null' para indicar que foi um timeout
                 checkAnswer(null, currentQuizQuestions[currentQuestionIndex].answer, currentQuizQuestions[currentQuestionIndex].difficulty); 
             } else {
                 animationFrame = requestAnimationFrame(animateTimer);
@@ -649,7 +626,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reiniciar Quiz 
         if (restartQuizButton) {
             restartQuizButton.addEventListener('click', () => {
-                // Reinicia o quiz com o mesmo tema ativo
                 loadQuizQuestions(activeQuizThemeId); 
                 startQuiz(); 
             });
@@ -663,6 +639,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Chamada de Inicialização
-    fetchQuizData();
+    // Chamada de Inicialização (Substitui o fetch)
+    initializeQuizData();
 });
