@@ -3,7 +3,7 @@
 // =================================================================
 // 0. IMPORTAÇÃO DOS DADOS (AGORA VIA ES6 MODULE)
 // =================================================================
-import { DADOS_DA_WIKI } from './Quiz-dados.js'; // Ajuste o caminho se necessário
+import { DADOS_DA_WIKI } from 'Wiki-dados.js'; // Ajuste o caminho se necessário
 
 // =================================================================
 // 1. CONFIGURAÇÃO DE DADOS DINÂMICOS
