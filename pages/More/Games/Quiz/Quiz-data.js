@@ -1,4 +1,6 @@
-export const Data_Quiz = [
+//Quiz-data.js//
+
+export const DADOS_DO_QUIZ = [
 
 {
     "solo-leveling": {
