@@ -10,6 +10,8 @@
     
     /* Fontes */
     --font-stack: 'Poppins', 'Helvetica Neue', Arial, sans-serif;
+    /* Variável de largura da sidebar no desktop */
+    --sidebar-width-desktop: 250px; 
 }
 
 /* Base e Tipografia */
@@ -20,6 +22,11 @@ body {
     background-color: var(--background-light); 
     color: var(--text-dark);
     overflow-x: hidden; 
+}
+
+/* NOVO: Impede a rolagem do corpo quando o menu mobile está aberto */
+body.sidebar-active {
+    overflow: hidden;
 }
 
 /* Imagens dos Cards */
@@ -34,7 +41,7 @@ body {
 .cards-list { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* -------------------------------------------------------------------
- * Navegação e Banner 
+ * Navegação e Sidebar 
  * ------------------------------------------------------------------- */
 
 .netflix-nav {
@@ -48,6 +55,7 @@ body {
     z-index: 1000;
     box-sizing: border-box;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s; /* Adicionar transição para o desktop */
 }
 
 .nav-top-line {
@@ -55,7 +63,22 @@ body {
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    margin-bottom: 10px; 
+    margin-bottom: 0; 
+}
+
+/* NOVO: Botão de Toggle para Mobile */
+.sidebar-toggle-btn {
+    display: block; /* Mostrar no mobile */
+    background: var(--primary-color);
+    border: none;
+    color: var(--secondary-color);
+    font-size: 1.2em;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-right: 15px; 
+    order: 0; /* Posição antes da barra de busca */
 }
 
 /* NOVO ESTILO PARA O BOTÃO/LINK DE LOGO */
@@ -86,39 +109,6 @@ body {
 }
 /* FIM DO NOVO ESTILO */
 
-.nav-links {
-    display: flex; 
-    gap: 10px;
-    overflow-x: auto; 
-    padding-bottom: 5px; 
-    -ms-overflow-style: none;  
-    scrollbar-width: none;  
-}
-.nav-links::-webkit-scrollbar {
-    display: none;
-}
-
-.nav-btn {
-    background: none;
-    border: none;
-    color: var(--text-dark);
-    cursor: pointer;
-    font-size: 0.9em;
-    font-weight: 500;
-    padding: 5px 10px;
-    opacity: 0.8;
-    white-space: nowrap; 
-    border-radius: 20px;
-    transition: color 0.3s, opacity 0.3s;
-}
-
-.nav-btn.active {
-    color: var(--secondary-color);
-    background-color: var(--primary-color); 
-    opacity: 1;
-    font-weight: 700;
-}
-
 .search-container {
     display: flex;
     align-items: center;
@@ -137,6 +127,76 @@ body {
     transition: width 0.3s, border-color 0.3s;
 }
 
+/* NOVO: Estilo da Sidebar (Mobile: Fechada) */
+.sidebar-menu {
+    position: fixed;
+    top: 0;
+    left: -100%; /* Começa fechada (fora da tela) no mobile */
+    width: 80vw;
+    max-width: 300px;
+    height: 100%;
+    background-color: var(--card-light);
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+    z-index: 1500; 
+    padding: 20px 15px;
+    box-sizing: border-box;
+    transition: left 0.3s ease-in-out;
+    overflow-y: auto;
+}
+
+.sidebar-menu.open {
+    left: 0; /* Abre no mobile */
+}
+
+.sidebar-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: var(--primary-color);
+    cursor: pointer;
+    z-index: 10;
+}
+
+.sidebar-links {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 40px; 
+}
+
+/* Estilo para os botões dentro da sidebar (reaproveita .nav-btn) */
+.sidebar-links .nav-btn {
+    background: none;
+    border: none;
+    color: var(--text-dark);
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 500;
+    padding: 10px 15px;
+    opacity: 0.8;
+    white-space: nowrap; 
+    border-radius: 5px;
+    transition: color 0.3s, opacity 0.3s, background-color 0.2s;
+    width: 100%;
+    text-align: left;
+}
+
+.sidebar-links .nav-btn:hover:not(.active) {
+    background-color: var(--background-light);
+    opacity: 1;
+}
+
+.sidebar-links .nav-btn.active {
+    color: var(--secondary-color);
+    background-color: var(--primary-color); 
+    opacity: 1;
+    font-weight: 700;
+}
+
+
 .hero-banner {
     background: transparent;
     background-size: cover;
@@ -145,12 +205,17 @@ body {
     display: flex;
     align-items: flex-end;
     padding: 0 15px 40px 15px;
-    margin-top: 100px; 
+    margin-top: 70px; 
+    transition: margin-left 0.3s;
 }
 
 /* -------------------------------------------------------------------
  * Layout de Linhas e Cards
  * ------------------------------------------------------------------- */
+
+#content-rows {
+    transition: margin-left 0.3s;
+}
 
 .row-title {
     padding: 0 15px;
@@ -178,7 +243,7 @@ body {
     position: relative;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08); 
     transition: transform 0.3s, box-shadow 0.3s;
-    flex-shrink: 0; /* Impede o encolhimento */
+    flex-shrink: 0; 
 }
 
 .card-info {
@@ -200,7 +265,7 @@ body {
 }
 
 /* -------------------------------------------------------------------
- * Modal (FULL-SCREEN EM TODAS AS RESOLUÇÕES)
+ * Modal (mantido)
  * ------------------------------------------------------------------- */
 
 .modal {
@@ -269,7 +334,7 @@ body {
 }
 
 /* -------------------------------------------------------------------
- * Trailers Player e Carrossel
+ * Trailers Player e Carrossel (mantido)
  * ------------------------------------------------------------------- */
 
 .trailer-container {
@@ -350,7 +415,7 @@ body {
 }
 
 /* -------------------------------------------------------------------
- * Lista Vertical de Prévias Wikipedia (Acordeão) 
+ * Lista Vertical de Prévias Wikipedia (Acordeão) (mantido)
  * ------------------------------------------------------------------- */
 
 .wikipedia-box {
@@ -445,7 +510,7 @@ body {
 }
 
 /* -------------------------------------------------------------------
- * ESTILOS DO PLAYER SPOTIFY 
+ * ESTILOS DO PLAYER SPOTIFY (mantido)
  * ------------------------------------------------------------------- */
 
 .spotify-section {
@@ -460,7 +525,7 @@ body {
 }
 
 /* -------------------------------------------------------------------
- * LISTA VERTICAL DE LINKS DE SITES 
+ * LISTA VERTICAL DE LINKS DE SITES (mantido)
  * ------------------------------------------------------------------- */
 
 .related-sites-section {
@@ -520,7 +585,7 @@ body {
 
 
 /* -------------------------------------------------------------------
- * Elenco 
+ * Elenco (mantido)
  * ------------------------------------------------------------------- */
 
 .cast-title {
@@ -556,22 +621,63 @@ body {
  * ------------------------------------------------------------------- */
 
 @media (min-width: 601px) {
+    
+    /* Configuração da largura no desktop */
+    :root {
+        --sidebar-width-desktop: 250px;
+    }
+    
+    /* Ocultar botão de toggle mobile */
+    .sidebar-toggle-btn {
+        display: none; 
+    }
+
+    /* Ocultar botão de fechar no desktop */
+    .sidebar-close-btn {
+        display: none;
+    }
+    
+    /* Sidebar: Sempre aberta no Desktop */
+    .sidebar-menu {
+        left: 0;
+        width: var(--sidebar-width-desktop);
+        max-width: var(--sidebar-width-desktop);
+        box-shadow: none; 
+        border-right: 1px solid rgba(0, 0, 0, 0.1);
+        padding: 20px 15px; 
+        z-index: 999; 
+    }
+
     /* Navegação de Desktop */
     .netflix-nav { 
-        display: flex; 
-        align-items: center;
+        width: calc(100% - var(--sidebar-width-desktop)); 
+        left: var(--sidebar-width-desktop); /* Desloca a nav para a direita da sidebar */
         padding: 15px 30px; 
-        justify-content: flex-start;
         height: auto;
     }
     
     .nav-top-line {
-        display: flex; 
-        margin-bottom: 0;
+        justify-content: flex-end; /* Mover busca para a direita */
     }
 
     .nav-logo-btn {
-        font-size: 1.2em; 
+        display: none; /* Opcional: Oculta o logo na nav já que a sidebar está aberta */
+    }
+    
+    /* Ajustar a posição do conteúdo principal (main e banner) */
+    .hero-banner {
+        margin-left: var(--sidebar-width-desktop);
+        margin-top: 80px; 
+        padding-left: 30px; /* Alinhar com o padding da nav */
+    }
+
+    #content-rows {
+        margin-left: var(--sidebar-width-desktop); 
+    }
+    
+    .row-title, .cards-list {
+        padding-left: 30px; 
+        padding-right: 30px;
     }
     
     /* Cards e Hover de Desktop */
@@ -607,6 +713,10 @@ body {
 
 @media (min-width: 1025px) {
     /* Ajustes de Desktop */
+    :root {
+        --sidebar-width-desktop: 300px;
+    }
+    
     .card {
         min-width: 200px; 
         height: 300px;
