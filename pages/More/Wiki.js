@@ -3,21 +3,26 @@
 // =================================================================
 // 0. IMPORTAÇÃO DOS DADOS (AGORA VIA ES6 MODULE)
 // =================================================================
-import { DADOS_DA_WIKI } from './Wiki-dados.js'; // ✅ CORREÇÃO: Adicionado './' para path relativo
+import { DADOS_DA_WIKI } from './Wiki-dados.js'; // Assumindo que este arquivo existe
 
 // =================================================================
 // 1. CONFIGURAÇÃO DE DADOS DINÂMICOS
 // =================================================================
 
-// ✅ ALTERADO: 'data' é preenchida com o array importado
 let data = DADOS_DA_WIKI; 
 
 const contentRowsContainer = document.getElementById('content-rows');
-const navButtons = document.querySelectorAll('.nav-btn');
+// ✅ ATUALIZADO: Selecionar os botões dentro do novo .sidebar-links
+const navButtons = document.querySelectorAll('.sidebar-links .nav-btn'); 
 const searchBar = document.getElementById('search-bar');
 const modal = document.getElementById('info-modal');
 const closeModalBtn = document.querySelector('.close-btn');
 const modalBody = document.getElementById('modal-body');
+
+// ✅ NOVO: Elementos da Sidebar
+const sidebarMenu = document.getElementById('sidebar-menu');
+const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
 
 let currentFilter = 'all';
 
@@ -174,7 +179,8 @@ navButtons.forEach(button => {
 });
 
 searchBar.addEventListener('input', () => {
-    const homeButton = document.querySelector('.nav-btn[data-category="all"]');
+    // ✅ CORRIGIDO: O seletor busca o botão 'all' dentro da nova estrutura
+    const homeButton = document.querySelector('.sidebar-links .nav-btn[data-category="all"]');
     navButtons.forEach(btn => btn.classList.remove('active'));
     homeButton.classList.add('active');
     currentFilter = 'all'; 
@@ -185,7 +191,6 @@ searchBar.addEventListener('input', () => {
 // =================================================================
 // 4. FUNÇÃO DE CARREGAMENTO DE DADOS (SIMPLIFICADA)
 // =================================================================
-// Esta função é agora apenas um verificador de dados
 
 function checkDataLoad() {
     if (data && data.length > 0) {
@@ -500,7 +505,45 @@ document.addEventListener('keydown', (event) => {
 
 
 // =================================================================
-// 6. INICIALIZAÇÃO 
+// 6. LÓGICA DA SIDEBAR (NOVO)
+// =================================================================
+
+function toggleSidebar() {
+    sidebarMenu.classList.toggle('open');
+    // Adiciona/remove uma classe ao body para evitar rolagem do conteúdo principal
+    document.body.classList.toggle('sidebar-active');
+}
+
+function closeSidebar() {
+    sidebarMenu.classList.remove('open');
+    document.body.classList.remove('sidebar-active');
+}
+
+// Event Listeners
+if(sidebarToggleBtn && sidebarMenu && sidebarCloseBtn) {
+    sidebarToggleBtn.addEventListener('click', toggleSidebar);
+    sidebarCloseBtn.addEventListener('click', closeSidebar);
+    
+    // Fechar ao clicar em um link (útil para mobile)
+    navButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Garante que a sidebar feche APÓS o evento de navegação
+            closeSidebar();
+        });
+    });
+    
+    // Adiciona listener para fechar a sidebar quando o modal é aberto
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal.style.display === 'block') {
+            closeSidebar();
+        }
+    });
+
+}
+
+
+// =================================================================
+// 7. INICIALIZAÇÃO 
 // =================================================================
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Verifica se há dados para renderizar
