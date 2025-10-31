@@ -1,5 +1,5 @@
 // =================================================================
-// 0. IMPORTAÇÃO DOS DADOS
+// 0. IMPORTAÇÃO DOS DADOS (Necessário ter este arquivo no mesmo diretório)
 // =================================================================
 import { DADOS_DA_WIKI } from './Wiki-dados.js'; 
 
@@ -12,7 +12,7 @@ let data = DADOS_DA_WIKI;
 const contentRowsContainer = document.getElementById('content-rows');
 const searchBar = document.getElementById('search-bar');
 const modal = document.getElementById('info-modal');
-const closeModalBtn = document.querySelector('.close-btn');
+const closeModalBtn = document.querySelector('.modal-content .close-btn');
 const modalBody = document.getElementById('modal-body');
 
 // NOVOS ELEMENTOS DA SIDEBAR
@@ -20,10 +20,6 @@ const sidebar = document.getElementById('sidebar');
 const overlay = document.getElementById('overlay');
 const menuToggleBtn = document.getElementById('menu-toggle-btn');
 const closeSidebarBtn = document.getElementById('close-sidebar-btn');
-
-// VARIÁVEIS DAS ABAS (REMOVIDAS)
-// const navButtons = ... (REMOVIDO)
-// let currentFilter = 'all'; (REMOVIDO)
 
 // Mapeamento de Subtemas (MANTIDO)
 const SUBTHEMES_MAP = {
@@ -39,16 +35,12 @@ const SUBTHEMES_MAP = {
 // 2. FUNÇÕES DE RENDERIZAÇÃO DOS CARROSSÉIS 
 // =================================================================
 
-/**
- * MODIFICADO: Cria o card no estilo "Crunchyroll" (Imagem em cima, Título embaixo)
- */
 function createCardHTML(item) {
     const card = document.createElement('div');
     card.classList.add('card');
     card.dataset.id = item.id;
     card.title = item.title;
 
-    // A estrutura HTML interna do card foi alterada
     card.innerHTML = `
         <div class="card-image-container">
             <img src="${item.image}" alt="${item.title}" class="card-image">
@@ -78,9 +70,6 @@ function createRowContainer(title, items) {
     return rowContainer;
 }
 
-// FUNÇÃO renderThemedRows (REMOVIDA, pois não há mais abas de tema)
-// A função renderRowsStandard agora é a única que renderiza
-
 function groupDataByCategory(dataList) {
     const groups = dataList.reduce((acc, item) => {
         const category = item.category;
@@ -101,9 +90,6 @@ function groupDataByCategory(dataList) {
     return rows.filter(row => row.items.length > 0);
 }
 
-/**
- * MODIFICADO: Esta é agora a única função de renderização de linhas
- */
 function renderRowsStandard(dataToRender) {
     contentRowsContainer.innerHTML = '';
     
@@ -127,10 +113,6 @@ function renderRowsStandard(dataToRender) {
 // 3. LÓGICA DE FILTRO E BUSCA (SIMPLIFICADA)
 // =================================================================
 
-/**
- * MODIFICADO: A lógica de 'currentFilter' foi removida.
- * A função agora só filtra pela busca ou mostra tudo.
- */
 function applyFiltersAndSearch() {
     if (data.length === 0) {
         contentRowsContainer.innerHTML = '<p style="padding: 100px; text-align: center; color: red;">Os dados da Wiki estão vazios. Verifique o array DADOS_DA_WIKI no arquivo dados.js.</p>';
@@ -140,7 +122,6 @@ function applyFiltersAndSearch() {
     const searchText = searchBar.value.toLowerCase().trim();
     
     if (searchText.length > 0) {
-        // Se há texto na busca, filtra os dados
         const filteredData = data.filter(item => {
             return item.title.toLowerCase().includes(searchText) || 
                    (item.description && item.description.toLowerCase().includes(searchText)) || 
@@ -149,23 +130,15 @@ function applyFiltersAndSearch() {
         
         renderRowsStandard(filteredData);
     } else {
-        // Se a busca está vazia, mostra todos os dados
         renderRowsStandard(data);
     }
 }
 
-// Lógica dos botões de navegação (REMOVIDA)
-// navButtons.forEach(...) (REMOVIDO)
-
-// MODIFICADO: Evento de busca simplificado
-searchBar.addEventListener('input', () => {
-    // A busca agora é a única fonte de filtro
-    applyFiltersAndSearch();
-});
+searchBar.addEventListener('input', applyFiltersAndSearch);
 
 
 // =================================================================
-// 4. NOVA LÓGICA DA SIDEBAR
+// 4. LÓGICA DA SIDEBAR (FECHAR SIDEBAR)
 // =================================================================
 
 function isDesktop() {
@@ -180,6 +153,10 @@ function openSidebar() {
     }
 }
 
+/**
+ * FUNÇÃO DE FECHAMENTO DO SIDEBAR (Lógica de classes e overlay)
+ * Totalmente separada de closeModal.
+ */
 function closeSidebar() {
     if (!isDesktop()) {
         sidebar.classList.remove('open');
@@ -199,14 +176,12 @@ function setupSidebarEvents() {
         }
     });
     
-    // Fecha a sidebar se clicar em um link (ex: botão INÍCIO)
     sidebar.querySelectorAll('a').forEach(link => {
         link.addEventListener('click', () => {
              if (!isDesktop()) closeSidebar();
         });
     });
     
-    // Lida com redimensionamento da tela
     window.addEventListener('resize', () => {
         if (isDesktop()) {
             sidebar.classList.remove('open');
@@ -233,10 +208,8 @@ function checkDataLoad() {
 
 
 // =================================================================
-// 6. WIKIPEDIA API & COMPONENTES DO MODAL (Sem alterações)
+// 6. WIKIPEDIA API & COMPONENTES DO MODAL (FUNÇÕES AUXILIARES)
 // =================================================================
-
-// ... (Todas as funções do modal: fetchWikipediaArticles, createWikipediaPreviewsHTML, createCastListHTML, createSpotifyPlayerHTML, createRelatedSitesHTML, createTrailerCarrosselHTML, switchMainTrailer, openModal, closeModal, etc. permanecem as mesmas) ...
 
 async function fetchWikipediaArticles(query, limit = 5) {
     const API_URL = 'https://pt.wikipedia.org/w/api.php';
@@ -507,23 +480,39 @@ function openModal(item) {
 }
 
 
+/**
+ * FUNÇÃO DE FECHAMENTO DO MODAL (Lógica de limpeza de conteúdo)
+ * Totalmente diferente de closeSidebar.
+ */
 function closeModal() {
+    // 1. Lógica de limpeza: Pausa/Zera o player de vídeo do YouTube para evitar áudio em background.
     const trailerPlayer = document.getElementById('main-trailer-player');
     if (trailerPlayer) {
         trailerPlayer.src = ''; 
     }
 
+    // 2. Lógica de limpeza: Remove o conteúdo dinâmico.
     modalBody.innerHTML = ''; 
+    
+    // 3. Lógica de ocultar e restaurar o scroll.
     modal.style.display = 'none';
     document.body.style.overflow = 'auto'; 
 }
 
+// =================================================================
+// 7. EVENTOS DE FECHAMENTO
+// =================================================================
+
 closeModalBtn.addEventListener('click', closeModal);
+
+// Fecha se clicar fora (no overlay do modal)
 window.addEventListener('click', (event) => {
     if (event.target === modal) {
         closeModal();
     }
 });
+
+// Fecha se pressionar ESC
 document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && modal.style.display === 'block') {
         closeModal();
@@ -532,7 +521,7 @@ document.addEventListener('keydown', (event) => {
 
 
 // =================================================================
-// 7. INICIALIZAÇÃO 
+// 8. INICIALIZAÇÃO 
 // =================================================================
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Configura os eventos da nova sidebar
@@ -541,7 +530,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Verifica se há dados para renderizar
     const dataIsReady = checkDataLoad();
     
-    // 3. Renderiza o conteúdo (agora sem filtro inicial)
+    // 3. Renderiza o conteúdo (mostra tudo por padrão)
     if (dataIsReady) {
         applyFiltersAndSearch();
     }
