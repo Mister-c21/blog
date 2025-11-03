@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barra de Busca Completa (Glassmorphism)</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <style>
+        /* -------------------------------------- */
+        /* VARIÁVEIS CSS E ESTILOS GLOBAIS */
+        /* -------------------------------------- */
+        :root {
+            --blueviolet-color: 138, 43, 226; 
+            --glass-background: rgba(var(--blueviolet-color), 0.1); 
+            --glass-border: rgba(255, 255, 255, 0.3); 
+            --glass-blur: 15px;
+            --shadow-color: rgba(0, 0, 0, 0.1); 
+            --icon-size: 18px;
+            --bar-height: 50px;
+            --icon-padding: 20px;
+            --transition-speed: 0.3s;
+            --sidebar-width: 250px;
+        }
+
+        body {
+            /* Fundo Glassmorphism */
+            background: linear-gradient(135deg, #4b0082, #9400d3, #da70d6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            color: #fff;
+            width: 100vw; 
+            position: relative;
+        }
+
+        /* -------------------------------------- */
+        /* MENU HAMBÚRGUER (TOP-RIGHT) */
+        /* -------------------------------------- */
+        .menu-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 999; /* Abaixo do modal de seleção (z-index 1000) */
+            
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition-speed) ease;
+        }
+        
+        .menu-toggle:hover {
+            color: rgba(255, 255, 255, 0.8);
+            transform: scale(1.05);
+        }
+
+        /* -------------------------------------- */
+        /* SIDEBAR (BARRA LATERAL) */
+        /* -------------------------------------- */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: var(--sidebar-width);
+            height: 100%;
+            z-index: 1000;
+            
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(25px);
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
+            
+            transform: translateX(var(--sidebar-width));
+            transition: transform var(--transition-speed) ease-in-out;
+            
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .sidebar.is-open {
+            transform: translateX(0);
+        }
+        
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .sidebar ul a {
+            padding: 10px 0;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+    
+        a {
+            text-decoration:none;
+            color:white;
+        }
+    
+        .sidebar ul a:hover {
+            color: #da70d6;
+        }
+
+        .close-sidebar-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 30px;
+            background: transparent;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .close-sidebar-btn:hover {
+            transform: rotate(90deg);
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* -------------------------------------- */
+        /* BARRA DE BUSCA (BORDAS ARREDONDADAS) */
+        /* -------------------------------------- */
+        .search-wrapper {
+            position: relative;
+            width: 90%;
+            max-width: 580px; 
+            height: var(--bar-height);
+            
+            /* Borda arredondada */
+            border-radius: 30px; 
+            
+            box-shadow: 0 4px 8px var(--shadow-color), 0 2px 4px var(--shadow-color);
+            background: var(--glass-background);
+            backdrop-filter: blur(var(--glass-blur));
+            -webkit-backdrop-filter: blur(var(--glass-blur));
+            border: 1px solid var(--glass-border); 
+            transition: box-shadow var(--transition-speed) ease;
+        }
+        
+        .search-input {
+            width: 100%; height: 100%; 
+            /* Espaçamento ajustado para acomodar o botão de opções com fundo */
+            padding-left: 60px; 
+            padding-right: calc(var(--icon-padding) + 30px);
+            
+            border: none; outline: none; background: transparent; box-sizing: border-box; 
+            font-size: 16px; color: #fff; 
+        }
+
+        .search-input::placeholder { color: rgba(255, 255, 255, 0.6); }
+
+        /* Estilo base para todos os botões de ícone (lupa e opções) */
+        .icon-btn {
+            position: absolute; 
+            top: 50%; 
+            transform: translateY(-50%);
+            
+            font-size: var(--icon-size); 
+            color: rgb(var(--blueviolet-color)); 
+            
+            cursor: pointer; 
+            background: transparent; 
+            border: none; 
+            outline: none; 
+            padding: 0; 
+            transition: color 0.2s ease, transform 0.2s ease; 
+            z-index: 2;
+        }
+        
+        .icon-btn:hover { 
+            color: #fff; 
+            transform: translateY(-50%) scale(1.1); 
+        }
+
+        .search-btn { 
+            left: var(--icon-padding); 
+        }
+
+        /* -------------------------------------- */
+        /* BOTÃO DE OPÇÕES (DESTACADO) */
+        /* -------------------------------------- */
+        .options-btn { 
+            right: 10px;
+            
+            /* Fundo arredondado para destaque */
+            background: rgba(var(--blueviolet-color), 0.5); 
+            backdrop-filter: blur(5px);
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            z-index: 3;
+        }
+
+        .options-btn i {
+            color: #fff; /* O ícone fica branco no fundo vibrante */
+            transition: transform 0.2s ease;
+        }
+
+        .options-btn:hover {
+            background: rgba(var(--blueviolet-color), 0.7);
+            transform: translateY(-50%) scale(1.05);
+        }
+        
+        /* -------------------------------------- */
+        /* ESTILOS DO MODAL DE SELEÇÃO (FULL-SCREEN GLASS) */
+        /* -------------------------------------- */
+        
+        .modal-overlay {
+            display: none; 
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            
+            /* Fundo semitransparente mais leve */
+            background-color: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity var(--transition-speed) ease;
+        }
+        
+        .modal-content {  
+            width: 100%;
+            max-height:90%;
+            overflow-y: auto; 
+            
+            /* Glassmorphism primário, bem transparente */
+            background-color: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+           
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transform: scale(0.95);
+            transition: transform var(--transition-speed) ease;
+        }
+        
+        .modal-content::-webkit-scrollbar { width: 8px; }
+        .modal-content::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.3); border-radius: 4px; }
+
+        .modal-title {
+            color: #fff; margin-top: 0; margin-bottom: 20px; font-size: 24px;
+            font-weight: bold; border-bottom: 1px solid rgba(255, 255, 255, 0.4); padding-bottom: 10px;
+        }
+
+        .search-engines-list { list-style: none; padding: 0; margin: 0; }
+
+        /* Botões de opção com bordas arredondadas */
+        .engine-item button {
+            width: 100%; padding: 15px; margin: 10px 0; border: none; 
+            
+            border-radius: 10px; 
+            
+            background-color: rgba(255, 255, 255, 0.1); 
+            color: #fff; font-size: 17px;
+            cursor: pointer; transition: background-color 0.2s ease, transform 0.1s ease;
+            text-align: left; display: flex; align-items: center; font-weight: bold;
+        }
+        
+        .engine-item i { margin-right: 15px; min-width: 25px; text-align: center; }
+
+        .engine-item button:hover { background-color: rgba(255, 255, 255, 0.2); transform: scale(1.02); }
+        
+        .close-button {
+            color: #fff; position: absolute; top: 15px; right: 20px; font-size: 32px;
+            font-weight: bold; cursor: pointer; transition: color 0.2s;
+        }
+        
+        .close-button:hover { color: #ccc; }
+
+        .modal-overlay.is-visible { display: flex; opacity: 1; }
+        .modal-overlay.is-visible .modal-content { transform: scale(1); }
+    </style>
+</head>
+<body>
+
+    <button id="menu-toggle" class="menu-toggle" aria-label="Abrir Menu Lateral">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <div id="sidebar" class="sidebar">
+        <button id="close-sidebar-btn" class="close-sidebar-btn" aria-label="Fechar Menu Lateral">
+            &times;
+        </button>
+       
+        <ul>
+             <a href="../../index.html"><i class="fas fa-globe"></i> Página Inicial</a>
+        </ul>
+    </div>
+    
+    <div class="search-wrapper">
+        <button id="search-action-btn" class="icon-btn search-btn" aria-label="Pesquisar">
+            <i class="fas fa-search"></i>
+        </button>
+        
+        <input type="text" id="search-input" class="search-input" placeholder="Pesquisar no Google (Padrão)..." aria-label="Barra de Pesquisa">
+        
+        <button class="icon-btn options-btn" id="options-button" aria-label="Opções de Motor de Busca">
+            <i class="fas fa-ellipsis-v"></i>
+        </button>
+    </div>
+
+    <div id="options-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal()">&times;</span>
+            <h2 class="modal-title">Selecione o Motor de Busca</h2>
+            
+            <ul class="search-engines-list">
+                <li class="engine-item">
+                    <button data-engine-name="Google" data-url-prefix="https://www.google.com/search?q=">
+                        <i class="fab fa-google" style="color: #4285F4;"></i> Google (Padrão)
+                    </button>
+                </li>
+                <li class="engine-item">
+                    <button data-engine-name="Bing" data-url-prefix="https://www.bing.com/search?q=">
+                        <i class="fab fa-microsoft" style="color: #0078D4;"></i> Bing
+                    </button>
+                </li>
+                <li class="engine-item">
+                    <button data-engine-name="Perplexity" data-url-prefix="https://www.perplexity.ai/search?q=">
+                        <i class="fas fa-brain" style="color: #FF69B4;"></i> Perplexity (IA)
+                    </button>
+                </li>
+                <li class="engine-item">
+                    <button data-engine-name="Baidu" data-url-prefix="https://www.baidu.com/s?wd=">
+                        <i class="fas fa-language" style="color: #2F4F4F;"></i> Baidu (百度)
+                    </button>
+                </li>
+                <li class="engine-item">
+                    <button data-engine-name="Naver" data-url-prefix="https://search.naver.com/search.naver?query=">
+                        <i class="fas fa-globe" style="color: #03C75A;"></i> Naver (네이버)
+                    </button>
+                </li>
+                <li class="engine-item">
+                    <button data-engine-name="Wikipedia" data-url-prefix="https://pt.wikipedia.org/w/index.php?search=">
+                        <i class="fab fa-wikipedia-w" style="color: #CCCCCC;"></i> Wikipedia
+                    </button>
+                </li>
+                
+                <li class="engine-item">
+                    <button data-engine-name="YouTube" data-url-prefix="https://www.youtube.com/results?search_query=">
+                        <i class="fab fa-youtube" style="color: #FF0000;"></i> YouTube (Vídeos)
+                    </button>
+                </li>
+                <li class="engine-item">
+                    <button data-engine-name="Pinterest" data-url-prefix="https://www.pinterest.com/search/pins/?q=">
+                        <i class="fab fa-pinterest" style="color: #E60023;"></i> Pinterest (Imagens)
+                    </button>
+                </li>
+                <li class="engine-item">
+                    <button data-engine-name="DuckDuckGo" data-url-prefix="https://duckduckgo.com/?q=">
+                        <i class="fas fa-search-dollar" style="color: #E37435;"></i> DuckDuckGo (Privado)
+                    </button>
+                </li>
+                <li class="engine-item">
+                    <button data-engine-name="Ecosia" data-url-prefix="https://www.ecosia.org/search?q=">
+                        <i class="fas fa-tree" style="color: #008744;"></i> Ecosia (Árvores)
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // --- Variáveis de Elementos ---
+        const optionsButton = document.getElementById('options-button');
+        const searchActionButton = document.getElementById('search-action-btn');
+        const searchInput = document.getElementById('search-input');
+        const modal = document.getElementById('options-modal');
+        const engineButtons = document.querySelectorAll('.engine-item button');
+        const menuToggle = document.getElementById('menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+
+        // --- Estado Inicial ---
+        let currentEngine = {
+            name: "Google",
+            prefix: "https://www.google.com/search?q="
+        };
+
+        // --- Funções da Sidebar ---
+        function toggleSidebar() {
+            sidebar.classList.toggle('is-open');
+        }
+
+        // --- Funções do Modal de Seleção ---
+        function openModal() {
+            modal.style.display = 'flex';
+            void modal.offsetWidth; 
+            modal.classList.add('is-visible');
+        }
+
+        function closeModal() {
+            modal.classList.remove('is-visible');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300); 
+        }
+
+        function selectEngine(event) {
+            const button = event.currentTarget;
+            currentEngine.name = button.getAttribute('data-engine-name');
+            currentEngine.prefix = button.getAttribute('data-url-prefix');
+            
+            searchInput.placeholder = `Pesquisar no ${currentEngine.name}...`;
+            searchInput.setAttribute('aria-label', `Barra de Pesquisa no ${currentEngine.name}`);
+            
+            closeModal();
+        }
+
+        // --- Função de Busca (Navegação) ---
+        function performSearch() {
+            const query = searchInput.value.trim();
+            if (query === "") {
+                alert(`Por favor, digite um termo para pesquisar no ${currentEngine.name}.`);
+                return;
+            }
+            // Codifica o termo de busca para ser seguro na URL
+            const encodedQuery = encodeURIComponent(query);
+            const searchURL = currentEngine.prefix + encodedQuery;
+            
+            // Realiza a navegação para a página de resultados com o termo
+            window.location.href = searchURL;
+        }
+
+        // --- Event Listeners ---
+        
+        // 1. Sidebar
+        menuToggle.addEventListener('click', toggleSidebar);
+        closeSidebarBtn.addEventListener('click', toggleSidebar);
+
+        // 2. Modal de Seleção
+        optionsButton.addEventListener('click', openModal);
+        engineButtons.forEach(button => {
+            button.addEventListener('click', selectEngine);
+        });
+
+        // 3. Busca
+        searchActionButton.addEventListener('click', performSearch);
+        searchInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        // 4. Fechar ao clicar fora (Modal e Sidebar)
+        window.onclick = function(event) {
+            // Fechar Modal de Seleção ao clicar no overlay
+            if (event.target === modal) {
+                closeModal();
+            }
+            // Fechar Sidebar ao clicar no overlay
+            if (event.target === sidebar && sidebar.classList.contains('is-open') && event.target !== menuToggle) {
+                 toggleSidebar();
+            }
+        };
+
+    </script>
+</body>
+</html>
