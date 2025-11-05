@@ -1227,9 +1227,9 @@ export const DADOS_DA_WIKI = [
         "title": "Apex Legends",
         "category": "jogos",
         "subtheme": "E-Sports",
-        "image": "https://upload.wikimedia.org/wikipedia/en/thumb/0/05/Apex_legends_cover.jpg/220px-Apex_legends_cover.jpg",
+        "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ1fd_ffg2hhk4qCIyr3CUH-KWNYGEn6nMizV874Mr8gaOq-j6S1Z_VFD4C&s=10",
         "description": "Um Battle Royale em primeira pessoa, free-to-play, com equipes de três e um elenco de 'Lendas', cada uma com habilidades únicas que facilitam o combate, o reconhecimento e o suporte. Destaca-se pela fluidez da movimentação e tiroteios rápidos. Seu e-sport oficial é a Apex Legends Global Series (ALGS).",
-        "spotifyEmbedUrl": "https://open.spotify.com/album/324S00o3e8gY4g2n9wG56g",
+        "spotifyEmbedUrl": "https://open.spotify.com/embed/album/0rC4E8j8GjJzp94pcmHPIw?utm_source=generator",
         "rating": "4.3/5.0 (Média de Comunidade)",
         "year": 2019,
         "platform": "PC, PS4, PS5, Xbox One, Xbox Series X/S, Nintendo Switch, Mobile (Versão móvel com descontinuação)",
@@ -1239,7 +1239,7 @@ export const DADOS_DA_WIKI = [
             { "name": "Bloodhound (Lenda Jogável)", "img": "URL de imagem não aplicável." }
         ],
         "relatedSites": [
-            { "name": "Página Oficial da EA", "url": "https://www.ea.com/pt-br/games/apex-legends", "type": "Distribuidor" }
+            { "name": "Página Oficial da EA", "url": "https://www.ea.com/pt-br/games/apex-legends/apex-legends", "type": "Distribuidor" }
         ],
         "trailers": [
             { "title": "Trailer de Lançamento", "url": "https://www.youtube.com/embed/oJ_V32RjYgI" }
