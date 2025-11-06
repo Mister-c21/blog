@@ -643,7 +643,7 @@ export const DADOS_DA_WIKI = [
         "title": "Solo Leveling", 
         "category": "anime", 
         "subtheme": "Animes Shonen Populares", 
-        "image": "https://www.lesaventuresludiques.com/wp-content/uploads/2025/06/solo-leveling-season-3.jpg", 
+        "image": "https://m.media-amazon.com/images/I/81OYRZEQG7L._AC_UF1000,1000_QL80_.jpg", 
         "description": "Sung Jin-Woo, o caçador mais fraco, ganha um misterioso sistema que lhe permite subir de nível indefinidamente.", 
         "spotifyEmbedUrl": "https://open.spotify.com/embed/album/1RiSRSE9wGtGUxPaH9LZ5X?utm_source=generator", 
         "rating": "4.8/5.0", 
