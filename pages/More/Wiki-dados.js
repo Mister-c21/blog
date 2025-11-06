@@ -16,7 +16,7 @@ export const DADOS_DA_WIKI = [
         "director": "Lauren Schmidt Hissrich", 
         "cast": [
             { "name": "Henry Cavill", "img": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcSsZ4WwvLl4kKl8ETPClry8gmZ4ai8RMrdn_B5Ks5mGj6c9aHzaJQSVi5-g-nd-Oxw3oJJa94JV2nCON2QmMqycqrMnX1dsQDxiiFy7Cbo" }, 
-            { "name": "Anya Chalotra", "img": "https://via.placeholder.com/60/8a2be2/ffffff?text=AC" }
+            { "name": "Anya Chalotra", "img": "https://pm1.aminoapps.com/7412/014499446673dcb823859a0b16a4804a80f4a02fr1-893-1200v2_00.jpg" }
         ],
         "relatedSites": [
             { "name": "The Witcher Wiki", "url": "https://witcher.fandom.com/wiki/Witcher_Wiki", "type": "Fandom" },
