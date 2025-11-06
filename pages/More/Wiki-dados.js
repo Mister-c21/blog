@@ -1242,7 +1242,7 @@ export const DADOS_DA_WIKI = [
             { "name": "Página Oficial da EA", "url": "https://www.ea.com/pt-br/games/apex-legends/apex-legends", "type": "Distribuidor" }
         ],
         "trailers": [
-            { "title": "Trailer de Lançamento", "url": "https://www.youtube.com/embed/oJ_V32RjYgI" }
+            { "title": "Trailer de Lançamento", "url": "https://www.youtube.com/embed/DJEOOb6XlVKa17nA" }
         ]
     },
     {
