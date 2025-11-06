@@ -1236,7 +1236,7 @@ export const DADOS_DA_WIKI = [
         "director": "Respawn Entertainment",
         "cast": [
             { "name": "Wraith (Lenda Jogável)", "img": "https://static0.gamerantimages.com/wordpress/wp-content/uploads/2023/01/wraith-apex-legends-size-fixed.jpg" },
-            { "name": "Bloodhound (Lenda Jogável)", "img": "URL de imagem não aplicável." }
+            { "name": "Bloodhound (Lenda Jogável)", "img": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ5fi9fw2Gxk4usvT584HIceeyHJbycAy5SNftwbRY_epdz3zuTVWiopIo&s=10" }
         ],
         "relatedSites": [
             { "name": "Página Oficial da EA", "url": "https://www.ea.com/pt-br/games/apex-legends/apex-legends", "type": "Distribuidor" }
