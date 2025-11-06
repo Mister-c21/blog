@@ -1235,7 +1235,7 @@ export const DADOS_DA_WIKI = [
         "platform": "PC, PS4, PS5, Xbox One, Xbox Series X/S, Nintendo Switch, Mobile (Versão móvel com descontinuação)",
         "director": "Respawn Entertainment",
         "cast": [
-            { "name": "Wraith (Lenda Jogável)", "img": "URL de imagem não aplicável." },
+            { "name": "Wraith (Lenda Jogável)", "img": "https://images.steamusercontent.com/ugc/2037355191528460951/2E2F83BCB53651E1D05B0E8ECEF942C91A12D667/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false" },
             { "name": "Bloodhound (Lenda Jogável)", "img": "URL de imagem não aplicável." }
         ],
         "relatedSites": [
