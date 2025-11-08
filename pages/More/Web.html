@@ -20,6 +20,8 @@
             --icon-padding: 20px;
             --transition-speed: 0.3s;
             --sidebar-width: 280px;
+            /* NOVA VARIÁVEL para cor de destaque da aba */
+            --tab-active-color: #f7b733; 
         }
 
         body {
@@ -264,7 +266,7 @@
         }
         
         /* -------------------------------------- */
-        /* ESTILOS DO MODAL DE SELEÇÃO (FULL-SCREEN GLASS) */
+        /* ESTILOS DO MODAL DE SELEÇÃO (FULL-SCREEN) */
         /* -------------------------------------- */
         
         .modal-overlay {
@@ -273,8 +275,9 @@
             z-index: 1000;
             left: 0;
             top: 0;
-            width: 100%;
-            height: 100%;
+            /* Garante que ocupe exatamente 100% da tela */
+            width: 100vw; 
+            height: 100vh;
             
             background-color: rgba(0, 0, 0, 0.2);
             backdrop-filter: blur(8px);
@@ -287,21 +290,31 @@
         }
         
         .modal-content {
-            max-height: 90vh;
-            width: 90%;
-            max-width: 600px;
+            /* Ocupa toda a área do overlay para o efeito "full-screen" de preenchimento */
+            width: 100%; 
+            height: 100%; 
+            max-width: none; /* Remove a limitação de largura */
+            max-height: none; /* Remove a limitação de altura */
+            
+            /* Box-model ajustado para acomodar o padding e manter a rolagem interna */
+            box-sizing: border-box;
+            
+            /* Rolagem interna: importante para que o conteúdo não vaze */
             overflow-y: auto; 
             
             background-color: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(30px);
             -webkit-backdrop-filter: blur(30px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
             
-            padding: 30px;
+            /* Remove bordas e sombra para um look full-screen mais limpo */
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            
+            padding: 30px; /* Padding interno para o conteúdo */
             text-align: center;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            transform: scale(0.95);
+            
+            transform: scale(1); /* Inicia com escala normal para fullscreen */
             transition: transform var(--transition-speed) ease;
         }
         
@@ -332,29 +345,92 @@
         .engine-item button:hover { background-color: rgba(255, 255, 255, 0.2); transform: scale(1.02); }
         
         .close-button {
-            color: #fff; position: absolute; top: 15px; right: 20px; font-size: 32px;
+            color: #fff; position: fixed; /* Mudei para fixed para garantir que fique sempre no canto */
+            top: 25px; right: 40px; font-size: 32px; /* Aumentei o espaçamento para o canto */
             font-weight: bold; cursor: pointer; transition: color 0.2s;
+            z-index: 1001; /* Z-index maior que o modal-content */
         }
         
         .close-button:hover { color: #ccc; }
 
         .modal-overlay.is-visible { display: flex; opacity: 1; }
+        /* Removi a animação de escala no modal-content, já que ele é full-screen */
         .modal-overlay.is-visible .modal-content { transform: scale(1); }
         
-        /* Estilo para separar grupos de busca */
-        .category-separator {
-            height: 1px;
-            background-color: rgba(255, 255, 255, 0.4);
-            margin: 25px 0 10px 0;
-            list-style: none;
+        /* Ocultar separadores/títulos de categoria originais, pois as abas já fazem o agrupamento */
+        .category-separator, .category-title {
+            display: none;
         }
-        
-        .category-title {
-            color: rgba(255, 255, 255, 0.7);
+
+        /* -------------------------------------- */
+        /* ESTILOS DA TOP TAB BAR (FILTRO HORIZONTAL) */
+        /* -------------------------------------- */
+        .tab-bar-container {
+            width: 100%;
+            overflow-x: auto; /* Permite rolagem horizontal */
+            overflow-y: hidden;
+            white-space: nowrap; /* Impede que os itens quebrem linha */
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            /* Estilo Glass para o container, se desejar: */
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+            /* Garante que o container de abas não ultrapasse o padding lateral do modal-content */
+            box-sizing: border-box; 
+        }
+
+        /* Esconde a barra de rolagem horizontal (opcional) */
+        .tab-bar-container::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .tab-bar-container::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        .tab-bar {
+            display: inline-flex; /* Mantém os itens na mesma linha */
+            list-style: none;
+            padding: 0 5px; /* Padding nas laterais do container */
+            margin: 0;
+        }
+
+        .tab-item {
+            display: inline-block;
+            cursor: pointer;
+            padding: 8px 15px;
+            margin: 5px;
+            border-radius: 20px;
             font-size: 14px;
-            text-align: left;
-            margin-bottom: 5px;
             font-weight: bold;
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: background-color 0.2s, color 0.2s;
+            flex-shrink: 0; /* Impede que os itens diminuam */
+        }
+
+        .tab-item:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Estilo da aba ativa/selecionada */
+        .tab-item.active {
+            background-color: rgba(var(--blueviolet-color), 0.7); /* Cor de destaque */
+            box-shadow: 0 0 10px rgba(var(--blueviolet-color), 0.5);
+            color: var(--tab-active-color); 
+        }
+
+        /* Estilo para os grupos de motores de busca */
+        .search-engine-group {
+            display: none; /* Inicia todos escondidos */
+            max-width: 600px; /* Limita a largura dos botões no modo fullscreen */
+            margin: 0 auto; /* Centraliza a lista de botões */
+        }
+
+        .search-engine-group.active {
+            display: block; /* Mostra apenas o ativo */
         }
     </style>
 </head>
@@ -394,182 +470,246 @@
     </div>
 
     <div id="options-modal" class="modal-overlay">
+        <span class="close-button" onclick="closeModal()">×</span>
+        
         <div class="modal-content">
-            <span class="close-button" onclick="closeModal()">×</span>
+            
             <h2 class="modal-title">Selecione o Motor de Busca</h2>
             
-            <ul class="search-engines-list">
-                
-                <li class="category-title">Motores de Busca Gerais</li>
-                <li class="engine-item">
-                    <button data-engine-name="Google" data-url-prefix="https://www.google.com/search?q=">
-                        <i class="fab fa-google" style="color: #4285F4;"></i> Google (Padrão)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Bing" data-url-prefix="https://www.bing.com/search?q=">
-                        <i class="fab fa-microsoft" style="color: #0078D4;"></i> Bing
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Perplexity" data-url-prefix="https://www.perplexity.ai/search?q=">
-                        <i class="fas fa-brain" style="color: #FF69B4;"></i> Perplexity (IA)
-                    </button>
-                </li>
-                
-                <li class="category-separator"></li>
-                <li class="category-title">Música</li>
-                <li class="engine-item">
-                    <button data-engine-name="Spotify Search" data-url-prefix="https://open.spotify.com/search/">
-                        <i class="fab fa-spotify" style="color: #1DB954;"></i> Spotify
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Discogs" data-url-prefix="https://www.discogs.com/search/?q=">
-                        <i class="fas fa-compact-disc" style="color: #FFD700;"></i> Discogs (Coleções)
-                    </button>
-                </li>
-                
-                <li class="category-separator"></li>
-                <li class="category-title">Livros & Quadrinhos</li>
-                <li class="engine-item">
-                    <button data-engine-name="Google Books" data-url-prefix="https://www.google.com/search?tbm=bks&q=">
-                        <i class="fas fa-book-open" style="color: #8B4513;"></i> Google Books
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Goodreads" data-url-prefix="https://www.goodreads.com/search?q=">
-                        <i class="fas fa-bookmark" style="color: #F47A38;"></i> Goodreads (Avaliações)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="WEBTOON Search" data-url-prefix="https://www.webtoons.com/search?keyword=">
-                        <i class="fas fa-scroll" style="color: #00C853;"></i> WEBTOON
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Tapas" data-url-prefix="https://tapas.io/search?query=">
-                        <i class="fas fa-palette" style="color: #E24F2C;"></i> Tapas (Webcomics)
-                    </button>
-                </li>
-
-                <li class="category-separator"></li>
-                <li class="category-title">Notícias & Discussão</li>
-                <li class="engine-item">
-                    <button data-engine-name="Google News" data-url-prefix="https://news.google.com/search?q=">
-                        <i class="fas fa-newspaper" style="color: #FBBC05;"></i> Google News
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="BBC News" data-url-prefix="https://www.bbc.co.uk/search?q=">
-                        <i class="far fa-dot-circle" style="color: #000000; background-color: white; border-radius: 50%;"></i> BBC News
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Reddit" data-url-prefix="https://www.reddit.com/search/?q=">
-                        <i class="fab fa-reddit" style="color: #FF4500;"></i> Reddit (Comunidades)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Quora" data-url-prefix="https://www.quora.com/search?q=">
-                        <i class="fab fa-quora" style="color: #B92B27;"></i> Quora (Perguntas/Respostas)
-                    </button>
-                </li>
-                
-                <li class="category-separator"></li>
-                <li class="category-title">Jogos & Entretenimento</li>
-                <li class="engine-item">
-                    <button data-engine-name="Steam Store" data-url-prefix="https://store.steampowered.com/search/?term=">
-                        <i class="fab fa-steam" style="color: #171A21;"></i> Steam (Jogos)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Metacritic" data-url-prefix="https://www.metacritic.com/search/game/">
-                        <i class="fas fa-trophy" style="color: #4169E1;"></i> Metacritic (Reviews)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="YouTube" data-url-prefix="https://www.youtube.com/results?search_query=">
-                        <i class="fab fa-youtube" style="color: #FF0000;"></i> YouTube (Vídeos)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Twitch Search" data-url-prefix="https://www.twitch.tv/search?term=">
-                        <i class="fab fa-twitch" style="color: #9146FF;"></i> Twitch (Lives)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="YouTube Live" data-url-prefix="https://www.youtube.com/results?search_query=live+">
-                        <i class="fab fa-youtube" style="color: #FF0000;"></i> YouTube (Busca por Live)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Pinterest" data-url-prefix="https://www.pinterest.com/search/pins/?q=">
-                        <i class="fab fa-pinterest" style="color: #E60023;"></i> Pinterest (Imagens)
-                    </button>
-                </li>
-                
-                <li class="category-separator"></li>
-                <li class="category-title">Produtos & Apps</li>
-                <li class="engine-item">
-                    <button data-engine-name="Amazon" data-url-prefix="https://www.amazon.com/s?k=">
-                        <i class="fab fa-amazon" style="color: #FF9900;"></i> Amazon (Produtos)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="eBay" data-url-prefix="https://www.ebay.com/sch/i.html?_nkw=">
-                        <i class="fas fa-box-open" style="color: #3C6698;"></i> eBay (Leilões/Vendas)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Google Play Store" data-url-prefix="https://play.google.com/store/search?q=">
-                        <i class="fab fa-google-play" style="color: #00D479;"></i> Google Play Store (Android)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Apple App Store" data-url-prefix="https://www.apple.com/us/search/">
-                        <i class="fab fa-apple" style="color: #CCCCCC;"></i> Apple App Store (iOS)
-                    </button>
-                </li>
-
-                <li class="category-separator"></li>
-                <li class="category-title">Busca Global Alternativa</li>
-                <li class="engine-item">
-                    <button data-engine-name="Wikipedia" data-url-prefix="https://pt.wikipedia.org/w/index.php?search=">
-                        <i class="fab fa-wikipedia-w" style="color: #CCCCCC;"></i> Wikipedia
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="DuckDuckGo" data-url-prefix="https://duckduckgo.com/?q=">
-                        <i class="fas fa-shield-alt" style="color: #E37435;"></i> DuckDuckGo (Privacidade)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Ecosia" data-url-prefix="https://www.ecosia.org/search?q=">
-                        <i class="fas fa-tree" style="color: #008744;"></i> Ecosia (Árvores)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Yandex" data-url-prefix="https://yandex.com/search/?text=">
-                        <i class="fab fa-yandex" style="color: #FF0000;"></i> Yandex (Russo)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Baidu" data-url-prefix="https://www.baidu.com/s?wd=">
-                        <i class="fas fa-language" style="color: #2F4F4F;"></i> Baidu (百度)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Naver" data-url-prefix="https://search.naver.com/search.naver?query=">
-                        <i class="fas fa-globe" style="color: #03C75A;"></i> Naver (네이버)
-                    </button>
-                </li>
-                <li class="engine-item">
-                    <button data-engine-name="Yahoo" data-url-prefix="https://search.yahoo.com/search?p=">
-                        <i class="fab fa-yahoo" style="color: #7B3E90;"></i> Yahoo!
-                    </button>
-                </li>
+            <div class="tab-bar-container">
+                <ul class="tab-bar" id="tab-bar-list">
+                    <li class="tab-item active" data-category="geral"><i class="fas fa-search"></i> Geral</li>
+                    <li class="tab-item" data-category="compras"><i class="fas fa-shopping-cart"></i> Compras</li>
+                    <li class="tab-item" data-category="midia"><i class="fas fa-film"></i> Mídia</li>
+                    <li class="tab-item" data-category="noticias"><i class="fas fa-newspaper"></i> Notícias</li>
+                    <li class="tab-item" data-category="viagem"><i class="fas fa-plane"></i> Viagem/Mapas</li>
+                    <li class="tab-item" data-category="dev"><i class="fas fa-code"></i> Dev/Códigos</li>
+                    <li class="tab-item" data-category="academico"><i class="fas fa-graduation-cap"></i> Acadêmico</li>
+                    <li class="tab-item" data-category="alternativo"><i class="fas fa-shield-alt"></i> Alternativos</li>
                 </ul>
+            </div>
+            <div id="engine-groups-container">
+
+                <ul class="search-engines-list search-engine-group active" data-group="geral">
+                    <li class="engine-item">
+                        <button data-engine-name="Google" data-url-prefix="https://www.google.com/search?q=" data-category="geral">
+                            <i class="fab fa-google" style="color: #4285F4;"></i> Google (Padrão)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Bing" data-url-prefix="https://www.bing.com/search?q=" data-category="geral">
+                            <i class="fab fa-microsoft" style="color: #0078D4;"></i> Bing
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Perplexity" data-url-prefix="https://www.perplexity.ai/search?q=" data-category="geral">
+                            <i class="fas fa-brain" style="color: #FF69B4;"></i> Perplexity (IA)
+                        </button>
+                    </li>
+                </ul>
+                
+                <ul class="search-engines-list search-engine-group" data-group="compras">
+                    <li class="engine-item">
+                        <button data-engine-name="Amazon" data-url-prefix="https://www.amazon.com/s?k=" data-category="compras">
+                            <i class="fab fa-amazon" style="color: #FF9900;"></i> Amazon (Produtos)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="eBay" data-url-prefix="https://www.ebay.com/sch/i.html?_nkw=" data-category="compras">
+                            <i class="fas fa-box-open" style="color: #3C6698;"></i> eBay (Leilões/Vendas)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Mercado Livre" data-url-prefix="https://lista.mercadolivre.com.br/q=" data-category="compras">
+                            <i class="fas fa-tag" style="color: #00A650;"></i> Mercado Livre (BR)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Google Shopping" data-url-prefix="https://www.google.com/search?tbm=shop&q=" data-category="compras">
+                            <i class="fas fa-gifts" style="color: #34A853;"></i> Google Shopping
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Pinterest" data-url-prefix="https://www.pinterest.com/search/pins/?q=" data-category="compras">
+                            <i class="fab fa-pinterest" style="color: #E60023;"></i> Pinterest (Imagens/Produtos)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Google Play Store" data-url-prefix="https://play.google.com/store/search?q=" data-category="compras">
+                            <i class="fab fa-google-play" style="color: #00D479;"></i> Google Play Store (Android)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Apple App Store" data-url-prefix="https://www.apple.com/us/search/" data-category="compras">
+                            <i class="fab fa-apple" style="color: #CCCCCC;"></i> Apple App Store (iOS)
+                        </button>
+                    </li>
+                </ul>
+
+                
+                <ul class="search-engines-list search-engine-group" data-group="midia">
+                    <li class="engine-item">
+                        <button data-engine-name="Crunchyroll" data-url-prefix="https://www.crunchyroll.com/search?q=" data-category="midia">
+                            <i class="fas fa-grin-squint-tears" style="color: #FFC000;"></i> **Crunchyroll (Animes)**
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="YouTube" data-url-prefix="https://www.youtube.com/results?search_query=" data-category="midia">
+                            <i class="fab fa-youtube" style="color: #FF0000;"></i> YouTube (Vídeos)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="IMDb" data-url-prefix="https://www.imdb.com/find/?q=" data-category="midia">
+                            <i class="fas fa-star" style="color: #F5C518;"></i> IMDb (Cinema/TV)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Spotify Search" data-url-prefix="https://open.spotify.com/search/" data-category="midia">
+                            <i class="fab fa-spotify" style="color: #1DB954;"></i> Spotify (Música)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Twitch Search" data-url-prefix="https://www.twitch.tv/search?term=" data-category="midia">
+                            <i class="fab fa-twitch" style="color: #9146FF;"></i> Twitch (Lives)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Steam Store" data-url-prefix="https://store.steampowered.com/search/?term=" data-category="midia">
+                            <i class="fab fa-steam" style="color: #171A21;"></i> Steam (Jogos)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Metacritic" data-url-prefix="https://www.metacritic.com/search/game/" data-category="midia">
+                            <i class="fas fa-trophy" style="color: #4169E1;"></i> Metacritic (Reviews)
+                        </button>
+                    </li>
+                </ul>
+                
+                <ul class="search-engines-list search-engine-group" data-group="noticias">
+                    <li class="engine-item">
+                        <button data-engine-name="Google News" data-url-prefix="https://news.google.com/search?q=" data-category="noticias">
+                            <i class="fas fa-newspaper" style="color: #FBBC05;"></i> Google News
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Reddit" data-url-prefix="https://www.reddit.com/search/?q=" data-category="noticias">
+                            <i class="fab fa-reddit" style="color: #FF4500;"></i> Reddit (Comunidades)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Quora" data-url-prefix="https://www.quora.com/search?q=" data-category="noticias">
+                            <i class="fab fa-quora" style="color: #B92B27;"></i> Quora (Perguntas/Respostas)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Google Books" data-url-prefix="https://www.google.com/search?tbm=bks&q=" data-category="noticias">
+                            <i class="fas fa-book-open" style="color: #8B4513;"></i> Google Books
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Goodreads" data-url-prefix="https://www.goodreads.com/search?q=" data-category="noticias">
+                            <i class="fas fa-bookmark" style="color: #F47A38;"></i> Goodreads (Avaliações)
+                        </button>
+                    </li>
+                </ul>
+
+                <ul class="search-engines-list search-engine-group" data-group="viagem">
+                    <li class="engine-item">
+                        <button data-engine-name="Google Maps" data-url-prefix="https://www.google.com/maps/search/" data-category="viagem">
+                            <i class="fas fa-map-marker-alt" style="color: #3C79E8;"></i> Google Maps (Localização)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Booking.com" data-url-prefix="https://www.booking.com/searchresults.pt-br.html?ss=" data-category="viagem">
+                            <i class="fas fa-hotel" style="color: #003580;"></i> Booking.com (Hospedagem)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Kayak" data-url-prefix="https://www.kayak.com.br/flights/" data-category="viagem">
+                            <i class="fas fa-plane-departure" style="color: #FF7720;"></i> Kayak (Passagens)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Waze Live Map" data-url-prefix="https://www.waze.com/live-map/search?q=" data-category="viagem">
+                            <i class="fas fa-car" style="color: #4C97FF;"></i> Waze Live Map (Trânsito)
+                        </button>
+                    </li>
+                </ul>
+
+                <ul class="search-engines-list search-engine-group" data-group="dev">
+                    <li class="engine-item">
+                        <button data-engine-name="Stack Overflow" data-url-prefix="https://stackoverflow.com/search?q=" data-category="dev">
+                            <i class="fab fa-stack-overflow" style="color: #F48024;"></i> Stack Overflow (Dúvidas Dev)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="GitHub" data-url-prefix="https://github.com/search?q=" data-category="dev">
+                            <i class="fab fa-github" style="color: #181717;"></i> GitHub (Repositórios)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="MDN Web Docs" data-url-prefix="https://developer.mozilla.org/pt-BR/search?q=" data-category="dev">
+                            <i class="fas fa-laptop-code" style="color: #000000; background-color: white; border-radius: 5px;"></i> MDN Web Docs (Desenvolvimento Web)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Google Developers" data-url-prefix="https://developers.google.com/search?q=" data-category="dev">
+                            <i class="fab fa-google" style="color: #4285F4;"></i> Google Developers
+                        </button>
+                    </li>
+                </ul>
+                
+                <ul class="search-engines-list search-engine-group" data-group="academico">
+                    <li class="engine-item">
+                        <button data-engine-name="Google Scholar" data-url-prefix="https://scholar.google.com/scholar?q=" data-category="academico">
+                            <i class="fas fa-book" style="color: #3C4043;"></i> Google Scholar (Artigos Científicos)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Scielo" data-url-prefix="https://search.scielo.org/?q=" data-category="academico">
+                            <i class="fas fa-flask" style="color: #1E90FF;"></i> Scielo (Publicações Latam)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Wikipedia" data-url-prefix="https://pt.wikipedia.org/w/index.php?search=" data-category="academico">
+                            <i class="fab fa-wikipedia-w" style="color: #CCCCCC;"></i> Wikipedia
+                        </button>
+                    </li>
+                </ul>
+
+                <ul class="search-engines-list search-engine-group" data-group="alternativo">
+                    <li class="engine-item">
+                        <button data-engine-name="DuckDuckGo" data-url-prefix="https://duckduckgo.com/?q=" data-category="alternativo">
+                            <i class="fas fa-shield-alt" style="color: #E37435;"></i> DuckDuckGo (Privacidade)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Ecosia" data-url-prefix="https://www.ecosia.org/search?q=" data-category="alternativo">
+                            <i class="fas fa-tree" style="color: #008744;"></i> Ecosia (Árvores)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Yandex" data-url-prefix="https://yandex.com/search/?text=" data-category="alternativo">
+                            <i class="fab fa-yandex" style="color: #FF0000;"></i> Yandex (Russo)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Baidu" data-url-prefix="https://www.baidu.com/s?wd=" data-category="alternativo">
+                            <i class="fas fa-language" style="color: #2F4F4F;"></i> Baidu (百度)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Naver" data-url-prefix="https://search.naver.com/search.naver?query=" data-category="alternativo">
+                            <i class="fas fa-globe" style="color: #03C75A;"></i> Naver (네이버)
+                        </button>
+                    </li>
+                    <li class="engine-item">
+                        <button data-engine-name="Yahoo" data-url-prefix="https://search.yahoo.com/search?p=" data-category="alternativo">
+                            <i class="fab fa-yahoo" style="color: #7B3E90;"></i> Yahoo!
+                        </button>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
     <script>
@@ -583,6 +723,12 @@
         const sidebar = document.getElementById('sidebar');
         const closeSidebarBtn = document.getElementById('close-sidebar-btn');
         const clearSearchBtn = document.getElementById('clear-search-btn');
+
+        // NOVAS VARIÁVEIS PARA AS ABAS
+        const tabBarList = document.getElementById('tab-bar-list');
+        const tabItems = document.querySelectorAll('.tab-item');
+        const engineGroups = document.querySelectorAll('.search-engine-group');
+
 
         // --- Estado Inicial ---
         let currentEngine = {
@@ -615,10 +761,16 @@
             modal.style.display = 'flex';
             void modal.offsetWidth; 
             modal.classList.add('is-visible');
+            // Garante que a primeira aba esteja ativa ao abrir
+            filterEngines('geral'); 
+            // Adiciona a classe ao body para evitar rolagem do fundo
+            document.body.style.overflow = 'hidden'; 
         }
 
         function closeModal() {
             modal.classList.remove('is-visible');
+            // Remove a classe do body para restaurar a rolagem
+            document.body.style.overflow = ''; 
             setTimeout(() => {
                 modal.style.display = 'none';
             }, 300);
@@ -648,9 +800,11 @@
             let searchURL;
             
             // Lógica para motores com prefixos especiais (quando o parâmetro não é 'q=')
-            if (currentEngine.name === "Spotify Search" || currentEngine.name === "Metacritic" || currentEngine.name === "Apple App Store") {
-                // Spotify, Metacritic e Apple App Store não usam parâmetro 'q=' ou 'search_query=' no final.
-                // Eles colocam o termo de busca diretamente após o prefixo, ou o prefixo já inclui o parâmetro correto.
+            if (currentEngine.name === "Spotify Search" || 
+                currentEngine.name === "Metacritic" || 
+                currentEngine.name === "Apple App Store" ||
+                currentEngine.name === "Crunchyroll") { 
+                
                 searchURL = currentEngine.prefix + encodedQuery;
             } else if (currentEngine.name === "YouTube Live") {
                 // O prefixo já tem 'live+' no final, então basta adicionar a query.
@@ -663,6 +817,33 @@
             window.open(searchURL, '_blank');
         }
 
+        // --- FUNÇÃO DE FILTRAGEM DAS ABAS ---
+        function filterEngines(category) {
+            // 1. Desativa todas as abas
+            tabItems.forEach(tab => tab.classList.remove('active'));
+            
+            // 2. Desativa todos os grupos de motores
+            engineGroups.forEach(group => group.classList.remove('active'));
+
+            // 3. Ativa a aba clicada
+            const selectedTab = document.querySelector(`.tab-item[data-category="${category}"]`);
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
+
+            // 4. Ativa o grupo de motores correspondente
+            const selectedGroup = document.querySelector(`.search-engine-group[data-group="${category}"]`);
+            if (selectedGroup) {
+                selectedGroup.classList.add('active');
+            }
+            
+            // 5. Rola o container do modal para o topo ao trocar a aba
+            const modalContent = document.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.scrollTop = 0;
+            }
+        }
+        
         // --- Event Listeners ---
         
         // 1. Sidebar
@@ -671,8 +852,19 @@
 
         // 2. Modal de Seleção
         optionsButton.addEventListener('click', openModal);
-        engineButtons.forEach(button => {
+        
+        // Atualiza os listeners para os botões dos motores
+        document.querySelectorAll('.search-engines-list button').forEach(button => {
+            button.removeEventListener('click', selectEngine); // Previne duplicidade
             button.addEventListener('click', selectEngine);
+        });
+        
+        // LISTENER PARA AS ABAS
+        tabItems.forEach(tab => {
+            tab.addEventListener('click', function() {
+                const category = this.getAttribute('data-category');
+                filterEngines(category);
+            });
         });
 
         // 3. Busca
@@ -691,9 +883,12 @@
         // 4. Fechar ao clicar fora (Modal e Sidebar)
         window.onclick = function(event) {
             // Fechar Modal de Seleção ao clicar no overlay
+            // Não precisa mais do cheque de 'event.target === modal' se o modal-content ocupa 100%
+            // Mas vamos manter o fechamento ao clicar no overlay (o que deve ser a mesma coisa)
             if (event.target === modal) {
-                closeModal();
+                 closeModal();
             }
+
             // Fechar Sidebar ao clicar fora dela
             if (sidebar.classList.contains('is-open') && 
                 event.target !== menuToggle && 
@@ -704,8 +899,12 @@
             }
         };
 
-        // Inicializa o estado do botão de limpar ao carregar
-        document.addEventListener('DOMContentLoaded', toggleClearButton); 
+        // Inicializa o estado do botão de limpar e a aba ao carregar
+        document.addEventListener('DOMContentLoaded', () => {
+             toggleClearButton(); 
+             // Garante que o grupo "Geral" esteja visível
+             filterEngines('geral');
+        }); 
 
     </script>
 </body>
