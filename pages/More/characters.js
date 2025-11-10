@@ -1,7 +1,7 @@
 // =================================================================
 // 0. IMPORTAÇÃO DOS DADOS E VARIÁVEIS GLOBAIS
 // =================================================================
-import { DADOS_CHARACTERS } from './characters_dados.js'; 
+import { DADOS_CHARACTERS } from 'characters_dados.js'; 
 
 let data = DADOS_DA_WIKI; 
 
