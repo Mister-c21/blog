@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FanWiki| Banco de Stickers & GIFs</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        /* =============================================================
+           ESTILOS CSS: VARIÁVEIS, RESET E CORE
+           ============================================================= 
+        */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* 🎨 PALETA DE CORES: DARK MODE + BLUEVIOLET */
+            --primary-color: #8a2be2;     
+            --accent-color: #a450e5;      
+            --bg-color: #120e1a;          
+            --text-color: #e0e0e0;        
+            --text-color-muted: #a0a0a0;   
+            --white: #ffffff;
+            
+            /* ✨ EFEITO DE VIDRO (usado apenas na sidebar) */
+            --glass-bg: rgba(255, 255, 255, 0.05); 
+            --glass-border: rgba(255, 255, 255, 0.1); 
+            --blur-value: 10px;                   
+
+            /* Larguras da Sidebar */
+            --sidebar-width-mobile: 280px;
+            --sidebar-width-desktop: 280px; 
+            
+            /* Pinterest-like */
+            --pinterest-red: #E60023;
+        }
+
+        /* ANIMAÇÃO DA BORDA GLOW */
+        @keyframes glowing-pinterest {
+            0% { box-shadow: 0 0 5px rgba(230, 0, 35, 0.4), 0 0 10px rgba(230, 0, 35, 0.2); }
+            50% { box-shadow: 0 0 10px var(--pinterest-red), 0 0 20px rgba(230, 0, 35, 0.6); }
+            100% { box-shadow: 0 0 5px rgba(230, 0, 35, 0.4), 0 0 10px rgba(230, 0, 35, 0.2); }
+        }
+
+        /* SCROLLBAR PERSONALIZADA */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--primary-color);
+            border-radius: 20px;
+            border: 2px solid var(--bg-color);
+        }
+        ::-webkit-scrollbar-thumb:hover { background-color: var(--accent-color); }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--bg-color);
+            /* Efeito de "aura" no fundo */
+            background-image: radial-gradient(circle at 80% 20%, rgba(138, 43, 226, 0.2), transparent 50vmax),
+                              radial-gradient(circle at 20% 80%, rgba(138, 43, 226, 0.15), transparent 50vmax);
+            background-attachment: fixed;
+            color: var(--text-color);
+            overflow-x: hidden;
+        }
+
+        a{ text-decoration: none; }
+
+
+        /* ===================================================================
+           0. MENU LATERAL (SIDEBAR)
+           =================================================================== */
+        .sidebar {
+            height: 100%;
+            width: var(--sidebar-width-mobile); 
+            position: fixed;
+            z-index: 2000; 
+            top: 0;
+            left: 0;
+            
+            /* Efeito de Vidro */
+            background-color: var(--glass-bg);
+            backdrop-filter: blur(var(--blur-value));
+            -webkit-backdrop-filter: blur(var(--blur-value));
+            border-right: 1px solid var(--glass-border);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+
+            transform: translateX(-100%); 
+            transition: transform 0.3s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar.open {
+            transform: translateX(0); 
+        }
+
+        .sidebar-header .close-btn {
+            display: block; 
+            font-size: 2em;
+            color: var(--text-color);
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--glass-border);
+            flex-shrink: 0;
+        }
+        .sidebar-header .logo {
+            color: var(--primary-color);
+            font-size: 1.2em;
+            font-weight: 700;
+        }
+        .sidebar-nav { flex-grow: 1; padding: 20px 0; }
+        .sidebar-nav ul { list-style: none; }
+        .sidebar-nav li a {
+            padding: 12px 20px;
+            color: var(--text-color-muted);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: background-color 0.2s, color 0.2s;
+            margin: 4px 10px;
+            border-radius: 5px;
+        }
+
+        .sidebar-nav li a:hover, .sidebar-nav li a.active {
+            background-color: rgba(138, 43, 226, 0.2);
+            color: var(--white);
+        }
+
+        .sidebar-footer {
+            padding: 15px 20px;
+            border-top: 1px solid var(--glass-border);
+            font-size: 0.8em;
+            color: var(--text-color-muted);
+            flex-shrink: 0;
+        }
+
+        /* Overlay de Fundo */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7); 
+            z-index: 1999; 
+            display: none;
+            backdrop-filter: blur(2px); 
+        }
+
+        #main-content-wrapper { 
+            margin-left: 0;
+            transition: margin-left 0.3s ease-in-out; 
+            min-height: 100vh;
+        }
+
+
+        /* ===================================================================
+           1. NAVEGAÇÃO SUPERIOR (Top Nav) - Busca
+           =================================================================== */
+        .top-nav-social {
+            position: sticky;
+            top: 0;
+            width: 100%;
+            padding: 10px 15px; 
+            z-index: 1000;
+            
+            background-color: var(--bg-color);
+            border-bottom: 1px solid var(--glass-border);
+            
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; 
+            gap: 10px; 
+        }
+
+        .pinterest-logo {
+            /* Cor e ícone original do Pinterest */
+            color: var(--pinterest-red); 
+            font-size: 1.8em;
+            flex-shrink: 0;
+            margin-right: 10px;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s;
+        }
+        
+        .menu-icon {
+            cursor: pointer;
+            padding: 5px;
+            background: none;
+            border: none;
+            display: block; 
+            color: var(--text-color);
+            flex-shrink: 0;
+        }
+        
+        /* BARRA DE BUSCA CENTRALIZADA */
+        .search-bar-container { 
+            flex-grow: 1; 
+            max-width: 600px; 
+            position: relative; 
+            display: flex;
+            align-items: center;
+            
+            background-color: rgba(255, 255, 255, 0.1); 
+            border: 2px solid transparent; 
+            border-radius: 25px;
+            padding: 0 10px;
+            transition: all 0.3s ease; 
+        }
+        
+        .search-bar-container:focus-within,
+        .search-bar-container:not(.pinterest-active):hover {
+             background-color: rgba(255, 255, 255, 0.2);
+             box-shadow: 0 0 8px rgba(138, 43, 226, 0.3);
+        }
+        
+        /* O estilo 'pinterest-active' permanece com o glow vermelho */
+        .search-bar-container.pinterest-active {
+            background-color: rgba(230, 0, 35, 0.1); 
+            border-color: var(--pinterest-red);
+            animation: glowing-pinterest 2s infinite alternate;
+        }
+
+        #main-search-input {
+            width: 100%; 
+            padding: 10px 10px; 
+            padding-left: 0; 
+            border: none;
+            border-radius: 20px;
+            font-size: 0.9em;
+            outline: none;
+            background-color: transparent;
+            color: var(--text-color);
+        }
+        
+        .search-icon-inside {
+            color: var(--text-color-muted); 
+            font-size: 1.1em;
+            flex-shrink: 0;
+        }
+
+        /* LÓGICA DO TOGGLE */
+        .search-toggle-switch-container { 
+            position: relative; 
+            flex-shrink: 0;
+            margin-left: 10px; 
+        }
+        
+        .search-toggle-checkbox { display: none; }
+        .search-toggle-label {
+            position: relative; display: block; width: 65px; height: 34px; cursor: pointer;
+            background-color: var(--primary-color); border-radius: 34px; transition: background-color 0.4s;
+            overflow: hidden; 
+        }
+        .slider {
+            position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px;
+            background-color: var(--white); transition: 0.4s; box-shadow: 0 0 5px rgba(0, 0, 0, 0.4);
+        }
+        .slider.round { border-radius: 50%; }
+        /* COR AJUSTADA para vermelho do Pinterest quando checado */
+        .search-toggle-checkbox:checked + .search-toggle-label { background-color: var(--pinterest-red); } 
+        .search-toggle-checkbox:checked + .search-toggle-label .slider { transform: translateX(31px); }
+        .toggle-icon { position: absolute; color: var(--white); font-size: 1.1em; top: 50%; transform: translateY(-50%); transition: opacity 0.4s; }
+        .filter-icon { left: 10px; }
+        /* Ícone do Pinterest para modo externo */
+        .pinterest-icon { right: 8px; opacity: 0; } 
+        .search-toggle-checkbox:checked + .search-toggle-label .filter-icon { opacity: 0; }
+        .search-toggle-checkbox:checked + .search-toggle-label .pinterest-icon { opacity: 1; }
+        .search-mode-indicator { position: absolute; font-size: 0.7em; font-weight: 700; color: var(--white); top: 50%; transform: translateY(-50%); white-space: nowrap; transition: all 0.4s; }
+        .filter-mode { left: 38px; opacity: 1; }
+        .pinterest-mode { right: 34px; opacity: 0;}
+        .search-toggle-checkbox:checked + .search-toggle-label .filter-mode { opacity: 0; }
+        .search-toggle-checkbox:checked + .search-toggle-label .pinterest-mode { opacity: 1; right: auto; left: 8px; }
+
+
+        /* ===================================================================
+           2. SEÇÃO DE ABAS (Top Tabbars) - STICKS E GIFS
+           =================================================================== */
+        .content-tabs {
+            width: 100%;
+            max-width: 1100px; 
+            margin: 0 auto;
+            display: flex;
+            justify-content: center; 
+            padding: 10px 0;
+            z-index: 999;
+            top: 60px; 
+            position: sticky;
+            
+            background-color: var(--bg-color);
+            border-bottom: 1px solid var(--glass-border);
+            
+            overflow-x: auto; 
+            white-space: nowrap; 
+        }
+        .content-tabs::-webkit-scrollbar { display: none; }
+
+        .tab-button {
+            flex-shrink: 0; 
+            background: none;
+            border: none;
+            color: var(--text-color-muted);
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 700;
+            transition: color 0.3s, border-bottom 0.3s;
+            border-bottom: 3px solid transparent; 
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0 5px; 
+        }
+
+        .tab-button:hover { color: var(--white); }
+        .tab-button.active {
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--primary-color);
+        }
+
+        /* ===================================================================
+           3. CONTAINER PRINCIPAL E BOTÕES DE TEMA (CIRCULARES)
+           =================================================================== */
+        .social-feed-container {
+            max-width: 1100px; 
+            margin: 0 auto;
+            padding: 20px 10px 40px 10px;
+        }
+
+        .topic-filter-container { 
+            padding: 10px 0;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            overflow-x: auto; 
+            white-space: nowrap; 
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .topic-filter-container::-webkit-scrollbar { display: none; }
+
+        /* Estilos dos Botões Circulares de TEMA */
+        .theme-button { /* Nome da classe atualizado */
+            flex-shrink: 0; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            
+            width: 70px; 
+            height: 70px;
+            
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--text-color-muted);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%; /* Circular */
+            cursor: pointer;
+            font-size: 0.75em;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        
+        .theme-button i {
+            font-size: 1.3em;
+            margin-bottom: 4px;
+        }
+
+        .theme-button:hover:not(.active) {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: var(--white);
+        }
+
+        .theme-button.active {
+            background-color: var(--primary-color);
+            color: var(--white);
+            border-color: var(--primary-color);
+            font-weight: 700;
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.5); 
+        }
+
+        /* ===================================================================
+           4. STICKER/GIF GRID E CARDS (Masonry)
+           =================================================================== */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Grid estilo Masonry (Pinterest) - Renomeado para 'media-grid' */
+        .media-grid {
+            column-count: 2; 
+            column-gap: 10px; 
+            padding: 0 10px; 
+        }
+
+        /* Card - Renomeado para 'media-card' */
+        .media-card {
+            break-inside: avoid; 
+            
+            background-color: var(--white); /* Fundo branco para destacar stickers/gifs */
+            border: none; 
+            padding: 0; 
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s, transform 0.3s;
+            overflow: hidden; 
+            cursor: pointer;
+            margin-bottom: 10px; 
+            width: 100%; 
+        }
+
+        /* CLASSE DE OCULTAÇÃO PARA FILTRO */
+        .media-card.hide {
+            display: none;
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        
+        .media-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .media-card-image-container {
+            width: 100%;
+            height: auto; 
+            overflow: hidden;
+            /* Flexbox para centralizar imagens transparentes */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px; 
+            min-height: 150px; /* Garante altura mínima para ver o contêiner branco */
+        }
+
+        .media-card-image-container img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto; 
+            object-fit: contain; /* Ideal para stickers/gifs */
+            display: block;
+            transition: transform 0.3s ease;
+        }
+        
+        .media-card:hover .media-card-image-container img {
+            transform: scale(1.01); 
+        }
+        
+        .media-card-content {
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .media-card-content h3 {
+            color: #333; 
+            font-size: 0.85em;
+            margin: 0;
+            font-weight: 600; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-grow: 1;
+        }
+
+        .download-btn {
+            background-color: var(--primary-color);
+            color: var(--white);
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.9em;
+            transition: background-color 0.2s, transform 0.2s;
+            flex-shrink: 0;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+        
+        .download-btn:hover {
+            background-color: var(--accent-color);
+            transform: scale(1.1);
+        }
+        
+        .loading-indicator {
+            text-align: center;
+            padding: 30px;
+            font-size: 1.1em;
+            color: var(--primary-color);
+        }
+
+        /* Botão Carregar Mais */
+        #load-more-container-stickers, #load-more-container-gifs { text-align: center; padding: 20px 0 40px 0; }
+        .load-more-button {
+            background-color: var(--primary-color);
+            color: var(--white);
+            border: none;
+            padding: 12px 25px; 
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(138, 43, 226, 0.4); 
+        }
+
+        .load-more-button:hover {
+            background-color: var(--accent-color); 
+            transform: scale(1.05); 
+            box-shadow: 0 6px 20px rgba(138, 43, 226, 0.6);
+        }
+
+        /* ===================================================================
+           5. MODAL DE PRÉ-VISUALIZAÇÃO (FULLSCREEN)
+           =================================================================== */
+
+        /* Renomeado para 'media-preview-modal' */
+        .modal-fullscreen.media-preview-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3000; 
+            display: none; 
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            
+            background-color: rgba(18, 14, 26, 0.95); 
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            overflow-y: auto; 
+            overflow-x: hidden; 
+        }
+
+        .modal-fullscreen.open {
+            display: block;
+            opacity: 1;
+        }
+
+        .media-preview-modal .modal-content-wrapper {
+            background: none; 
+            padding: 0;
+            width: 100%;
+            min-height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        
+        #modal-preview-image {
+            max-width: 100%;
+            max-height: 100vh;
+            object-fit: contain; 
+            /* Para o caso de GIFs/Stickers serem muito grandes */
+            width: auto;
+            height: auto;
+            padding: 20px; /* Margem de segurança */
+        }
+        
+        .preview-controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 3002;
+            padding: 15px 25px;
+            background: rgba(18, 14, 26, 0.9);
+            border: 1px solid var(--primary-color);
+            border-radius: 30px;
+            display: flex;
+            gap: 20px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+        
+        .preview-controls button {
+            background: var(--primary-color);
+            color: var(--white);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        
+        .preview-controls button:hover {
+            background: var(--accent-color);
+        }
+
+        .modal-close-btn {
+            position: fixed; 
+            top: 20px;
+            right: 25px;
+            font-size: 2.5em;
+            color: var(--text-color);
+            background: rgba(18, 14, 26, 0.7); 
+            border: none;
+            cursor: pointer;
+            line-height: 1;
+            font-weight: 300;
+            border-radius: 50%;
+            padding: 0 8px 4px 8px;
+            z-index: 3001;
+            display: none; 
+        }
+
+        .modal-close-btn:hover {
+            color: var(--primary-color);
+        }
+
+        /* ===================================================================
+           6. MEDIA QUERY PARA DESKTOP
+           =================================================================== */
+        @media (min-width: 1024px) {
+            
+            /* Sidebar e Conteúdo Principal */
+            .sidebar {
+                width: var(--sidebar-width-desktop); 
+                transform: translateX(0);
+            }
+            #main-content-wrapper {
+                margin-left: var(--sidebar-width-desktop); 
+                width: calc(100% - var(--sidebar-width-desktop)); 
+                min-height: 100vh;
+            }
+            .menu-icon { display: none; }
+
+            /* Centralização e Limites do Feed */
+            .social-feed-container,
+            .top-nav-social,
+            .content-tabs {
+                max-width: 1100px; 
+            }
+            
+            /* Ajusta Top Nav para alinhar a busca no Desktop */
+            .top-nav-social {
+                 justify-content: center;
+            }
+             .search-bar-container {
+                 max-width: 700px;
+             }
+             
+            /* Grid de Media (Masonry) - Renomeado para 'media-grid' */
+            .media-grid {
+                column-count: 3; 
+            }
+            
+            .social-feed-container {
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+        <span class="logo">FanWiki</span>
+        <button class="close-btn" onclick="toggleSidebar()"><i class="fas fa-times"></i></button>
+    </div>
+    <nav class="sidebar-nav">
+        <ul>
+            <li><a href="../Index.html" class="active"><i class="fas fa-home"></i> Home</a></li>
+            <li><a href="./Abaut.html"><i class="fas fa-info-circle"></i> Informações</a></li>
+            <li><a href="#" target="_blank"><i class="fas fa-book-open"></i> Biblioteca de Mídia</a></li> 
+        </ul>
+    </nav>
+    <div class="sidebar-footer">
+        © FanWiki
+    </div>
+</aside>
+
+<div id="overlay" class="overlay"></div>
+
+<div id="main-content-wrapper">
+    
+    <header class="top-nav-social" id="top-nav-social">
+        <button class="menu-icon" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+        
+        <i class="fab fa-pinterest-p pinterest-logo" id="pinterest-logo"></i> 
+
+        <div class="search-bar-container" id="search-bar-container">
+            <i class="fas fa-search search-icon-inside"></i>
+            <input type="text" id="main-search-input" placeholder="Buscar por stickers, gifs, memes ou tags...">
+            
+            <div class="search-toggle-switch-container">
+                <input type="checkbox" id="search-toggle" class="search-toggle-checkbox">
+                <label for="search-toggle" class="search-toggle-label">
+                    <span class="slider round"></span>
+                    <i class="fas fa-filter toggle-icon filter-icon"></i>
+                    <i class="fab fa-pinterest-p toggle-icon pinterest-icon"></i> 
+                    <span class="search-mode-indicator filter-mode">Local</span>
+                    <span class="search-mode-indicator pinterest-mode" style="opacity:0;">Pinterest</span>
+                </label>
+            </div>
+            
+        </div>
+        
+    </header>
+
+    <nav class="content-tabs">
+        <button class="tab-button active" data-tab-target="#tab-stickers"><i class="fas fa-sticky-note"></i> Stickers</button>
+        <button class="tab-button" data-tab-target="#tab-gifs"><i class="fas fa-film"></i> GIFs</button>
+    </nav>
+    
+    <main class="social-feed-container">
+        
+        <div class="topic-filter-container"> 
+            <button class="theme-button active" data-theme="all"><i class="fas fa-list-ul"></i> Todos</button>
+            <button class="theme-button" data-theme="anime"><i class="fas fa-user-ninja"></i> Animes</button>
+            <button class="theme-button" data-theme="movies"><i class="fas fa-clapperboard"></i> Filmes</button>
+            <button class="theme-button" data-theme="series"><i class="fas fa-tv"></i> Séries</button>
+            <button class="theme-button" data-theme="cartoons"><i class="fas fa-hat-wizard"></i> Cartoons</button>
+            <button class="theme-button" data-theme="reactions"><i class="fas fa-face-laugh-squint"></i> Reações</button>
+            <button class="theme-button" data-theme="animals"><i class="fas fa-paw"></i> Animais</button>
+        </div>
+        
+        <div id="tab-stickers" class="tab-content active">
+            
+            <section class="media-grid" id="media-list-stickers">
+                
+                <article class="media-card" onclick="openPreviewModal(this)" data-tags="Desenhos,Fofo,Reações" data-type="sticker" data-theme="cartoons">
+                    <div class="media-card-image-container">
+                        <img src="https://i.ibb.co/L9R7R5V/sticker-girl.png" 
+                            data-hires-src="https://i.ibb.co/L9R7R5V/sticker-girl.png" alt="Sticker de Garota Feliz">
+                    </div>
+                    <div class="media-card-content"><h3>Sticker Garota Feliz</h3><div class="download-btn" onclick="downloadMediaFromCard(event, 'https://i.ibb.co/L9R7R5V/sticker-girl.png')"><i class="fas fa-download"></i></div></div>
+                </article>
+                
+                <article class="media-card" onclick="openPreviewModal(this)" data-tags="TextoAnimado,Neon,Simples" data-type="sticker" data-theme="reactions">
+                    <div class="media-card-image-container">
+                        <img src="https://i.ibb.co/fQ3K0Xy/sticker-ok.png" 
+                            data-hires-src="https://i.ibb.co/fQ3K0Xy/sticker-ok.png" alt="Sticker OK!">
+                    </div>
+                    <div class="media-card-content"><h3>Sticker OK!</h3><div class="download-btn" onclick="downloadMediaFromCard(event, 'https://i.ibb.co/fQ3K0Xy/sticker-ok.png')"><i class="fas fa-download"></i></div></div>
+                </article>
+                
+                <article class="media-card" onclick="openPreviewModal(this)" data-tags="Animais,Fofo,Mascote" data-type="sticker" data-theme="animals">
+                    <div class="media-card-image-container">
+                        <img src="https://i.ibb.co/K50R02Q/sticker-dog.png" 
+                            data-hires-src="https://i.ibb.co/K50R02Q/sticker-dog.png" alt="Sticker de Cachorro">
+                    </div>
+                    <div class="media-card-content"><h3>Sticker Cachorro</h3><div class="download-btn" onclick="downloadMediaFromCard(event, 'https://i.ibb.co/K50R02Q/sticker-dog.png')"><i class="fas fa-download"></i></div></div>
+                </article>
+
+                <article class="media-card" onclick="openPreviewModal(this)" data-tags="Anime,Kawaii,Fofo" data-type="sticker" data-theme="anime">
+                    <div class="media-card-image-container">
+                        <img src="https://i.ibb.co/R2tS5kY/anime-sticker.png" 
+                            data-hires-src="https://i.ibb.co/R2tS5kY/anime-sticker.png" alt="Sticker de Garota Anime">
+                    </div>
+                    <div class="media-card-content"><h3>Anime Girl (Sticker)</h3><div class="download-btn" onclick="downloadMediaFromCard(event, 'https://i.ibb.co/R2tS5kY/anime-sticker.png')"><i class="fas fa-download"></i></div></div>
+                </article>
+                
+            </section>
+            
+            <div id="load-more-container-stickers">
+                <button class="load-more-button">
+                    Carregar Mais Stickers <i class="fas fa-sticky-note"></i>
+                </button>
+            </div>
+            
+        </div>
+        
+        <div id="tab-gifs" class="tab-content">
+            
+            <section class="media-grid" id="media-list-gifs">
+                
+                <article class="media-card" onclick="openPreviewModal(this)" data-tags="Animais,Fofo,Reações" data-type="gif" data-theme="animals">
+                    <div class="media-card-image-container">
+                        <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzFmd2Z1NGI3czc0bmZpdGNrYzUya291bjZsd2E5Z2Jvd2I2MjNsbCZlcD12MV9pbnRlcm5hbF9naWYmY3Q9cw/8gXv21G9L51N6nN5gI/giphy.gif" 
+                            data-hires-src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzFmd2Z1NGI3czc0bmZpdGNrYzUya291bjZsd2E5Z2Jvd2I2MjNsbCZlcD12MV9pbnRlcm5hbF9naWYmY3Q9cw/8gXv21G9L51N6nN5gI/giphy.gif" alt="Gato fofo animado">
+                    </div>
+                    <div class="media-card-content"><h3>Gato Fofo Animado (GIF)</h3><div class="download-btn" onclick="downloadMediaFromCard(event, 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzFmd2Z1NGI3czc0bmZpdGNrYzUya291bjZsd2E5Z2Jvd2I2MjNsbCZlcD12MV9pbnRlcm5hbF9naWYmY3Q9cw/8gXv21G9L51N6nN5gI/giphy.gif')"><i class="fas fa-download"></i></div></div>
+                </article>
+                
+                <article class="media-card" onclick="openPreviewModal(this)" data-tags="Reações,Memes,TextoAnimado" data-type="gif" data-theme="reactions">
+                    <div class="media-card-image-container">
+                        <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3JqczN3d20xZ25iZzVsMnNldHVhZ2F3bXh0ajZ0OGp2enQxZ2k4eCZlcD12MV9pbnRlcm5hbF9naWYmY3Q9cw/xT0xeuFzS4v0vX25oA/giphy.gif" 
+                            data-hires-src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3JqczN3d20xZ25iZzVsMnNldHVhZ2F3bXh0ajZ0OGp2enQxZ2k4eCZlcD12MV9pbnRlcm5hbF9naWYmY3Q9cw/xT0xeuFzS4v0vX25oA/giphy.gif" alt="GIF do Pato Dançando">
+                    </div>
+                    <div class="media-card-content"><h3>GIF do Pato Dançando</h3><div class="download-btn" onclick="downloadMediaFromCard(event, 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3JqczN3d20xZ25iZzVsMnNldHVhZ2F3bXh0ajZ0OGp2enQxZ2k4eCZlcD12MV9pbnRlcm5hbF9naWYmY3Q9cw/xT0xeuFfS4v0vX25oA/giphy.gif')"><i class="fas fa-download"></i></div></div>
+                </article>
+                
+                <article class="media-card" onclick="openPreviewModal(this)" data-tags="Memes,Reações,Drama" data-type="gif" data-theme="series">
+                    <div class="media-card-image-container">
+                        <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZnRtdG53dW85MTRlNzN0azcxbDZxZG5mNGU5cTRtN3h0Z2FqMGQ1OCZlcD12MV9pbnRlcm5hbF9naWYmY3Q9cw/5wFS6OaqVdY9W/giphy.gif" 
+                            data-hires-src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZnRtdG53dW85MTRlNzN0azcxbDZxZG5mNGU5cTRtN3h0Z2FqMGQ1OCZlcD12MV9pbnRlcm5hbF9naWYmY3Q9cw/5wFS6OaqVdY9W/giphy.gif" alt="Chorando GIF">
+                    </div>
+                    <div class="media-card-content"><h3>Chorando (GIF de Série)</h3><div class="download-btn" onclick="downloadMediaFromCard(event, 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZnRtdG53dW85MTRlNzN0azcxbDZxZG5mNGU5cTRtN3h0Z2FqMGQ1OCZlcD12MV9pbnRlcm5hbF9naWYmY3Q9cw/5wFS6OaqVdY9W/giphy.gif')"><i class="fas fa-download"></i></div></div>
+                </article>
+                
+                <article class="media-card" onclick="openPreviewModal(this)" data-tags="Anime,Ação,Fofo" data-type="gif" data-theme="anime">
+                    <div class="media-card-image-container">
+                        <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExY3M4N21obG92YW15YnN3NThvd2F1d2lweG9rN2E5YmNhcWJ0b3J4ciZlcD12MV9pbnRlcm5hbF9naWYmY3Q9cw/l0MYEqgY180Y36n0c/giphy.gif" 
+                            data-hires-src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExY3M4N21obG92YW15YnN3NThvd2F1d2lweG9rN2E5YmNhcWJ0b3J4ciZlcD12MV9pbnRlcm5hbF9naWYmY3Q9cw/l0MYEqgY180Y36n0c/giphy.gif" alt="Anime de ação">
+                    </div>
+                    <div class="media-card-content"><h3>Anime Ação (GIF)</h3><div class="download-btn" onclick="downloadMediaFromCard(event, 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExY3M4N21obG92YW15YnN3NThvd2F1d2lweG9rN2E5YmNhcWJ0b3J4ciZlcD12MV9pbnRlcm5hbF9naWYmY3Q9cw/l0MYEqgY180Y36n0c/giphy.gif')"><i class="fas fa-download"></i></div></div>
+                </article>
+
+            </section>
+            
+            <div id="load-more-container-gifs">
+                 <button class="load-more-button">
+                    Carregar Mais GIFs <i class="fas fa-film"></i>
+                </button>
+            </div>
+        </div>
+        
+    </main>
+    
+</div>
+
+<div id="media-preview-modal" class="modal-fullscreen media-preview-modal">
+    <div class="modal-content-wrapper">
+        <img id="modal-preview-image" src="" alt="Pré-visualização do Sticker/GIF">
+        
+        <div class="preview-controls">
+            <button onclick="downloadMedia()"><i class="fas fa-file-download"></i> Download Original</button>
+            <button onclick="closePreviewModal()"><i class="fas fa-times-circle"></i> Fechar Prévia</button>
+        </div>
+        
+    </div>
+</div>
+<button class="modal-close-btn" id="modal-fixed-close-btn" onclick="closePreviewModal()">
+    <i class="fas fa-times"></i>
+</button>
+
+<script>
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+    const previewModal = document.getElementById('media-preview-modal'); 
+    const modalImage = document.getElementById('modal-preview-image');
+    const modalFixedCloseBtn = document.getElementById('modal-fixed-close-btn');
+    const searchInput = document.getElementById('main-search-input');
+    const searchToggle = document.getElementById('search-toggle');
+    
+    // NOVO: Seleciona os novos botões de tema
+    const themeButtons = document.querySelectorAll('.theme-button'); 
+    const tabButtons = document.querySelectorAll('.content-tabs .tab-button');
+
+    const mediaListStickers = document.getElementById('media-list-stickers');
+    const mediaListGifs = document.getElementById('media-list-gifs');
+
+    let currentMediaUrl = ''; 
+    let activeTabId = '#tab-stickers'; // Stickers (mediaType='sticker')
+    // NOVO: Variável para rastrear o tema ativo (padrão 'all')
+    let activeTheme = 'all';   
+
+    document.body.style.overflow = 'auto'; 
+
+    // --- Lógica da Sidebar ---
+    function toggleSidebar() {
+        const isMobile = window.innerWidth < 1024;
+        if (sidebar.classList.contains('open')) {
+            sidebar.classList.remove('open');
+            if (isMobile) {
+                overlay.style.display = 'none';
+            }
+        } else {
+            sidebar.classList.add('open');
+            if (isMobile) {
+                overlay.style.display = 'block';
+            }
+        }
+    }
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 1024) {
+            sidebar.classList.remove('open');
+            overlay.style.display = 'none';
+        }
+    });
+    overlay.addEventListener('click', toggleSidebar);
+
+    // --- Lógica das Top Tabbars (Stickers/GIFs) ---
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove 'active' de todas as abas e conteúdos
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Ativa a aba e o conteúdo corretos
+            this.classList.add('active');
+            activeTabId = this.getAttribute('data-tab-target');
+            const targetContent = document.querySelector(activeTabId);
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
+            
+            // Reseta o tema para 'Todos' ao mudar de aba
+            activeTheme = 'all';
+            themeButtons.forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.theme-button[data-theme="all"]').classList.add('active');
+
+            // Aplica filtro e ordenação no novo conteúdo ativo
+            applyFilterAndSort(); 
+        });
+    });
+
+    // --- LÓGICA DOS BOTÕES DE TEMA (CIRCULARES) ---
+    themeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            themeButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            activeTheme = this.getAttribute('data-theme');
+            
+            applyFilterAndSort();
+        });
+    });
+
+    // --- FUNÇÃO CENTRAL DE FILTRAGEM/ORDENAÇÃO ---
+    function applyFilterAndSort() {
+        if (searchToggle.checked) return; 
+        
+        const searchQuery = searchInput.value.trim().toUpperCase();
+        const mediaType = activeTabId === '#tab-stickers' ? 'sticker' : 'gif';
+        const activeList = activeTabId === '#tab-stickers' ? mediaListStickers : mediaListGifs;
+        
+        // Coleta TODOS os cards da lista ATIVA
+        const cards = Array.from(activeList.querySelectorAll('.media-card'));
+        
+        cards.forEach(card => {
+            const cardTags = (card.getAttribute('data-tags') || '').toUpperCase();
+            const cardTitle = card.querySelector('h3').textContent.toUpperCase();
+            const cardType = card.getAttribute('data-type').toLowerCase();
+            // NOVO: Pega o tema do card
+            const cardTheme = (card.getAttribute('data-theme') || '').toLowerCase();
+            
+            // FILTRO 1: Tipo de Mídia (Sticker ou GIF) - Garante que o tipo da aba é respeitado
+            const passesTypeFilter = cardType === mediaType;
+            
+            // FILTRO 2: Tema (Compara com o tema ativo, ou passa se for 'all')
+            const passesThemeFilter = activeTheme === 'all' || cardTheme === activeTheme;
+
+            // FILTRO 3: Busca por texto
+            const passesSearchFilter = searchQuery.length === 0 || 
+                                       cardTitle.includes(searchQuery) ||
+                                       cardTags.includes(searchQuery);
+            
+            // Aplica os filtros
+            if (passesTypeFilter && passesThemeFilter && passesSearchFilter) {
+                card.classList.remove('hide');
+            } else {
+                card.classList.add('hide');
+            }
+        });
+
+        // A ordenação por tema substitui as ordenações antigas (Novos, Virais, etc.)
+        // Mantemos a ordem original do DOM, mas você pode adicionar ordenação se necessário.
+    }
+
+    // A. Evento de input para a busca local em tempo real
+    searchInput.addEventListener('input', function() {
+        if (!searchToggle.checked) {
+            applyFilterAndSort(); 
+        }
+    });
+
+    // --- Lógica: Alternância de Modo de Busca (Local vs. Pinterest) ---
+
+    function updatePinterestUI(isPinterestMode) {
+        const pinterestLogo = document.getElementById('pinterest-logo');
+        const searchBarContainer = document.getElementById('search-bar-container');
+
+        if (isPinterestMode) {
+            searchBarContainer.classList.add('pinterest-active');
+            pinterestLogo.style.opacity = '1';
+            pinterestLogo.style.visibility = 'visible';
+            
+        } else {
+            searchBarContainer.classList.remove('pinterest-active');
+            pinterestLogo.style.opacity = '0';
+            pinterestLogo.style.visibility = 'hidden';
+        }
+    }
+    
+    function handleSearch() {
+        const query = searchInput.value.trim();
+        const isPinterestMode = searchToggle.checked;
+        const mediaType = activeTabId === '#tab-stickers' ? 'Sticker' : 'GIF';
+        // NOVO: Pega o nome do tema, se não for 'all'
+        const themeKeyword = activeTheme !== 'all' ? activeTheme : '';
+
+        if (!query) {
+            if (!isPinterestMode) applyFilterAndSort(); 
+            return;
+        }
+
+        if (isPinterestMode) {
+            // LÓGICA DE BUSCA NO PINTEREST (EXTERNAL)
+            const pinterestBaseUrl = 'https://www.pinterest.com/search/pins/?q=';
+            
+            // Combina query, tipo de mídia e tema (se houver)
+            const finalQuery = `${query} ${mediaType} ${themeKeyword}`; 
+            const searchUrl = pinterestBaseUrl + encodeURIComponent(finalQuery.trim()); 
+            
+            console.log("External Search URL (Pinterest):", searchUrl); 
+            window.open(searchUrl, '_blank'); 
+            
+        } else {
+            // Modo Local: Executa a filtragem local
+            applyFilterAndSort();
+        }
+    }
+
+    // A. Lógica de Busca ao apertar ENTER
+    searchInput.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault(); 
+            handleSearch();
+        }
+    });
+
+    // B. Lógica do Toggle (mudar o modo de busca)
+    searchToggle.addEventListener('change', function() {
+        const isChecked = this.checked;
+        
+        updatePinterestUI(isChecked); 
+        
+        if (!isChecked) {
+             // Se mudar para o modo Local, executa o filtro/tema local
+             applyFilterAndSort();
+        } else {
+             // Se mudar para o modo Pinterest, limpa o filtro visual para mostrar tudo
+             document.querySelectorAll('.media-card').forEach(card => card.classList.remove('hide'));
+        }
+    });
+
+    // --- Lógica do Modal de Pré-visualização e Download ---
+
+    function openPreviewModal(card) {
+        const cardImage = card.querySelector('img');
+        const hiresUrl = cardImage ? cardImage.getAttribute('data-hires-src') : null; 
+        const imageAlt = cardImage ? cardImage.alt : 'Pré-visualização';
+        
+        if (!hiresUrl) return; 
+
+        currentMediaUrl = hiresUrl; 
+        
+        modalImage.src = hiresUrl;
+        modalImage.alt = imageAlt;
+        
+        previewModal.classList.add('open');
+        modalFixedCloseBtn.style.display = 'block';
+        document.body.style.overflow = 'hidden'; 
+    }
+
+    function closePreviewModal() {
+        previewModal.classList.remove('open');
+        modalFixedCloseBtn.style.display = 'none';
+        
+        document.body.style.overflow = 'auto'; 
+        currentMediaUrl = '';
+        modalImage.src = ''; 
+    }
+    
+    previewModal.addEventListener('click', function(event) {
+        if (event.target.id === 'media-preview-modal') {
+            closePreviewModal();
+        }
+    });
+
+    function downloadMedia() {
+        if (currentMediaUrl) {
+            alert(`Simulando download do Sticker/GIF: ${modalImage.alt}. \nURL: ${currentMediaUrl}`);
+        } else {
+            alert("Erro: Nenhuma mídia para baixar.");
+        }
+    }
+    
+    function downloadMediaFromCard(event, url) {
+        event.stopPropagation();
+        const card = event.currentTarget.closest('.media-card'); 
+        const altText = card.querySelector('h3').textContent;
+        
+        alert(`Download rápido iniciado para: ${altText}. \nURL: ${url}`);
+    }
+    
+    // Inicia a galeria
+    applyFilterAndSort();
+    updatePinterestUI(false);
+</script>
+
+</body>
+</html>
