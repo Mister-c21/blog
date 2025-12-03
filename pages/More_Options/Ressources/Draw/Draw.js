@@ -562,11 +562,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tool-pen').addEventListener('dblclick', () => togglePanel('settings-panel'));
     document.getElementById('tool-eraser').addEventListener('dblclick', () => togglePanel('settings-panel'));
 
-    // Funcionalidade do link Home
+    // Funcionalidade do link Home (CORRIGIDO)
     document.getElementById('home-btn').onclick = (e) => {
-        e.preventDefault(); // Impede o comportamento padrão do link
-        if (confirm("Se você não salvou, seu trabalho será perdido. Deseja realmente recarregar a página e voltar ao estado inicial?")) {
-            window.location.reload();
+        e.preventDefault(); // Impede o comportamento padrão do link (navegação imediata)
+        if (confirm("Se você não salvou, seu trabalho será perdido. Deseja realmente sair e ir para a página inicial?")) {
+            // Se o usuário clicar em OK, força a navegação para o HREF do link
+            window.location.href = e.currentTarget.href;
         }
     };
 
