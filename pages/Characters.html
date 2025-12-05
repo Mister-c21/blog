@@ -21,6 +21,17 @@
             --menu-width: 250px; 
             --list-width-desktop: 400px; 
             --panel-width-desktop: 400px; 
+            /* NOVO: Variável para o Redid Mode */
+            --redid-color: #E60023; /* Cor de destaque para o modo externo (Reddit) */
+            --white: #fff;
+            --text-color-muted: #aaa;
+        }
+
+        /* ANIMAÇÃO DA BORDA GLOW (Redid Mode) */
+        @keyframes glowing-redid {
+            0% { box-shadow: 0 0 5px rgba(230, 0, 35, 0.4), 0 0 10px rgba(230, 0, 35, 0.2); }
+            50% { box-shadow: 0 0 10px var(--redid-color), 0 0 20px rgba(230, 0, 35, 0.6); }
+            100% { box-shadow: 0 0 5px rgba(230, 0, 35, 0.4), 0 0 10px rgba(230, 0, 35, 0.2); }
         }
 
         /* Reset e Layout */
@@ -81,12 +92,77 @@
         .menu-button { font-size: 24px; color: var(--secondary-color); cursor: pointer; z-index: 10; width: 24px; text-align: center; line-height: 1; }
         .direct-header h2 { position: absolute; left: 50%; transform: translateX(-50%); margin: 0; font-size: 18px; font-weight: 700; color: var(--secondary-color); z-index: 5; }
         
-        .search-bar { flex-shrink: 0; padding: 10px 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
-        .search-bar input[type="text"] {
-            width: 100%; padding: 10px 15px; border: none; border-radius: 10px;
-            background-color: rgba(255, 255, 255, 0.1); color: var(--text-color);
-            font-family: var(--font-stack); font-size: 14px;
+        /* NOVO: Layout da Barra de Busca */
+        .search-bar { 
+            flex-shrink: 0; 
+            padding: 10px 15px; 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
+            display: flex; /* Para alinhar o toggle */
+            align-items: center;
+            gap: 10px;
         }
+        
+        .search-input-wrapper {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        .search-bar input[type="text"] {
+            width: 100%; 
+            padding: 10px 15px; 
+            padding-right: 40px; /* Espaço para o ícone de busca */
+            border: none; 
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.1); 
+            color: var(--text-color);
+            font-family: var(--font-stack); 
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        /* NOVO: Estilos do Redid Mode na Barra de Busca */
+        .search-bar.redid-active input[type="text"] {
+            background-color: rgba(230, 0, 35, 0.1); 
+            border: 1px solid var(--redid-color);
+            animation: glowing-redid 2s infinite alternate;
+        }
+
+        .search-icon-local {
+            position: absolute;
+            right: 15px;
+            color: var(--text-color-muted);
+            font-size: 1em;
+            pointer-events: none; /* Não interfere no clique do input */
+        }
+        
+        /* NOVO: Lógica do Toggle (Redid Mode) */
+        .search-toggle-switch-container { 
+            position: relative; 
+            flex-shrink: 0;
+        }
+        
+        .search-toggle-checkbox { display: none; }
+        .search-toggle-label {
+            position: relative; display: block; width: 50px; height: 26px; cursor: pointer;
+            background-color: var(--primary-color); border-radius: 13px; transition: background-color 0.4s;
+            overflow: hidden; 
+        }
+        .slider {
+            position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px;
+            background-color: var(--white); transition: 0.4s; box-shadow: 0 0 5px rgba(0, 0, 0, 0.4);
+        }
+        .slider.round { border-radius: 50%; }
+        .search-toggle-checkbox:checked + .search-toggle-label { background-color: var(--redid-color); } 
+        .search-toggle-checkbox:checked + .search-toggle-label .slider { transform: translateX(24px); }
+        .toggle-icon { position: absolute; color: var(--white); font-size: 0.8em; top: 50%; transform: translateY(-50%); transition: opacity 0.4s; }
+        .filter-icon { left: 8px; }
+        /* Alterado para o ícone do Reddit (se houver, senão, 'R' estilizado ou outro) */
+        .redid-icon { right: 8px; opacity: 0; } 
+        .search-toggle-checkbox:checked + .search-toggle-label .filter-icon { opacity: 0; }
+        .search-toggle-checkbox:checked + .search-toggle-label .redid-icon { opacity: 1; }
+
         
         .filter-tabs { 
             flex-shrink: 0; padding: 10px 15px; overflow-x: auto; white-space: nowrap; 
@@ -99,6 +175,11 @@
         }
         .filter-tabs button.active { 
             background-color: var(--primary-color); color: var(--secondary-color); border-color: var(--primary-light); 
+        }
+        /* NOVO: Estilo para botão ativo no Redid Mode */
+        .search-bar.redid-active + .filter-tabs button.active {
+             background-color: var(--redid-color); 
+             border-color: var(--redid-color); 
         }
         .filter-tabs::-webkit-scrollbar { display: none; }
         
@@ -369,7 +450,6 @@
             .sidebar { position: fixed; height: 100%; transform: translateX(-100%) !important; z-index: 1500; }
             .menu-open .sidebar { transform: translateX(0) !important; }
             #close-sidebar-button { display: none; }
-            .menu-open #close-sidebar-button { display: flex; }
             .modal-close-button { display: none; }
             .menu-button { display: block; }
             .profile-panel {
@@ -409,7 +489,20 @@
             <h2>Characters</h2>
             <span class="action-icon"></span> 
         </div>
-        <div class="search-bar"><input type="text" id="search-input" placeholder="Buscar Personagens..."></div>
+        
+        <div class="search-bar" id="search-bar">
+            <div class="search-input-wrapper">
+                <input type="text" id="search-input" placeholder="Buscar Personagens..." aria-label="Buscar Personagens">
+                <i class="fas fa-search search-icon-local"></i>
+            </div>
+            <div class="search-toggle-switch-container">
+                <input type="checkbox" id="search-toggle" class="search-toggle-checkbox">
+                <label for="search-toggle" class="search-toggle-label" title="Alternar Modo de Busca">
+                    <span class="slider round"></span>
+                    <i class="fas fa-filter toggle-icon filter-icon"></i>
+                    <i class="fab fa-reddit-alien toggle-icon redid-icon"></i> </label>
+            </div>
+        </div>
         <div class="filter-tabs" id="filter-tabs">
             <button class="active" data-filter="all">All</button>
             <button data-filter="series">Series</button>
@@ -514,8 +607,13 @@
             const galleryTitle = document.getElementById('gallery-title');
             const galleryTabs = document.querySelectorAll('.gallery-tab-btn');
             const gallerySections = document.querySelectorAll('.gallery-section');
-            const searchInput = document.getElementById('search-input'); 
             
+            // Novos Seletores de Busca
+            const searchInput = document.getElementById('search-input'); 
+            const searchBar = document.getElementById('search-bar'); 
+            const searchToggle = document.getElementById('search-toggle'); 
+            const filterTabs = document.getElementById('filter-tabs');
+
             // Novos Seletores de Footer da Galeria
             const imageFooter = document.getElementById('image-footer');
             const videoFooter = document.getElementById('video-footer');
@@ -524,6 +622,9 @@
             const mediaViewer = document.getElementById('media-viewer');
             const mediaContentWrapper = document.getElementById('media-content-wrapper');
             const closeMediaButton = document.getElementById('close-media-button');
+
+            // Variável de estado para a categoria ativa
+            let activeFilterCategory = 'all';
 
             // --- DADOS COMPLETOS ---
             const charactersData = {
@@ -622,7 +723,7 @@
 
             // --- FUNÇÕES DE RENDERIZAÇÃO E UTILITY ---
 
-            // Função para abrir a busca do Google
+            // Função para abrir a busca do Google (Geral/Imagens/Vídeos)
             const openGoogleSearch = (characterName, mediaType) => {
                 const query = `${characterName} ${mediaType}`;
                 let url;
@@ -641,9 +742,9 @@
                 window.open(url, '_blank');
             };
 
-            // NOVO: Função para adicionar o footer da galeria (botão "Ver Mais")
+            // Função para adicionar o footer da galeria (botão "Ver Mais")
             const addGalleryFooter = (targetContainer, mediaType) => {
-                targetContainer.innerHTML = ''; // Limpa o conteúdo anterior
+                targetContainer.innerHTML = ''; 
                 
                 const charName = galleryButton.getAttribute('data-character-name');
                 if (!charName) return;
@@ -656,79 +757,88 @@
                 targetContainer.appendChild(button);
             };
 
-
+            // Função para renderizar os cards de informação
             const renderInfoCards = (character) => {
-                infoCardsContainer.innerHTML = ''; 
-                const infoMap = { author: "Autor", type: "Tipo", age: "Idade", nationality: "Nacionalidade", gender: "Gênero", species: "Espécie", friends: "Amigos", family: "Família" };
-                for (const key in infoMap) {
+                infoCardsContainer.innerHTML = '';
+                const keys = ['author', 'type', 'age', 'nationality', 'gender', 'species'];
+                keys.forEach(key => {
                     if (character[key]) {
                         const card = document.createElement('div');
                         card.className = 'info-card';
-                        card.innerHTML = `<strong>${infoMap[key]}</strong><span>${character[key]}</span>`;
+                        card.innerHTML = `<strong>${key.toUpperCase()}</strong><span>${character[key]}</span>`;
                         infoCardsContainer.appendChild(card);
                     }
-                }
+                });
             };
 
+            // Função para renderizar os cards de ação (links externos)
             const renderActionCards = (characterName) => {
-                actionCardsContainer.innerHTML = ''; 
+                actionCardsContainer.innerHTML = '';
+                const encodedName = encodeURIComponent(characterName);
+
                 const actions = [
-                    { iconClass: 'fab fa-youtube', title: 'YouTube', url: `https://www.youtube.com/results?search_query=${encodeURIComponent(characterName)}` },
-                    { iconClass: 'fas fa-globe', title: 'Google', url: `https://www.google.com/search?q=${encodeURIComponent(characterName)}` },
-                    { iconClass: 'fab fa-wikipedia-w', title: 'Wikipedia', url: `https://pt.wikipedia.org/wiki/${encodeURIComponent(characterName.replace(/\s/g, '_'))}` }
+                    { icon: 'fas fa-globe', text: 'Wikipedia', url: `https://pt.wikipedia.org/wiki/${encodedName}` },
+                    { icon: 'fab fa-imdb', text: 'IMDb', url: `https://www.imdb.com/find/?q=${encodedName}` },
+                    { icon: 'fab fa-reddit-alien', text: 'Reddit Fan', url: `https://www.reddit.com/search/?q=${encodedName}` }
                 ];
+
                 actions.forEach(action => {
-                    const card = document.createElement('div');
-                    card.className = `action-card`;
-                    card.innerHTML = `<span><i class="${action.iconClass}"></i></span>${action.title}`;
-                    card.addEventListener('click', () => window.open(action.url, '_blank'));
+                    const card = document.createElement('a');
+                    card.className = 'action-card';
+                    card.href = action.url;
+                    card.target = '_blank';
+                    card.innerHTML = `<span><i class="${action.icon}"></i></span>${action.text}`;
                     actionCardsContainer.appendChild(card);
                 });
             };
 
+            // Função para ligar/desligar o player do Spotify
             const toggleSpotifyPlayer = (songTitle, spotifyId) => {
-                const isPlaying = musicButton.classList.contains('active');
-                if (isPlaying) {
-                    spotifyPlayerContainer.classList.remove('active');
+                const isActive = musicButton.classList.contains('active');
+                
+                if (isActive) {
                     musicButton.classList.remove('active');
-                    spotifyPlayerContainer.innerHTML = `<p class="spotify-title">Música Tema:</p>`; 
-                } else {
-                    if (!spotifyId || spotifyId === "undefined") { alert('Sem música tema definida.'); return; }
-                    // Nota: O URL do Spotify é mockado devido a restrições de sandbox.
-                    const iframeSrc = `https://open.spotify.com/embed/track/$${spotifyId}?utm_source=generator&theme=0`;
-                    spotifyPlayerContainer.innerHTML = `<p class="spotify-title">🎶 Tocando: ${songTitle}</p><iframe src="${iframeSrc}" height="80" frameborder="0" allowtransparency="true" allow="encrypted-media; autoplay"></iframe>`;
-                    spotifyPlayerContainer.classList.add('active');
+                    spotifyPlayerContainer.classList.remove('active');
+                    spotifyPlayerContainer.innerHTML = `<p class="spotify-title">Música Tema:</p>`;
+                } else if (spotifyId) {
                     musicButton.classList.add('active');
+                    spotifyPlayerContainer.classList.add('active');
+                    spotifyPlayerContainer.innerHTML = `
+                        <p class="spotify-title">Música Tema: ${songTitle}</p>
+                        <iframe style="border-radius:12px" 
+                            src="https://open.spotify.com/embed/track/${spotifyId}?utm_source=generator" 
+                            width="100%" height="80" frameborder="0" allowfullscreen="" 
+                            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                            loading="lazy">
+                        </iframe>
+                    `;
                 }
             };
 
-            // --- FUNÇÕES DE VISUALIZAÇÃO DE MÍDIA (ATUALIZADAS) ---
-
+            // Função para fechar o visualizador de mídia
             const closeMediaViewer = () => {
                 mediaViewer.classList.remove('active');
-                // Remove classes específicas de estilo ao fechar
-                mediaContentWrapper.classList.remove('pinterest-style', 'youtube-style'); 
-                setTimeout(() => {
-                    mediaContentWrapper.innerHTML = ''; // Limpa para parar vídeo
-                }, 300);
+                mediaContentWrapper.innerHTML = '';
             };
 
+            // Função para abrir o visualizador de mídia
             const openMediaViewer = (type, src) => {
-                mediaContentWrapper.innerHTML = ''; 
-                mediaContentWrapper.classList.remove('pinterest-style', 'youtube-style'); // Limpa estilos
+                mediaContentWrapper.innerHTML = '';
+                mediaContentWrapper.className = ''; 
 
                 if (type === 'image') {
                     mediaContentWrapper.classList.add('pinterest-style');
                     const img = document.createElement('img');
                     img.src = src;
+                    img.alt = 'Visualização de Mídia';
                     mediaContentWrapper.appendChild(img);
                 } else if (type === 'video') {
                     mediaContentWrapper.classList.add('youtube-style');
-                    
                     const iframe = document.createElement('iframe');
-                    // Vídeo dummy do YouTube (autoplay ativado)
-                    iframe.src = "https://www.youtube.com/embed/YE7VzlLtp-4?autoplay=1"; 
-                    iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+                    iframe.src = src;
+                    iframe.title = 'YouTube video player';
+                    iframe.frameBorder = '0';
+                    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
                     iframe.allowFullscreen = true;
                     mediaContentWrapper.appendChild(iframe);
                 }
@@ -736,159 +846,255 @@
                 mediaViewer.classList.add('active');
             };
 
-            closeMediaButton.addEventListener('click', closeMediaViewer);
-            // Fechar ao clicar no fundo
-            mediaViewer.addEventListener('click', (e) => {
-                if (e.target === mediaViewer) closeMediaViewer();
-            });
+            // Simulação de Dados de Galeria (Adapte com suas URLs reais)
+            const getGalleryData = (name) => {
+                const baseImage = (idx) => `https://picsum.photos/id/${(name.length * 10) + idx}/300/300`;
+                const baseVideoId = (idx) => `dQw4w9WgXcQ`; // Link padrão do YouTube
 
-            // --- LÓGICA DA GALERIA (Populate com onclick modificado) ---
+                return {
+                    images: [
+                        { src: baseImage(1), alt: `${name} Image 1` },
+                        { src: baseImage(2), alt: `${name} Image 2` },
+                        { src: baseImage(3), alt: `${name} Image 3` },
+                        { src: baseImage(4), alt: `${name} Image 4` },
+                        { src: baseImage(5), alt: `${name} Image 5` },
+                        { src: baseImage(6), alt: `${name} Image 6` },
+                    ],
+                    videos: [
+                        { title: `Trailer Oficial de ${name}`, id: baseVideoId(1) },
+                        { title: `Melhores Momentos de ${name}`, id: baseVideoId(2) },
+                    ]
+                };
+            };
+            
+            // Função para preencher a galeria
             const populateGallery = (name) => {
-                galleryGridContainer.innerHTML = '';
-                galleryVideoContainer.innerHTML = '';
-                
-                // Gerar Imagens Dummy
-                for(let i = 1; i <= 10; i++) {
-                    const div = document.createElement('div');
-                    div.className = 'gallery-img-item';
-                    // Variar altura para simular o layout do Pinterest (vertical/horizontal)
-                    const imgSrc = `https://via.placeholder.com/600x${i % 2 === 0 ? 800 : 400}?text=${name.charAt(0)}+Img+${i}`;
-                    div.innerHTML = `<img src="${imgSrc}" alt="${name} ${i}">`;
-                    div.onclick = () => openMediaViewer('image', imgSrc);
-                    galleryGridContainer.appendChild(div);
-                }
+                const data = getGalleryData(name);
+                galleryTitle.textContent = `Galeria: ${name}`;
 
-                // Gerar Vídeos Dummy
-                for(let i = 1; i <= 3; i++) {
-                    const div = document.createElement('div');
-                    div.className = 'video-item';
-                    div.innerHTML = `
-                        <div class="video-thumbnail"><i class="fas fa-play-circle"></i></div>
+                // Imagens
+                galleryGridContainer.innerHTML = '';
+                data.images.forEach(imgData => {
+                    const item = document.createElement('div');
+                    item.className = 'gallery-img-item';
+                    item.innerHTML = `<img src="${imgData.src}" alt="${imgData.alt}">`;
+                    item.addEventListener('click', () => openMediaViewer('image', imgData.src));
+                    galleryGridContainer.appendChild(item);
+                });
+                addGalleryFooter(imageFooter, 'imagens');
+
+                // Vídeos
+                galleryVideoContainer.innerHTML = '';
+                data.videos.forEach(videoData => {
+                    const item = document.createElement('div');
+                    item.className = 'video-item';
+                    item.innerHTML = `
+                        <div class="video-thumbnail"><i class="fas fa-play"></i></div>
                         <div class="video-info">
-                            <h4>${name} - Melhores Momentos #${i}</h4>
+                            <h4>${videoData.title}</h4>
                             <span>Clique para assistir</span>
                         </div>
                     `;
-                    div.onclick = () => openMediaViewer('video', 'dummy-video-id'); // Passa o tipo 'video'
-                    galleryVideoContainer.appendChild(div);
+                    item.addEventListener('click', () => openMediaViewer('video', `https://www.youtube.com/embed/${videoData.id}?autoplay=1`));
+                    galleryVideoContainer.appendChild(item);
+                });
+                addGalleryFooter(videoFooter, 'vídeos');
+            };
+            
+            // Lógica de filtro local
+            const applyFilter = (searchTerm, filter) => {
+                const term = searchTerm.toLowerCase();
+                
+                contactList.querySelectorAll('.contact-item').forEach(item => {
+                    const name = item.querySelector('h3').textContent.toLowerCase();
+                    const cat = item.getAttribute('data-category');
+                    
+                    const passesSearch = name.includes(term);
+                    const passesFilter = filter === 'all' || cat === filter;
+                    
+                    item.style.display = (passesSearch && passesFilter) ? 'flex' : 'none';
+                });
+            };
+            
+            // **NOVO: Função unificada de Busca/Redirecionamento**
+            const handleSearch = () => {
+                const query = searchInput.value.trim();
+                const isRedidMode = searchToggle.checked;
+                
+                if (!query) {
+                    if (!isRedidMode) {
+                        applyFilter('', activeFilterCategory);
+                    }
+                    return;
                 }
                 
-                // NOVO: Adiciona o botão "Ver Mais" ao carregar a galeria (Imagens está ativa por padrão)
-                addGalleryFooter(imageFooter, 'imagens');
-                addGalleryFooter(videoFooter, 'vídeos');
+                if (!isRedidMode) {
+                    // MODO LOCAL: Filtra a lista
+                    applyFilter(query, activeFilterCategory);
+                } else {
+                    // MODO REDID: Abre a busca EXTERNA (Reddit)
+                    
+                    let searchKeywords = [query];
+                    if (activeFilterCategory !== 'all') {
+                        searchKeywords.push(activeFilterCategory);
+                    }
+                    
+                    const finalQuery = searchKeywords.join(' ');
+                    
+                    // Redirecionamento direto para a busca do Reddit
+                    const redidSearchUrl = `https://www.reddit.com/search/?q=${encodeURIComponent(finalQuery)}`;
+                    
+                    window.open(redidSearchUrl, '_blank');
+                    
+                    // Limpa o campo de busca
+                    searchInput.value = '';
+                    // No modo Redid, mantém todos os contatos visíveis após a busca externa
+                    contactList.querySelectorAll('.contact-item').forEach(item => item.style.display = 'flex');
+                }
             };
 
             // --- EVENTOS GERAIS ---
 
+            // Evento para abrir o perfil
             contactList.querySelectorAll('.contact-item').forEach(item => {
                 item.addEventListener('click', () => {
-                    const charName = item.getAttribute('data-character-name');
-                    const character = charactersData[charName];
+                    const name = item.getAttribute('data-character-name');
+                    const char = charactersData[name];
 
-                    if (character) {
-                        profileMainView.style.display = 'block';
-                        setTimeout(() => profileMainView.style.opacity = '1', 10);
-                        galleryView.classList.remove('active');
-                        // Reset Spotify Player
-                        spotifyPlayerContainer.classList.remove('active');
-                        musicButton.classList.remove('active');
-                        spotifyPlayerContainer.innerHTML = `<p class="spotify-title">Música Tema:</p>`;
+                    if (!char) return;
 
-                        modalProfileAvatar.src = character.avatar;
-                        modalProfileName.textContent = charName;
-                        modalProfileCategory.textContent = character.category;
-                        modalProfileDescription.textContent = character.description;
-                        
-                        galleryButton.setAttribute('data-character-name', charName);
-                        galleryTitle.textContent = `Galeria: ${charName}`;
-
-                        renderInfoCards(character);
-                        renderActionCards(charName);
-                        
-                        musicButton.setAttribute('data-song-title', character.song);
-                        musicButton.setAttribute('data-spotify-id', character.spotifyId);
-                        
-                        body.classList.add('profile-open');
-                    }
-                });
-            });
-
-            galleryButton.addEventListener('click', () => {
-                const charName = galleryButton.getAttribute('data-character-name');
-                populateGallery(charName);
-                profileMainView.style.opacity = '0';
-                setTimeout(() => {
-                    profileMainView.style.display = 'none';
-                    galleryView.classList.add('active');
-                    // Garante que o footer da aba ativa é mostrado (Imagens por padrão)
-                    addGalleryFooter(document.querySelector('.gallery-section.active .gallery-footer'), document.querySelector('.gallery-tab-btn.active').getAttribute('data-target') === 'gallery-images' ? 'imagens' : 'vídeos');
-                }, 300);
-            });
-
-            closeGalleryButton.addEventListener('click', () => {
-                galleryView.classList.remove('active');
-                profileMainView.style.display = 'block';
-                setTimeout(() => profileMainView.style.opacity = '1', 50);
-            });
-
-            galleryTabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    galleryTabs.forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    const target = tab.getAttribute('data-target');
-                    gallerySections.forEach(sec => sec.classList.remove('active'));
-                    document.getElementById(target).classList.add('active');
+                    // Fecha a sidebar em mobile
+                    body.classList.remove('menu-open');
                     
-                    // NOVO: Atualiza o footer quando a aba é trocada
-                    if (target === 'gallery-images') {
-                        addGalleryFooter(imageFooter, 'imagens');
-                        videoFooter.innerHTML = '';
-                    } else if (target === 'gallery-videos') {
-                        addGalleryFooter(videoFooter, 'vídeos');
-                        imageFooter.innerHTML = '';
-                    }
+                    // Preenche o modal
+                    modalProfileAvatar.src = char.avatar;
+                    modalProfileName.textContent = name;
+                    modalProfileCategory.textContent = char.category;
+                    modalProfileDescription.textContent = char.description;
+                    musicButton.setAttribute('data-song-title', char.song || '');
+                    musicButton.setAttribute('data-spotify-id', char.spotifyId || '');
+                    galleryButton.setAttribute('data-character-name', name);
+                    
+                    // Renderiza cards e galeria
+                    renderInfoCards(char);
+                    renderActionCards(name);
+                    populateGallery(name);
+                    
+                    // Reseta o estado do player de música
+                    musicButton.classList.remove('active');
+                    spotifyPlayerContainer.classList.remove('active');
+                    spotifyPlayerContainer.innerHTML = `<p class="spotify-title">Música Tema:</p>`;
+
+                    // Reseta a visualização para o perfil
+                    galleryView.classList.remove('active');
+                    profileMainView.style.opacity = '1';
+
+                    // Abre o painel
+                    body.classList.add('profile-open');
                 });
             });
 
+            // Eventos do Menu
+            menuButton.addEventListener('click', () => body.classList.toggle('menu-open'));
+            closeSidebarButton.addEventListener('click', () => body.classList.remove('menu-open'));
+
+            // Eventos do Perfil
+            modalCloseButton.addEventListener('click', () => body.classList.remove('profile-open'));
+            profilePanel.addEventListener('click', (e) => {
+                // Fechar se clicar no overlay (apenas para mobile)
+                if (window.innerWidth < 768 && e.target === profilePanel) {
+                    body.classList.remove('profile-open');
+                }
+            });
             musicButton.addEventListener('click', () => {
                 toggleSpotifyPlayer(musicButton.getAttribute('data-song-title'), musicButton.getAttribute('data-spotify-id'));
             });
 
-            modalCloseButton.addEventListener('click', () => {
-                body.classList.remove('profile-open');
-                setTimeout(() => {
-                    galleryView.classList.remove('active');
-                    profileMainView.style.display = 'block';
-                    profileMainView.style.opacity = '1';
-                }, 300);
+            // Eventos da Galeria
+            galleryButton.addEventListener('click', () => {
+                galleryView.classList.add('active');
             });
-
-            menuButton.addEventListener('click', () => body.classList.toggle('menu-open'));
-            closeSidebarButton.addEventListener('click', () => body.classList.remove('menu-open'));
-            
-            // Lógica de Busca
-            searchInput.addEventListener('input', (e) => {
-                const term = e.target.value.toLowerCase();
-                contactList.querySelectorAll('.contact-item').forEach(item => {
-                    const name = item.querySelector('h3').textContent.toLowerCase();
-                    item.style.display = name.includes(term) ? 'flex' : 'none';
+            closeGalleryButton.addEventListener('click', () => {
+                galleryView.classList.remove('active');
+            });
+            galleryTabs.forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    galleryTabs.forEach(t => t.classList.remove('active'));
+                    e.target.classList.add('active');
+                    
+                    gallerySections.forEach(sec => sec.classList.remove('active'));
+                    document.getElementById(e.target.getAttribute('data-target')).classList.add('active');
                 });
             });
+
+            // Eventos do Media Viewer
+            closeMediaButton.addEventListener('click', closeMediaViewer);
+            mediaViewer.addEventListener('click', (e) => {
+                if (e.target === mediaViewer || e.target === closeMediaButton) {
+                    closeMediaViewer();
+                }
+            });
+
+
+            // --- LÓGICA DE BUSCA E FILTRO ---
+
+            // Apenas filtra a lista se estiver no MODO LOCAL
+            searchInput.addEventListener('input', (e) => {
+                if (!searchToggle.checked) {
+                    applyFilter(e.target.value, activeFilterCategory);
+                }
+            });
             
-            // Lógica de Filtro
-            const filterTabs = document.getElementById('filter-tabs');
+            // Executa a busca ao apertar ENTER
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); 
+                    handleSearch(); 
+                }
+            });
+
+            // Lógica do Toggle (Redid Mode)
+            searchToggle.addEventListener('change', function() {
+                const isChecked = this.checked;
+                
+                if (isChecked) {
+                    // MODO REDID ATIVO
+                    searchBar.classList.add('redid-active');
+                    // Garante que todos os itens são visíveis
+                    contactList.querySelectorAll('.contact-item').forEach(item => item.style.display = 'flex');
+                    searchInput.placeholder = `Buscar no Reddit (por ex: "Wallpaper ${activeFilterCategory !== 'all' ? activeFilterCategory : 'Geral'}")`;
+                    // Limpa o termo de busca local
+                    searchInput.value = ''; 
+                } else {
+                    // MODO LOCAL ATIVO
+                    searchBar.classList.remove('redid-active');
+                    applyFilter(searchInput.value, activeFilterCategory); // Reaplica o filtro/busca local
+                    searchInput.placeholder = 'Buscar Personagens...';
+                }
+            });
+            
+            // Lógica de Filtro (Modificada para guardar a categoria ativa e interagir com o toggle)
             filterTabs.querySelectorAll('button').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                    filterTabs.querySelectorAll('button').forEach(b => b.classList.remove('active'));
                    e.target.classList.add('active');
-                   const filter = e.target.getAttribute('data-filter');
-                   contactList.querySelectorAll('.contact-item').forEach(item => {
-                       const cat = item.getAttribute('data-category');
-                       if (filter === 'all' || cat === filter) item.style.display = 'flex';
-                       else item.style.display = 'none';
-                   });
+                   
+                   activeFilterCategory = e.target.getAttribute('data-filter');
+                   
+                   if (!searchToggle.checked) {
+                       // MODO LOCAL: aplica o filtro da categoria e a busca
+                       applyFilter(searchInput.value, activeFilterCategory);
+                   } else {
+                       // MODO REDID: mantém todos visíveis e atualiza o placeholder (dica)
+                       contactList.querySelectorAll('.contact-item').forEach(item => item.style.display = 'flex');
+                       searchInput.placeholder = `Buscar no Reddit (por ex: "Wallpaper ${activeFilterCategory !== 'all' ? activeFilterCategory : 'Geral'}")`;
+                   }
                 });
             });
+            
+            // Inicialização
+            applyFilter('', 'all'); 
+
         });
     </script>
 </body>
