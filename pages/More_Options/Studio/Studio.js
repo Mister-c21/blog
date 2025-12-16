@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
             options: [
                 // ALTERADO: Apenas Pixelart e Desenho
                 { text: 'Pixelart', icon: 'fas fa-cube', link: './Art/Pixel/Pixel.html' },
-                { text: 'Desenho', icon: 'fas fa-pencil-ruler', link: '#' },
+                { text: 'Desenho', icon: 'fas fa-pencil-ruler', link: './Art/Draw/Draw.html' },
             ]
         },
         'modal-video': {
