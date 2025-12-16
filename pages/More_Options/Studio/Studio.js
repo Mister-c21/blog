@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
             title: 'Opções de Skins & Aparências',
             options: [
                 // ALTERADO: Apenas MCPE e MCJA
-                { text: 'MCPE (Minecraft Pocket Edition)', icon: 'fas fa-mobile-alt', link: '#' },
+                { text: 'MCPE (Minecraft Pocket Edition)', icon: 'fas fa-mobile-alt', link: './Skin/Mcpe.html' },
                 { text: 'MCJA (Minecraft Java Edition)', icon: 'fas fa-laptop', link: '#' },
             ]
         },
