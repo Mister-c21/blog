@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nebula Racer - Landscape Only</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+        :root {
+            --primary-color: #8a2be2;
+            --bg-color: #0b0812;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-color);
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            touch-action: manipulation;
+        }
+
+        /* Aviso de Orientação */
+        #orientation-warning {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-color);
+            z-index: 100;
+            display: none; /* Escondido por padrão */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* Mostrar aviso apenas em telas verticais (mobile) */
+        @media (orientation: portrait) {
+            #orientation-warning {
+                display: flex;
+            }
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh; /* Ocupa a tela cheia no modo deitado */
+            background: radial-gradient(circle at center, #1a1625 0%, #0b0812 100%);
+            overflow: hidden;
+        }
+
+        canvas { display: block; }
+
+        .ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #score {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            background: linear-gradient(to bottom, #fff, #8a2be2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        #overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(11, 8, 18, 0.9);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #8a2be2, #4b0082);
+            color: white;
+            padding: 16px 40px;
+            border-radius: 50px;
+            font-weight: bold;
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.4);
+            cursor: pointer;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="orientation-warning">
+        <div class="animate-bounce mb-4">
+            <i data-lucide="rotate-cw" class="w-16 h-16 text-purple-500"></i>
+        </div>
+        <h2 class="text-2xl font-bold font-['Orbitron'] mb-2">GIRE O APARELHO</h2>
+        <p class="text-gray-400">Para pilotar a nave, use o celular na horizontal.</p>
+    </div>
+
+    <div id="game-container">
+        <div class="ui-layer">
+            <div id="score">0</div>
+        </div>
+
+        <div id="overlay">
+            <h1 class="text-3xl font-bold font-['Orbitron'] mb-2 text-purple-400">NEBULA RACER</h1>
+            <p id="high-score" class="text-xs text-gray-500 uppercase mb-6 tracking-widest">Recorde: 0</p>
+            <button id="start-btn" class="btn-start uppercase text-sm">Iniciar Missão</button>
+            <a href="../../More_options.html" class="mt-6 text-xs text-gray-600 hover:text-white uppercase">Sair</a>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const overlay = document.getElementById('overlay');
+        const startBtn = document.getElementById('start-btn');
+
+        // Ajuste dinâmico do canvas para o tamanho da tela
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let gameActive = false;
+        let score = 0;
+        let highScore = localStorage.getItem('nebula_highscore') || 0;
+        document.getElementById('high-score').innerText = `Recorde: ${highScore}`;
+
+        let ship = { x: 100, y: 0, w: 45, h: 30, v: 0, g: 0.25, jump: -5.5, angle: 0 };
+        let pipes = [];
+        let stars = Array.from({length: 80}, () => ({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 2,
+            speed: Math.random() * 0.5 + 0.1
+        }));
+
+        function createPipe() {
+            const gap = 180;
+            const height = Math.random() * (canvas.height - gap - 100) + 50;
+            pipes.push({ x: canvas.width, top: height, bottom: canvas.height - height - gap, w: 80, passed: false });
+        }
+
+        function resetGame() {
+            ship.y = canvas.height / 2;
+            ship.v = 0;
+            pipes = [];
+            score = 0;
+            scoreElement.innerText = '0';
+            gameActive = true;
+            overlay.classList.add('hidden');
+        }
+
+        function gameOver() {
+            gameActive = false;
+            overlay.classList.remove('hidden');
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('nebula_highscore', highScore);
+            }
+            document.getElementById('high-score').innerText = `Recorde: ${highScore}`;
+        }
+
+        function update() {
+            stars.forEach(s => {
+                s.x -= s.speed;
+                if (s.x < 0) s.x = canvas.width;
+            });
+
+            if (!gameActive) return;
+
+            ship.v += ship.g;
+            ship.y += ship.v;
+            ship.angle = Math.min(Math.PI/6, Math.max(-Math.PI/6, ship.v * 0.06));
+
+            if (ship.y + ship.h > canvas.height || ship.y < 0) gameOver();
+
+            if (pipes.length === 0 || pipes[pipes.length-1].x < canvas.width - 350) createPipe();
+
+            pipes.forEach((p, i) => {
+                p.x -= 4 + Math.min(score/15, 4);
+                
+                // Colisão
+                if (ship.x + 10 < p.x + p.w && ship.x + ship.w - 10 > p.x &&
+                    (ship.y + 5 < p.top || ship.y + ship.h - 5 > canvas.height - p.bottom)) gameOver();
+
+                if (!p.passed && p.x + p.w < ship.x) {
+                    score++; p.passed = true; scoreElement.innerText = score;
+                }
+                if (p.x + p.w < 0) pipes.splice(i, 1);
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Estrelas
+            ctx.fillStyle = "#fff";
+            stars.forEach(s => ctx.fillRect(s.x, s.y, s.size, s.size));
+
+            // Nave
+            ctx.save();
+            ctx.translate(ship.x + ship.w/2, ship.y + ship.h/2);
+            ctx.rotate(ship.angle);
+            ctx.fillStyle = "#22d3ee";
+            ctx.beginPath();
+            ctx.moveTo(25, 0); ctx.lineTo(-15, -15); ctx.lineTo(-8, 0); ctx.lineTo(-15, 15);
+            ctx.fill();
+            ctx.restore();
+
+            // Obstáculos
+            pipes.forEach(p => {
+                ctx.fillStyle = "#8a2be2";
+                ctx.shadowBlur = 15; ctx.shadowColor = "#8a2be2";
+                ctx.fillRect(p.x, 0, p.w, p.top);
+                ctx.fillRect(p.x, canvas.height - p.bottom, p.w, p.bottom);
+                ctx.shadowBlur = 0;
+            });
+        }
+
+        function loop() { update(); draw(); requestAnimationFrame(loop); }
+
+        const jump = (e) => { 
+            if (e) e.preventDefault();
+            if(gameActive) ship.v = ship.jump; 
+        };
+        
+        window.addEventListener('keydown', (e) => { if(e.code === 'Space') jump(); });
+        canvas.addEventListener('touchstart', jump, {passive: false});
+        canvas.addEventListener('mousedown', (e) => { if(e.button === 0) jump(); });
+        startBtn.addEventListener('click', resetGame);
+
+        lucide.createIcons();
+        loop();
+    </script>
+</body>
+</html>
