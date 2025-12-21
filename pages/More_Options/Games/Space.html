@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Space</title>
+    <style>
+        * {
+            margin: 0; padding: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        body {
+            background-color: #05050a;
+            color: cyan;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            background-color: #05050a;
+            display: block;
+        }
+
+        /* --- UI Superior --- */
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            padding: 0 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .score-text {
+            font-size: 1.5rem;
+            color: #fff;
+            text-shadow: 0 0 10px cyan;
+        }
+
+        .btn-pause {
+            width: 45px; height: 45px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 2px solid cyan;
+            border-radius: 10px;
+            cursor: pointer;
+            pointer-events: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-pause::before, .btn-pause::after {
+            content: ""; width: 4px; height: 18px;
+            background: white; margin: 0 3px;
+        }
+
+        /* --- Modais --- */
+        #game-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 10, 0.9);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+        }
+
+        .modal-content {
+            background: rgba(0, 255, 255, 0.05);
+            padding: 25px;
+            border: 2px solid cyan;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+            min-width: 280px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-ui {
+            padding: 12px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            border: 2px solid cyan;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            background: transparent;
+            color: white;
+            text-decoration: none;
+            display: block;
+        }
+
+        .btn-resume { background: cyan; color: #000; }
+        .btn-resume:hover { background: #00cccc; }
+        .btn-home { color: cyan; border-color: rgba(0, 255, 255, 0.5); }
+
+        /* --- CONTROLES MOBILE --- */
+        #mobile-controls {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            width: 95%;
+            justify-content: space-between;
+            z-index: 5;
+            padding: 0 10px;
+        }
+
+        @media (max-width: 1024px) or (pointer: coarse) {
+            #mobile-controls { display: flex; }
+        }
+
+        .control-group { display: flex; gap: 10px; }
+
+        .ctrl-btn {
+            width: 60px; height: 60px;
+            background: rgba(0, 255, 255, 0.15);
+            border: 2px solid cyan;
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            justify-content: center; align-items: center;
+            font-size: 1.2rem;
+            user-select: none;
+        }
+
+        .ctrl-btn:active { background: cyan; color: black; }
+        .btn-shoot { background: rgba(255, 0, 0, 0.3); border-color: red; width: 70px; height: 70px; }
+
+        /* --- Aviso de Rotação --- */
+        #rotate-notice {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #05050a; color: white; z-index: 2000; 
+            display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; padding: 20px;
+        }
+
+        .phone-icon { 
+            width: 40px; height: 70px; border: 3px solid white; 
+            border-radius: 5px; margin-top: 20px; animation: rotate 2s infinite; 
+        }
+        @keyframes rotate { 0% { transform: rotate(0deg); } 50%, 100% { transform: rotate(90deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="rotate-notice">
+        <h2>🔄 MODO PAISAGEM</h2>
+        <p>Gire o celular para jogar Asteroids!</p>
+        <div class="phone-icon"></div>
+    </div>
+
+    <div id="game-modal">
+        <div class="modal-content">
+            <h2 id="modal-title">ASTEROIDS</h2>
+            <p style="margin: 5px 0;">Score: <span id="final-score">0</span></p>
+            
+            <div class="button-group">
+                <button id="resume-btn" class="btn-ui btn-resume" onclick="resumeGame()">Continuar</button>
+                <button class="btn-ui" onclick="resetGame()">Reiniciar</button>
+                <a href="/" class="btn-ui btn-home">Início</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div id="ui-overlay">
+            <div class="score-text">Score: <span id="score">0</span></div>
+            <div class="btn-pause" onclick="pauseGame()"></div>
+        </div>
+        
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="mobile-controls">
+            <div class="control-group">
+                <div class="ctrl-btn" onpointerdown="keys.left=true" onpointerup="keys.left=false" onpointerleave="keys.left=false">◀</div>
+                <div class="ctrl-btn" onpointerdown="keys.up=true" onpointerup="keys.up=false" onpointerleave="keys.up=false">▲</div>
+                <div class="ctrl-btn" onpointerdown="keys.right=true" onpointerup="keys.right=false" onpointerleave="keys.right=false">▶</div>
+            </div>
+            <div class="ctrl-btn btn-shoot" onpointerdown="shoot()">FIRE</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+        const modal = document.getElementById("game-modal");
+        const rotateNotice = document.getElementById("rotate-notice");
+        const resumeBtn = document.getElementById("resume-btn");
+        
+        let ship, asteroids, bullets, score, gameActive, gamePaused;
+        const keys = { left: false, right: false, up: false };
+
+        const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
+
+        function init() {
+            window.addEventListener("resize", () => {
+                checkOrientation();
+                resizeCanvas();
+            });
+            
+            window.addEventListener("keydown", e => {
+                if(e.key === "ArrowLeft") keys.left = true;
+                if(e.key === "ArrowRight") keys.right = true;
+                if(e.key === "ArrowUp") keys.up = true;
+                if(e.key === " ") shoot();
+                if(e.key === "Escape") pauseGame();
+            });
+            window.addEventListener("keyup", e => {
+                if(e.key === "ArrowLeft") keys.left = false;
+                if(e.key === "ArrowRight") keys.right = false;
+                if(e.key === "ArrowUp") keys.up = false;
+            });
+
+            checkOrientation();
+            resizeCanvas();
+            resetGame();
+            
+            // Inicia pausado para mostrar o menu
+            gamePaused = true;
+            modal.style.display = "flex";
+            resumeBtn.innerText = "Começar";
+            
+            requestAnimationFrame(update);
+        }
+
+        function checkOrientation() {
+            const isLandscape = window.innerWidth > window.innerHeight;
+            if (isMobile) {
+                if (!isLandscape) {
+                    rotateNotice.style.display = "flex";
+                    if (gameActive && !gamePaused) {
+                        gamePaused = true;
+                        modal.style.display = "flex";
+                    }
+                } else {
+                    rotateNotice.style.display = "none";
+                }
+            }
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function resetGame() {
+            score = 0;
+            scoreElement.innerText = score;
+            ship = {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                r: 15,
+                angle: -Math.PI / 2,
+                thrust: { x: 0, y: 0 }
+            };
+            asteroids = [];
+            bullets = [];
+            for(let i=0; i<5; i++) spawnAsteroid();
+            gameActive = true;
+            gamePaused = false;
+            modal.style.display = "none";
+            resumeBtn.innerText = "Continuar";
+            resumeBtn.style.display = "block";
+        }
+
+        function spawnAsteroid(x, y, radius = 50) {
+            let nx = x || Math.random() * canvas.width;
+            let ny = y || Math.random() * canvas.height;
+            if (!x && Math.hypot(ship.x - nx, ship.y - ny) < 150) return spawnAsteroid();
+
+            asteroids.push({
+                x: nx, y: ny,
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.5) * 4,
+                r: radius,
+                vertices: Math.floor(Math.random() * 5 + 7)
+            });
+        }
+
+        function shoot() {
+            if(!gameActive || gamePaused) return;
+            bullets.push({
+                x: ship.x + Math.cos(ship.angle) * ship.r,
+                y: ship.y + Math.sin(ship.angle) * ship.r,
+                vx: Math.cos(ship.angle) * 8,
+                vy: Math.sin(ship.angle) * 8,
+                life: 60
+            });
+        }
+
+        function pauseGame() {
+            if (isMobile && window.innerWidth < window.innerHeight) return;
+            gamePaused = !gamePaused;
+            modal.style.display = gamePaused ? "flex" : "none";
+            document.getElementById("modal-title").innerText = "PAUSADO";
+        }
+
+        function resumeGame() {
+            if (isMobile && window.innerWidth < window.innerHeight) return;
+            if(!gameActive) resetGame();
+            else {
+                gamePaused = false;
+                modal.style.display = "none";
+            }
+        }
+
+        function update() {
+            if (gameActive && !gamePaused) {
+                if (keys.left) ship.angle -= 0.08;
+                if (keys.right) ship.angle += 0.08;
+                if (keys.up) {
+                    ship.thrust.x += Math.cos(ship.angle) * 0.15;
+                    ship.thrust.y += Math.sin(ship.angle) * 0.15;
+                } else {
+                    ship.thrust.x *= 0.98;
+                    ship.thrust.y *= 0.98;
+                }
+                ship.x += ship.thrust.x;
+                ship.y += ship.thrust.y;
+
+                if (ship.x < 0) ship.x = canvas.width;
+                if (ship.x > canvas.width) ship.x = 0;
+                if (ship.y < 0) ship.y = canvas.height;
+                if (ship.y > canvas.height) ship.y = 0;
+
+                bullets.forEach((b, i) => {
+                    b.x += b.vx; b.y += b.vy; b.life--;
+                    if (b.life <= 0) bullets.splice(i, 1);
+                });
+
+                asteroids.forEach((ast, i) => {
+                    ast.x += ast.vx; ast.y += ast.vy;
+                    if (ast.x < -ast.r) ast.x = canvas.width + ast.r;
+                    if (ast.x > canvas.width + ast.r) ast.x = -ast.r;
+                    if (ast.y < -ast.r) ast.y = canvas.height + ast.r;
+                    if (ast.y > canvas.height + ast.r) ast.y = -ast.r;
+
+                    if (Math.hypot(ship.x - ast.x, ship.y - ast.y) < ship.r + ast.r) {
+                        gameActive = false;
+                        modal.style.display = "flex";
+                        resumeBtn.style.display = "none"; // Esconde continuar no game over
+                        document.getElementById("modal-title").innerText = "FIM DE JOGO";
+                        document.getElementById("final-score").innerText = score;
+                    }
+
+                    bullets.forEach((b, bi) => {
+                        if (Math.hypot(b.x - ast.x, b.y - ast.y) < ast.r) {
+                            if (ast.r > 20) {
+                                spawnAsteroid(ast.x, ast.y, ast.r / 2);
+                                spawnAsteroid(ast.x, ast.y, ast.r / 2);
+                            }
+                            asteroids.splice(i, 1);
+                            bullets.splice(bi, 1);
+                            score += 100;
+                            scoreElement.innerText = score;
+                            if (asteroids.length < 3) spawnAsteroid();
+                        }
+                    });
+                });
+            }
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        function draw() {
+            ctx.fillStyle = "#05050a";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 10; ctx.shadowColor = "cyan";
+            ctx.beginPath();
+            ctx.moveTo(ship.x + Math.cos(ship.angle) * ship.r, ship.y + Math.sin(ship.angle) * ship.r);
+            ctx.lineTo(ship.x + Math.cos(ship.angle + 2.5) * ship.r, ship.y + Math.sin(ship.angle + 2.5) * ship.r);
+            ctx.lineTo(ship.x + Math.cos(ship.angle - 2.5) * ship.r, ship.y + Math.sin(ship.angle - 2.5) * ship.r);
+            ctx.closePath();
+            ctx.stroke();
+
+            ctx.strokeStyle = "magenta";
+            ctx.shadowColor = "magenta";
+            asteroids.forEach(ast => {
+                ctx.beginPath();
+                for(let i=0; i<ast.vertices; i++) {
+                    let a = (i / ast.vertices) * Math.PI * 2;
+                    ctx.lineTo(ast.x + Math.cos(a) * ast.r, ast.y + Math.sin(a) * ast.r);
+                }
+                ctx.closePath();
+                ctx.stroke();
+            });
+
+            ctx.fillStyle = "yellow";
+            ctx.shadowColor = "yellow";
+            bullets.forEach(b => {
+                ctx.beginPath(); ctx.arc(b.x, b.y, 2, 0, Math.PI * 2); ctx.fill();
+            });
+            ctx.shadowBlur = 0;
+        }
+
+        init();
+    </script>
+</body>
+</html>
