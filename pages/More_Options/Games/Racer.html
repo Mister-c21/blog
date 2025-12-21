@@ -3,251 +3,262 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nebula Racer - Landscape Only</title>
+    <title>Nebula Racer - Pulsing Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Inter:wght@300;600&display=swap');
 
         :root {
-            --primary-color: #8a2be2;
-            --bg-color: #0b0812;
+            --neon-purple: #bc13fe;
+            --neon-cyan: #05ffa1;
+            --bg-deep: #050505;
         }
 
         body {
-            margin: 0;
-            background-color: var(--bg-color);
-            color: #fff;
-            font-family: 'Inter', sans-serif;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            touch-action: manipulation;
-        }
-
-        /* Aviso de Orientação */
-        #orientation-warning {
-            position: fixed;
-            inset: 0;
-            background: var(--bg-color);
-            z-index: 100;
-            display: none; /* Escondido por padrão */
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 20px;
-        }
-
-        /* Mostrar aviso apenas em telas verticais (mobile) */
-        @media (orientation: portrait) {
-            #orientation-warning {
-                display: flex;
-            }
+            margin: 0; background: var(--bg-deep); color: #fff;
+            font-family: 'Inter', sans-serif; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; touch-action: none;
         }
 
         #game-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh; /* Ocupa a tela cheia no modo deitado */
-            background: radial-gradient(circle at center, #1a1625 0%, #0b0812 100%);
+            position: relative; width: 100vw; height: 100vh;
+            background: radial-gradient(circle at 50% 50%, #1a0b2e 0%, #050505 100%);
             overflow: hidden;
         }
 
-        canvas { display: block; }
+        canvas { display: block; filter: contrast(1.1) brightness(1.1); }
 
         .ui-layer {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            pointer-events: none;
-            z-index: 10;
+            position: absolute; top: 30px; left: 30px; right: 30px;
+            display: flex; flex-direction: column; gap: 20px;
+            pointer-events: none; z-index: 10;
         }
 
-        #score {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 2.5rem;
-            background: linear-gradient(to bottom, #fff, #8a2be2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        #score-display {
+            font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 3.5rem;
+            text-shadow: 0 0 20px var(--neon-purple);
+            background: linear-gradient(to bottom, #fff, var(--neon-purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .energy-hud { display: flex; align-items: center; gap: 15px; }
+        .energy-bar-bg {
+            width: 200px; height: 10px; background: rgba(255,255,255,0.05);
+            border-radius: 20px; border: 1px solid rgba(5, 255, 161, 0.2);
+            overflow: hidden; position: relative;
+        }
+        #energy-fill {
+            width: 100%; height: 100%; background: linear-gradient(90deg, #05ffa1, #00ced1);
+            box-shadow: 0 0 15px var(--neon-cyan); transition: width 0.1s linear;
         }
 
         #overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(11, 8, 18, 0.9);
-            backdrop-filter: blur(8px);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 20;
+            position: absolute; inset: 0; background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(15px); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 20;
         }
 
-        .btn-start {
-            background: linear-gradient(135deg, #8a2be2, #4b0082);
-            color: white;
-            padding: 16px 40px;
-            border-radius: 50px;
-            font-weight: bold;
-            box-shadow: 0 0 20px rgba(138, 43, 226, 0.4);
-            cursor: pointer;
+        .glass-panel {
+            background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08);
+            padding: 40px 60px; border-radius: 40px; text-align: center;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5); min-width: 320px;
         }
 
+        .btn-glow {
+            background: #fff; color: #000; padding: 18px 40px;
+            border-radius: 12px; font-family: 'Orbitron', sans-serif;
+            font-weight: 900; letter-spacing: 2px; cursor: pointer;
+            transition: all 0.3s; border: none; text-transform: uppercase;
+            width: 100%; margin-bottom: 12px;
+        }
+
+        .btn-outline {
+            background: transparent; color: #fff; padding: 14px 40px;
+            border-radius: 12px; font-family: 'Orbitron', sans-serif;
+            font-weight: 900; letter-spacing: 2px; cursor: pointer;
+            transition: all 0.3s; border: 1px solid rgba(255,255,255,0.2);
+            text-transform: uppercase; width: 100%;
+        }
+        .btn-outline:hover { background: rgba(255,255,255,0.1); border-color: #fff; }
+
+        #orientation-overlay {
+            position: fixed; inset: 0; background: var(--bg-deep);
+            z-index: 100; display: none; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+        }
+        
+        @media (orientation: portrait) { #orientation-overlay { display: flex; } }
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <div id="orientation-warning">
-        <div class="animate-bounce mb-4">
-            <i data-lucide="rotate-cw" class="w-16 h-16 text-purple-500"></i>
-        </div>
-        <h2 class="text-2xl font-bold font-['Orbitron'] mb-2">GIRE O APARELHO</h2>
-        <p class="text-gray-400">Para pilotar a nave, use o celular na horizontal.</p>
+    <div id="orientation-overlay">
+        <i data-lucide="smartphone" class="w-16 h-16 text-cyan-400 mb-6 rotate-90 animate-pulse"></i>
+        <h2 class="text-3xl font-black font-['Orbitron'] text-white">ROTEIE O DISPOSITIVO</h2>
     </div>
 
     <div id="game-container">
         <div class="ui-layer">
-            <div id="score">0</div>
+            <div class="flex justify-between items-start">
+                <div id="score-display">00</div>
+                <button id="pause-btn" class="pointer-events-auto p-2"><i data-lucide="pause" class="text-white w-8 h-8"></i></button>
+            </div>
+            <div class="energy-hud">
+                <i data-lucide="zap" class="w-4 h-4 text-cyan-400"></i>
+                <div class="energy-bar-bg"><div id="energy-fill"></div></div>
+            </div>
         </div>
 
         <div id="overlay">
-            <h1 class="text-3xl font-bold font-['Orbitron'] mb-2 text-purple-400">NEBULA RACER</h1>
-            <p id="high-score" class="text-xs text-gray-500 uppercase mb-6 tracking-widest">Recorde: 0</p>
-            <button id="start-btn" class="btn-start uppercase text-sm">Iniciar Missão</button>
-            <a href="../../More_options.html" class="mt-6 text-xs text-gray-600 hover:text-white uppercase">Sair</a>
+            <div class="glass-panel">
+                <h1 id="status-title" class="text-5xl font-black font-['Orbitron'] mb-2 italic">NEBULA<br><span class="text-cyan-400">RACER</span></h1>
+                <p id="high-score" class="text-[10px] text-purple-400 mb-12 tracking-[0.6em]">RECORDE: 0</p>
+                <div class="flex flex-col items-center w-full">
+                    <button id="start-btn" class="btn-glow">INICIAR MOTOR</button>
+                    <button id="home-btn" class="btn-outline">MENU PRINCIPAL</button>
+                </div>
+                <div id="controls-info" class="mt-8 text-[10px] text-gray-500 uppercase tracking-widest"></div>
+            </div>
         </div>
-
         <canvas id="gameCanvas"></canvas>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const scoreElement = document.getElementById('score');
+        const energyFill = document.getElementById('energy-fill');
         const overlay = document.getElementById('overlay');
         const startBtn = document.getElementById('start-btn');
+        const homeBtn = document.getElementById('home-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const statusTitle = document.getElementById('status-title');
 
-        // Ajuste dinâmico do canvas para o tamanho da tela
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() { if(!audioCtx) audioCtx = new AudioCtx(); if(audioCtx.state === 'suspended') audioCtx.resume(); }
+
+        const sfx = {
+            jump: () => { if(!audioCtx) return; const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(160, audioCtx.currentTime); o.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.2); g.gain.setValueAtTime(0.1, audioCtx.currentTime); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.2); },
+            boost: () => { if(!audioCtx) return; const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(200 + Math.random()*50, audioCtx.currentTime); g.gain.setValueAtTime(0.03, audioCtx.currentTime); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.05); },
+            point: () => { if(!audioCtx) return; const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.frequency.setValueAtTime(800, audioCtx.currentTime); g.gain.setValueAtTime(0.05, audioCtx.currentTime); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.3); },
+            crash: () => { if(!audioCtx) return; const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = 'square'; o.frequency.setValueAtTime(60, audioCtx.currentTime); g.gain.setValueAtTime(0.15, audioCtx.currentTime); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.8); }
+        };
+
+        let gameActive = false, isPaused = false, score = 0, frameCount = 0, lastTap = 0;
+        let record = localStorage.getItem('nebula_record') || 0;
+        document.getElementById('high-score').innerText = `RECORDE: ${record}`;
+
+        let ship = { x: 150, y: 0, w: 50, h: 25, v: 0, g: 0.28, jump: -6.5, boost: 100, isBoosting: false, angle: 0 };
+        let pipes = [], stars = [], particles = [];
+
+        function resize() {
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            stars = Array.from({length: 120}, () => ({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, z: Math.random()*3 + 1, s: Math.random()*2 }));
         }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+        window.addEventListener('resize', resize); resize();
 
-        let gameActive = false;
-        let score = 0;
-        let highScore = localStorage.getItem('nebula_highscore') || 0;
-        document.getElementById('high-score').innerText = `Recorde: ${highScore}`;
-
-        let ship = { x: 100, y: 0, w: 45, h: 30, v: 0, g: 0.25, jump: -5.5, angle: 0 };
-        let pipes = [];
-        let stars = Array.from({length: 80}, () => ({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
-            size: Math.random() * 2,
-            speed: Math.random() * 0.5 + 0.1
-        }));
-
-        function createPipe() {
-            const gap = 180;
-            const height = Math.random() * (canvas.height - gap - 100) + 50;
-            pipes.push({ x: canvas.width, top: height, bottom: canvas.height - height - gap, w: 80, passed: false });
+        function reset() {
+            initAudio();
+            ship.y = canvas.height/2; ship.v = 0; ship.boost = 100;
+            pipes = []; particles = []; score = 0; frameCount = 0;
+            document.getElementById('score-display').innerText = "00";
+            gameActive = true; isPaused = false; overlay.classList.add('hidden');
+            statusTitle.innerHTML = "NEBULA<br><span class='text-cyan-400'>RACER</span>";
         }
 
-        function resetGame() {
-            ship.y = canvas.height / 2;
-            ship.v = 0;
-            pipes = [];
-            score = 0;
-            scoreElement.innerText = '0';
-            gameActive = true;
-            overlay.classList.add('hidden');
-        }
-
-        function gameOver() {
-            gameActive = false;
+        function die() {
+            sfx.crash(); gameActive = false;
             overlay.classList.remove('hidden');
-            if (score > highScore) {
-                highScore = score;
-                localStorage.setItem('nebula_highscore', highScore);
-            }
-            document.getElementById('high-score').innerText = `Recorde: ${highScore}`;
+            statusTitle.innerHTML = "MISSÃO<br><span class='text-red-500'>FALHOU</span>";
+            if(score > record) { record = score; localStorage.setItem('nebula_record', record); }
+            document.getElementById('high-score').innerText = `RECORDE: ${record}`;
+            startBtn.innerText = "RECOMECAR";
         }
 
         function update() {
-            stars.forEach(s => {
-                s.x -= s.speed;
-                if (s.x < 0) s.x = canvas.width;
-            });
+            if(!gameActive || isPaused) return;
+            frameCount++;
 
-            if (!gameActive) return;
+            // Ship Logic
+            if(ship.isBoosting && ship.boost > 2) {
+                ship.v = -4.5; ship.boost -= 1.8;
+                if(frameCount % 4 === 0) sfx.boost();
+                particles.push({ x: ship.x, y: ship.y + 12, vx: -8, vy: (Math.random()-0.5)*3, life: 1, size: 5, color: '#05ffa1' });
+            } else {
+                ship.isBoosting = false;
+                if(ship.boost < 100) ship.boost += 0.35;
+            }
+            energyFill.style.width = `${ship.boost}%`;
+            ship.v += ship.g; ship.y += ship.v;
+            ship.angle = Math.min(Math.PI/6, Math.max(-Math.PI/6, ship.v * 0.05));
+            if(ship.y > canvas.height || ship.y < 0) die();
 
-            ship.v += ship.g;
-            ship.y += ship.v;
-            ship.angle = Math.min(Math.PI/6, Math.max(-Math.PI/6, ship.v * 0.06));
-
-            if (ship.y + ship.h > canvas.height || ship.y < 0) gameOver();
-
-            if (pipes.length === 0 || pipes[pipes.length-1].x < canvas.width - 350) createPipe();
+            // Pipes Logic (With Pulsing Gap)
+            if(frameCount % 90 === 0 || pipes.length === 0) {
+                pipes.push({ 
+                    x: canvas.width, 
+                    top: Math.random() * (canvas.height - 400) + 100, 
+                    gap: 220, 
+                    gapDir: 1, // 1 para aumentar, -1 para diminuir
+                    w: 90, passed: false, color: score % 2 === 0 ? '#bc13fe' : '#05ffa1' 
+                });
+            }
 
             pipes.forEach((p, i) => {
-                p.x -= 4 + Math.min(score/15, 4);
+                p.x -= ship.isBoosting ? 12 : 6;
                 
-                // Colisão
-                if (ship.x + 10 < p.x + p.w && ship.x + ship.w - 10 > p.x &&
-                    (ship.y + 5 < p.top || ship.y + ship.h - 5 > canvas.height - p.bottom)) gameOver();
+                // MOVIMENTAÇÃO DA PASSAGEM (Gap Pulsante)
+                p.gap += p.gapDir * 1.5; // Velocidade da pulsação
+                if(p.gap > 300 || p.gap < 140) p.gapDir *= -1; // Limites: Abre até 300, fecha até 140
 
-                if (!p.passed && p.x + p.w < ship.x) {
-                    score++; p.passed = true; scoreElement.innerText = score;
+                if(ship.x + 10 < p.x + p.w && ship.x + ship.w - 10 > p.x) {
+                    if(ship.y < p.top || ship.y + ship.h > p.top + p.gap) die();
                 }
-                if (p.x + p.w < 0) pipes.splice(i, 1);
+                if(!p.passed && p.x < ship.x) { score++; p.passed = true; document.getElementById('score-display').innerText = score.toString().padStart(2, '0'); sfx.point(); }
+                if(p.x + p.w < -100) pipes.splice(i, 1);
             });
+
+            particles.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.life -= 0.03; if(p.life <= 0) particles.splice(i, 1); });
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            stars.forEach(s => { s.x -= (ship.isBoosting ? s.z * 4 : s.z); if(s.x < 0) s.x = canvas.width; ctx.fillStyle = `rgba(255,255,255,${s.z/5})`; ctx.fillRect(s.x, s.y, s.s, s.s); });
+            particles.forEach(p => { ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); });
+            ctx.globalAlpha = 1;
 
-            // Estrelas
-            ctx.fillStyle = "#fff";
-            stars.forEach(s => ctx.fillRect(s.x, s.y, s.size, s.size));
-
-            // Nave
-            ctx.save();
-            ctx.translate(ship.x + ship.w/2, ship.y + ship.h/2);
-            ctx.rotate(ship.angle);
-            ctx.fillStyle = "#22d3ee";
-            ctx.beginPath();
-            ctx.moveTo(25, 0); ctx.lineTo(-15, -15); ctx.lineTo(-8, 0); ctx.lineTo(-15, 15);
-            ctx.fill();
-            ctx.restore();
-
-            // Obstáculos
             pipes.forEach(p => {
-                ctx.fillStyle = "#8a2be2";
-                ctx.shadowBlur = 15; ctx.shadowColor = "#8a2be2";
-                ctx.fillRect(p.x, 0, p.w, p.top);
-                ctx.fillRect(p.x, canvas.height - p.bottom, p.w, p.bottom);
+                ctx.shadowBlur = 15; ctx.shadowColor = p.color; ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, 0, p.w, p.top); 
+                ctx.fillRect(p.x, p.top + p.gap, p.w, canvas.height);
                 ctx.shadowBlur = 0;
             });
+
+            ctx.save();
+            ctx.translate(ship.x + ship.w/2, ship.y + ship.h/2); ctx.rotate(ship.angle);
+            ctx.shadowBlur = 20; ctx.shadowColor = ship.isBoosting ? '#05ffa1' : '#bc13fe';
+            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(25, 0); ctx.lineTo(-20, -15); ctx.lineTo(-12, 0); ctx.lineTo(-20, 15); ctx.closePath(); ctx.fill(); ctx.restore();
         }
 
         function loop() { update(); draw(); requestAnimationFrame(loop); }
 
-        const jump = (e) => { 
-            if (e) e.preventDefault();
-            if(gameActive) ship.v = ship.jump; 
-        };
-        
-        window.addEventListener('keydown', (e) => { if(e.code === 'Space') jump(); });
-        canvas.addEventListener('touchstart', jump, {passive: false});
-        canvas.addEventListener('mousedown', (e) => { if(e.button === 0) jump(); });
-        startBtn.addEventListener('click', resetGame);
+        canvas.addEventListener('touchstart', (e) => {
+            if(!gameActive || isPaused) return;
+            e.preventDefault(); const now = Date.now();
+            if(now - lastTap < 250) { ship.isBoosting = true; } else { ship.v = ship.jump; sfx.jump(); }
+            lastTap = now;
+        }, {passive: false});
+        canvas.addEventListener('touchend', () => ship.isBoosting = false);
+        startBtn.addEventListener('click', reset);
+        homeBtn.addEventListener('click', () => window.location.href = 'home.html');
+        pauseBtn.addEventListener('click', () => { if(!gameActive) return; isPaused = !isPaused; overlay.classList.toggle('hidden', !isPaused); if(isPaused) { statusTitle.innerHTML = "PAUSADO"; startBtn.innerText = "RETOMAR"; } });
 
+        document.getElementById('controls-info').innerHTML = isMobile ? "Toque: Salto | Toque Duplo: Boost" : "Espaço: Salto | Shift: Boost";
         lucide.createIcons();
         loop();
     </script>
