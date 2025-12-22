@@ -47,7 +47,7 @@ function stopEngine() {
 // Navegação Home
 function goHome() {
     closeModal();
-    searchInput.value = '';
+    searchInput.value = '../../../More_options.html';
     filterGames('');
     window.scrollTo(0, 0);
 }
