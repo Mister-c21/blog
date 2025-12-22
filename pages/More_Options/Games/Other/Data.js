@@ -1,7 +1,7 @@
 const database = [
     { 
-        t: "Mega Man X", 
-        img: "https://images.igdb.com/igdb/image/upload/t_cover_big/co2049.jpg", 
+        t: "Mega Man X2 zero project", 
+        img: "https://i.ytimg.com/vi/TUQZyW8Sw38/maxresdefault.jpg", 
         play: "https://www.retrogames.cc/embed/42276-mega-man-x3-zero-project-v4-1.html" 
     },
     { 
