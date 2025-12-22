@@ -1,13 +1,16 @@
 let currentGameUrl = "";
 
+// Elementos do DOM
 const feed = document.getElementById('main-feed');
 const modal = document.getElementById('modal-play');
 const playerView = document.getElementById('player-view');
 const gameEngine = document.getElementById('game-engine');
 const searchInput = document.getElementById('game-search');
 
-// Iniciar Feed
-function init() {
+/**
+ * Inicializa o Feed de Cards
+ */
+function initFeed() {
     database.forEach(game => {
         const card = document.createElement('div');
         card.className = 'game-card';
@@ -17,13 +20,22 @@ function init() {
     });
 }
 
-// Controle do Modal
+/**
+ * Navegação para 3 níveis acima conforme solicitado
+ */
+function goToMoreOptions() {
+    window.location.href = "../../../More_options.html";
+}
+
+/**
+ * Controle do Modal
+ */
 function openModal(game) {
     currentGameUrl = game.play;
     document.getElementById('modal-title').innerText = game.t;
     document.getElementById('modal-banner').style.backgroundImage = `url(${game.img})`;
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden'; // Impede scroll do fundo
 }
 
 function closeModal() {
@@ -32,7 +44,9 @@ function closeModal() {
     document.body.style.overflow = 'auto';
 }
 
-// Controle do Jogo (Engine)
+/**
+ * Controle do Player (Iframe)
+ */
 function startEngine() {
     if (!currentGameUrl) return;
     playerView.style.display = 'block';
@@ -44,23 +58,18 @@ function stopEngine() {
     gameEngine.src = "";
 }
 
-// Navegação Home
-function goHome() {
-    closeModal();
-    searchInput.value = '';
-    filterGames('');
-    window.scrollTo(0, 0);
-}
-
-// Busca Reativa
-function filterGames(term) {
-    document.querySelectorAll('.game-card').forEach(card => {
-        const title = card.querySelector('img').alt.toLowerCase();
-        card.style.display = title.includes(term.toLowerCase()) ? 'block' : 'none';
+/**
+ * Filtro de Busca
+ */
+searchInput.oninput = (e) => {
+    const term = e.target.value.toLowerCase();
+    const cards = document.querySelectorAll('.game-card');
+    
+    cards.forEach(card => {
+        const imgAlt = card.querySelector('img').alt.toLowerCase();
+        card.style.display = imgAlt.includes(term) ? 'block' : 'none';
     });
-}
+};
 
-searchInput.oninput = (e) => filterGames(e.target.value);
-
-// Iniciar aplicação
-init();
+// Start
+initFeed();
