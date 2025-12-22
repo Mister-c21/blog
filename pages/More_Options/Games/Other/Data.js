@@ -10,9 +10,9 @@ const database = [
         play: "https://www.retrogames.cc/embed/42700-megaman-x2-ultimate-armor.html" 
     },
     { 
-        t: "Castlevania: SotN", 
-        img: "https://images.igdb.com/igdb/image/upload/t_cover_big/co1r7f.jpg", 
-        play: "https://www.retrogames.cc/embed/41721-castlevania-symphony-of-the-night.html" 
+        t: "Mega Man X2 4th armor", 
+        img: "https://i.ytimg.com/vi/8V0Mbat9oGc/maxresdefault.jpg", 
+        play: "https://www.retrogames.cc/embed/46545-mega-nan-x2-4th-armor-hack.html" 
     },
     { 
         t: "Sonic CD", 
