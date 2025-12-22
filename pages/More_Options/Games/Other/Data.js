@@ -15,9 +15,9 @@ const database = [
         play: "https://www.retrogames.cc/embed/46545-mega-nan-x2-4th-armor-hack.html" 
     },
     { 
-        t: "Sonic CD", 
-        img: "https://images.igdb.com/igdb/image/upload/t_cover_big/co28bi.jpg", 
-        play: "https://www.retrogames.cc/embed/30413-sonic-cd.html" 
+        t: "Mega Man X2 Zero playable", 
+        img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUn2eExw8YhUY0j3dm2NQ6HosLeJTjlet9VrFcP2_z086HMCbqj_r_6Oo&s=10", 
+        play: "https://www.retrogames.cc/embed/42365-megaman-x2-zero-playable.html" 
     },
     { 
         t: "Super Metroid", 
