@@ -20,8 +20,8 @@ const database = [
         play: "https://www.retrogames.cc/embed/42365-megaman-x2-zero-playable.html" 
     },
     { 
-        t: "Super Metroid", 
-        img: "https://images.igdb.com/igdb/image/upload/t_cover_big/co1v65.jpg", 
-        play: "https://www.retrogames.cc/embed/11993-super-metroid.html" 
+        t: "Mega Man X2 Proto Edition", 
+        img: "https://images.igdb.com/igdb/image/upload/t_cover_big/co5z33.jpg", 
+        play: "https://www.retrogames.cc/embed/44938-mega-man-x2-proto-edition.html" 
     }
 ];
