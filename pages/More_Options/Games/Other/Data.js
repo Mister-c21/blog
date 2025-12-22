@@ -5,9 +5,9 @@ const database = [
         play: "https://www.retrogames.cc/embed/42276-mega-man-x3-zero-project-v4-1.html" 
     },
     { 
-        t: "Mega Man Zero", 
+        t: "Mega Man X2 ultimate armor", 
         img: "https://images.igdb.com/igdb/image/upload/t_cover_big/co1w3n.jpg", 
-        play: "https://www.retrogames.cc/embed/11051-mega-man-zero.html" 
+        play: "https://www.retrogames.cc/embed/42700-megaman-x2-ultimate-armor.html" 
     },
     { 
         t: "Castlevania: SotN", 
