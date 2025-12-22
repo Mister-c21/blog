@@ -6,7 +6,7 @@ const database = [
     },
     { 
         t: "Mega Man X2 ultimate armor", 
-        img: "https://images.igdb.com/igdb/image/upload/t_cover_big/co1w3n.jpg", 
+        img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlnRCbAcAITye9pWOHeff7UZewWTuqPruON6CIchB_C3dieffIS-rzi-t-&s=10", 
         play: "https://www.retrogames.cc/embed/42700-megaman-x2-ultimate-armor.html" 
     },
     { 
