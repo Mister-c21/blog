@@ -1,4 +1,4 @@
-(function() {
+document.addEventListener('DOMContentLoaded', () => {
     'use strict';
 
     const ENGINES = {
@@ -8,97 +8,96 @@
         reddit: { name: 'Reddit', icon: 'fa-brands fa-reddit-alien', color: '#FF4500', url: 'https://www.reddit.com/search/?q=' }
     };
 
-    // 1. ALTERAÇÃO: Definir estado inicial como 'reddit'
     let state = { tab: 0, engine: 'reddit', category: 'all' };
-
-    const CAT_ICONS = {
-        games: 'fa-gamepad',
-        tech: 'fa-microchip',
-        culinaria: 'fa-utensils',
-        vida: 'fa-leaf',
-        reddit: 'fa-brands fa-reddit-alien'
-    };
 
     const slider = document.getElementById('feed-slider');
     const indicatorContainer = document.querySelector('.tab-indicator-container');
     const input = document.getElementById('search-input');
     const modal = document.getElementById('engine-modal');
+    const containers = document.querySelectorAll('.post-container');
 
     // --- FUNÇÃO PARA BUSCAR NO REDDIT ---
-    async function fetchReddit(query) {
-        const containers = document.querySelectorAll('.post-container');
-        containers.forEach(c => c.innerHTML = '<div class="loading-shimmer" style="padding:50px; text-align:center; color:var(--primary);"><i class="fa-solid fa-circle-notch fa-spin"></i> Buscando no Reddit...</div>');
+    async function fetchReddit(query = '') {
+        containers.forEach(c => c.innerHTML = '<div style="padding:50px; text-align:center; color:#FF4500;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando Reddit...</div>');
 
         try {
-            // Se não houver busca, traz posts do r/LifeProTips (melhor para "Dicas")
-            const endpoint = query 
+            // Se não houver query, usamos o subreddit LifeProTips (dicas de vida)
+            let url = query 
                 ? `https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&limit=15`
                 : `https://www.reddit.com/r/LifeProTips/hot.json?limit=15`;
 
-            const response = await fetch(endpoint);
-            const data = await response.json();
+            const response = await fetch(url);
             
-            const posts = data.data.children.map(child => ({
+            if (!response.ok) throw new Error('Falha na resposta da API');
+            
+            const json = await response.json();
+            const posts = json.data.children.map(child => ({
                 text: child.data.title,
                 link: `https://reddit.com${child.data.permalink}`,
-                cat: 'reddit'
+                cat: 'reddit',
+                subreddit: child.data.subreddit
             }));
 
             renderCards(posts);
         } catch (error) {
-            containers.forEach(c => c.innerHTML = '<p style="padding:50px; text-align:center; color:red;">Erro ao conectar com a API do Reddit.</p>');
+            console.error("Erro Reddit:", error);
+            containers.forEach(c => c.innerHTML = `<p style="padding:50px; text-align:center; color:gray;">Erro ao carrerar dados do Reddit.<br><small>${error.message}</small></p>`);
         }
     }
 
-    // --- RENDERIZAÇÃO ---
+    // --- RENDERIZAÇÃO DE CARDS ---
     function renderCards(items) {
         const html = items.map(d => `
             <article class="card">
                 <div class="card-icon">
-                    <i class="${d.cat === 'reddit' ? 'fa-brands fa-reddit-alien' : 'fa-solid ' + (CAT_ICONS[d.cat] || 'fa-lightbulb')}"></i>
+                    <i class="${d.cat === 'reddit' ? 'fa-brands fa-reddit-alien' : 'fa-solid fa-lightbulb'}"></i>
                 </div>
                 <div class="card-body">
-                    <span class="tag" style="background:${d.cat === 'reddit' ? 'rgba(255,69,0,0.1)' : ''}; color:${d.cat === 'reddit' ? '#FF4500' : ''}">${d.cat}</span>
+                    <span class="tag" style="${d.cat === 'reddit' ? 'color:#FF4500; background:rgba(255,69,0,0.1);' : ''}">${d.cat === 'reddit' ? 'r/' + d.subreddit : d.cat}</span>
                     <p class="card-text">${d.text}</p>
                     <a href="${d.link}" target="_blank" class="btn-more">
-                        Ler no Reddit <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        Ver detalhes <i class="fa-solid fa-arrow-up-right-from-square"></i>
                     </a>
                 </div>
             </article>
-        `).join('') || `<p style="padding:50px; text-align:center; color:gray;">Nenhuma dica encontrada.</p>`;
+        `).join('');
 
-        document.querySelectorAll('.post-container').forEach(c => c.innerHTML = html);
-    }
-
-    function renderInternal() {
-        const query = input.value.toLowerCase();
-        const filtered = DICAS_DATA.filter(d => {
-            const matchQ = d.text.toLowerCase().includes(query);
-            const matchC = state.category === 'all' || d.cat === state.category;
-            return matchQ && matchC;
+        containers.forEach(c => {
+            c.innerHTML = html || '<p style="padding:50px; text-align:center; color:gray;">Nenhum resultado encontrado.</p>';
         });
-        renderCards(filtered);
     }
 
-    // --- LÓGICA DE INTERFACE ---
+    // --- FUNÇÕES DE INTERFACE ---
     function updateEngineUI(key) {
         const conf = ENGINES[key];
-        document.getElementById('active-engine-icon').className = `${conf.icon.includes('brands') ? 'fa-brands' : 'fa-solid'} ${conf.icon}`;
-        document.getElementById('active-engine-name').innerText = conf.name;
-        document.body.style.setProperty('--accent', conf.color);
+        const iconEl = document.getElementById('active-engine-icon');
+        const nameEl = document.getElementById('active-engine-name');
         
-        document.querySelectorAll('.engine-item').forEach(i => {
-            i.classList.toggle('active', i.dataset.engine === key);
+        if (iconEl) iconEl.className = `${conf.icon.includes('brands') ? 'fa-brands' : 'fa-solid'} ${conf.icon}`;
+        if (nameEl) nameEl.innerText = conf.name;
+        
+        document.body.style.setProperty('--accent', conf.color);
+        document.querySelectorAll('.engine-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.engine === key);
         });
     }
 
     function executeSearch() {
-        if (state.engine === 'reddit') fetchReddit(input.value.trim());
-        else if (state.engine === 'internal') renderInternal();
-        else if (input.value.trim()) window.open(ENGINES[state.engine].url + encodeURIComponent(input.value.trim()), '_blank');
+        const val = input.value.trim();
+        if (state.engine === 'reddit') {
+            fetchReddit(val);
+        } else if (state.engine === 'internal') {
+            // Caso queira voltar para os dados locais do seu Dicas_dados.js
+            if (typeof DICAS_DATA !== 'undefined') {
+                const filtered = DICAS_DATA.filter(d => d.text.toLowerCase().includes(val.toLowerCase()));
+                renderCards(filtered);
+            }
+        } else if (val) {
+            window.open(ENGINES[state.engine].url + encodeURIComponent(val), '_blank');
+        }
     }
 
-    // --- INICIALIZAÇÃO E EVENTOS ---
+    // --- EVENT LISTENERS ---
     document.getElementById('engine-btn').onclick = () => modal.classList.add('open');
     document.querySelector('.modal-close').onclick = () => modal.classList.remove('open');
 
@@ -112,23 +111,10 @@
     });
 
     document.getElementById('search-go').onclick = executeSearch;
-    input.onkeyup = (e) => { 
-        if (e.key === 'Enter') executeSearch();
-        else if (state.engine === 'internal') renderInternal();
-    };
+    input.onkeypress = (e) => { if (e.key === 'Enter') executeSearch(); };
 
-    // 2. ALTERAÇÃO: Configurar UI inicial e disparar busca do Reddit
+    // --- SETUP INICIAL ---
     updateEngineUI('reddit');
-    fetchReddit(''); 
-    
-    // Funções de Tab
-    function setTab(idx) {
-        state.tab = idx;
-        slider.style.transform = `translateX(-${idx * 50}%)`;
-        indicatorContainer.style.transform = `translateX(${idx * 100}%)`;
-    }
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.onclick = () => setTab(parseInt(btn.dataset.tab));
-    });
+    fetchReddit(); // Carrega o Reddit padrão ao abrir
 
-})();
+});
