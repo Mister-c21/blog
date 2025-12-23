@@ -6,9 +6,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const containers = document.querySelectorAll('.post-container');
 
     /* ===============================
-       HELPERS
+       UTIL
     =============================== */
-    function setLoading(msg) {
+    function showLoading(msg) {
         containers.forEach(c => {
             c.innerHTML = `
                 <div style="padding:40px;text-align:center;color:#666;">
@@ -18,51 +18,41 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function appendError(msg) {
+    function showError(msg) {
         containers.forEach(c => {
             c.innerHTML += `
-                <p style="text-align:center;color:gray;font-size:13px;">
+                <p style="text-align:center;color:#999;font-size:13px;">
                     ${msg}
                 </p>
             `;
         });
     }
 
-    function clearContainers() {
-        containers.forEach(c => c.innerHTML = '');
-    }
-
     /* ===============================
-       REDDIT
+       REDDIT (FUNCIONAL)
     =============================== */
     async function fetchReddit(query) {
         try {
             const res = await fetch(
-                'https://www.reddit.com/search.json?q=' + encodeURIComponent(query) + '&limit=10&sort=relevance',
+                'https://www.reddit.com/search.json?q=' +
+                encodeURIComponent(query) +
+                '&limit=10&sort=relevance',
                 {
                     headers: {
-                        'User-Agent': 'SocialSearchApp/1.0'
+                        'User-Agent': 'Mozilla/5.0 SocialSearch'
                     }
                 }
             );
 
-            if (!res.ok) throw new Error('Reddit indisponível');
+            if (!res.ok) throw new Error('Reddit bloqueou');
 
             const json = await res.json();
 
-            if (!json || !json.data || !Array.isArray(json.data.children)) {
-                throw new Error('Formato inválido do Reddit');
-            }
+            if (!json?.data?.children) return [];
 
             return json.data.children
                 .map(c => c.data)
-                .filter(d =>
-                    d &&
-                    d.title &&
-                    d.permalink &&
-                    d.title !== '[deleted]' &&
-                    d.title !== '[removed]'
-                )
+                .filter(d => d && d.title && d.permalink)
                 .map(d => ({
                     source: 'Reddit',
                     icon: 'fa-brands fa-reddit-alien',
@@ -72,29 +62,29 @@ document.addEventListener('DOMContentLoaded', function () {
                     score: d.score || 0
                 }));
         } catch (e) {
-            appendError('Reddit não respondeu');
+            showError('Reddit indisponível');
             return [];
         }
     }
 
     /* ===============================
-       HACKER NEWS
+       HACKER NEWS (FUNCIONAL)
     =============================== */
     async function fetchHackerNews(query) {
         try {
             const res = await fetch(
-                'https://hn.algolia.com/api/v1/search?query=' + encodeURIComponent(query)
+                'https://hn.algolia.com/api/v1/search?query=' +
+                encodeURIComponent(query)
             );
 
-            if (!res.ok) throw new Error('HN indisponível');
+            if (!res.ok) throw new Error('HN erro');
 
             const json = await res.json();
 
-            if (!json || !Array.isArray(json.hits)) {
-                throw new Error('Formato inválido do HN');
-            }
+            if (!Array.isArray(json.hits)) return [];
 
             return json.hits
+                .filter(d => d.title || d.story_title)
                 .map(d => ({
                     source: 'Hacker News',
                     icon: 'fa-brands fa-hacker-news',
@@ -102,70 +92,29 @@ document.addEventListener('DOMContentLoaded', function () {
                     link: d.url || 'https://news.ycombinator.com/item?id=' + d.objectID,
                     meta: 'HN',
                     score: d.points || 0
-                }))
-                .filter(d => d.text && d.link);
-        } catch (e) {
-            appendError('Hacker News não respondeu');
-            return [];
-        }
-    }
-
-    /* ===============================
-       LOBSTERS
-    =============================== */
-    async function fetchLobsters(query) {
-        try {
-            const res = await fetch(
-                'https://lobste.rs/search.json?q=' + encodeURIComponent(query)
-            );
-
-            if (!res.ok) throw new Error('Lobsters indisponível');
-
-            const json = await res.json();
-
-            if (!Array.isArray(json)) {
-                throw new Error('Formato inválido do Lobsters');
-            }
-
-            return json
-                .filter(d => d && d.title && d.url)
-                .map(d => ({
-                    source: 'Lobsters',
-                    icon: 'fa-solid fa-bug',
-                    text: d.title,
-                    link: d.url,
-                    meta: (d.tags || []).join(', '),
-                    score: d.score || 0
                 }));
         } catch (e) {
-            appendError('Lobsters não respondeu');
+            showError('Hacker News indisponível');
             return [];
         }
     }
 
     /* ===============================
-       BUSCA SOCIAL UNIFICADA
+       BUSCA SOCIAL
     =============================== */
     async function socialSearch(query) {
-        setLoading('Buscando nas redes sociais...');
+        showLoading('Buscando conteúdo social...');
 
-        const results = await Promise.all([
-            fetchReddit(query),
-            fetchHackerNews(query),
-            fetchLobsters(query)
-        ]);
+        const reddit = await fetchReddit(query);
+        const hn = await fetchHackerNews(query);
 
-        const merged = results
-            .flat()
-            .sort(function (a, b) {
-                return b.score - a.score;
-            });
+        const merged = reddit.concat(hn).sort((a, b) => b.score - a.score);
 
         if (!merged.length) {
             containers.forEach(c => {
                 c.innerHTML = `
-                    <p style="padding:40px;text-align:center;color:gray;">
-                        Nenhum resultado social encontrado
+                    <p style="padding:40px;text-align:center;color:#999;">
+                        Nenhum resultado encontrado
                     </p>
                 `;
             });
@@ -176,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /* ===============================
-       RENDERIZAÇÃO
+       RENDER
     =============================== */
     function renderCards(items) {
         const html = items.map(d => `
@@ -187,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="card-body">
                     <span class="tag">${d.source} • ${d.meta}</span>
                     <p class="card-text">${d.text}</p>
-                    <a href="${d.link}" target="_blank" rel="noopener noreferrer" class="btn-more">
+                    <a href="${d.link}" target="_blank" class="btn-more">
                         Abrir <i class="fa-solid fa-arrow-up-right-from-square"></i>
                     </a>
                 </div>
@@ -203,16 +152,12 @@ document.addEventListener('DOMContentLoaded', function () {
     function executeSearch() {
         const q = input.value.trim();
         if (q.length < 2) return;
-        clearContainers();
         socialSearch(q);
     }
 
-    if (button) button.onclick = executeSearch;
-
-    if (input) {
-        input.onkeypress = function (e) {
-            if (e.key === 'Enter') executeSearch();
-        };
-    }
+    button.onclick = executeSearch;
+    input.onkeypress = function (e) {
+        if (e.key === 'Enter') executeSearch();
+    };
 
 });
