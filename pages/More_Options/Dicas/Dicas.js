@@ -1,120 +1,218 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function () {
     'use strict';
 
-    const ENGINES = {
-        internal: { name: 'Interno', icon: 'fa-wand-magic-sparkles', color: '#8A2BE2', url: null },
-        google: { name: 'Google', icon: 'fa-brands fa-google', color: '#4285F4', url: 'https://www.google.com/search?q=' },
-        youtube: { name: 'YouTube', icon: 'fa-brands fa-youtube', color: '#FF0000', url: 'https://www.youtube.com/results?search_query=' },
-        reddit: { name: 'Reddit', icon: 'fa-brands fa-reddit-alien', color: '#FF4500', url: 'https://www.reddit.com/search/?q=' }
-    };
-
-    let state = { tab: 0, engine: 'reddit', category: 'all' };
-
-    const slider = document.getElementById('feed-slider');
-    const indicatorContainer = document.querySelector('.tab-indicator-container');
     const input = document.getElementById('search-input');
-    const modal = document.getElementById('engine-modal');
+    const button = document.getElementById('search-go');
     const containers = document.querySelectorAll('.post-container');
 
-    // --- FUNÇÃO PARA BUSCAR NO REDDIT ---
-    async function fetchReddit(query = '') {
-        containers.forEach(c => c.innerHTML = '<div style="padding:50px; text-align:center; color:#FF4500;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando Reddit...</div>');
+    /* ===============================
+       HELPERS
+    =============================== */
+    function setLoading(msg) {
+        containers.forEach(c => {
+            c.innerHTML = `
+                <div style="padding:40px;text-align:center;color:#666;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> ${msg}
+                </div>
+            `;
+        });
+    }
 
+    function appendError(msg) {
+        containers.forEach(c => {
+            c.innerHTML += `
+                <p style="text-align:center;color:gray;font-size:13px;">
+                    ${msg}
+                </p>
+            `;
+        });
+    }
+
+    function clearContainers() {
+        containers.forEach(c => c.innerHTML = '');
+    }
+
+    /* ===============================
+       REDDIT
+    =============================== */
+    async function fetchReddit(query) {
         try {
-            // Se não houver query, usamos o subreddit LifeProTips (dicas de vida)
-            let url = query 
-                ? `https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&limit=15`
-                : `https://www.reddit.com/r/LifeProTips/hot.json?limit=15`;
+            const res = await fetch(
+                'https://www.reddit.com/search.json?q=' + encodeURIComponent(query) + '&limit=10&sort=relevance',
+                {
+                    headers: {
+                        'User-Agent': 'SocialSearchApp/1.0'
+                    }
+                }
+            );
 
-            const response = await fetch(url);
-            
-            if (!response.ok) throw new Error('Falha na resposta da API');
-            
-            const json = await response.json();
-            const posts = json.data.children.map(child => ({
-                text: child.data.title,
-                link: `https://reddit.com${child.data.permalink}`,
-                cat: 'reddit',
-                subreddit: child.data.subreddit
-            }));
+            if (!res.ok) throw new Error('Reddit indisponível');
 
-            renderCards(posts);
-        } catch (error) {
-            console.error("Erro Reddit:", error);
-            containers.forEach(c => c.innerHTML = `<p style="padding:50px; text-align:center; color:gray;">Erro ao carrerar dados do Reddit.<br><small>${error.message}</small></p>`);
+            const json = await res.json();
+
+            if (!json || !json.data || !Array.isArray(json.data.children)) {
+                throw new Error('Formato inválido do Reddit');
+            }
+
+            return json.data.children
+                .map(c => c.data)
+                .filter(d =>
+                    d &&
+                    d.title &&
+                    d.permalink &&
+                    d.title !== '[deleted]' &&
+                    d.title !== '[removed]'
+                )
+                .map(d => ({
+                    source: 'Reddit',
+                    icon: 'fa-brands fa-reddit-alien',
+                    text: d.title,
+                    link: 'https://www.reddit.com' + d.permalink,
+                    meta: 'r/' + d.subreddit,
+                    score: d.score || 0
+                }));
+        } catch (e) {
+            appendError('Reddit não respondeu');
+            return [];
         }
     }
 
-    // --- RENDERIZAÇÃO DE CARDS ---
+    /* ===============================
+       HACKER NEWS
+    =============================== */
+    async function fetchHackerNews(query) {
+        try {
+            const res = await fetch(
+                'https://hn.algolia.com/api/v1/search?query=' + encodeURIComponent(query)
+            );
+
+            if (!res.ok) throw new Error('HN indisponível');
+
+            const json = await res.json();
+
+            if (!json || !Array.isArray(json.hits)) {
+                throw new Error('Formato inválido do HN');
+            }
+
+            return json.hits
+                .map(d => ({
+                    source: 'Hacker News',
+                    icon: 'fa-brands fa-hacker-news',
+                    text: d.title || d.story_title,
+                    link: d.url || 'https://news.ycombinator.com/item?id=' + d.objectID,
+                    meta: 'HN',
+                    score: d.points || 0
+                }))
+                .filter(d => d.text && d.link);
+        } catch (e) {
+            appendError('Hacker News não respondeu');
+            return [];
+        }
+    }
+
+    /* ===============================
+       LOBSTERS
+    =============================== */
+    async function fetchLobsters(query) {
+        try {
+            const res = await fetch(
+                'https://lobste.rs/search.json?q=' + encodeURIComponent(query)
+            );
+
+            if (!res.ok) throw new Error('Lobsters indisponível');
+
+            const json = await res.json();
+
+            if (!Array.isArray(json)) {
+                throw new Error('Formato inválido do Lobsters');
+            }
+
+            return json
+                .filter(d => d && d.title && d.url)
+                .map(d => ({
+                    source: 'Lobsters',
+                    icon: 'fa-solid fa-bug',
+                    text: d.title,
+                    link: d.url,
+                    meta: (d.tags || []).join(', '),
+                    score: d.score || 0
+                }));
+        } catch (e) {
+            appendError('Lobsters não respondeu');
+            return [];
+        }
+    }
+
+    /* ===============================
+       BUSCA SOCIAL UNIFICADA
+    =============================== */
+    async function socialSearch(query) {
+        setLoading('Buscando nas redes sociais...');
+
+        const results = await Promise.all([
+            fetchReddit(query),
+            fetchHackerNews(query),
+            fetchLobsters(query)
+        ]);
+
+        const merged = results
+            .flat()
+            .sort(function (a, b) {
+                return b.score - a.score;
+            });
+
+        if (!merged.length) {
+            containers.forEach(c => {
+                c.innerHTML = `
+                    <p style="padding:40px;text-align:center;color:gray;">
+                        Nenhum resultado social encontrado
+                    </p>
+                `;
+            });
+            return;
+        }
+
+        renderCards(merged);
+    }
+
+    /* ===============================
+       RENDERIZAÇÃO
+    =============================== */
     function renderCards(items) {
         const html = items.map(d => `
             <article class="card">
                 <div class="card-icon">
-                    <i class="${d.cat === 'reddit' ? 'fa-brands fa-reddit-alien' : 'fa-solid fa-lightbulb'}"></i>
+                    <i class="${d.icon}"></i>
                 </div>
                 <div class="card-body">
-                    <span class="tag" style="${d.cat === 'reddit' ? 'color:#FF4500; background:rgba(255,69,0,0.1);' : ''}">${d.cat === 'reddit' ? 'r/' + d.subreddit : d.cat}</span>
+                    <span class="tag">${d.source} • ${d.meta}</span>
                     <p class="card-text">${d.text}</p>
-                    <a href="${d.link}" target="_blank" class="btn-more">
-                        Ver detalhes <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    <a href="${d.link}" target="_blank" rel="noopener noreferrer" class="btn-more">
+                        Abrir <i class="fa-solid fa-arrow-up-right-from-square"></i>
                     </a>
                 </div>
             </article>
         `).join('');
 
-        containers.forEach(c => {
-            c.innerHTML = html || '<p style="padding:50px; text-align:center; color:gray;">Nenhum resultado encontrado.</p>';
-        });
+        containers.forEach(c => c.innerHTML = html);
     }
 
-    // --- FUNÇÕES DE INTERFACE ---
-    function updateEngineUI(key) {
-        const conf = ENGINES[key];
-        const iconEl = document.getElementById('active-engine-icon');
-        const nameEl = document.getElementById('active-engine-name');
-        
-        if (iconEl) iconEl.className = `${conf.icon.includes('brands') ? 'fa-brands' : 'fa-solid'} ${conf.icon}`;
-        if (nameEl) nameEl.innerText = conf.name;
-        
-        document.body.style.setProperty('--accent', conf.color);
-        document.querySelectorAll('.engine-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.engine === key);
-        });
-    }
-
+    /* ===============================
+       EVENTOS
+    =============================== */
     function executeSearch() {
-        const val = input.value.trim();
-        if (state.engine === 'reddit') {
-            fetchReddit(val);
-        } else if (state.engine === 'internal') {
-            // Caso queira voltar para os dados locais do seu Dicas_dados.js
-            if (typeof DICAS_DATA !== 'undefined') {
-                const filtered = DICAS_DATA.filter(d => d.text.toLowerCase().includes(val.toLowerCase()));
-                renderCards(filtered);
-            }
-        } else if (val) {
-            window.open(ENGINES[state.engine].url + encodeURIComponent(val), '_blank');
-        }
+        const q = input.value.trim();
+        if (q.length < 2) return;
+        clearContainers();
+        socialSearch(q);
     }
 
-    // --- EVENT LISTENERS ---
-    document.getElementById('engine-btn').onclick = () => modal.classList.add('open');
-    document.querySelector('.modal-close').onclick = () => modal.classList.remove('open');
+    if (button) button.onclick = executeSearch;
 
-    document.querySelectorAll('.engine-item').forEach(item => {
-        item.onclick = () => {
-            state.engine = item.dataset.engine;
-            updateEngineUI(state.engine);
-            modal.classList.remove('open');
-            executeSearch();
+    if (input) {
+        input.onkeypress = function (e) {
+            if (e.key === 'Enter') executeSearch();
         };
-    });
-
-    document.getElementById('search-go').onclick = executeSearch;
-    input.onkeypress = (e) => { if (e.key === 'Enter') executeSearch(); };
-
-    // --- SETUP INICIAL ---
-    updateEngineUI('reddit');
-    fetchReddit(); // Carrega o Reddit padrão ao abrir
+    }
 
 });
