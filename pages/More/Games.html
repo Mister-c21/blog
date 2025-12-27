@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: blueviolet;
+            --bg-gradient: linear-gradient(135deg, #1a0a2e 0%, #050505 100%);
+            --glass-white: rgba(248, 248, 255, 0.12);
+            --glass-border: rgba(248, 248, 255, 0.18);
+            --text: ghostwhite;
+            --text-dim: rgba(248, 248, 255, 0.6);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+        body { 
+            margin: 0; background: var(--bg-gradient); background-attachment: fixed;
+            color: var(--text); font-family: 'Roboto', sans-serif; overflow-x: hidden; 
+        }
+
+        /* --- HEADER --- */
+        .header { 
+            padding: 15px 20px; position: sticky; top: 0; z-index: 1000; 
+            background: rgba(26, 10, 46, 0.7); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex; justify-content: center;
+        }
+        .search-pill {
+            background: var(--glass-white); width: 100%; max-width: 700px;
+            border-radius: 30px; padding: 10px 18px; display: flex;
+            align-items: center; border: 1px solid var(--glass-border);
+            transition: 0.3s;
+        }
+        .back-btn { background: none; border: none; color: var(--primary); font-size: 20px; cursor: pointer; padding: 5px 10px; text-decoration: none; transition: 0.3s; margin-right: 5px; }
+        .back-btn:hover { color: white; transform: translateX(-3px); }
+        .search-pill input { flex: 1; background: none; border: none; color: white; padding: 0 12px; font-size: 16px; }
+
+        /* --- MASONRY GRID --- */
+        .masonry-container { padding: 20px; max-width: 1600px; margin: 0 auto; column-gap: 16px; column-count: 2; }
+        @media (min-width: 768px) { .masonry-container { column-count: 3; } }
+        @media (min-width: 1024px) { .masonry-container { column-count: 5; } }
+
+        .card {
+            display: inline-block; width: 100%; margin-bottom: 16px;
+            background: var(--glass-white); border-radius: 20px; overflow: hidden;
+            cursor: pointer; transition: 0.4s; border: 1px solid var(--glass-border); backdrop-filter: blur(5px);
+        }
+        .card:hover { transform: translateY(-8px); border-color: var(--primary); }
+        .card img { width: 100%; display: block; height: auto; }
+        .card-name { padding: 12px; font-size: 13px; font-weight: 500; text-align: center; }
+
+        /* --- ASSISTENTE COM SONS E TRAÇOS --- */
+        #assistant-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; z-index: 4000; backdrop-filter: blur(15px); }
+        #assistant-panel {
+            position: fixed; background: rgba(248, 248, 255, 0.95); z-index: 4001;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1); backdrop-filter: blur(20px);
+        }
+
+        @media (min-width: 768px) {
+            #assistant-panel { width: 450px; height: 350px; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.8); border-radius: 40px; opacity: 0; pointer-events: none; }
+            #assistant-panel.active { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: all; }
+        }
+        @media (max-width: 767px) {
+            #assistant-panel { bottom: -100%; left: 0; width: 100%; height: 350px; border-radius: 35px 35px 0 0; }
+            #assistant-panel.active { bottom: 0; }
+        }
+
+        .bars-container { display: flex; gap: 10px; height: 60px; margin-top: 40px; }
+        .bar { width: 6px; height: 18px; border-radius: 10px; }
+        .bar:nth-child(1) { background: #8a2be2; }
+        .bar:nth-child(2) { background: #9932cc; }
+        .bar:nth-child(3) { background: #ba55d3; }
+        .bar:nth-child(4) { background: #da70d6; }
+        .listening .bar { animation: barWave 0.6s infinite ease-in-out alternate; }
+        .bar:nth-child(1) { animation-delay: 0.1s; } .bar:nth-child(2) { animation-delay: 0.3s; }
+        .bar:nth-child(3) { animation-delay: 0.2s; } .bar:nth-child(4) { animation-delay: 0.4s; }
+
+        @keyframes barWave { 0% { height: 12px; } 100% { height: 55px; } }
+
+        /* --- MODAL --- */
+        #modal-overlay { position: fixed; inset: 0; background: rgba(10, 5, 20, 0.9); display: none; z-index: 2000; backdrop-filter: blur(10px); }
+        .modal-content { background: rgba(248, 248, 255, 0.1); width: 95%; max-width: 550px; border-radius: 30px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); overflow: hidden; border: 1px solid var(--glass-border); }
+        .modal-banner { width: 100%; height: 200px; object-fit: cover; }
+        .modal-body { padding: 25px; }
+        .btn-game { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; padding: 16px; border-radius: 14px; color: white; font-weight: bold; text-decoration: none; font-size: 14px; margin-bottom: 10px; }
+        .btn-steam { background: #1b2838; border: 1px solid #66c0f4; }
+        .btn-xbox { background: #107c10; }
+        .btn-gfn { background: #76b900; }
+        
+        #loader { display: none; text-align: center; padding: 80px; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="search-pill">
+            <a href="../../Home.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+            <input type="text" id="search-input" placeholder="Pesquisar jogos...">
+            <i class="fas fa-microphone" id="mic-trigger" style="color: var(--primary); cursor: pointer; font-size: 20px;"></i>
+        </div>
+    </header>
+
+    <div id="loader"><i class="fas fa-circle-notch fa-spin fa-3x"></i></div>
+    <main class="masonry-container" id="game-grid"></main>
+
+    <div id="assistant-overlay" onclick="closeAssistant()"></div>
+    <div id="assistant-panel">
+        <div id="assistant-status" style="color: #4b0082; font-size:24px; font-family:'Google Sans'; font-weight:700;">A escutar...</div>
+        <div class="bars-container" id="bars-box">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+        <button onclick="closeAssistant()" style="margin-top:40px; background:none; border:none; color:blueviolet; cursor:pointer; font-weight:700;">CANCELAR</button>
+    </div>
+
+    <div id="modal-overlay">
+        <div class="modal-content">
+            <img id="m-img" class="modal-banner">
+            <div class="modal-body">
+                <h2 id="m-title" style="margin:0 0 15px 0; font-family:'Google Sans'"></h2>
+                <div id="m-desc" style="color:var(--text-dim); font-size:14px; line-height:1.6; margin-bottom:15px; max-height:100px; overflow-y:auto;"></div>
+                <a id="btn-steam" target="_blank" class="btn-game btn-steam"><i class="fab fa-steam"></i> STEAM</a>
+                <a id="btn-xbox" target="_blank" class="btn-game btn-xbox"><i class="fab fa-xbox"></i> XBOX CLOUD</a>
+                <a id="btn-gfn" target="_blank" class="btn-game btn-gfn"><i class="fas fa-bolt"></i> GEFORCE NOW</a>
+                <button onclick="closeModal()" style="width:100%; background:none; border:none; color:var(--primary); padding:10px; cursor:pointer; font-weight:700;">VOLTAR</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const RAWG_KEY = 'c542e67aec3a4340908f9de9e86038af';
+        const gameGrid = document.getElementById('game-grid');
+
+        // --- SISTEMA DE ÁUDIO ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playBeep(type) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'start') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            } else {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            }
+        }
+
+        // --- VOZ ---
+        const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (Recognition) {
+            const rec = new Recognition();
+            rec.lang = 'pt-BR';
+            rec.interimResults = true;
+
+            document.getElementById('mic-trigger').onclick = () => {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                playBeep('start');
+                document.getElementById('assistant-overlay').style.display = 'block';
+                document.getElementById('assistant-panel').classList.add('active');
+                document.getElementById('bars-box').classList.add('listening');
+                rec.start();
+            };
+
+            rec.onresult = (e) => {
+                const text = e.results[0][0].transcript;
+                document.getElementById('assistant-status').innerText = text;
+                if(e.results[0].isFinal) {
+                    playBeep('end');
+                    setTimeout(() => {
+                        closeAssistant();
+                        document.getElementById('search-input').value = text;
+                        fetchGames(text);
+                    }, 800);
+                }
+            };
+            rec.onerror = closeAssistant;
+        }
+
+        function closeAssistant() {
+            document.getElementById('assistant-overlay').style.display = 'none';
+            document.getElementById('assistant-panel').classList.remove('active');
+            document.getElementById('bars-box').classList.remove('listening');
+            document.getElementById('assistant-status').innerText = "A escutar...";
+        }
+
+        async function fetchGames(q = '') {
+            document.getElementById('loader').style.display = 'block';
+            gameGrid.innerHTML = '';
+            const url = q ? `https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${q}&page_size=20` : `https://api.rawg.io/api/games?key=${RAWG_KEY}&ordering=-added&page_size=25`;
+            const res = await fetch(url);
+            const data = await res.json();
+            data.results.forEach(game => {
+                if(!game.background_image) return;
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `<img src="${game.background_image}"><div class="card-name">${game.name}</div>`;
+                card.onclick = () => openGame(game);
+                gameGrid.appendChild(card);
+            });
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        async function openGame(game) {
+            document.getElementById('modal-overlay').style.display = 'block';
+            document.getElementById('m-title').innerText = game.name;
+            document.getElementById('m-img').src = game.background_image;
+            const q = encodeURIComponent(game.name);
+            document.getElementById('btn-steam').href = `https://store.steampowered.com/search/?term=${q}`;
+            document.getElementById('btn-xbox').href = `https://www.xbox.com/pt-BR/play/search?q=${q}`;
+            document.getElementById('btn-gfn').href = `https://play.geforcenow.com/mall/#/search?q=${q}`;
+            try {
+                const wiki = await fetch(`https://pt.wikipedia.org/api/rest_v1/page/summary/${q.replace(/%20/g, '_')}`);
+                const d = await wiki.json();
+                document.getElementById('m-desc').innerText = d.extract || "Sem resumo.";
+            } catch { document.getElementById('m-desc').innerText = "Erro Wikipedia."; }
+        }
+
+        function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+        
+        fetchGames();
+    </script>
+</body>
+</html>
