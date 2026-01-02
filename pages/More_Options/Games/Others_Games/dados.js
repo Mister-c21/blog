@@ -32,5 +32,17 @@ export const retroGames = [
     { 
         title: "Dragon Ball GT", 
         url: "https://www.retrogames.cc/embed/26178-2-in-1-dragon-ball-z-buu-s-fury-dragon-ball-gt-transformation-u-independent.html" 
-    }
+    },
+    { 
+        title: "Dragon ball z", 
+        url: "https://www.retrogames.cc/embed/29379-2-in-1-dragon-ball-z-the-legacy-of-goku-i-ii-u-rising-sun.html" 
+    },
+    { 
+        title: "Dragon ball", 
+        url: "https://www.retrogames.cc/embed/28994-dragon-ball-advanced-adventure-u-ongaku.html" 
+    },
+    { 
+        title: "Dragon Ball Z: Supersonic Warriors", 
+        url: "https://www.retrogames.cc/embed/35443-dragon-ball-z-supersonic-warriors-2-europe-en-fr-de-es-it.html" 
+    },
 ];
