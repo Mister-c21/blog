@@ -18,8 +18,8 @@ export const retroGames = [
         url: "https://www.retrogames.cc/embed/42019-ben-10-omniverse-usa-en-fr-es.html" 
     },
     { 
-        title: "Sonic the Hedgehog", 
-        url: "https://retrogame.cc/embed/sonic-the-hedgehog.html" 
+        title: "Ben 10 - Protector of Earth", 
+        url: "https://www.retrogames.cc/embed/36951-ben-10-protector-of-earth-europe-en-fr-de-es-it.html" 
     },
     { 
         title: "Mega Man X", 
