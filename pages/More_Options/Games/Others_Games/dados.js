@@ -30,7 +30,7 @@ export const retroGames = [
         url: "https://www.retrogames.cc/embed/42018-ben-10-ultimate-alien-cosmic-destruction-usa-en-fr-de-es-it.html" 
     },
     { 
-        title: "The Legend of Zelda", 
-        url: "https://retrogame.cc/embed/the-legend-of-zelda-a-link-to-the-past.html" 
+        title: "Dragon Ball GT", 
+        url: "https://www.retrogames.cc/embed/26178-2-in-1-dragon-ball-z-buu-s-fury-dragon-ball-gt-transformation-u-independent.html" 
     }
 ];
