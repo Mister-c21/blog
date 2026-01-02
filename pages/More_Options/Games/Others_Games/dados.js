@@ -14,19 +14,19 @@ export const loreData = [
 
 export const retroGames = [
     { 
-        title: "ben 10", 
+        title: "Ben 10: Omniverse", 
         url: "https://www.retrogames.cc/embed/42019-ben-10-omniverse-usa-en-fr-es.html" 
     },
     { 
-        title: "Ben 10 - Protector of Earth", 
+        title: "Ben 10", 
         url: "https://www.retrogames.cc/embed/36951-ben-10-protector-of-earth-europe-en-fr-de-es-it.html" 
     },
     { 
-        title: "Mega Man X", 
+        title: "Ben 10: Alien Force", 
         url: "https://retrogame.cc/embed/mega-man-x.html" 
     },
     { 
-        title: "Street Fighter II", 
+        title: "Ben 10: Supremacia Alienígena", 
         url: "https://retrogame.cc/embed/street-fighter-ii-the-world-warrior.html" 
     },
     { 
