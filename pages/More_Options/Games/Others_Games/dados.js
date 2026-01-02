@@ -23,11 +23,11 @@ export const retroGames = [
     },
     { 
         title: "Ben 10: Alien Force", 
-        url: "https://retrogame.cc/embed/mega-man-x.html" 
+        url: "https://www.retrogames.cc/embed/38112-ben-10-alien-force-usa-en-fr-de-es-it-rev-1.html" 
     },
     { 
         title: "Ben 10: Supremacia Alienígena", 
-        url: "https://retrogame.cc/embed/street-fighter-ii-the-world-warrior.html" 
+        url: "https://www.retrogames.cc/embed/42018-ben-10-ultimate-alien-cosmic-destruction-usa-en-fr-de-es-it.html" 
     },
     { 
         title: "The Legend of Zelda", 
