@@ -1,17 +1,23 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const musicModal = document.getElementById('music-modal');
+    const musicList = document.getElementById('music-list');
     let currentAudio = null;
     let progressInterval = null;
 
-    // Tabs
-    document.querySelectorAll('.tab-item').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.tab-item, .tab-section').forEach(el => el.classList.remove('active'));
-            tab.classList.add('active');
-            document.getElementById(tab.dataset.target).classList.add('active');
+    // Navegação de Abas
+    document.querySelectorAll('.tab-item, .top-tab-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const isSub = btn.classList.contains('top-tab-item');
+            const group = isSub ? '.top-tab-item, .sub-section' : '.tab-item, .tab-section';
+            const targetId = isSub ? btn.dataset.sub : btn.dataset.target;
+            
+            document.querySelectorAll(group).forEach(el => el.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(targetId).classList.add('active');
         });
     });
 
-    // Abrir Card
+    // Modal Criador
     document.querySelectorAll('.creator-card').forEach(card => {
         card.addEventListener('click', () => {
             const d = card.dataset;
@@ -19,53 +25,51 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('m-bio').innerText = d.bio;
             document.getElementById('m-icon').className = `fas ${d.icon}`;
             
+            ['twitter', 'instagram', 'facebook', 'threads'].forEach(s => {
+                const link = document.getElementById(`m-${s}`);
+                link.href = d[s] || "#";
+                link.style.display = (d[s] && d[s] !== "#") ? "flex" : "none";
+            });
+
             document.getElementById('m-music-trigger').onclick = (e) => {
                 e.stopPropagation();
-                openMusicModal(d.music);
+                window.openMusicModal(d.music);
             };
             document.getElementById('tt-modal').style.display = 'flex';
         });
     });
 
-    // FUNÇÃO DE MÚSICA REVISADA (JSON + PROXY ALLORIGINS)
+    // PLAYER COM FIX DE CONEXÃO (CORS PROXY)
     window.openMusicModal = async (musicString) => {
-        const musicList = document.getElementById('music-list');
-        const musicModal = document.getElementById('music-modal');
-        
-        musicList.innerHTML = '<p style="color:#8a2be2; padding:20px;">Buscando frequências...</p>';
+        if (!musicString) return;
+        musicList.innerHTML = '<p style="text-align:center; padding:20px; color:var(--primary);">A carregar trilhas...</p>';
         musicModal.style.display = 'flex';
 
-        const queries = musicString.split(',').map(s => s.trim());
+        const songs = musicString.split(',').map(s => s.trim());
+        const proxy = "https://corsproxy.io/?"; 
+        
         musicList.innerHTML = '';
-
-        for (const [idx, query] of queries.entries()) {
+        for (const [idx, name] of songs.entries()) {
             try {
-                // AllOrigins ajuda a burlar o bloqueio de conexão direta
-                const apiUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=1`;
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
+                const target = `https://itunes.apple.com/search?term=${encodeURIComponent(name)}&entity=song&limit=1`;
+                const res = await fetch(proxy + encodeURIComponent(target));
+                const data = await res.json();
 
-                const response = await fetch(proxyUrl);
-                const container = await response.json();
-                const data = JSON.parse(container.contents); // Transforma o conteúdo string em JSON real
-
-                if (data.results && data.results[0]) {
+                if (data.results[0]) {
                     const track = data.results[0];
-                    const item = document.createElement('div');
-                    item.className = 'music-item';
-                    item.innerHTML = `
+                    const div = document.createElement('div');
+                    div.className = 'music-item';
+                    div.innerHTML = `
                         <img src="${track.artworkUrl100}">
-                        <div style="flex:1; overflow:hidden;">
-                            <b style="font-size:12px; white-space:nowrap;">${track.trackName}</b><br>
-                            <small style="color:#666;">${track.artistName}</small>
+                        <div style="flex:1;">
+                            <strong style="color:white; font-size:13px;">${track.trackName}</strong><br>
+                            <span style="color:#666; font-size:11px;">${track.artistName}</span>
                             <div class="progress-container" id="p-cont-${idx}"><div class="progress-bar" id="p-bar-${idx}"></div></div>
                         </div>
-                        <i class="fas fa-play-circle play-btn" onclick="playSong('${track.previewUrl}', this, ${idx})"></i>
-                    `;
-                    musicList.appendChild(item);
+                        <i class="fas fa-play-circle play-btn" onclick="window.playSong('${track.previewUrl}', this, ${idx})"></i>`;
+                    musicList.appendChild(div);
                 }
-            } catch (err) {
-                console.error("Erro ao carregar música:", query);
-            }
+            } catch (e) { console.error("Erro ao carregar:", name); }
         }
     };
 
@@ -81,9 +85,9 @@ document.addEventListener('DOMContentLoaded', () => {
         currentAudio = new Audio(url);
         currentAudio.play();
         btn.className = 'fas fa-pause-circle play-btn';
-        
+        const container = document.getElementById(`p-cont-${idx}`);
         const bar = document.getElementById(`p-bar-${idx}`);
-        document.getElementById(`p-cont-${idx}`).style.display = 'block';
+        container.style.display = 'block';
 
         progressInterval = setInterval(() => {
             bar.style.width = (currentAudio.currentTime / currentAudio.duration * 100) + '%';
@@ -91,10 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.closeAllModals = () => document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
-    window.closeMusicModal = () => {
-        if(currentAudio) { currentAudio.pause(); currentAudio = null; }
-        document.getElementById('music-modal').style.display = 'none';
-    };
+    window.closeMusicModal = () => { if(currentAudio) currentAudio.pause(); musicModal.style.display = 'none'; };
+    window.openNetworkModal = () => document.getElementById('network-modal').style.display = 'flex';
 
-    window.onclick = (e) => { if(e.target.className.includes('overlay')) closeAllModals(); };
+    window.onclick = (e) => { if(e.target.classList.contains('modal-overlay')) window.closeAllModals(); };
 });
