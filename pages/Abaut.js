@@ -5,104 +5,113 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentAudio = null;
     let progressInterval = null;
 
-    // Alternar Abas Principais (Criadores / Comunidade)
+    // Gerenciador de Abas Principais
     document.querySelectorAll('.tab-item').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.tab-item, .tab-section').forEach(el => el.classList.remove('active'));
             tab.classList.add('active');
             const target = document.getElementById(tab.dataset.target);
-            if(target) target.classList.add('active');
+            if (target) target.classList.add('active');
         });
     });
 
-    // Alternar Sub-Abas da Comunidade
+    // Gerenciador de Sub-Abas (Comunidade)
     document.querySelectorAll('.top-tab-item').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.top-tab-item, .sub-section').forEach(el => el.classList.remove('active'));
             btn.classList.add('active');
             const subTarget = document.getElementById(btn.dataset.sub);
-            if(subTarget) subTarget.classList.add('active');
+            if (subTarget) subTarget.classList.add('active');
         });
     });
 
-    // Abrir Perfil do Criador
+    // Configuração do Modal do Criador
     document.querySelectorAll('.creator-card').forEach(card => {
         card.addEventListener('click', () => {
             const d = card.dataset;
+            document.getElementById('m-name').innerText = d.name || "Criador";
+            document.getElementById('m-bio').innerText = d.bio || "";
+            document.getElementById('m-icon').className = `fas ${d.icon || 'fa-user'}`;
             
-            document.getElementById('m-name').innerText = d.name;
-            document.getElementById('m-bio').innerText = d.bio;
-            document.getElementById('m-icon').className = `fas ${d.icon}`;
-            
-            // Atribuir Links Sociais (Reddit foi removido daqui)
-            document.getElementById('m-twitter').href = d.twitter || "#";
-            document.getElementById('m-instagram').href = d.instagram || "#";
-            document.getElementById('m-facebook').href = d.facebook || "#";
-            document.getElementById('m-threads').href = d.threads || "#";
-            
-            // Esconde botões vazios
-            const socialLinks = ['m-twitter', 'm-instagram', 'm-facebook', 'm-threads'];
-            socialLinks.forEach(id => {
-                const el = document.getElementById(id);
-                el.style.display = (el.getAttribute('href') === "#") ? "none" : "flex";
+            const socials = ['twitter', 'instagram', 'facebook', 'threads'];
+            socials.forEach(s => {
+                const link = document.getElementById(`m-${s}`);
+                if (link) {
+                    link.href = d[s] && d[s] !== "#" ? d[s] : "#";
+                    link.style.display = (d[s] && d[s] !== "#") ? "flex" : "none";
+                }
             });
 
-            document.getElementById('m-music-trigger').onclick = (e) => {
+            const trigger = document.getElementById('m-music-trigger');
+            trigger.onclick = (e) => {
                 e.stopPropagation();
                 window.openMusicModal(d.music);
             };
-            
             modal.style.display = 'flex';
         });
     });
 
-    // Modal de Músicas com iTunes API
+    // Player de Música com Tratamento de Erro de API
     window.openMusicModal = async (musicString) => {
         if (!musicString) return;
-        const names = musicString.split(',').map(s => s.trim());
-        musicList.innerHTML = '<p style="text-align:center; padding:20px; color:#888;">Sintonizando frequências...</p>';
+        musicList.innerHTML = '<div style="text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin" style="color:var(--primary); font-size:24px;"></i><p style="margin-top:10px; color:#888;">Sintonizando frequências...</p></div>';
         musicModal.style.display = 'flex';
 
+        const names = musicString.split(',').map(s => s.trim());
+        
         try {
-            const reqs = names.map(n => fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(n)}&limit=1&entity=song`).then(r => r.json()));
-            const res = await Promise.all(reqs);
+            // Usamos HTTPS explicitamente e um seletor de entidade 'song'
+            const reqs = names.map(n => 
+                fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(n)}&entity=song&limit=1`)
+                .then(r => {
+                    if (!r.ok) throw new Error('Falha na rede');
+                    return r.json();
+                })
+                .catch(() => ({ results: [] })) // Se uma música falhar, continua as outras
+            );
+
+            const results = await Promise.all(reqs);
             musicList.innerHTML = '';
             
-            res.forEach((data, index) => {
-                if (data.results && data.results[0]) {
+            let foundAny = false;
+
+            results.forEach((data, index) => {
+                if (data.results && data.results.length > 0) {
+                    foundAny = true;
                     const track = data.results[0];
                     const div = document.createElement('div');
                     div.className = 'music-item';
                     div.innerHTML = `
-                        <img src="${track.artworkUrl100}">
+                        <img src="${track.artworkUrl100}" alt="Capa">
                         <div style="flex:1;">
-                            <strong style="font-size:14px; color:var(--ghost);">${track.trackName}</strong><br>
+                            <strong style="font-size:13px; color:var(--ghost);">${track.trackName}</strong><br>
                             <span style="font-size:11px; color:#666;">${track.artistName}</span>
-                            <div class="progress-container" id="prog-cont-${index}">
-                                <div class="progress-bar" id="prog-bar-${index}"></div>
+                            <div class="progress-container" id="p-cont-${index}">
+                                <div class="progress-bar" id="p-bar-${index}"></div>
                             </div>
                         </div>
-                        <i class="fas fa-play-circle play-btn" onclick="window.playPreview('${track.previewUrl}', this, ${index})"></i>
+                        <i class="fas fa-play-circle play-btn" onclick="window.playSong('${track.previewUrl}', this, ${index})"></i>
                     `;
                     musicList.appendChild(div);
                 }
             });
-        } catch (e) { 
-            musicList.innerHTML = '<p style="text-align:center; color:red;">Erro na conexão.</p>'; 
+
+            if (!foundAny) {
+                musicList.innerHTML = '<p style="text-align:center; color:#666; padding:20px;">Nenhuma trilha encontrada no multiverso.</p>';
+            }
+
+        } catch (error) {
+            console.error("Erro na API:", error);
+            musicList.innerHTML = '<p style="text-align:center; color:#ff4444; padding:20px;">Erro de conexão com a API de áudio. Verifique sua internet.</p>';
         }
     };
 
-    // Controle de Player de Áudio
-    window.playPreview = (url, btn, index) => {
-        const currentProgCont = document.getElementById(`prog-cont-${index}`);
-        const currentBar = document.getElementById(`prog-bar-${index}`);
-
+    window.playSong = (url, btn, idx) => {
         if (currentAudio) {
             currentAudio.pause();
             clearInterval(progressInterval);
             document.querySelectorAll('.play-btn').forEach(b => b.className = 'fas fa-play-circle play-btn');
-            document.querySelectorAll('.progress-container').forEach(p => p.style.display = 'none');
-
+            document.querySelectorAll('.progress-container').forEach(c => c.style.display = 'none');
             if (currentAudio.src === url) {
                 currentAudio = null;
                 return;
@@ -110,33 +119,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         currentAudio = new Audio(url);
-        currentAudio.play();
+        currentAudio.play().catch(e => console.error("Erro ao dar play:", e));
         btn.className = 'fas fa-pause-circle play-btn';
-        currentProgCont.style.display = 'block';
+        
+        const container = document.getElementById(`p-cont-${idx}`);
+        const bar = document.getElementById(`p-bar-${idx}`);
+        container.style.display = 'block';
 
         progressInterval = setInterval(() => {
-            if (currentAudio) {
+            if (currentAudio && !currentAudio.paused) {
                 const percent = (currentAudio.currentTime / currentAudio.duration) * 100;
-                currentBar.style.width = percent + '%';
+                bar.style.width = percent + '%';
             }
         }, 100);
 
         currentAudio.onended = () => {
+            container.style.display = 'none';
             btn.className = 'fas fa-play-circle play-btn';
-            currentProgCont.style.display = 'none';
             clearInterval(progressInterval);
         };
     };
 
-    // Funções de Modal Gerais
+    // Funções de Fechamento
     window.openNetworkModal = () => document.getElementById('network-modal').style.display = 'flex';
     window.closeAllModals = () => document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
     window.closeMusicModal = () => {
-        if (currentAudio) currentAudio.pause();
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio = null;
+        }
         clearInterval(progressInterval);
         musicModal.style.display = 'none';
     };
 
+    // Fechar ao clicar fora
     window.onclick = (e) => {
         if (e.target.classList.contains('modal-overlay')) window.closeAllModals();
         if (e.target === musicModal) window.closeMusicModal();
