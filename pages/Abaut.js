@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentAudio = null;
     let progressInterval = null;
 
-    // Gerenciador de Abas Principais
+    // 1. GERENCIADOR DE ABAS PRINCIPAIS (Criadores / Comunidade)
     document.querySelectorAll('.tab-item').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.tab-item, .tab-section').forEach(el => el.classList.remove('active'));
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Gerenciador de Sub-Abas (Comunidade)
+    // 2. GERENCIADOR DE SUB-ABAS (Agradecimentos / Sobre Nós)
     document.querySelectorAll('.top-tab-item').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.top-tab-item, .sub-section').forEach(el => el.classList.remove('active'));
@@ -25,93 +25,120 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Configuração do Modal do Criador
+    // 3. CONFIGURAÇÃO DO MODAL DO CRIADOR
     document.querySelectorAll('.creator-card').forEach(card => {
         card.addEventListener('click', () => {
             const d = card.dataset;
-            document.getElementById('m-name').innerText = d.name || "Criador";
+            document.getElementById('m-name').innerText = d.name || "Membro LoreSpace";
             document.getElementById('m-bio').innerText = d.bio || "";
             document.getElementById('m-icon').className = `fas ${d.icon || 'fa-user'}`;
             
+            // Atualiza Links de Redes Sociais
             const socials = ['twitter', 'instagram', 'facebook', 'threads'];
             socials.forEach(s => {
                 const link = document.getElementById(`m-${s}`);
                 if (link) {
-                    link.href = d[s] && d[s] !== "#" ? d[s] : "#";
-                    link.style.display = (d[s] && d[s] !== "#") ? "flex" : "none";
+                    const url = d[s];
+                    if (url && url !== "#") {
+                        link.href = url;
+                        link.style.display = "flex";
+                    } else {
+                        link.style.display = "none";
+                    }
                 }
             });
 
+            // Configura o botão de música do criador
             const trigger = document.getElementById('m-music-trigger');
             trigger.onclick = (e) => {
                 e.stopPropagation();
                 window.openMusicModal(d.music);
             };
+            
             modal.style.display = 'flex';
         });
     });
 
-    // Player de Música com Tratamento de Erro de API
-    window.openMusicModal = async (musicString) => {
+    // 4. SISTEMA DE MÚSICA VIA JSONP (SOLUÇÃO PARA ERRO DE CONEXÃO)
+    window.openMusicModal = (musicString) => {
         if (!musicString) return;
-        musicList.innerHTML = '<div style="text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin" style="color:var(--primary); font-size:24px;"></i><p style="margin-top:10px; color:#888;">Sintonizando frequências...</p></div>';
+        
+        musicList.innerHTML = `
+            <div style="text-align:center; padding:40px;">
+                <i class="fas fa-compact-disc fa-spin" style="color:var(--primary); font-size:30px;"></i>
+                <p style="margin-top:15px; color:#888; font-size:0.9rem;">Sintonizando frequências...</p>
+            </div>`;
         musicModal.style.display = 'flex';
 
         const names = musicString.split(',').map(s => s.trim());
-        
-        try {
-            // Usamos HTTPS explicitamente e um seletor de entidade 'song'
-            const reqs = names.map(n => 
-                fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(n)}&entity=song&limit=1`)
-                .then(r => {
-                    if (!r.ok) throw new Error('Falha na rede');
-                    return r.json();
-                })
-                .catch(() => ({ results: [] })) // Se uma música falhar, continua as outras
-            );
+        let resultsCount = 0;
+        const tracksFound = [];
 
-            const results = await Promise.all(reqs);
-            musicList.innerHTML = '';
-            
-            let foundAny = false;
+        // Criamos um nome de função único e global para o iTunes responder
+        const callbackName = 'lorespace_jsonp_' + Date.now();
 
-            results.forEach((data, index) => {
-                if (data.results && data.results.length > 0) {
-                    foundAny = true;
-                    const track = data.results[0];
-                    const div = document.createElement('div');
-                    div.className = 'music-item';
-                    div.innerHTML = `
-                        <img src="${track.artworkUrl100}" alt="Capa">
-                        <div style="flex:1;">
-                            <strong style="font-size:13px; color:var(--ghost);">${track.trackName}</strong><br>
-                            <span style="font-size:11px; color:#666;">${track.artistName}</span>
-                            <div class="progress-container" id="p-cont-${index}">
-                                <div class="progress-bar" id="p-bar-${index}"></div>
-                            </div>
-                        </div>
-                        <i class="fas fa-play-circle play-btn" onclick="window.playSong('${track.previewUrl}', this, ${index})"></i>
-                    `;
-                    musicList.appendChild(div);
-                }
-            });
-
-            if (!foundAny) {
-                musicList.innerHTML = '<p style="text-align:center; color:#666; padding:20px;">Nenhuma trilha encontrada no multiverso.</p>';
+        window[callbackName] = (data) => {
+            if (data.results && data.results.length > 0) {
+                tracksFound.push(data.results[0]);
             }
+            resultsCount++;
+            
+            // Quando todos os pedidos terminarem
+            if (resultsCount === names.length) {
+                renderTracks(tracksFound);
+                delete window[callbackName]; // Limpeza de memória
+            }
+        };
 
-        } catch (error) {
-            console.error("Erro na API:", error);
-            musicList.innerHTML = '<p style="text-align:center; color:#ff4444; padding:20px;">Erro de conexão com a API de áudio. Verifique sua internet.</p>';
-        }
+        // Dispara uma requisição de script para cada música
+        names.forEach(name => {
+            const script = document.createElement('script');
+            script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(name)}&entity=song&limit=1&callback=${callbackName}`;
+            script.onerror = () => {
+                resultsCount++;
+                if (resultsCount === names.length) renderTracks(tracksFound);
+                script.remove();
+            };
+            script.onload = () => script.remove();
+            document.body.appendChild(script);
+        });
     };
 
+    // Renderiza a lista de faixas no modal
+    function renderTracks(tracks) {
+        if (tracks.length === 0) {
+            musicList.innerHTML = '<p style="text-align:center; color:#666; padding:30px;">Nenhuma trilha encontrada nesta dimensão.</p>';
+            return;
+        }
+
+        musicList.innerHTML = '';
+        tracks.forEach((track, index) => {
+            const div = document.createElement('div');
+            div.className = 'music-item';
+            div.innerHTML = `
+                <img src="${track.artworkUrl100}" alt="Capa">
+                <div style="flex:1; overflow:hidden;">
+                    <strong style="font-size:13px; color:var(--ghost); display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${track.trackName}</strong>
+                    <span style="font-size:11px; color:#666;">${track.artistName}</span>
+                    <div class="progress-container" id="p-cont-${index}">
+                        <div class="progress-bar" id="p-bar-${index}"></div>
+                    </div>
+                </div>
+                <i class="fas fa-play-circle play-btn" onclick="window.playSong('${track.previewUrl}', this, ${index})"></i>
+            `;
+            musicList.appendChild(div);
+        });
+    }
+
+    // Controle do Player de Áudio
     window.playSong = (url, btn, idx) => {
         if (currentAudio) {
             currentAudio.pause();
             clearInterval(progressInterval);
             document.querySelectorAll('.play-btn').forEach(b => b.className = 'fas fa-play-circle play-btn');
             document.querySelectorAll('.progress-container').forEach(c => c.style.display = 'none');
+            
+            // Se clicar na mesma música que já está tocando, ela para
             if (currentAudio.src === url) {
                 currentAudio = null;
                 return;
@@ -119,9 +146,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         currentAudio = new Audio(url);
-        currentAudio.play().catch(e => console.error("Erro ao dar play:", e));
-        btn.className = 'fas fa-pause-circle play-btn';
+        currentAudio.play().catch(err => console.error("Erro ao reproduzir:", err));
         
+        btn.className = 'fas fa-pause-circle play-btn';
         const container = document.getElementById(`p-cont-${idx}`);
         const bar = document.getElementById(`p-bar-${idx}`);
         container.style.display = 'block';
@@ -140,9 +167,15 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     };
 
-    // Funções de Fechamento
-    window.openNetworkModal = () => document.getElementById('network-modal').style.display = 'flex';
-    window.closeAllModals = () => document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+    // 5. FUNÇÕES DE FECHAMENTO E MODAIS GERAIS
+    window.openNetworkModal = () => {
+        document.getElementById('network-modal').style.display = 'flex';
+    };
+
+    window.closeAllModals = () => {
+        document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+    };
+
     window.closeMusicModal = () => {
         if (currentAudio) {
             currentAudio.pause();
@@ -152,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
         musicModal.style.display = 'none';
     };
 
-    // Fechar ao clicar fora
+    // Fechar ao clicar no fundo escuro
     window.onclick = (e) => {
         if (e.target.classList.contains('modal-overlay')) window.closeAllModals();
         if (e.target === musicModal) window.closeMusicModal();
