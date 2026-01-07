@@ -4,7 +4,7 @@ const PAGE_SIZE = 10;
 
 // ESTADO DA APLICAÇÃO
 let currentPage = 1;
-let currentTopic = 'geek';
+let currentTopic = 'all';
 
 // DOM ELEMENTS
 const newsContainer = document.getElementById('news-list-container');
