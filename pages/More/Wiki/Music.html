@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Music</title>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #8a2be2; /* Blueviolet */
+            --bg-dark: #0a0510;
+            --ghost: #f8f8ff; /* Ghost white */
+            --glass: rgba(138, 43, 226, 0.15); /* Vidro semi-transparente Blueviolet */
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-heavy: rgba(10, 5, 16, 0.85);
+        }
+
+        * { 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; 
+            outline: none; 
+        }
+        
+        body { 
+            margin: 0; 
+            background: var(--bg-dark); 
+            color: var(--ghost); 
+            font-family: 'Google Sans', sans-serif; 
+            overflow-x: hidden; 
+        }
+
+        /* --- HEADER --- */
+        .header { 
+            padding: 15px 20px; 
+            position: sticky; 
+            top: 0; 
+            z-index: 1000; 
+            background: var(--glass-heavy); 
+            backdrop-filter: blur(25px);
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .nav-back-btn {
+            width: 45px; height: 45px; border-radius: 12px;
+            background: var(--glass); border: 1px solid var(--glass-border);
+            color: var(--ghost); display: flex; align-items: center; justify-content: center;
+            text-decoration: none; font-size: 18px; transition: 0.2s;
+        }
+
+        .search-pill {
+            background: rgba(255, 255, 255, 0.08); 
+            flex: 1; border-radius: 15px; padding: 5px 15px; 
+            display: flex; align-items: center; border: 1px solid var(--glass-border);
+        }
+
+        .search-pill input { 
+            flex: 1; background: none; border: none; 
+            color: white; padding: 10px; font-size: 16px; 
+        }
+
+        .voice-btn { color: var(--primary); margin: 0 10px; font-size: 18px; cursor: pointer; padding: 5px; }
+
+        /* --- GRID & CARDS --- */
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
+            gap: 15px; padding: 20px; padding-bottom: 100px;
+        }
+
+        .card, .term-card { 
+            background: var(--glass); 
+            border-radius: 20px; 
+            overflow: hidden; 
+            border: 1px solid var(--glass-border); 
+            transition: 0.3s; 
+            cursor: pointer;
+            animation: fadeIn 0.5s ease backwards;
+            backdrop-filter: blur(15px);
+        }
+
+        .card img { width: 100%; aspect-ratio: 1/1; object-fit: cover; }
+        .card:active, .term-card:active { transform: scale(0.96); }
+
+        .term-card {
+            height: 160px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center; padding: 15px;
+        }
+        .term-card i { font-size: 32px; color: var(--primary); margin-bottom: 12px; }
+        .term-card span { font-weight: 500; font-size: 14px; color: var(--ghost); }
+
+        /* --- PLAYER MODAL --- */
+        #player-modal { 
+            position: fixed; inset: 0; display: none; z-index: 5000; 
+            background: var(--bg-dark); flex-direction: column; 
+            transition: transform 0.4s cubic-bezier(0.2, 0, 0, 1); 
+            transform: translateY(100%);
+            will-change: transform;
+        }
+        #p-bg { position: absolute; inset: 0; z-index: -1; opacity: 0.4; filter: blur(80px); background-size: cover; background-position: center; }
+        
+        .modal-body { 
+            flex: 1; display: flex; flex-direction: column; align-items: center; 
+            padding: 20px; overflow-y: auto; background: rgba(0,0,0,0.4); 
+            backdrop-filter: blur(20px); 
+        }
+
+        .modal-nav { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 15px 10px; }
+        
+        .nav-btn { 
+            width: 45px; height: 45px; border-radius: 50%; 
+            background: var(--glass); border: 1px solid var(--glass-border); 
+            color: var(--ghost); display: flex; align-items: center; 
+            justify-content: center; font-size: 18px; cursor: pointer;
+        }
+        
+        .p-cover { width: 280px; height: 280px; border-radius: 25px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); margin-bottom: 20px; object-fit: cover; }
+        
+        .p-ui { width: 100%; max-width: 450px; margin: 15px 0; }
+        .prog-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; cursor: pointer; position: relative; }
+        .prog-fill { height: 100%; background: var(--primary); width: 0%; border-radius: 10px; box-shadow: 0 0 10px var(--primary); }
+        
+        .main-ctrls { display: flex; align-items: center; justify-content: center; gap: 40px; margin-top: 25px; }
+        .btn-play { width: 75px; height: 75px; background: var(--ghost); color: black; border-radius: 50%; border: none; font-size: 28px; cursor: pointer; }
+
+        /* --- CONTAINER DE BOTÕES (TABS) --- */
+        .tab-bar-container {
+            width: 100%;
+            max-width: 600px;
+            margin: 40px 0 25px 0; /* Espaço maior solicitado */
+            padding: 0 10px;
+        }
+
+        .tab-bar { 
+            display: flex; 
+            gap: 15px; 
+            overflow-x: auto; 
+            padding: 12px 5px; 
+            scrollbar-width: none; 
+        }
+        .tab-bar::-webkit-scrollbar { display: none; }
+
+        .tab-btn { 
+            flex-shrink: 0; 
+            padding: 16px 32px; 
+            border-radius: 35px; 
+            border: 1px solid var(--glass-border); 
+            background: rgba(255,255,255,0.06); 
+            color: var(--ghost); 
+            white-space: nowrap; 
+            cursor: pointer; 
+            font-size: 13px; 
+            font-weight: 700; 
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+        .tab-btn.active { 
+            background: var(--primary); 
+            border-color: var(--primary); 
+            box-shadow: 0 8px 20px rgba(138, 43, 226, 0.4);
+        }
+
+        .tab-pane { display: none; width: 100%; max-width: 500px; min-height: 200px; padding-bottom: 40px; animation: fadeIn 0.4s ease; }
+        .tab-pane.active { display: block; }
+
+        /* --- SUBMODAIS --- */
+        .submodal-overlay { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8); 
+            display: none; align-items: flex-end; justify-content: center; 
+            z-index: 7000; backdrop-filter: blur(12px); 
+        }
+        .submodal-content { 
+            width: 100%; max-width: 500px; background: #120a1d; 
+            border-radius: 30px 30px 0 0; padding: 30px 20px; 
+            border: 1px solid var(--glass-border); 
+            animation: slideUp 0.3s ease-out;
+        }
+        .drag-handle { width: 45px; height: 5px; background: var(--glass-border); border-radius: 10px; margin: 0 auto 20px; }
+
+        /* COMPARTILHAMENTO GRID */
+        .share-grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 20px; 
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .share-option { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--ghost); text-decoration: none; cursor: pointer; }
+        .share-icon { 
+            width: 55px; height: 55px; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 22px; border: 1px solid var(--glass-border);
+            background: var(--glass);
+        }
+
+        /* ANIMAÇÕES */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        /* VOZ WAVES */
+        .voice-waves { display: flex; justify-content: center; align-items: center; gap: 6px; height: 60px; margin-bottom: 20px; }
+        .wave { width: 4px; height: 20px; background: var(--primary); border-radius: 10px; animation: wave-anim 1s ease-in-out infinite; }
+        @keyframes wave-anim { 0%, 100% { height: 15px; opacity: 0.5; } 50% { height: 45px; opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <a href="../More_options.html" class="nav-back-btn"><i class="fas fa-arrow-left"></i></a>
+        <div class="search-pill">
+            <input type="text" id="search-input" placeholder="O que vamos ouvir agora?">
+            <i class="fas fa-microphone voice-btn" onclick="startVoiceSearch()"></i>
+            <i class="fas fa-search" onclick="search()" style="color: var(--primary); cursor: pointer;"></i>
+        </div>
+    </header>
+
+    <div id="grid-title" style="padding: 20px 20px 0; font-weight: bold; font-size: 18px;">Sugestões de busca</div>
+    <main class="grid" id="main-grid"></main>
+
+    <div id="voice-overlay" class="submodal-overlay" onclick="stopVoiceSearch()">
+        <div class="submodal-content" onclick="event.stopPropagation()">
+            <div class="drag-handle"></div>
+            <div class="voice-waves">
+                <div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div>
+            </div>
+            <h3 id="voice-status" style="text-align: center;">Ouvindo...</h3>
+            <p id="voice-result" style="color: var(--primary); text-align: center; font-style: italic; min-height: 1.5em;"></p>
+            <button onclick="stopVoiceSearch()" style="width:100%; background: var(--glass); border: 1px solid var(--glass-border); color: var(--ghost); padding: 15px; border-radius: 20px; margin-top: 10px;">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="player-modal">
+        <div id="p-bg"></div>
+        <div class="modal-body">
+            <div class="modal-nav">
+                <div class="nav-btn" onclick="toggleSuggest(true)"><i class="fas fa-wand-magic-sparkles"></i></div>
+                <div class="nav-btn" style="border:none; background:none; font-size:26px;" onclick="closePlayer()"><i class="fas fa-chevron-down"></i></div>
+                <div class="nav-btn" onclick="toggleShare(true)"><i class="fas fa-share-alt"></i></div>
+            </div>
+            
+            <img id="p-img" class="p-cover" src="">
+            
+            <div style="text-align: center; width: 100%;">
+                <h2 id="p-title" style="margin:0; font-size: 22px; padding: 0 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Título</h2>
+                <p id="p-artist" style="color: var(--primary); font-weight:bold; margin:8px 0; font-size: 17px;">Artista</p>
+            </div>
+
+            <div class="p-ui">
+                <div class="prog-bg" id="prog-bar">
+                    <div class="prog-fill" id="fill"></div>
+                </div>
+                <div class="main-ctrls">
+                    <i class="fas fa-step-backward" onclick="prev()" style="font-size:30px; cursor:pointer;"></i>
+                    <button class="btn-play" onclick="togglePlay()" id="btn-p"><i class="fas fa-play"></i></button>
+                    <i class="fas fa-step-forward" onclick="next()" style="font-size:30px; cursor:pointer;"></i>
+                </div>
+            </div>
+
+            <div class="tab-bar-container">
+                <div class="tab-bar">
+                    <button class="tab-btn active" onclick="switchTab(event, 'tab-lyrics')">Letras</button>
+                    <button class="tab-btn" onclick="switchTab(event, 'tab-platforms')">Plataformas</button>
+                    <button class="tab-btn" onclick="switchTab(event, 'tab-info')">Sobre</button>
+                </div>
+            </div>
+
+            <div id="tab-lyrics" class="tab-pane active">
+                <div id="lyric-content" style="white-space: pre-line; text-align: center; line-height: 1.8; font-size: 18px; color: var(--ghost);"></div>
+            </div>
+            
+            <div id="tab-platforms" class="tab-pane">
+                <div id="platform-list"></div>
+            </div>
+            
+            <div id="tab-info" class="tab-pane">
+                <div id="song-info-extra" style="background: var(--glass); padding: 25px; border-radius: 25px; font-size: 14px; line-height: 1.6; border: 1px solid var(--glass-border);"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="share-submodal" class="submodal-overlay" onclick="toggleShare(false)">
+        <div class="submodal-content" onclick="event.stopPropagation()">
+            <div class="drag-handle"></div>
+            <h3 style="text-align: center; margin-bottom: 25px; color: var(--ghost);">Compartilhar música</h3>
+            <div class="share-grid" id="share-options-container">
+                </div>
+        </div>
+    </div>
+
+    <div id="suggest-submodal" class="submodal-overlay" onclick="toggleSuggest(false)">
+        <div class="submodal-content" onclick="event.stopPropagation()">
+            <div class="drag-handle"></div>
+            <h3 style="text-align: center; margin-bottom: 15px;">Mais para você</h3>
+            <div id="suggest-list-container" style="max-height: 350px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <script>
+        const audio = new Audio();
+        let trackList = [];
+        let curIdx = 0;
+
+        const suggestions = [
+            { term: 'Pop Hits 2026', icon: 'fa-bolt' },
+            { term: 'Lofi Vibes', icon: 'fa-coffee' },
+            { term: 'Deep House', icon: 'fa-moon' },
+            { term: 'Rock Classics', icon: 'fa-guitar' },
+            { term: 'Brazilian Funk', icon: 'fa-fire' },
+            { term: 'Piano Focus', icon: 'fa-brain' }
+        ];
+
+        // Inicialização
+        function renderHome() {
+            document.getElementById('grid-title').innerText = "Sugestões de busca";
+            const grid = document.getElementById('main-grid');
+            grid.innerHTML = suggestions.map(s => `
+                <div class="term-card" onclick="applySearch('${s.term}')">
+                    <i class="fas ${s.icon}"></i>
+                    <span>${s.term}</span>
+                </div>
+            `).join('');
+        }
+
+        function applySearch(term) {
+            document.getElementById('search-input').value = term;
+            search(term);
+        }
+
+        async function search(q = '') {
+            const query = q || document.getElementById('search-input').value;
+            if(!query) return renderHome();
+
+            document.getElementById('grid-title').innerText = `Resultados para: ${query}`;
+            try {
+                const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=25`);
+                const data = await res.json();
+                trackList = data.results;
+                renderResults();
+            } catch (e) { console.error("Erro na busca:", e); }
+        }
+
+        function renderResults() {
+            const grid = document.getElementById('main-grid');
+            grid.innerHTML = trackList.map((t, i) => `
+                <div class="card" onclick="openPlayer(${i})" style="animation-delay: ${i*0.05}s">
+                    <img src="${t.artworkUrl100.replace('100x100', '400x400')}">
+                    <div style="padding:12px;">
+                        <div style="font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px;">${t.trackName}</div>
+                        <div style="opacity:0.6; margin-top:3px; font-size:11px;">${t.artistName}</div>
+                    </div>
+                </div>`).join('');
+        }
+
+        function openPlayer(i) {
+            curIdx = i; const t = trackList[curIdx];
+            const img = t.artworkUrl100.replace('100x100', '600x600');
+            
+            document.getElementById('p-img').src = img;
+            document.getElementById('p-bg').style.backgroundImage = `url('${img}')`;
+            document.getElementById('p-title').innerText = t.trackName;
+            document.getElementById('p-artist').innerText = t.artistName;
+            
+            audio.src = t.previewUrl;
+            const modal = document.getElementById('player-modal');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.style.transform = 'translateY(0)', 10);
+            
+            audio.play();
+            document.getElementById('btn-p').innerHTML = '<i class="fas fa-pause"></i>';
+            
+            fetchLyrics(t.artistName, t.trackName);
+            renderPlatforms(t);
+            document.getElementById('song-info-extra').innerHTML = `
+                <p><b>Álbum:</b> ${t.collectionName || 'N/A'}</p>
+                <p><b>Gênero:</b> ${t.primaryGenreName}</p>
+                <p><b>Lançamento:</b> ${new Date(t.releaseDate).toLocaleDateString('pt-BR')}</p>
+                <p><b>Gravadora:</b> Apple Music Distribution</p>
+            `;
+        }
+
+        function closePlayer() {
+            const modal = document.getElementById('player-modal');
+            modal.style.transform = 'translateY(100%)';
+            setTimeout(() => { modal.style.display = 'none'; audio.pause(); }, 400);
+        }
+
+        // Funções de Áudio
+        function togglePlay() {
+            if (audio.paused) { 
+                audio.play(); 
+                document.getElementById('btn-p').innerHTML='<i class="fas fa-pause"></i>'; 
+            } else { 
+                audio.pause(); 
+                document.getElementById('btn-p').innerHTML='<i class="fas fa-play"></i>'; 
+            }
+        }
+
+        function next() { if(curIdx < trackList.length-1) openPlayer(curIdx+1); }
+        function prev() { if(curIdx > 0) openPlayer(curIdx-1); }
+
+        audio.ontimeupdate = () => {
+            const pct = (audio.currentTime / audio.duration) * 100;
+            document.getElementById('fill').style.width = pct + '%';
+        };
+
+        document.getElementById('prog-bar').onclick = (e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+        };
+
+        // Abas
+        function switchTab(e, id) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            e.target.classList.add('active');
+            document.getElementById(id).classList.add('active');
+        }
+
+        // Letras (Vagalume API)
+        async function fetchLyrics(a, s) {
+            const d = document.getElementById('lyric-content');
+            d.innerText = "Buscando letra...";
+            try {
+                const r = await fetch(`https://api.vagalume.com.br/search.php?art=${encodeURIComponent(a)}&mus=${encodeURIComponent(s)}`);
+                const data = await r.json();
+                d.innerText = (data.mus && data.mus[0]) ? data.mus[0].text : "Letra não disponível para esta faixa.";
+            } catch { d.innerText = "Erro ao carregar letra."; }
+        }
+
+        // Plataformas Externas
+        function renderPlatforms(t) {
+            const q = encodeURIComponent(`${t.artistName} ${t.trackName}`);
+            const srv = [
+                {n:'Spotify', i:'fab fa-spotify', c:'#1DB954', u:`https://open.spotify.com/search/${q}`},
+                {n:'YouTube Music', i:'fab fa-youtube', c:'#ff0000', u:`https://music.youtube.com/search?q=${q}`},
+                {n:'Apple Music', i:'fab fa-apple', c:'#ffffff', u:t.trackViewUrl}
+            ];
+            document.getElementById('platform-list').innerHTML = srv.map(s => `
+                <a href="${s.u}" target="_blank" style="display:flex; align-items:center; background:var(--glass); margin-bottom:12px; padding:18px; border-radius:20px; text-decoration:none; color:white; border:1px solid var(--glass-border);">
+                    <i class="${s.i}" style="font-size:22px; margin-right:15px; color:${s.c};"></i>
+                    <span style="flex:1; font-weight:500;">${s.n}</span>
+                    <i class="fas fa-external-link-alt" style="font-size:12px; opacity:0.5;"></i>
+                </a>`).join('');
+        }
+
+        // COMPARTILHAMENTO EXPANDIDO
+        function toggleShare(show) {
+            const sub = document.getElementById('share-submodal');
+            if(show) {
+                sub.style.display = 'flex';
+                renderShareOptions();
+            } else sub.style.display = 'none';
+        }
+
+        function renderShareOptions() {
+            const t = trackList[curIdx];
+            const rawUrl = `${window.location.origin}${window.location.pathname}?track=${t.trackId}`;
+            const url = encodeURIComponent(rawUrl);
+            const text = encodeURIComponent(`Ouça "${t.trackName}" de ${t.artistName} no Music Experience Pro! 🎵`);
+
+            const opts = [
+                {n:'WhatsApp', i:'fab fa-whatsapp', c:'#25D366', u:`https://wa.me/?text=${text}%20${url}`},
+                {n:'Insta Chat', i:'fab fa-instagram', c:'#E1306C', u:`https://www.instagram.com/direct/inbox/`},
+                {n:'FB Messenger', i:'fab fa-facebook-messenger', c:'#006AFF', u:`https://www.facebook.com/messages/t/`},
+                {n:'FB Story', i:'fab fa-facebook', c:'#1877F2', u:`https://www.facebook.com/sharer/sharer.php?u=${url}`},
+                {n:'Threads', i:'fa-solid fa-at', c:'#ffffff', u:`https://www.threads.net/intent/post?text=${text}%20${url}`},
+                {n:'X (Twitter)', i:'fab fa-x-twitter', c:'#ffffff', u:`https://twitter.com/intent/tweet?text=${text}&url=${url}`},
+                {n:'Telegram', i:'fab fa-telegram', c:'#0088cc', u:`https://t.me/share/url?url=${url}&text=${text}`},
+                {n:'LinkedIn', i:'fab fa-linkedin-in', c:'#0A66C2', u:`https://www.linkedin.com/sharing/share-offsite/?url=${url}`},
+                {n:'Copiar Link', i:'fas fa-link', c:'var(--primary)', u:'copy'}
+            ];
+
+            document.getElementById('share-options-container').innerHTML = opts.map(o => `
+                <div class="share-option" onclick="${o.u === 'copy' ? `copyLink('${rawUrl}')` : `window.open('${o.u}', '_blank')`}">
+                    <div class="share-icon" style="border-color: ${o.c}44;">
+                        <i class="${o.i}" style="color: ${o.c}"></i>
+                    </div>
+                    <span style="font-size: 10px; text-align: center;">${o.n}</span>
+                </div>`).join('');
+        }
+
+        function copyLink(txt) { 
+            navigator.clipboard.writeText(txt); 
+            alert("Link copiado com sucesso!"); 
+        }
+
+        // Sugestões (Magic Mix)
+        function toggleSuggest(show) {
+            const sub = document.getElementById('suggest-submodal');
+            if(show) {
+                sub.style.display = 'flex';
+                fetchMagicMix();
+            } else sub.style.display = 'none';
+        }
+
+        async function fetchMagicMix() {
+            const t = trackList[curIdx];
+            const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(t.primaryGenreName)}&entity=song&limit=10`);
+            const data = await res.json();
+            document.getElementById('suggest-list-container').innerHTML = data.results.map(s => `
+                <div style="display:flex; align-items:center; gap:12px; padding:10px; background:rgba(255,255,255,0.03); margin-bottom:8px; border-radius:12px; cursor:pointer;" onclick="playSelected(${JSON.stringify(s).replace(/"/g, '&quot;')})">
+                    <img src="${s.artworkUrl60}" style="width:45px; border-radius:8px;">
+                    <div style="flex:1; overflow:hidden;">
+                        <div style="font-weight:bold; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.trackName}</div>
+                        <div style="opacity:0.6; font-size:11px;">${s.artistName}</div>
+                    </div>
+                    <i class="fas fa-play" style="color:var(--primary); font-size:12px;"></i>
+                </div>
+            `).join('');
+        }
+
+        function playSelected(s) {
+            trackList.push(s);
+            toggleSuggest(false);
+            openPlayer(trackList.length - 1);
+        }
+
+        // Voz
+        const recognition = 'webkitSpeechRecognition' in window ? new webkitSpeechRecognition() : null;
+        if(recognition) {
+            recognition.lang = 'pt-BR';
+            recognition.onresult = (e) => {
+                const text = e.results[0][0].transcript;
+                document.getElementById('voice-result').innerText = text;
+                if(e.results[0].isFinal) { setTimeout(() => { stopVoiceSearch(); applySearch(text); }, 600); }
+            }
+        }
+
+        function startVoiceSearch() {
+            if(!recognition) return alert("Navegador não suporta voz.");
+            document.getElementById('voice-overlay').style.display = 'flex';
+            recognition.start();
+        }
+
+        function stopVoiceSearch() {
+            document.getElementById('voice-overlay').style.display = 'none';
+            recognition.stop();
+        }
+
+        // Gestos
+        let touchstartY = 0;
+        document.getElementById('player-modal').addEventListener('touchstart', e => touchstartY = e.changedTouches[0].screenY);
+        document.getElementById('player-modal').addEventListener('touchend', e => {
+            if (e.changedTouches[0].screenY - touchstartY > 150) closePlayer();
+        });
+
+        document.getElementById('search-input').onkeypress = e => { if(e.key==='Enter') search(); };
+        
+        window.onload = renderHome;
+    </script>
+</body>
+</html>
