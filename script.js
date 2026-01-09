@@ -13,7 +13,6 @@ const mainModal = document.getElementById('news-modal');
 const enginesSubmodal = document.getElementById('engines-submodal');
 const videosSubmodal = document.getElementById('videos-submodal');
 const suggestionsContainer = document.getElementById('suggestions-container');
-const redditContainer = document.getElementById('reddit-container'); // Novo
 
 // Elementos Busca por Voz
 const voiceBtn = document.getElementById('voice-search-btn');
@@ -55,43 +54,6 @@ function renderArticles(articles, append) {
         card.onclick = () => openModal(art);
         newsList.appendChild(card);
     });
-}
-
-// Nova Função para Buscar posts do Reddit
-async function fetchRedditPosts(title) {
-    redditContainer.innerHTML = '<p style="font-size:0.8em; color:var(--text-color-muted); padding:10px;">Buscando discussões...</p>';
-    const query = encodeURIComponent(title.split(' ').slice(0, 4).join(' '));
-    const url = `https://www.reddit.com/search.json?q=${query}&limit=6&sort=relevance`;
-
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-        redditContainer.innerHTML = '';
-
-        if (data.data.children && data.data.children.length > 0) {
-            data.data.children.forEach(post => {
-                const p = post.data;
-                const card = document.createElement('div');
-                card.className = 'reddit-card';
-                card.innerHTML = `
-                    <div>
-                        <span class="subreddit-name">r/${p.subreddit}</span>
-                        <h4>${p.title}</h4>
-                    </div>
-                    <div class="reddit-stats">
-                        <span><i class="fas fa-arrow-up"></i> ${p.ups}</span>
-                        <span><i class="fas fa-comment"></i> ${p.num_comments}</span>
-                    </div>
-                `;
-                card.onclick = () => window.open(`https://www.reddit.com${p.permalink}`, '_blank');
-                redditContainer.appendChild(card);
-            });
-        } else {
-            redditContainer.innerHTML = '<p style="font-size:0.8em; color:var(--text-color-muted); padding:10px;">Nenhuma discussão encontrada.</p>';
-        }
-    } catch (err) {
-        redditContainer.innerHTML = '<p>Erro ao carregar Reddit.</p>';
-    }
 }
 
 async function fetchSuggestions(title) {
@@ -144,13 +106,10 @@ function openModal(art) {
     
     mainModal.style.display = 'block';
     document.body.style.overflow = 'hidden';
-    
-    // Novas chamadas integradas
     fetchSuggestions(art.title);
-    fetchRedditPosts(art.title);
 }
 
-// LOGICA DE VOZ (ORIGINAL)
+// LOGICA DE VOZ COM FEEDBACK VISUAL
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new Recognition();
@@ -181,6 +140,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 
     recognition.onend = () => {
+        // Se parou sem resultado (clique fora ou silêncio)
         setTimeout(() => {
             if (voiceStatus.innerText === "Ouvindo...") voiceModal.style.display = 'none';
         }, 1500);
@@ -192,7 +152,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 }
 
-// EVENTOS DE INTERFACE (ORIGINAL)
+// EVENTOS DE INTERFACE
 document.getElementById('share-news-btn').onclick = async () => {
     if (navigator.share && currentArticleData) {
         try { await navigator.share({ title: currentArticleData.title, text: 'LoreSpace News:', url: currentArticleData.url }); } catch (e) {}
@@ -208,7 +168,7 @@ document.getElementById('close-videos-submodal').onclick = () => videosSubmodal.
 window.onclick = (e) => {
     if (e.target == enginesSubmodal) enginesSubmodal.style.display = 'none';
     if (e.target == videosSubmodal) videosSubmodal.style.display = 'none';
-    if (e.target == voiceModal) { voiceModal.style.display = 'none'; }
+    if (e.target == voiceModal) { recognition.stop(); voiceModal.style.display = 'none'; }
 };
 
 searchInput.addEventListener('keypress', (e) => {
