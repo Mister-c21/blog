@@ -8,13 +8,12 @@ const loading = document.getElementById('news-loading');
 const loadMoreBtn = document.getElementById('load-more-news');
 const searchInput = document.getElementById('main-search-input');
 
-// Elementos Modais
 const mainModal = document.getElementById('news-modal');
 const enginesSubmodal = document.getElementById('engines-submodal');
 const videosSubmodal = document.getElementById('videos-submodal');
 const suggestionsContainer = document.getElementById('suggestions-container');
+const redditContainer = document.getElementById('reddit-container');
 
-// Elementos Busca por Voz
 const voiceBtn = document.getElementById('voice-search-btn');
 const voiceModal = document.getElementById('voice-modal');
 const voiceStatus = document.getElementById('voice-status');
@@ -56,6 +55,40 @@ function renderArticles(articles, append) {
     });
 }
 
+// FUNÇÃO REDDIT
+async function fetchRedditPosts(title) {
+    redditContainer.innerHTML = '<p style="font-size:0.8em; color:var(--text-color-muted); padding:10px;">Buscando discussões...</p>';
+    const query = encodeURIComponent(title.split(' ').slice(0, 4).join(' '));
+    const url = `https://www.reddit.com/search.json?q=${query}&limit=6&sort=relevance`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        redditContainer.innerHTML = '';
+        if (data.data.children && data.data.children.length > 0) {
+            data.data.children.forEach(post => {
+                const p = post.data;
+                const card = document.createElement('div');
+                card.className = 'reddit-card';
+                card.innerHTML = `
+                    <div>
+                        <span class="subreddit-name">r/${p.subreddit}</span>
+                        <h4>${p.title}</h4>
+                    </div>
+                    <div class="reddit-stats">
+                        <span><i class="fas fa-arrow-up"></i> ${p.ups}</span>
+                        <span><i class="fas fa-comment"></i> ${p.num_comments}</span>
+                    </div>
+                `;
+                card.onclick = () => window.open(`https://www.reddit.com${p.permalink}`, '_blank');
+                redditContainer.appendChild(card);
+            });
+        } else {
+            redditContainer.innerHTML = '<p style="font-size:0.8em; color:var(--text-color-muted); padding:10px;">Sem discussões encontradas.</p>';
+        }
+    } catch (err) { redditContainer.innerHTML = '<p>Erro ao conectar ao Reddit.</p>'; }
+}
+
 async function fetchSuggestions(title) {
     suggestionsContainer.innerHTML = '<p style="font-size:0.8em; color:var(--text-color-muted); padding:10px;">Buscando sugestões...</p>';
     const simplifiedQuery = title.split(' ').slice(0, 3).join(' ');
@@ -76,7 +109,7 @@ async function fetchSuggestions(title) {
                 suggestionsContainer.appendChild(div);
             });
         } else {
-            suggestionsContainer.innerHTML = '<p style="font-size:0.8em; color:var(--text-color-muted); padding:10px;">Sem sugestões no momento.</p>';
+            suggestionsContainer.innerHTML = '<p style="font-size:0.8em; color:var(--text-color-muted); padding:10px;">Sem sugestões.</p>';
         }
     } catch (err) { suggestionsContainer.innerHTML = '<p>Erro ao carregar sugestões.</p>'; }
 }
@@ -88,111 +121,51 @@ function openModal(art) {
     document.getElementById('modal-image').src = art.urlToImage || 'https://via.placeholder.com/800x400/222/8a2be2?text=LoreSpace';
     document.getElementById('modal-text').innerHTML = art.content || art.description || 'Conteúdo indisponível.';
     document.getElementById('modal-original-link').href = art.url;
-    const q = encodeURIComponent(art.title);
     
-    // Links dos motores de busca
+    const q = encodeURIComponent(art.title);
     document.getElementById('link-google').href = `https://www.google.com/search?q=${q}`;
     document.getElementById('link-google-news').href = `https://news.google.com/search?q=${q}`;
-    document.getElementById('link-uol').href = `https://noticias.uol.com.br/busca/?q=${q}`;
-    document.getElementById('link-naver').href = `https://search.naver.com/search.naver?where=news&query=${q}`;
-    document.getElementById('link-baidu').href = `https://www.baidu.com/s?tn=news&word=${q}`;
-    
-    // Links de vídeo
     document.getElementById('video-youtube').href = `https://www.youtube.com/results?search_query=${q}`;
-    document.getElementById('video-naver').href = `https://tv.naver.com/search?query=${q}`;
-    document.getElementById('video-google').href = `https://www.google.com/search?q=${q}&tbm=vid`;
-    document.getElementById('video-baidu').href = `https://www.baidu.com/sf/vsearch?word=${q}`;
-    document.getElementById('video-yandex').href = `https://yandex.com/video/search?text=${q}`;
     
     mainModal.style.display = 'block';
     document.body.style.overflow = 'hidden';
+    
     fetchSuggestions(art.title);
+    fetchRedditPosts(art.title); // CHAMADA DO REDDIT
 }
 
-// LOGICA DE VOZ COM FEEDBACK VISUAL
+// Lógica de Voz
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new Recognition();
     recognition.lang = 'pt-BR';
-    recognition.continuous = false;
 
     voiceBtn.addEventListener('click', () => recognition.start());
-    cancelVoiceBtn.onclick = () => { recognition.stop(); voiceModal.style.display = 'none'; };
-
-    recognition.onstart = () => {
-        voiceModal.style.display = 'flex';
-        voiceStatus.innerText = "Ouvindo...";
-        voiceTranscript.innerText = "";
-    };
-
+    recognition.onstart = () => { voiceModal.style.display = 'flex'; voiceStatus.innerText = "Ouvindo..."; };
     recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
-        voiceTranscript.innerText = `"${transcript}"`;
-        voiceStatus.innerText = "Entendi!";
-        
-        setTimeout(() => {
-            searchInput.value = transcript;
-            currentQuery = transcript;
-            currentPage = 1;
-            fetchNews(currentQuery);
-            voiceModal.style.display = 'none';
-        }, 800);
+        searchInput.value = transcript;
+        fetchNews(transcript);
+        voiceModal.style.display = 'none';
     };
-
-    recognition.onend = () => {
-        // Se parou sem resultado (clique fora ou silêncio)
-        setTimeout(() => {
-            if (voiceStatus.innerText === "Ouvindo...") voiceModal.style.display = 'none';
-        }, 1500);
-    };
-
-    recognition.onerror = () => {
-        voiceStatus.innerText = "Não consegui ouvir...";
-        setTimeout(() => { voiceModal.style.display = 'none'; }, 1500);
-    };
+    cancelVoiceBtn.onclick = () => { recognition.stop(); voiceModal.style.display = 'none'; };
 }
 
-// EVENTOS DE INTERFACE
-document.getElementById('share-news-btn').onclick = async () => {
-    if (navigator.share && currentArticleData) {
-        try { await navigator.share({ title: currentArticleData.title, text: 'LoreSpace News:', url: currentArticleData.url }); } catch (e) {}
-    } else { alert("Link original: " + currentArticleData.url); }
-};
-
+// Eventos de Interface
 document.getElementById('modal-close-btn').onclick = () => { mainModal.style.display = 'none'; document.body.style.overflow = 'auto'; };
-document.getElementById('open-engines-submodal').onclick = (e) => { e.stopPropagation(); enginesSubmodal.style.display = 'flex'; };
-document.getElementById('open-videos-submodal').onclick = (e) => { e.stopPropagation(); videosSubmodal.style.display = 'flex'; };
-document.getElementById('close-engines-submodal').onclick = () => enginesSubmodal.style.display = 'none';
-document.getElementById('close-videos-submodal').onclick = () => videosSubmodal.style.display = 'none';
-
-window.onclick = (e) => {
-    if (e.target == enginesSubmodal) enginesSubmodal.style.display = 'none';
-    if (e.target == videosSubmodal) videosSubmodal.style.display = 'none';
-    if (e.target == voiceModal) { recognition.stop(); voiceModal.style.display = 'none'; }
-};
-
-searchInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && searchInput.value.trim() !== '') {
-        currentQuery = searchInput.value;
-        currentPage = 1;
-        fetchNews(currentQuery);
-    }
-});
-
-loadMoreBtn.onclick = () => { currentPage++; fetchNews(currentQuery, currentPage, true); };
-
 document.getElementById('menu-toggle-btn').onclick = () => {
     document.getElementById('sidebar').classList.add('open');
     document.getElementById('overlay').style.display = 'block';
 };
-
-function closeSidebar() {
+document.getElementById('close-sidebar-btn').onclick = () => {
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('overlay').style.display = 'none';
-}
+};
 
-document.getElementById('close-sidebar-btn').onclick = closeSidebar;
-document.getElementById('overlay').onclick = closeSidebar;
+searchInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') fetchNews(searchInput.value);
+});
 
-// Inicialização
+loadMoreBtn.onclick = () => { currentPage++; fetchNews(currentQuery, currentPage, true); };
+
 window.onload = () => fetchNews(currentQuery);
