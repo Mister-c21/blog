@@ -75,17 +75,12 @@
         .avatar-thumb { width: 55px; height: 55px; border-radius: 50%; border: 2px solid var(--blueviolet-color); margin-right: 15px; object-fit: cover; }
         .tag-type { font-size: 0.6rem; background: var(--blueviolet-color); padding: 3px 8px; border-radius: 10px; font-weight: bold; float: right; }
 
-        /* MODAL DE INFORMAÇÕES (PROFILE HUB) */
+        /* --- MODAL DE INFORMAÇÕES (PERFIL) --- */
         #profile-hub {
-            display: none; 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(8, 8, 10, 0.95); 
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(8, 8, 10, 0.95); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
             z-index: 100; overflow-y: auto; flex-direction: column;
-            animation: slideIn 0.3s ease-out;
         }
-
-        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         .cover-photo { height: 260px; background: var(--blueviolet-color); position: relative; display: flex; align-items: flex-end; justify-content: center; background-size: cover; background-position: center; flex-shrink: 0; }
         .btn-close { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.5); padding: 8px 15px; border-radius: 20px; cursor: pointer; z-index: 10; font-size: 0.8rem; color: white; border: 1px solid var(--vidro-forte); }
@@ -103,9 +98,10 @@
         .nav-btn { background: var(--vidro); border: 1px solid var(--vidro-forte); color: var(--ghost); padding: 10px 20px; border-radius: 20px; cursor: pointer; white-space: nowrap; font-size: 0.8rem; }
         .nav-btn.active { background: var(--blueviolet-color); border-color: var(--blueviolet-color); font-weight: bold; }
 
-        .tab-content { text-align: left; line-height: 1.7; font-size: 0.95rem; }
+        .tab-content { text-align: left; line-height: 1.7; font-size: 0.95rem; animation: fadeIn 0.4s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
         .platform-link { display: flex; align-items: center; background: var(--vidro); border: 1px solid var(--vidro-forte); padding: 16px; border-radius: 15px; margin-bottom: 10px; text-decoration: none; color: var(--ghost); font-weight: bold; }
-        
         .hidden { display: none !important; }
 
         /* MODAIS SECUNDÁRIOS */
@@ -115,6 +111,10 @@
             z-index: 200; border-radius: 30px 30px 0 0; border-top: 2px solid var(--blueviolet-color);
             padding: 25px; flex-direction: column; overflow: hidden;
         }
+
+        .music-item-player { background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 18px; margin-bottom: 12px; border: 1px solid var(--vidro-forte); display: flex; flex-direction: column; gap: 8px; }
+        .progress-container { width: 100%; height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; margin-top: 5px; }
+        .progress-bar { height: 100%; background: var(--blueviolet-color); width: 0%; transition: width 0.1s linear; }
 
         #voice-modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -127,10 +127,8 @@
         @media (min-width: 900px) {
             .sidebar-area { width: 420px; flex-shrink: 0; }
             #profile-hub {
-                display: none; /* Só aparece quando clica */
-                position: relative; flex: 1; height: 100%; z-index: 1;
-                border-left: 1px solid var(--vidro-forte);
-                background: #08080a;
+                display: none; position: relative; flex: 1; height: 100%; z-index: 1;
+                border-left: 1px solid var(--vidro-forte); background: #08080a;
             }
         }
     </style>
@@ -203,9 +201,19 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><h3>Trilhas</h3><span style="cursor:pointer; font-size:2rem" onclick="closeSub('music')">×</span></div>
             <div id="music-list" style="overflow-y:auto"></div>
         </div>
+
         <div id="sub-wiki" class="submodal">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><h3>Artigos</h3><span style="cursor:pointer; font-size:2rem" onclick="closeSub('wiki')">×</span></div>
             <div id="wiki-list" style="overflow-y:auto"></div>
+        </div>
+
+        <div id="sub-wiki-preview" class="submodal">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><div onclick="backToWikiList()" style="cursor:pointer; color:var(--blueviolet-color); font-weight:bold"><i class="fas fa-chevron-left"></i> Voltar</div><span style="cursor:pointer; font-size:2rem" onclick="closeSub('wiki-preview')">×</span></div>
+            <div id="preview-content" style="overflow-y:auto">
+                <div style="display:flex; gap:15px; margin-bottom:15px"><img id="pre-img" style="width:80px; height:80px; border-radius:10px; object-fit:cover; background: var(--vidro);"><h2 id="pre-title"></h2></div>
+                <button class="insta-btn" id="tts-btn" onclick="toggleSpeech()" style="width:100%; justify-content:center; margin-bottom:15px;"><i class="fas fa-volume-up"></i> <span>Ouvir Artigo</span></button>
+                <div id="pre-text" style="font-size:0.9rem; opacity:0.8; line-height:1.6"></div>
+            </div>
         </div>
     </div>
 
@@ -222,6 +230,7 @@
 let wikiData = [];
 let audio = new Audio();
 let progressInterval = null;
+let currentUtterance = null;
 
 async function init() {
     try {
@@ -247,12 +256,44 @@ function render(data) {
         </div>`).join('');
 }
 
+// BUSCA
+document.getElementById('search').addEventListener('input', (e) => {
+    const val = e.target.value.toLowerCase();
+    document.getElementById('clear-search').classList.toggle('visible', val.length > 0);
+    render(wikiData.filter(c => c.name.toLowerCase().includes(val)));
+});
+
+document.getElementById('clear-search').onclick = () => {
+    document.getElementById('search').value = '';
+    document.getElementById('clear-search').classList.remove('visible');
+    render(wikiData);
+};
+
+// VOZ (MANTIDO)
+const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (Speech) {
+    const rec = new Speech();
+    rec.lang = 'pt-BR';
+    document.getElementById('voice-btn').onclick = () => {
+        rec.start();
+        document.getElementById('voice-modal').style.display = 'flex';
+    };
+    rec.onresult = (e) => {
+        const text = e.results[0][0].transcript;
+        document.getElementById('search').value = text;
+        render(wikiData.filter(c => c.name.toLowerCase().includes(text.toLowerCase())));
+        setTimeout(closeVoice, 1000);
+    };
+    rec.onerror = () => closeVoice();
+}
+function closeVoice() { document.getElementById('voice-modal').style.display = 'none'; }
+
+// PERFIL (ABERTURA DIRETA)
 function openHub(name) {
     const p = wikiData.find(i => i.name === name);
     if(!p) return;
 
-    const hub = document.getElementById('profile-hub');
-    hub.style.display = 'flex'; // Abre o modal direto
+    document.getElementById('profile-hub').style.display = 'flex';
 
     document.getElementById('p-name').innerText = p.name;
     document.getElementById('p-img').src = p.img;
@@ -271,18 +312,13 @@ function openHub(name) {
     switchTab(document.querySelector('.nav-btn'), 'tab-bio');
 }
 
-function closeHub() { 
-    audio.pause(); 
-    document.getElementById('profile-hub').style.display = 'none'; 
-}
-
 function switchTab(btn, tabId) {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-    btn.classList.add('active'); 
-    document.getElementById(tabId).classList.remove('hidden');
+    btn.classList.add('active'); document.getElementById(tabId).classList.remove('hidden');
 }
 
+// APIS SECUNDÁRIAS (TUDO MANTIDO)
 async function openSub(type) {
     const name = document.getElementById('p-name').innerText;
     const list = document.getElementById(`${type}-list`);
@@ -292,25 +328,61 @@ async function openSub(type) {
     if(type === 'music') {
         const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(name)}&entity=song&limit=5`).then(res => res.json());
         list.innerHTML = r.results.map((t, i) => `
-            <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:12px; margin-bottom:8px;">
-                ${t.trackName}
+            <div class="music-item-player">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <img src="${t.artworkUrl60}" style="border-radius:10px; width:45px;">
+                    <div style="flex:1; overflow:hidden;">${t.trackName}</div>
+                    <i class="fas fa-play" style="color:var(--blueviolet-color); cursor:pointer;" id="icon-${i}" onclick="togglePlay('${t.previewUrl}', ${i})"></i>
+                </div>
+                <div class="progress-container"><div class="progress-bar" id="bar-${i}"></div></div>
             </div>`).join('') || "Sem músicas.";
     } else {
         const r = await fetch(`https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&format=json&origin=*`).then(res => res.json());
         list.innerHTML = r.query.search.map(s => `
-            <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:12px; margin-bottom:8px; border-left:4px solid var(--blueviolet-color);">
+            <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:12px; margin-bottom:8px; border-left:4px solid var(--blueviolet-color); cursor:pointer;" onclick="openWikiPreview('${s.title}')">
                 <strong>${s.title}</strong>
             </div>`).join('') || "Sem artigos.";
     }
 }
 
-function closeSub(type) { document.getElementById(`sub-${type}`).style.display = 'none'; }
+function togglePlay(url, index) {
+    const icon = document.getElementById(`icon-${index}`);
+    if (audio.src === url && !audio.paused) {
+        audio.pause();
+        icon.className = "fas fa-play";
+        clearInterval(progressInterval);
+    } else {
+        document.querySelectorAll('.fa-pause').forEach(i => i.className = "fas fa-play");
+        audio.src = url; audio.play();
+        icon.className = "fas fa-pause";
+        progressInterval = setInterval(() => {
+            document.getElementById(`bar-${index}`).style.width = (audio.currentTime / audio.duration * 100) + "%";
+            if(audio.ended) { icon.className = "fas fa-play"; clearInterval(progressInterval); }
+        }, 100);
+    }
+}
 
-// Busca e Voz mantidos (sem alteração lógica)
-document.getElementById('search').addEventListener('input', (e) => {
-    const val = e.target.value.toLowerCase();
-    render(wikiData.filter(c => c.name.toLowerCase().includes(val)));
-});
+async function openWikiPreview(title) {
+    document.getElementById('sub-wiki').style.display = 'none';
+    document.getElementById('sub-wiki-preview').style.display = 'flex';
+    const data = await fetch(`https://pt.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`).then(r => r.json());
+    document.getElementById('pre-title').innerText = data.title;
+    document.getElementById('pre-text').innerText = data.extract;
+    if(data.thumbnail) document.getElementById('pre-img').src = data.thumbnail.source;
+}
+
+function toggleSpeech() {
+    if (window.speechSynthesis.speaking) { window.speechSynthesis.cancel(); } 
+    else {
+        currentUtterance = new SpeechSynthesisUtterance(document.getElementById('pre-text').innerText);
+        currentUtterance.lang = 'pt-BR';
+        window.speechSynthesis.speak(currentUtterance);
+    }
+}
+
+function closeSub(type) { window.speechSynthesis.cancel(); audio.pause(); document.getElementById(`sub-${type}`).style.display = 'none'; }
+function closeHub() { closeSub('music'); document.getElementById('profile-hub').style.display = 'none'; }
+function backToWikiList() { document.getElementById('sub-wiki-preview').style.display = 'none'; document.getElementById('sub-wiki').style.display = 'flex'; }
 
 init();
 </script>
