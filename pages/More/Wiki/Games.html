@@ -15,6 +15,8 @@
             --glass-border: rgba(248, 248, 255, 0.18);
             --text: ghostwhite;
             --glass-modal: rgba(248, 248, 255, 0.08);
+            /* Cor personalizada salva */
+            --ghost: #f8f8ff; 
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
@@ -23,7 +25,7 @@
             color: var(--text); font-family: 'Roboto', sans-serif; overflow-x: hidden; 
         }
 
-        /* --- HEADER COM BOTÃO DE SETA --- */
+        /* --- HEADER --- */
         .header { 
             padding: 15px 20px; position: sticky; top: 0; z-index: 1000; 
             background: rgba(26, 10, 46, 0.75); backdrop-filter: blur(25px);
@@ -96,14 +98,48 @@
 
         .close-modal-btn { width: 100%; background: none; border: 2px solid var(--primary); color: ghostwhite; padding: 15px; cursor: pointer; font-weight: 700; border-radius: 16px; margin-top: 25px; text-transform: uppercase; }
 
+        /* --- ASSISTENTE AJUSTADO (Desktop e Mobile) --- */
         #assistant-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; z-index: 4000; backdrop-filter: blur(15px); }
-        #assistant-panel { position: fixed; background: rgba(248, 248, 255, 0.95); z-index: 4001; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; border-radius: 40px; }
-        @media (min-width: 768px) { #assistant-panel { width: 450px; height: 350px; left: 50%; top: 50%; transform: translate(-50%, -50%); } }
-        @media (max-width: 767px) { #assistant-panel { bottom: -100%; left: 0; width: 100%; height: 350px; border-radius: 35px 35px 0 0; } #assistant-panel.active { bottom: 0; } }
+        
+        #assistant-panel { 
+            position: fixed; 
+            background: rgba(248, 248, 255, 0.1); /* Vidro semitransparente */
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            z-index: 4001; 
+            display: none; /* Começa escondido */
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            transition: 0.5s; 
+            opacity: 0;
+        }
+
+        /* Layout Desktop */
+        @media (min-width: 768px) { 
+            #assistant-panel { 
+                width: 450px; height: 350px; left: 50%; top: 50%; 
+                transform: translate(-50%, -50%) scale(0.9); 
+                border-radius: 40px;
+            } 
+            #assistant-panel.active { display: flex; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        /* Layout Mobile */
+        @media (max-width: 767px) { 
+            #assistant-panel { 
+                bottom: -100%; left: 0; width: 100%; height: 350px; 
+                border-radius: 35px 35px 0 0; 
+                display: flex; /* Flex no mobile para a animação de subir */
+            } 
+            #assistant-panel.active { bottom: 0; opacity: 1; display: flex; } 
+        }
+
         .bars-container { display: flex; gap: 10px; height: 60px; margin-top: 40px; }
         .bar { width: 6px; height: 18px; border-radius: 10px; background: var(--primary); }
         .listening .bar { animation: barWave 0.6s infinite ease-in-out alternate; }
         @keyframes barWave { 0% { height: 12px; } 100% { height: 55px; } }
+        
         #loader { display: none; text-align: center; padding: 80px; color: var(--primary); }
     </style>
 </head>
@@ -125,11 +161,11 @@
 
     <div id="assistant-overlay" onclick="closeAssistant()"></div>
     <div id="assistant-panel">
-        <div id="assistant-status" style="color: #4b0082; font-size:24px; font-weight:700;">Ouvindo...</div>
-        <div class="bars-container" id="bars-box">
+        <div id="assistant-status" style="color: var(--text); font-size:24px; font-weight:700;">Ouvindo...</div>
+        <div class="bars-container listening" id="bars-box">
             <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
         </div>
-        <button onclick="closeAssistant()" style="margin-top:40px; background:none; border:none; color:blueviolet; cursor:pointer; font-weight:700;">CANCELAR</button>
+        <button onclick="closeAssistant()" style="margin-top:40px; background:none; border:none; color:var(--primary); cursor:pointer; font-weight:700; font-size: 16px;">CANCELAR</button>
     </div>
 
     <div id="modal-overlay">
@@ -168,6 +204,7 @@
         let currentUtterance = null;
         let currentGameData = null;
 
+        // --- FUNÇÕES DE BUSCA E MODAL ---
         async function fetchGames(q = '') {
             document.getElementById('loader').style.display = 'block';
             gameGrid.innerHTML = '';
@@ -185,6 +222,7 @@
             document.getElementById('loader').style.display = 'none';
         }
 
+        // Funções auxiliares (translate, audio, share, related, openGame, closeModal) mantidas como no original...
         async function translateText(text) {
             const userLang = navigator.language.split('-')[0] || 'pt';
             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${userLang}&dt=t&q=${encodeURIComponent(text)}`;
@@ -278,27 +316,45 @@
             document.getElementById('audio-trigger').classList.remove('playing');
         }
 
+        // --- LÓGICA DE RECONHECIMENTO DE VOZ ATUALIZADA ---
         const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (Recognition) {
             const rec = new Recognition();
             rec.lang = 'pt-BR';
+            
             document.getElementById('mic-trigger').onclick = () => {
-                document.getElementById('assistant-overlay').style.display = 'block';
-                document.getElementById('assistant-panel').classList.add('active');
+                const overlay = document.getElementById('assistant-overlay');
+                const panel = document.getElementById('assistant-panel');
+                
+                overlay.style.display = 'block';
+                panel.style.display = 'flex'; // Garante display flex para desktop
+                setTimeout(() => panel.classList.add('active'), 10);
+                
                 rec.start();
             };
+
             rec.onresult = (e) => {
                 const text = e.results[0][0].transcript;
                 closeAssistant();
                 document.getElementById('search-input').value = text;
                 fetchGames(text);
             };
-            rec.onerror = closeAssistant;
+
+            rec.onerror = () => closeAssistant();
+            rec.onend = () => {}; 
         }
 
         function closeAssistant() {
-            document.getElementById('assistant-overlay').style.display = 'none';
-            document.getElementById('assistant-panel').classList.remove('active');
+            const overlay = document.getElementById('assistant-overlay');
+            const panel = document.getElementById('assistant-panel');
+            
+            panel.classList.remove('active');
+            overlay.style.display = 'none';
+            
+            // Aguarda o tempo da transição CSS para esconder o display no desktop
+            setTimeout(() => {
+                if(!panel.classList.contains('active')) panel.style.display = 'none';
+            }, 500);
         }
 
         fetchGames();
