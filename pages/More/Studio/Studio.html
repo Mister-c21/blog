@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studio</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-violet: #8a2be2;
+            --ghost-white: #f8f8ff;
+            --glass-bg: rgba(255, 255, 255, 0.15);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --modal-glass: rgba(30, 5, 60, 0.98); 
+            --sub-glass: rgba(20, 5, 45, 1);
+        }
+
+        body {
+            background-color: var(--primary-violet);
+            margin: 0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--ghost-white);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .back-nav { font-size: 20px; margin-right: 15px; cursor: pointer; color: var(--ghost-white); }
+        header h1 { margin: 0; font-size: 1.4rem; font-weight: 600; letter-spacing: 1px; }
+
+        main { display: flex; align-items: center; height: calc(100vh - 75px); }
+        .horizontal-gallery {
+            display: flex;
+            gap: 20px;
+            padding: 0 30px;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+        }
+        .horizontal-gallery::-webkit-scrollbar { display: none; }
+
+        .card {
+            flex: 0 0 auto;
+            width: 270px;
+            height: 400px;
+            background: var(--glass-bg);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+            scroll-snap-align: center;
+            cursor: pointer;
+            transition: 0.4s;
+        }
+        .card img { width: 100%; height: 100%; object-fit: cover; }
+
+        .modal-overlay, .submodal-overlay, .search-selector-overlay, .video-selector-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+        }
+        .modal-overlay { background: var(--modal-glass); }
+        .submodal-overlay { background: var(--sub-glass); z-index: 3000; }
+        .search-selector-overlay, .video-selector-overlay { background: rgba(10, 0, 20, 0.95); z-index: 4000; }
+        .active { display: flex; transform: translateY(0); }
+
+        .modal-nav { padding: 20px; display: flex; align-items: center; }
+        .close-btn { font-size: 28px; cursor: pointer; margin-right: 15px; color: var(--ghost-white); }
+
+        .modal-body { flex: 1; overflow-y: auto; padding: 0 0 50px 0; }
+
+        .action-bar { display: flex; gap: 8px; margin: 20px 25px 30px; }
+        .btn-action {
+            flex: 1; background: var(--glass-bg); border: 1px solid var(--glass-border);
+            color: var(--ghost-white); padding: 12px 5px; border-radius: 12px;
+            font-size: 9px; font-weight: 600; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 8px; text-transform: uppercase;
+        }
+        
+        /* Feedback Visual no Ícone */
+        .btn-action.speaking i {
+            color: #d1b3ff;
+            animation: pulse-audio 1s infinite;
+        }
+
+        @keyframes pulse-audio {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.4); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .btn-action i { font-size: 16px; transition: 0.3s; }
+
+        .search-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 20px 25px; }
+        .search-engine-btn {
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            padding: 15px; border-radius: 16px; color: var(--ghost-white);
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+            cursor: pointer; text-decoration: none; transition: 0.3s;
+        }
+        .search-engine-btn:hover { background: var(--primary-violet); border-color: var(--ghost-white); }
+        .engine-region { font-size: 9px; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px; }
+
+        .suggestions-scroll { display: flex; gap: 15px; padding: 10px 25px; overflow-x: auto; scrollbar-width: none; }
+        .suggestion-card { flex: 0 0 auto; width: 110px; cursor: pointer; }
+        .suggestion-card .img-wrap { width: 110px; height: 110px; border-radius: 22px; overflow: hidden; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); margin-bottom: 8px; }
+        .suggestion-card img { width: 100%; height: 100%; object-fit: cover; }
+        .suggestion-card h4 { margin: 0; font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ghost-white); }
+
+        .btn-main-access { background-color: var(--ghost-white); color: var(--primary-violet); border: none; padding: 16px; border-radius: 14px; font-weight: 800; width: calc(100% - 50px); margin: 0 25px 30px; cursor: pointer; text-transform: uppercase; }
+        .section-label { font-size: 18px; font-weight: 600; margin: 35px 25px 15px; border-left: 4px solid var(--ghost-white); padding-left: 12px; }
+        .desc-content { color: rgba(248, 248, 255, 0.85); line-height: 1.8; font-size: 15px; text-align: justify; padding: 0 25px; transition: opacity 0.3s; }
+        .info-header { display: flex; gap: 20px; margin: 0 25px 25px; }
+        .info-icon { width: 85px; height: 85px; border-radius: 20px; object-fit: cover; border: 1px solid var(--glass-border); }
+        .creator-link { color: #d1b3ff; font-weight: 600; font-size: 14px; text-decoration: none; display: block; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="back-nav"><i class="fa-solid fa-arrow-left"></i></div>
+        <h1>Studio</h1>
+    </header>
+
+    <main><div class="horizontal-gallery" id="mainGallery"></div></main>
+
+    <div class="modal-overlay" id="mainModal">
+        <div class="modal-nav"><i class="fa-solid fa-xmark close-btn" onclick="closeModal('mainModal')"></i></div>
+        <div class="modal-body" id="mainModalBody"></div>
+    </div>
+
+    <div class="submodal-overlay" id="subModal">
+        <div class="modal-nav"><i class="fa-solid fa-arrow-left close-btn" onclick="closeModal('subModal'); stopVoice();"></i> <span style="font-weight: 600;">Detalhes da Plataforma</span></div>
+        <div class="modal-body" id="subModalBody"></div>
+    </div>
+
+    <div class="search-selector-overlay" id="searchSelector">
+        <div class="modal-nav"><i class="fa-solid fa-xmark close-btn" onclick="closeModal('searchSelector')"></i> <span style="font-weight: 600;">Motores de Pesquisa</span></div>
+        <div class="modal-body" id="searchEnginesGrid"></div>
+    </div>
+
+    <div class="video-selector-overlay" id="videoSelector">
+        <div class="modal-nav"><i class="fa-solid fa-xmark close-btn" onclick="closeModal('videoSelector')"></i> <span style="font-weight: 600;">Plataformas de Vídeo</span></div>
+        <div class="modal-body" id="videoGrid"></div>
+    </div>
+
+    <script>
+        let currentSearchTerm = "";
+        let currentDescription = "";
+        const synth = window.speechSynthesis;
+        const targetLang = (navigator.language || 'pt').split('-')[0];
+
+        // API Wikipedia para Imagens das Sugestões
+        async function getWikiImage(pageTitle) {
+            const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                return data.thumbnail ? data.thumbnail.source : 'https://via.placeholder.com/150/8a2be2/f8f8ff?text=Orion';
+            } catch (e) {
+                return 'https://via.placeholder.com/150/8a2be2/f8f8ff?text=Orion';
+            }
+        }
+
+        async function translateText(text, target) {
+            if(target === 'pt') return text;
+            try {
+                const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=pt|${target}`);
+                const data = await res.json();
+                return data.responseData.translatedText || text;
+            } catch (e) { return text; }
+        }
+
+        const appsData = [
+            {
+                id: 1, title: "Plataforma de Desenho",
+                desc: "​🎨 Aura: Onde seu traço encontra o impossível. Esqueça as telas brancas sem vida e as ferramentas que parecem saídas de um escritório dos anos 90. A Aura não é apenas um software de desenho; é o seu novo habitat criativo. Desenvolvida para a geração que respira estética, movimento e inovação, nossa plataforma redefine o que significa 'criar digitalmente'. ",
+                img: "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=600",
+                mainLink: "https://lorespace.com.br",
+                similar: [
+                    { 
+                        name: "Adobe Fresco", 
+                        wikiTerm: "Adobe Fresco",
+                        fullDesc: "Adobe Fresco é uma aplicação líder de mercado que redefine a pintura e o desenho digital. Construída especificamente para dispositivos táteis e canetas de última geração, ela unifica o poder dos pincéis de pixel do Photoshop com a precisão matemática dos pincéis vetoriais do Illustrator. O diferencial absoluto está na tecnologia 'Live Brushes', que simula com precisão física o comportamento de aquarelas e tintas a óleo, permitindo que as cores se misturem e sangrem no papel virtual em tempo real.", 
+                        link: "https://adobe.com" 
+                    },
+                    { 
+                        name: "Procreate", 
+                        wikiTerm: "Procreate (software)",
+                        fullDesc: "Reconhecido mundialmente como o padrão ouro para ilustração móvel, o Procreate oferece uma interface minimalista que oculta um motor gráfico devastadoramente potente chamado Valkyrie. Esta engine permite trabalhar com centenas de camadas em resoluções ultra-altas com zero latência. Seus recursos incluem um estúdio de pincéis completo para personalização total, ferramentas de animação intuitivas e filtros de processamento de imagem acelerados por hardware.", 
+                        link: "https://procreate.com" 
+                    },
+                    { 
+                        name: "Krita", 
+                        wikiTerm: "Krita",
+                        fullDesc: "Krita é uma suíte de pintura digital de código aberto, mantida por uma comunidade global de artistas apaixonados. Especialmente focada em concept art, ilustradores e criadores de quadrinhos, a plataforma oferece ferramentas avançadas de estabilização de pincel, um motor de texturização único e suporte total para CMYK profissional.", 
+                        link: "https://krita.org" 
+                    }
+                ]
+            }
+        ];
+
+        const engines = [
+            { name: "Google", region: "Global", icon: "fa-brands fa-google", url: "https://www.google.com/search?q=" },
+            { name: "Yandex", region: "Rússia", icon: "fa-brands fa-yandex", url: "https://yandex.com/search/?text=" },
+            { name: "Baidu", region: "China", icon: "fa-solid fa-paw", url: "https://www.baidu.com/s?wd=" },
+            { name: "Naver", region: "Coreia", icon: "fa-solid fa-n", url: "https://search.naver.com/search.naver?query=" }
+        ];
+
+        const videoPlatforms = [
+            { name: "YouTube", icon: "fa-brands fa-youtube", url: "https://www.youtube.com/results?search_query=" },
+            { name: "Vimeo", icon: "fa-brands fa-vimeo-v", url: "https://vimeo.com/search?q=" },
+            { name: "Bilibili", icon: "fa-brands fa-bilibili", url: "https://search.bilibili.com/all?keyword=" },
+            { name: "DailyMotion", icon: "fa-solid fa-play", url: "https://www.dailymotion.com/search/" }
+        ];
+
+        function getTutorialTerm() {
+            const terms = { pt: "Tutorial", en: "Tutorial", es: "Tutorial", fr: "Tutoriel", de: "Anleitung" };
+            return terms[targetLang] || "Tutorial";
+        }
+
+        const gallery = document.getElementById('mainGallery');
+        appsData.forEach(app => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.onclick = () => openMainModal(app.id);
+            card.innerHTML = `<img src="${app.img}">`;
+            gallery.appendChild(card);
+        });
+
+        async function openMainModal(id) {
+            const app = appsData.find(a => a.id === id);
+            const body = document.getElementById('mainModalBody');
+            body.innerHTML = `
+                <div class="info-header"><img src="${app.img}" class="info-icon"><div><h2>${app.title}</h2><a href="${app.mainLink}" class="creator-link">Lorespace.com.br</a></div></div>
+                <button class="btn-main-access" onclick="window.location.href='${app.mainLink}'">Acessar</button>
+                <div class="section-label">Sobre o Projeto</div><p class="desc-content" id="mainDesc">...</p>
+                <div class="section-label">Sugestões Estilo Play Store</div><div class="suggestions-scroll" id="suggList"></div>
+            `;
+            toggleModal('mainModal', true);
+            const translatedDesc = await translateText(app.desc, targetLang);
+            document.getElementById('mainDesc').innerText = translatedDesc;
+
+            for (let i = 0; i < app.similar.length; i++) {
+                const s = app.similar[i];
+                const sCard = document.createElement('div');
+                sCard.className = 'suggestion-card';
+                const wikiImg = await getWikiImage(s.wikiTerm || s.name);
+                sCard.onclick = () => openSubModal(id, i, wikiImg);
+                sCard.innerHTML = `<div class="img-wrap"><img src="${wikiImg}"></div><h4>${s.name}</h4>`;
+                document.getElementById('suggList').appendChild(sCard);
+            }
+        }
+
+        async function openSubModal(appId, simIdx, wikiImg) {
+            const suggestion = appsData.find(a => a.id === appId).similar[simIdx];
+            currentSearchTerm = suggestion.name;
+            const body = document.getElementById('subModalBody');
+            body.innerHTML = `
+                <div class="info-header"><img src="${wikiImg}" class="info-icon"><div><h2>${suggestion.name}</h2><p>Curadoria Lorespace.com.br</p></div></div>
+                <button class="btn-main-access" onclick="window.open('${suggestion.link}')">Visitar Site</button>
+                <div class="action-bar">
+                    <button class="btn-action" onclick="openSearchMenu()"><i class="fa-solid fa-magnifying-glass"></i>Busca</button>
+                    <button class="btn-action" onclick="openVideoMenu()"><i class="fa-solid fa-clapperboard"></i>Tutoriais</button>
+                    <button class="btn-action" onclick="window.open('https://pt.wikipedia.org/wiki/${(suggestion.wikiTerm || suggestion.name).replace(' ', '_')}')"><i class="fa-solid fa-book"></i>Wikipedia</button>
+                    <button class="btn-action" id="voiceBtn" onclick="startVoice()"><i class="fa-solid fa-ear-listen"></i>Voz</button>
+                </div>
+                <div class="section-label">Análise Detalhada</div><p class="desc-content" id="subDesc">...</p>
+            `;
+            toggleModal('subModal', true);
+            currentDescription = await translateText(suggestion.fullDesc, targetLang);
+            document.getElementById('subDesc').innerText = currentDescription;
+        }
+
+        function startVoice() {
+            const btn = document.getElementById('voiceBtn');
+            if (synth.speaking) {
+                synth.cancel();
+                btn.classList.remove('speaking');
+                return;
+            }
+            const utter = new SpeechSynthesisUtterance(currentDescription);
+            utter.lang = navigator.language;
+            btn.classList.add('speaking');
+            utter.onend = () => btn.classList.remove('speaking');
+            synth.speak(utter);
+        }
+
+        function stopVoice() { 
+            synth.cancel();
+            const btn = document.getElementById('voiceBtn');
+            if(btn) btn.classList.remove('speaking');
+        }
+
+        function openSearchMenu() {
+            const grid = document.getElementById('searchEnginesGrid');
+            grid.innerHTML = `<div class="search-grid">` + engines.map(e => `
+                <a href="${e.url}${encodeURIComponent(currentSearchTerm)}" target="_blank" class="search-engine-btn"><i class="${e.icon}"></i><span style="font-weight:bold">${e.name}</span><span class="engine-region">${e.region}</span></a>
+            `).join('') + `</div>`;
+            toggleModal('searchSelector', true);
+        }
+
+        function openVideoMenu() {
+            const grid = document.getElementById('videoGrid');
+            const term = `${currentSearchTerm} ${getTutorialTerm()}`;
+            grid.innerHTML = `<div class="search-grid">` + videoPlatforms.map(v => `
+                <a href="${v.url}${encodeURIComponent(term)}" target="_blank" class="search-engine-btn"><i class="${v.icon}"></i><span style="font-weight:bold">${v.name}</span></a>
+            `).join('') + `</div>`;
+            toggleModal('videoSelector', true);
+        }
+
+        function toggleModal(id, show) {
+            const el = document.getElementById(id);
+            if (show) { el.style.display = 'flex'; setTimeout(() => el.classList.add('active'), 10); }
+            else { el.classList.remove('active'); setTimeout(() => el.style.display = 'none', 500); }
+        }
+        function closeModal(id) { toggleModal(id, false); }
+    </script>
+</body>
+</html>
