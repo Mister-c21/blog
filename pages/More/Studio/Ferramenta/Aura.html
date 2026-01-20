@@ -1,1 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aura Draw</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #8a2be2; /* Blueviolet */
+            --ghost: #f8f8ff;   /* Ghost White */
+            --glass: rgba(20, 20, 25, 0.95); 
+            --bg: #050508;
+            --danger: #ff4d4d;
+            --success: #00ff88;
+            --nav: #4169e1;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+        
+        body { 
+            margin: 0; 
+            background: var(--bg); 
+            color: var(--ghost); 
+            font-family: 'Segoe UI', sans-serif; 
+            height: 100vh; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        
+        .glass { 
+            background: var(--glass); 
+            backdrop-filter: blur(25px); 
+            -webkit-backdrop-filter: blur(25px); 
+            border: 1px solid rgba(138, 43, 226, 0.3); 
+        }
+
+        header { 
+            height: 60px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 0 15px; 
+            border-bottom: 1px solid rgba(255,255,255,0.05); 
+            z-index: 100;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            background: rgba(65, 105, 225, 0.15);
+            color: var(--ghost);
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid var(--nav);
+            transition: 0.3s;
+        }
+        .nav-link:hover { background: var(--nav); }
+
+        .btn-v { background: none; border: none; color: var(--ghost); font-size: 1.2rem; cursor: pointer; padding: 10px; transition: 0.2s; }
+        .btn-v:disabled { opacity: 0.2; }
+
+        /* Toolbar Lateral (Desktop) */
+        #toolbar { 
+            position: fixed; 
+            left: 15px; 
+            top: 50%; 
+            transform: translateY(-50%); 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            padding: 15px; 
+            border-radius: 40px; 
+            z-index: 1000; 
+        }
+
+        .tool-btn { 
+            width: 48px; height: 48px; border-radius: 50%; border: none; 
+            background: transparent; color: var(--ghost); cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 1.3rem; transition: 0.2s; 
+        }
+        .tool-btn.active { background: var(--primary); box-shadow: 0 0 15px var(--primary); color: white; }
+
+        /* Área do Canvas */
+        main { flex-grow: 1; display: flex; align-items: center; justify-content: center; position: relative; padding: 20px; overflow: hidden; }
+        #canvas-container { 
+            position: relative; width: 100%; max-width: 900px; aspect-ratio: 16/9;
+            background: white; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.6);
+        }
+        .layer-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; }
+
+        /* Modal Vertical de Camadas */
+        #layer-modal {
+            position: fixed; right: 20px; bottom: 140px; width: 280px; 
+            max-height: 350px; border-radius: 20px; display: none; flex-direction: column;
+            z-index: 2000; box-shadow: 0 15px 40px rgba(0,0,0,0.8);
+        }
+        #layer-list { overflow-y: auto; flex-grow: 1; padding: 10px; }
+        .layer-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px;
+            border-radius: 10px; margin-bottom: 5px; cursor: pointer; 
+            background: rgba(255,255,255,0.03); border: 1px solid transparent;
+        }
+        .layer-item.active { background: rgba(138, 43, 226, 0.3); border-color: var(--primary); }
+
+        /* Timeline Horizontal (Sempre Visível) */
+        #timeline { 
+            height: 120px; 
+            display: flex; 
+            align-items: center; 
+            padding: 0 20px; 
+            gap: 15px; 
+            overflow-x: auto; 
+            background: rgba(0,0,0,0.7); 
+            flex-shrink: 0; 
+            z-index: 1000;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .frame-thumb { 
+            min-width: 110px; height: 62px; background: #eee; 
+            border-radius: 8px; border: 2px solid transparent; 
+            cursor: pointer; flex-shrink: 0; position: relative; 
+            background-size: cover; transition: 0.2s; 
+        }
+        .frame-thumb.active { border-color: var(--primary); transform: scale(1.05); }
+        .frame-num { position: absolute; top: -22px; left: 2px; font-size: 10px; color: var(--ghost); font-weight: bold; }
+
+        input[type="range"] { accent-color: var(--primary); width: 100%; cursor: pointer; }
+
+        /* Ajustes Mobile */
+        @media (max-width: 850px) {
+            #toolbar { position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%); flex-direction: row; top: auto; width: auto; padding: 10px 20px; }
+            #layer-modal { width: 92%; left: 4%; bottom: 200px; }
+            .nav-link span { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="glass">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <a href="../studio.html" class="nav-link">
+                <i class="fas fa-home"></i>
+                <span>INÍCIO</span>
+            </a>
+            <div style="font-weight: bold; color: var(--primary); letter-spacing: 1px; font-size: 0.9rem;">ORION PRO</div>
+        </div>
+        <div style="display:flex; gap:5px">
+            <button class="btn-v" id="undoBtn" onclick="undo()" title="Desfazer"><i class="fas fa-undo"></i></button>
+            <button class="btn-v" id="redoBtn" onclick="redo()" title="Refazer"><i class="fas fa-redo"></i></button>
+            <button class="btn-v" onclick="exportDrawing()" style="color:var(--success)" title="Salvar"><i class="fas fa-download"></i></button>
+            <button class="btn-v" onclick="clearActiveLayer()" style="color:var(--danger)" title="Limpar"><i class="fas fa-eraser"></i></button>
+            <button class="btn-v" onclick="toggleModal()" title="Camadas"><i class="fas fa-layer-group"></i></button>
+        </div>
+    </header>
+
+    <nav id="toolbar" class="glass">
+        <button class="tool-btn active" id="pencil" onclick="setTool('pencil')"><i class="fas fa-pen"></i></button>
+        <button class="tool-btn" id="eraser" onclick="setTool('eraser')"><i class="fas fa-eraser"></i></button>
+        <div style="width:30px; height:30px; border-radius:50%; border:2px solid white; overflow:hidden; margin: auto; display: flex;">
+            <input type="color" id="color" value="#8a2be2" style="transform:scale(3); border:none; cursor: pointer;">
+        </div>
+        <button class="tool-btn" onclick="addNewLayer()"><i class="fas fa-plus"></i></button>
+    </nav>
+
+    <main>
+        <div id="canvas-container"></div>
+    </main>
+
+    <div id="layer-modal" class="glass">
+        <div class="modal-header" style="padding:15px; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.8rem; font-weight:bold;">CONFIGURAÇÕES</span>
+            <span id="layer-count" style="font-size:0.7rem; opacity:0.6;">1/8</span>
+        </div>
+        <div id="layer-list"></div>
+        <div style="padding:15px; border-top:1px solid rgba(138,43,226,0.2);">
+            <label style="font-size:0.65rem; opacity:0.7; margin-bottom:8px; display:block;">OPACIDADE DA CAMADA</label>
+            <input type="range" id="layer-opacity" min="0" max="1" step="0.1" value="1" oninput="updateOpacity(this.value)">
+            <button onclick="deleteActiveLayer()" style="width:100%; margin-top:15px; background:var(--danger); color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-size:0.7rem; font-weight:bold;">EXCLUIR SELECIONADA</button>
+        </div>
+    </div>
+
+    <div id="timeline" class="glass">
+        <div id="frames-list" style="display:flex; gap:15px; align-items:center"></div>
+    </div>
+
+    <script>
+        let layers = []; let activeIdx = 0; let tool = 'pencil'; let isDrawing = false;
+        let history = []; let historyStep = -1;
+
+        const container = document.getElementById('canvas-container');
+        const layerList = document.getElementById('layer-list');
+        const framesList = document.getElementById('frames-list');
+
+        function init() { addNewLayer(); setupGlobalEvents(); saveState(); }
+
+        function saveState() {
+            historyStep++; if (historyStep < history.length) history.length = historyStep;
+            const state = layers.map(l => ({ img: l.canvas.toDataURL(), visible: l.visible, opacity: l.opacity }));
+            history.push(state); if (history.length > 20) { history.shift(); historyStep--; }
+            updateHistoryButtons();
+        }
+
+        function undo() { if (historyStep > 0) { historyStep--; loadState(history[historyStep]); } }
+        function redo() { if (historyStep < history.length - 1) { historyStep++; loadState(history[historyStep]); } }
+
+        function loadState(state) {
+            let loaded = 0;
+            state.forEach((ls, i) => {
+                const img = new Image(); img.src = ls.img;
+                img.onload = () => { layers[i].ctx.clearRect(0,0,1280,720); layers[i].ctx.drawImage(img,0,0); loaded++; if(loaded === state.length) updateUI(); };
+            });
+            updateHistoryButtons();
+        }
+
+        function updateHistoryButtons() {
+            document.getElementById('undoBtn').disabled = (historyStep <= 0);
+            document.getElementById('redoBtn').disabled = (historyStep >= history.length - 1);
+        }
+
+        function exportDrawing() {
+            const exp = document.createElement('canvas'); exp.width = 1280; exp.height = 720;
+            const eCtx = exp.getContext('2d');
+            eCtx.fillStyle = "white"; eCtx.fillRect(0,0,1280,720);
+            layers.forEach(l => { if(l.visible) { eCtx.globalAlpha = l.opacity; eCtx.drawImage(l.canvas,0,0); }});
+            const link = document.createElement('a'); link.download = `draw_${Date.now()}.png`; link.href = exp.toDataURL(); link.click();
+        }
+
+        function addNewLayer() {
+            if (layers.length >= 8) return;
+            const canvas = document.createElement('canvas'); canvas.className = 'layer-canvas';
+            canvas.width = 1280; canvas.height = 720;
+            container.appendChild(canvas);
+            layers.push({ canvas, ctx: canvas.getContext('2d'), visible: true, opacity: 1, name: `Camada ${layers.length + 1}` });
+            selectLayer(layers.length - 1);
+            if (historyStep !== -1) saveState();
+        }
+
+        function selectLayer(idx) {
+            activeIdx = idx;
+            layers.forEach((l, i) => { l.canvas.style.zIndex = i; l.canvas.style.pointerEvents = (i === activeIdx ? 'auto' : 'none'); });
+            updateUI();
+        }
+
+        function updateUI() {
+            layerList.innerHTML = '';
+            [...layers].reverse().forEach((l, idx) => {
+                const rIdx = layers.indexOf(l);
+                const div = document.createElement('div');
+                div.className = `layer-item ${rIdx === activeIdx ? 'active' : ''}`;
+                div.innerHTML = `<i class="fas fa-eye${l.visible?'':'-slash'}" style="color:${l.visible?'var(--primary)':'#555'}" onclick="toggleVisibility(${rIdx}, event)"></i>
+                                 <div style="flex-grow:1; font-size:0.8rem" onclick="selectLayer(${rIdx})">${l.name}</div>`;
+                layerList.appendChild(div);
+            });
+
+            framesList.innerHTML = '';
+            layers.forEach((l, i) => {
+                const thumb = document.createElement('div');
+                thumb.className = `frame-thumb ${i === activeIdx ? 'active' : ''}`;
+                thumb.style.backgroundImage = `url(${l.canvas.toDataURL()})`;
+                thumb.innerHTML = `<span class="frame-num">CAMADA ${i+1}</span>`;
+                thumb.onclick = () => selectLayer(i);
+                framesList.appendChild(thumb);
+            });
+            document.getElementById('layer-count').innerText = `${layers.length}/8`;
+            document.getElementById('layer-opacity').value = layers[activeIdx].opacity;
+        }
+
+        function toggleVisibility(idx, e) {
+            e.stopPropagation(); layers[idx].visible = !layers[idx].visible;
+            layers[idx].canvas.style.visibility = layers[idx].visible ? 'visible' : 'hidden';
+            updateUI(); saveState();
+        }
+
+        function updateOpacity(val) { layers[activeIdx].opacity = val; layers[activeIdx].canvas.style.opacity = val; }
+
+        function deleteActiveLayer() {
+            if(layers.length <= 1) return;
+            container.removeChild(layers[activeIdx].canvas);
+            layers.splice(activeIdx, 1); activeIdx = Math.max(0, activeIdx - 1);
+            selectLayer(activeIdx); saveState();
+        }
+
+        function setupGlobalEvents() {
+            const getPos = (e) => {
+                const r = container.getBoundingClientRect();
+                const x = e.touches ? e.touches[0].clientX : e.clientX;
+                const y = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: (x - r.left) * (1280 / r.width), y: (y - r.top) * (720 / r.height) };
+            };
+            const start = (e) => { if(!layers[activeIdx].visible) return; isDrawing = true; const p = getPos(e); layers[activeIdx].ctx.beginPath(); layers[activeIdx].ctx.moveTo(p.x, p.y); };
+            const draw = (e) => {
+                if(!isDrawing) return; const p = getPos(e); const ctx = layers[activeIdx].ctx;
+                ctx.lineWidth = tool === 'pencil' ? 8 : 45; ctx.lineCap = 'round';
+                ctx.strokeStyle = document.getElementById('color').value;
+                ctx.globalCompositeOperation = tool === 'pencil' ? 'source-over' : 'destination-out';
+                ctx.lineTo(p.x, p.y); ctx.stroke();
+            };
+            const stop = () => { if(isDrawing) { isDrawing = false; updateUI(); saveState(); } };
+            container.addEventListener('mousedown', start); window.addEventListener('mousemove', draw); window.addEventListener('mouseup', stop);
+            container.addEventListener('touchstart', (e) => { e.preventDefault(); start(e); }, {passive: false});
+            container.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); }, {passive: false});
+            container.addEventListener('touchend', stop);
+        }
+
+        function setTool(t) { tool = t; document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active')); document.getElementById(t).classList.add('active'); }
+        function toggleModal() { const m = document.getElementById('layer-modal'); m.style.display = (m.style.display === 'flex' ? 'none' : 'flex'); }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
 
