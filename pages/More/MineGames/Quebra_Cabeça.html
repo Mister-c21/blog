@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quebra-Cabeças</title>
+    <style>
+        :root {
+            --accent: blueviolet;
+            --ghost: rgba(248, 248, 255, 0.9);
+            --glass: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            background: #0a0a0a;
+            color: var(--ghost);
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .glass-card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 25px;
+            padding: 30px;
+            width: 400px;
+            text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(138, 43, 226, 0.4);
+        }
+
+        h2 { color: var(--accent); margin-bottom: 20px; }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            outline: none;
+        }
+
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        #puzzle-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            width: 300px;
+            height: 450px; /* Formato de pôster */
+            margin: 0 auto;
+            border: 2px solid var(--accent);
+            background: #000;
+        }
+
+        .tile {
+            background-size: 300px 450px;
+            cursor: move;
+            border: 0.5px solid rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body>
+
+<div class="glass-card">
+    <h2>Puzzle Vision</h2>
+    
+    <div class="search-box">
+        <input type="text" id="query" placeholder="Série, Anime ou Dorama...">
+        <button onclick="searchMedia()">Buscar</button>
+    </div>
+
+    <div id="puzzle-grid"></div>
+    <p id="info" style="font-size: 0.8em; margin-top: 15px;"></p>
+</div>
+
+<script>
+    async function searchMedia() {
+        const query = document.getElementById('query').value;
+        const info = document.getElementById('info');
+        if(!query) return;
+
+        info.innerText = "Buscando...";
+
+        try {
+            // Tenta buscar na Jikan (Anime) primeiro
+            let response = await fetch(`https://api.jikan.moe/v4/anime?q=${query}&limit=1`);
+            let data = await response.json();
+            let imgUrl = "";
+
+            if (data.data && data.data.length > 0) {
+                imgUrl = data.data[0].images.jpg.large_image_url;
+                info.innerText = "Anime encontrado: " + data.data[0].title;
+            } else {
+                // Se não achar anime, tenta TVMAZE (Séries/Doramas)
+                response = await fetch(`https://api.tvmaze.com/single+search/shows?q=${query}`);
+                data = await response.json();
+                if (data && data.image) {
+                    imgUrl = data.image.medium;
+                    info.innerText = "Série/Dorama: " + data.name;
+                }
+            }
+
+            if (imgUrl) {
+                generatePuzzle(imgUrl);
+            } else {
+                info.innerText = "Nada encontrado.";
+            }
+        } catch (e) {
+            info.innerText = "Erro na busca.";
+        }
+    }
+
+    function generatePuzzle(url) {
+        const grid = document.getElementById('puzzle-grid');
+        grid.innerHTML = '';
+        
+        let indices = [...Array(9).keys()];
+        indices.sort(() => Math.random() - 0.5); // Embaralha
+
+        indices.forEach(i => {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.style.backgroundImage = `url(${url})`;
+            
+            // Lógica para recortar a imagem em 3x3
+            const row = Math.floor(i / 3);
+            const col = i % 3;
+            tile.style.backgroundPosition = `${col * 50}% ${row * 50}%`;
+            
+            grid.appendChild(tile);
+        });
+    }
+</script>
+
+</body>
+</html>
