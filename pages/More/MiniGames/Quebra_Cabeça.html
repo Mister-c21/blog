@@ -244,19 +244,19 @@
         document.getElementById('timer-display').innerText = `${mins}:${secs}`;
     }
 
-    // --- COMPARTILHAMENTO (ATUALIZADO PARA LINK DIRETO CURTO) ---
+    // --- COMPARTILHAMENTO ---
     async function sharePuzzle() {
         const timeStr = document.getElementById('timer-display').innerText;
-        const data = btoa(JSON.stringify({u: currentImgUrl, s: gridSize}));
+        const data = btoa(encodeURIComponent(JSON.stringify({t: currentTitle, u: currentImgUrl, s: gridSize})));
         const shareLink = `${window.location.origin}${window.location.pathname}?p=${data}`;
-        const shareData = { title: 'Anime Puzzle', text: isGameOver ? `Fiz o puzzle em ${timeStr}!` : `Te desafio!`, url: shareLink };
+        const shareData = { title: 'Desafio Anime Puzzle', text: isGameOver ? `Fiz o puzzle de ${currentTitle} em ${timeStr}!` : `Te desafio a completa-lo em menos tempo ${currentTitle}!`, url: shareLink };
         try { if (navigator.share) { await navigator.share(shareData); } else { await navigator.clipboard.writeText(shareLink); alert("Link copiado!"); } } catch (err) {}
     }
 
     function checkSharedLink() {
         const urlParams = new URLSearchParams(window.location.search);
         const p = urlParams.get('p');
-        if (p) { try { const decoded = JSON.parse(atob(p)); gridSize = decoded.s || 3; startGame(decoded.u, "Desafio"); } catch(e) {} }
+        if (p) { try { const decoded = JSON.parse(decodeURIComponent(atob(p))); gridSize = decoded.s || 3; startGame(decoded.u, decoded.t); } catch(e) {} }
     }
 
     // --- BUSCA TEMPORADA ATUAL (SEASON NOW) ---
@@ -293,9 +293,6 @@
         if (audio.paused) { audio.play(); document.getElementById('music-toggle-btn').innerHTML = '<i class="fa-solid fa-pause"></i>'; }
         else { audio.pause(); document.getElementById('music-toggle-btn').innerHTML = '<i class="fa-solid fa-play"></i>'; }
     }
-
-    // Função de volume que faltava no script original
-    function adjustVolume(v) { audio.volume = v; }
 
     function openDiffMenu(type, url, title) { pendingAction = { type, url, title }; document.getElementById('difficulty-menu').style.display = 'flex'; }
     function closeDiffMenu() { document.getElementById('difficulty-menu').style.display = 'none'; }
