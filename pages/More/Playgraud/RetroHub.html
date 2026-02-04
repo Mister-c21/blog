@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>retroHub</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary: #8a2be2; /* BlueViolet */
+            --text: #f8f8ff;    /* GhostWhite */
+            --glass: rgba(138, 43, 226, 0.15);
+            --glass-border: rgba(248, 248, 255, 0.1);
+            --bg: #050505;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .nav-back {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            width: 45px;
+            height: 45px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: 0.3s;
+            z-index: 100;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .nav-back:hover { 
+            background: var(--primary); 
+            box-shadow: 0 0 15px var(--primary); 
+            color: white;
+        }
+
+        .page-header {
+            width: 100%;
+            padding: 30px 0 10px 0;
+            text-align: center;
+            flex-shrink: 0;
+            z-index: 50;
+        }
+
+        .page-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            color: var(--primary);
+            text-shadow: 0 0 15px rgba(138, 43, 226, 0.6);
+        }
+
+        .search-container {
+            margin: 15px auto 5px;
+            width: 85%;
+            max-width: 450px;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 45px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 50px;
+            color: var(--text);
+            outline: none;
+            backdrop-filter: blur(10px);
+            transition: 0.3s;
+            text-align: center;
+        }
+
+        .search-input:focus { border-color: var(--primary); box-shadow: 0 0 15px var(--primary); }
+        .icon-search { position: absolute; left: 15px; opacity: 0.5; width: 18px; }
+        .btn-voice { position: absolute; right: 15px; background: none; border: none; color: var(--text); cursor: pointer; opacity: 0.6; transition: 0.3s; }
+
+        .console-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            overflow-x: auto;
+            padding: 15px 0;
+            scrollbar-width: none;
+        }
+        .console-tabs::-webkit-scrollbar { display: none; }
+        .tab-btn {
+            background: none; border: none; color: var(--text);
+            opacity: 0.5; font-size: 1rem; font-weight: bold;
+            cursor: pointer; text-transform: uppercase; transition: 0.3s;
+        }
+        .tab-btn.active { opacity: 1; color: var(--primary); border-bottom: 2px solid var(--primary); }
+
+        main { flex: 1; width: 100%; display: flex; align-items: center; overflow: hidden; }
+        .hub-row { display: flex; gap: 25px; overflow-x: auto; width: 100%; padding: 0 40px 40px 40px; scrollbar-width: none; }
+        .game-card { min-width: 280px; height: 420px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 24px; position: relative; overflow: hidden; backdrop-filter: blur(15px); transition: 0.4s; cursor: pointer; }
+        .game-card img { width: 100%; height: 100%; object-fit: cover; opacity: 0.6; }
+        .card-info { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px; background: linear-gradient(transparent, rgba(0,0,0,0.9)); }
+        .card-info .title { font-size: 1.4rem; font-weight: bold; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 3000; display: none; }
+
+        .voice-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,5,0.95); backdrop-filter: blur(20px); z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        .wave-container { display: flex; gap: 8px; height: 50px; margin-top: 20px; }
+        .wave { width: 5px; height: 20px; background: var(--primary); border-radius: 5px; animation: loud 1.2s infinite; }
+
+        @keyframes loud { 0%, 100% { height: 20px; } 50% { height: 50px; } }
+
+        .close-modal { position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; background: rgba(138,43,226,0.3); border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 3001; }
+    </style>
+</head>
+<body>
+
+    <a href="#" class="nav-back"><i data-lucide="arrow-left"></i></a>
+
+    <header class="page-header">
+        <h1>retroHub</h1>
+        <div class="search-container">
+            <i data-lucide="search" class="icon-search"></i>
+            <input type="text" id="gameSearch" class="search-input" placeholder="Buscar no console..." oninput="handleSearch()">
+            <button class="btn-voice" onclick="startVoiceSearch()"><i data-lucide="mic"></i></button>
+        </div>
+        <div class="console-tabs">
+            <button class="tab-btn active" onclick="switchConsole('GBA', this)">GBA</button>
+            <button class="tab-btn" onclick="switchConsole('NDS', this)">NDS</button>
+            <button class="tab-btn" onclick="switchConsole('SNES', this)">SNES</button>
+            <button class="tab-btn" onclick="switchConsole('PS1', this)">PS1</button>
+        </div>
+    </header>
+
+    <main><div class="hub-row" id="gameContainer"></div></main>
+
+    <div id="voiceOverlay" class="voice-overlay">
+        <h2 id="voiceTranscript" style="color:var(--primary); font-size:2rem; padding:20px;">Ouvindo...</h2>
+        <div class="wave-container">
+            <div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div>
+        </div>
+        <button class="close-modal" onclick="stopVoiceSearch()" style="top:auto; bottom:50px;"><i data-lucide="x"></i></button>
+    </div>
+
+    <div id="gameModal" class="modal-overlay">
+        <div class="close-modal" onclick="closeModal()"><i data-lucide="x"></i></div>
+        <iframe id="gameEmbed" src="" style="width:100%; height:100%; border:none;" allowfullscreen></iframe>
+    </div>
+
+    <script>
+        const userLang = navigator.language.split('-')[0]; 
+
+        const consoles = {
+            GBA: [
+                { title: "Sonic Advance", url: "https://www.retrogames.cc/embed/28783-sonic-advance-j-independent.html" },
+                { title: "Sonic Advance 2", url: "https://www.retrogames.cc/embed/28169-sonic-advance-2-j-eurasia.html" },
+                { title: "Sonic Advance 3", url: "https://www.retrogames.cc/embed/19452-sonic-advance-3-e-trashman.html" },
+                { title: "Sonic Battle", url: "https://www.retrogames.cc/embed/26763-sonic-battle-j-eurasia.html" },
+                { title: "Mega Man Zero", url: "https://www.retrogames.cc/embed/19499-megaman-zero-u-venom.html" },
+                { title: "Mega Man Zero 2", url: "https://www.retrogames.cc/embed/26254-megaman-zero-2-e-patience.html" },
+                { title: "Mega Man Zero 3", url: "https://www.retrogames.cc/embed/19493-megaman-zero-3-e-rising-sun.html" },
+                { title: "Mega Man Zero 4", url: "https://www.retrogames.cc/embed/28027-megaman-zero-4-e-supplex.html" }
+            ],
+            NDS: [
+                { title: "Ben 10: Protector of Earth", url: "https://www.retrogames.cc/embed/36951-ben-10-protector-of-earth-europe-en-fr-de-es-it.html" },
+                { title: "Ben 10: Alien Force", url: "https://www.retrogames.cc/embed/38112-ben-10-alien-force-usa-en-fr-de-es-it-rev-1.html" },
+                { title: "Ben 10: Alien Force - Vilgax Attacks", url: "https://www.retrogames.cc/embed/39567-ben-10-alien-force-vilgax-attacks-europe-en-fr-de-es-it.html" },
+                { title: "Ben 10 Ultimate Alien: Cosmic Destruction", url: "https://www.retrogames.cc/embed/42018-ben-10-ultimate-alien-cosmic-destruction-usa-en-fr-de-es-it.html"},
+                { title: "Ben 10: Galactic Racing", url: "https://www.retrogames.cc/embed/46431-ben-10-galactic-racing-usa-en-fr-de-es-it.html" },
+                { title: "Ben 10: Omniverse", url: "https://www.retrogames.cc/embed/42019-ben-10-omniverse-usa-en-fr-es.html" }
+            ],
+            SNES: [
+                { title: "Mega Man X", url: "https://www.retrogames.cc/embed/18705-megaman-x-usa-rev-a.html" },
+                { title: "Mega Man X2", url: "https://www.retrogames.cc/embed/19996-megaman-x2-usa.html" },
+                { title: "Mega Man X3", url: "https://www.retrogames.cc/embed/22454-megaman-x3-europe.html" },
+                { title: "Mega Man 7", url: "https://www.retrogames.cc/embed/16692-megaman-vii-usa.html" },
+                { title: "Mega Man Soccer", url: "https://www.retrogames.cc/embed/22454-megaman-x3-europe.html" },
+                { title: "Mega Man & Bass", url: "https://www.retrogames.cc/embed/43955-megaman-bass.html" }
+            ],
+            PS1: [
+                { title: "Castlevania: Symphony of the Night", url: "https://www.retrogames.cc/embed/41504-castlevania-symphony-of-the-night.html" },
+                { title: "Tekken 3", url: "https://www.retrogames.cc/embed/40238-tekken-3.html" }
+            ]
+        };
+
+        let currentConsole = 'GBA';
+        let recognition;
+
+        function startVoiceSearch() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) return alert("Busca por voz indisponível.");
+            recognition = new SpeechRecognition();
+            recognition.lang = userLang === 'pt' ? 'pt-BR' : 'en-US';
+            recognition.interimResults = true;
+            document.getElementById('voiceOverlay').style.display = 'flex';
+            recognition.onresult = (event) => {
+                const text = Array.from(event.results).map(r => r[0].transcript).join('');
+                document.getElementById('voiceTranscript').innerText = text;
+                if (event.results[0].isFinal) {
+                    document.getElementById('gameSearch').value = text;
+                    handleSearch();
+                    setTimeout(stopVoiceSearch, 1000);
+                }
+            };
+            recognition.start();
+        }
+
+        function stopVoiceSearch() { 
+            if(recognition) recognition.stop();
+            document.getElementById('voiceOverlay').style.display = 'none'; 
+        }
+
+        async function createCards(list) {
+            const container = document.getElementById('gameContainer');
+            container.innerHTML = "";
+            list.forEach((game, i) => {
+                const card = document.createElement('div');
+                card.className = 'game-card';
+                card.onclick = () => openModal(game.url);
+                card.innerHTML = `<img id="gimg-${i}" src="https://via.placeholder.com/300x400?text=..." alt=""><div class="card-info"><p class="title">${game.title}</p></div>`;
+                container.appendChild(card);
+                
+                fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(game.title)}`)
+                    .then(r => r.json()).then(d => {
+                        const img = document.getElementById(`gimg-${i}`);
+                        if(img) img.src = d.originalimage?.source || "https://via.placeholder.com/300x400";
+                    });
+            });
+            lucide.createIcons();
+        }
+
+        function handleSearch() {
+            const term = document.getElementById('gameSearch').value.toLowerCase();
+            const filtered = consoles[currentConsole].filter(g => g.title.toLowerCase().includes(term));
+            createCards(filtered);
+        }
+
+        function switchConsole(key, btn) {
+            currentConsole = key;
+            document.getElementById('gameSearch').value = "";
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            createCards(consoles[key]);
+        }
+
+        function openModal(url) { 
+            document.getElementById('gameEmbed').src = url; 
+            document.getElementById('gameModal').style.display = 'block'; 
+        }
+        function closeModal() { 
+            document.getElementById('gameModal').style.display = 'none'; 
+            document.getElementById('gameEmbed').src = ""; 
+        }
+
+        createCards(consoles.GBA);
+        lucide.createIcons();
+    </script>
+</body>
+</html>
