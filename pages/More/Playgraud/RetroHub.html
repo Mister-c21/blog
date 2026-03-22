@@ -11,18 +11,18 @@
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-
-       gtag('config', 'G-PV154KH2JQ');
-   </script>
+        gtag('config', 'G-PV154KH2JQ');
+    </script>
     
     <style>
         :root {
-            --primary: #8a2be2;
+            /* Personalização conforme solicitado: blueviolet, ghost (f8f8ff) e vidro */
+            --primary: #8a2be2; 
             --primary-light: #a052ee;
             --text: #f8f8ff;
             --text-dim: #b0b0b0;
-            --glass: rgba(138, 43, 226, 0.12);
-            --glass-border: rgba(248, 248, 255, 0.08);
+            --glass: rgba(138, 43, 226, 0.15); /* Vidro semitransparente blueviolet */
+            --glass-border: rgba(248, 248, 255, 0.1);
             --bg: #0a0a0c;
             --card-radius: 16px;
         }
@@ -43,11 +43,9 @@
 
         .header-top { display: flex; align-items: center; justify-content: space-between; max-width: 1200px; margin: 0 auto; }
         
-        /* Botão de navegação solicitado */
         .nav-btn { 
             background: var(--glass); border: 1px solid var(--glass-border); 
-            font-size: 1rem; font-weight: 600; color: var(--text); 
-            display: flex; align-items: center; gap: 8px; 
+            color: var(--text); display: flex; align-items: center; gap: 8px; 
             cursor: pointer; padding: 8px 16px; border-radius: 12px;
             transition: all 0.3s ease;
         }
@@ -57,12 +55,11 @@
         .search-input {
             width: 100%; padding: 12px 20px 12px 45px; background: var(--glass);
             border: 1px solid transparent; border-radius: 12px; color: var(--text); outline: none;
+            backdrop-filter: blur(10px);
         }
         .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); opacity: 0.5; width: 18px; }
         
-        /* Botão de voz e feedback */
         .voice-btn { cursor: pointer; background: none; border: none; color: var(--text); padding: 5px; position: absolute; right: 10px; }
-        .voice-btn:hover { color: var(--primary); }
 
         #voiceOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -79,14 +76,19 @@
         .carousel-track { display: flex; gap: 16px; overflow-x: auto; padding: 10px 20px 20px; scrollbar-width: none; }
         .carousel-track::-webkit-scrollbar { display: none; }
 
-        .game-card { min-width: 140px; width: 140px; cursor: pointer; }
-        .card-image-wrapper { width: 100%; aspect-ratio: 1/1; border-radius: var(--card-radius); overflow: hidden; background: var(--glass); margin-bottom: 8px; }
+        .game-card { min-width: 140px; width: 140px; cursor: pointer; transition: transform 0.2s; }
+        .game-card:hover { transform: translateY(-5px); }
+        .card-image-wrapper { 
+            width: 100%; aspect-ratio: 1/1; border-radius: var(--card-radius); 
+            overflow: hidden; background: var(--glass); margin-bottom: 8px;
+            border: 1px solid var(--glass-border);
+        }
         .game-card img { width: 100%; height: 100%; object-fit: cover; }
-        .title { font-size: 0.85rem; font-weight: 500; margin: 0; }
+        .title { font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .category { font-size: 0.75rem; color: var(--text-dim); }
 
         .list-mode .carousel-track { flex-direction: column; overflow-x: hidden; }
-        .list-mode .game-card { display: flex; width: 100%; min-width: 100%; align-items: center; gap: 15px; padding: 10px 0; border-bottom: 1px solid var(--glass-border); }
+        .list-mode .game-card { display: flex; width: 100%; min-width: 100%; align-items: center; gap: 15px; padding: 10px 20px; border-bottom: 1px solid var(--glass-border); }
         .list-mode .card-image-wrapper { width: 60px; height: 60px; min-width: 60px; margin-bottom: 0; }
         
         .btn-return { display: none; color: var(--primary); cursor: pointer; align-items: center; gap: 5px; font-weight: 600; margin-left: 20px; margin-bottom: 15px; }
@@ -94,7 +96,7 @@
         .hidden-section { display: none !important; }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 3000; display: none; }
-        .close-btn { position: absolute; top: 15px; right: 15px; width: 40px; height: 40px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 3001; cursor: pointer; }
+        .close-btn { position: absolute; top: 15px; right: 15px; width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 3001; cursor: pointer; color: white; }
     </style>
 </head>
 <body>
@@ -124,14 +126,15 @@
         <iframe id="gameEmbed" src="" style="width:100%; height:100%; border:none;" allowfullscreen></iframe>
     </div>
 
-    <script>
-        // Sistema de busca por voz com feedback
-        function startVoiceSearch() {
+    <script type="module">
+        import { consoles } from './games.js';
+
+        // Exportando funções para o escopo global (window) para funcionar com HTML onclick
+        window.startVoiceSearch = function() {
             const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
             recognition.lang = 'pt-BR';
             const overlay = document.getElementById('voiceOverlay');
             
-            // Feedback sonoro de início
             const startSpeech = new SpeechSynthesisUtterance("Estou a ouvir");
             startSpeech.lang = 'pt-BR';
             window.speechSynthesis.speak(startSpeech);
@@ -142,7 +145,7 @@
             recognition.onresult = (event) => {
                 const transcript = event.results[0][0].transcript;
                 document.getElementById('gameSearch').value = transcript;
-                handleSearch();
+                window.handleSearch();
                 overlay.style.display = 'none';
             };
             
@@ -150,58 +153,30 @@
             recognition.onerror = () => overlay.style.display = 'none';
         }
 
-        // --- Lógica original mantida ---
-        const consoles = {
-            "Populares no GBA": { key: "GBA", games: [
-                { title: "Sonic Advance", url: "https://www.retrogames.cc/embed/28783-sonic-advance-j-independent.html" },
-                { title: "Sonic Advance 2", url: "https://www.retrogames.cc/embed/28169-sonic-advance-2-j-eurasia.html" },
-                { title: "Sonic Advance 3", url: "https://www.retrogames.cc/embed/19452-sonic-advance-3-e-trashman.html" },
-                { title: "Sonic Battle", url: "https://www.retrogames.cc/embed/26763-sonic-battle-j-eurasia.html" },
-                { title: "Mega Man Zero", url: "https://www.retrogames.cc/embed/19499-megaman-zero-u-venom.html" },
-                { title: "Mega Man Zero 2", url: "https://www.retrogames.cc/embed/26254-megaman-zero-2-e-patience.html" },
-                { title: "Mega Man Zero 3", url: "https://www.retrogames.cc/embed/19493-megaman-zero-3-e-rising-sun.html" },
-                { title: "Mega Man Zero 4", url: "https://www.retrogames.cc/embed/28027-megaman-zero-4-e-supplex.html" }
-            ]},
-            "Ação no Nintendo DS": { key: "NDS", games: [
-                { title: "Ben 10: Protector of Earth", url: "https://www.retrogames.cc/embed/36951-ben-10-protector-of-earth-europe-en-fr-de-es-it.html" },
-                { title: "Ben 10: Alien Force", url: "https://www.retrogames.cc/embed/38112-ben-10-alien-force-usa-en-fr-de-es-it-rev-1.html" },
-                { title: "Ben 10: Alien Force - Vilgax Attacks", url: "https://www.retrogames.cc/embed/39567-ben-10-alien-force-vilgax-attacks-europe-en-fr-de-es-it.html" },
-                { title: "Ben 10 Ultimate Alien: Cosmic Destruction", url: "https://www.retrogames.cc/embed/42018-ben-10-ultimate-alien-cosmic-destruction-usa-en-fr-de-es-it.html"},
-                { title: "Ben 10: Galactic Racing", url: "https://www.retrogames.cc/embed/46431-ben-10-galactic-racing-usa-en-fr-de-es-it.html" },
-                { title: "Ben 10: Omniverse", url: "https://www.retrogames.cc/embed/42019-ben-10-omniverse-usa-en-fr-es.html" }
-            ]},
-            "Clássicos do SNES": { key: "SNES", games: [
-                { title: "Mega Man X", url: "https://www.retrogames.cc/embed/18705-megaman-x-usa-rev-a.html" },
-                { title: "Mega Man X2", url: "https://www.retrogames.cc/embed/19996-megaman-x2-usa.html" },
-                { title: "Mega Man X3", url: "https://www.retrogames.cc/embed/22454-megaman-x3-europe.html" },
-                { title: "Mega Man 7", url: "https://www.retrogames.cc/embed/16692-megaman-vii-usa.html" },
-                { title: "Mega Man Soccer", url: "https://www.retrogames.cc/embed/22454-megaman-x3-europe.html" },
-                { title: "Mega Man & Bass", url: "https://www.retrogames.cc/embed/43955-megaman-bass.html" }
-            ]}
-        };
-
-        function renderSections(searchTerm = "") {
+        window.renderSections = function(searchTerm = "") {
             const container = document.getElementById('mainContainer');
             container.innerHTML = "";
             Object.entries(consoles).forEach(([sectionTitle, data]) => {
                 const filtered = data.games.filter(g => g.title.toLowerCase().includes(searchTerm.toLowerCase()));
                 const displayList = filtered.slice(0, 5);
                 if (displayList.length === 0) return;
+                
                 const section = document.createElement('section');
                 section.className = 'carousel-container';
                 section.id = `sec-${data.key}`;
                 section.innerHTML = `
                     <div class="section-header">
                         <h2>${sectionTitle}</h2>
-                        ${filtered.length > 5 ? `<span class="see-more" onclick="activateList('${data.key}')"><i data-lucide="chevron-right"></i></span>` : ''}
+                        ${filtered.length > 5 ? `<span class="see-more" style="cursor:pointer" onclick="activateList('${data.key}')"><i data-lucide="chevron-right"></i></span>` : ''}
                     </div>
                     <div class="carousel-track" id="track-${data.key}"></div>
                 `;
                 container.appendChild(section);
+                
                 displayList.forEach((game, index) => {
                     const card = document.createElement('div');
                     card.className = 'game-card';
-                    card.onclick = () => openModal(game.url);
+                    card.onclick = () => window.openModal(game.url);
                     card.innerHTML = `<div class="card-image-wrapper"><img id="img-${data.key}-${index}" src="https://via.placeholder.com/180"></div><p class="title">${game.title}</p><p class="category">${data.key}</p>`;
                     document.getElementById(`track-${data.key}`).appendChild(card);
                     loadThumbnail(game.title, `img-${data.key}-${index}`);
@@ -210,20 +185,21 @@
             lucide.createIcons();
         }
 
-        function activateList(key) {
+        window.activateList = function(key) {
             document.getElementById('mainContainerWrapper').classList.add('list-mode-active');
             document.querySelectorAll('.carousel-container').forEach(s => {
                 if (s.id === `sec-${key}`) {
                     s.classList.add('list-mode');
-                    s.querySelector('.see-more').style.display = 'none';
+                    const seeMore = s.querySelector('.see-more');
+                    if(seeMore) seeMore.style.display = 'none';
                     const track = s.querySelector('.carousel-track');
                     track.innerHTML = "";
                     const fullGameList = consoles[Object.keys(consoles).find(k => consoles[k].key === key)].games;
                     fullGameList.forEach((game, index) => {
                         const card = document.createElement('div');
                         card.className = 'game-card';
-                        card.onclick = () => openModal(game.url);
-                        card.innerHTML = `<div class="card-image-wrapper"><img id="list-img-${key}-${index}" src="https://via.placeholder.com/180"></div><p class="title">${game.title}</p><p class="category">${key}</p>`;
+                        card.onclick = () => window.openModal(game.url);
+                        card.innerHTML = `<div class="card-image-wrapper"><img id="list-img-${key}-${index}" src="https://via.placeholder.com/180"></div><div><p class="title">${game.title}</p><p class="category">${key}</p></div>`;
                         track.appendChild(card);
                         loadThumbnail(game.title, `list-img-${key}-${index}`);
                     });
@@ -233,28 +209,39 @@
             lucide.createIcons();
         }
 
-        function resetView() {
+        window.resetView = function() {
             document.getElementById('mainContainerWrapper').classList.remove('list-mode-active');
-            renderSections(document.getElementById('gameSearch').value);
+            window.renderSections(document.getElementById('gameSearch').value);
         }
 
         async function loadThumbnail(title, id) {
             try {
                 const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
                 const data = await res.json();
-                if(data.originalimage) document.getElementById(id).src = data.originalimage.source;
+                const imgElement = document.getElementById(id);
+                if(data.originalimage && imgElement) imgElement.src = data.originalimage.source;
             } catch(e) {}
         }
 
-        function handleSearch() { 
+        window.handleSearch = function() { 
             document.getElementById('mainContainerWrapper').classList.remove('list-mode-active');
-            renderSections(document.getElementById('gameSearch').value); 
+            window.renderSections(document.getElementById('gameSearch').value); 
         }
 
-        function openModal(url) { document.getElementById('gameEmbed').src = url; document.getElementById('gameModal').style.display = 'block'; }
-        function closeModal() { document.getElementById('gameModal').style.display = 'none'; document.getElementById('gameEmbed').src = ""; }
+        window.openModal = function(url) { 
+            document.getElementById('gameEmbed').src = url; 
+            document.getElementById('gameModal').style.display = 'block'; 
+        }
+        
+        window.closeModal = function() { 
+            document.getElementById('gameModal').style.display = 'none'; 
+            document.getElementById('gameEmbed').src = ""; 
+        }
 
-        window.onload = () => { renderSections(); };
+        // Início
+        window.addEventListener('load', () => {
+            window.renderSections();
+        });
     </script>
 </body>
 </html>
