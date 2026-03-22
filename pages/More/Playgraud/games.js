@@ -10,7 +10,13 @@ export const consoles = {
             { title: "Mega Man Zero", url: "https://www.retrogames.cc/embed/19499-megaman-zero-u-venom.html" },
             { title: "Mega Man Zero 2", url: "https://www.retrogames.cc/embed/26254-megaman-zero-2-e-patience.html" },
             { title: "Mega Man Zero 3", url: "https://www.retrogames.cc/embed/19493-megaman-zero-3-e-rising-sun.html" },
-            { title: "Mega Man Zero 4", url: "https://www.retrogames.cc/embed/28027-megaman-zero-4-e-supplex.html" }
+            { title: "Mega Man Zero 4", url: "https://www.retrogames.cc/embed/28027-megaman-zero-4-e-supplex.html" },
+            { title:"Dragonball Advanced Adventure", url:"https://www.retrogames.cc/embed/26252-dragonball-advanced-adventure-e-rising-sun.html"},
+            { title:"Dragon Ball Z: Supersonic Warriors", url: "https://www.retrogames.cc/embed/19537-dragonball-z-supersonic-warriors-e-rising-sun.html"},
+            { title:"Dragon Ball Z: The Legacy of Goku", url: "https://www.retrogames.cc/embed/26814-dragon-ball-z-the-legacy-of-goku-e-polla.html"},
+            { title:"Dragon Ball Z - The Legacy of Goku II", url: "https://www.retrogames.cc/embed/27814-dragon-ball-z-the-legacy-of-goku-ii-e-eurasia.html"},
+            { title:"Dragon Ball Z - Buu's Fury", url: "https://www.retrogames.cc/embed/28935-dragon-ball-z-buu-s-fury-u-psychosis.html"},
+            { title:"Dragon Ball GT: Transformation", url: "https://www.retrogames.cc/embed/27773-dragon-ball-gt-transformation-u-trashman.html"}
         ]
     },
     "Ação no Nintendo DS": { 
@@ -36,5 +42,8 @@ export const consoles = {
         ]
     }
 };
+
+
+
 
 
