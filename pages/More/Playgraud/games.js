@@ -71,7 +71,7 @@ export const consoles = {
         ]
     },
     
-    "Clássicos do Ps1": { 
+   /* "Clássicos do Ps1": { 
         key: "PS1", 
         games: [
             { title: "Mega Man 8", url: "https://www.retrogames.cc/embed/40781-mega-man-8.html" },
@@ -86,7 +86,7 @@ export const consoles = {
             { title:"Dragon Ball Z: Ultimate Battle 22", url: "https://www.retrogames.cc/embed/40794-dragon-ball-z-ultimate-battle-22.html"},
             { title:"Digimon World", url:"https://www.retrogames.cc/embed/44551-digimon-world-usa.html"},
         ]
-    }
+    }*/
     
 };
 
