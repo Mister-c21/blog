@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LoreSpace - Definitiva</title>
+    <title>LoreSpace - Full App</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
@@ -82,7 +82,6 @@
         
         .suggestion-card { min-width: 120px; padding: 10px; border: 1px solid var(--glass-border); border-radius: 15px; font-size: 0.8rem; cursor: pointer; text-align: center; background: rgba(255,255,255,0.5); }
         
-        /* Share Modal Styling */
         .share-modal-card { background: #fdfdfd; padding: 30px; border-radius: 20px; border: 1px solid #eee; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
         .share-option { display: flex; align-items: center; justify-content: center; padding: 15px; border: 1px solid #ddd; border-radius: 15px; margin: 10px 0; cursor: pointer; font-weight: 600; }
         .share-option i { margin-right: 10px; font-size: 1.2rem; }
@@ -134,8 +133,7 @@
         <div class="share-modal-card">
             <h3 style="margin-bottom: 20px;">Compartilhar</h3>
             <div id="share-text" style="margin-bottom: 20px; font-weight: bold; color: var(--primary-color);"></div>
-            <div class="share-option" onclick="shareTo('instagram')"><i class="fab fa-instagram"></i> Story Instagram</div>
-            <div class="share-option" onclick="shareTo('tiktok')"><i class="fab fa-tiktok"></i> Story TikTok</div>
+            <div class="share-option" onclick="shareTo()"><i class="fas fa-share-nodes"></i> Compartilhar Link</div>
             <button class="edit-btn" style="background:#ccc; margin-top:10px;" onclick="closeShareModal()">Cancelar</button>
         </div>
     </div>
@@ -196,8 +194,6 @@
     <script>
         let currentTerm = '';
         let currentActiveIcon = null; 
-        let activeTrackName = '';
-        let activeArtistName = '';
         const audio = document.getElementById('audio-element');
         const playerBar = document.getElementById('player-bar');
         const progressCircle = document.getElementById('progress-circle');
@@ -213,12 +209,6 @@
             }
         });
 
-        audio.addEventListener('ended', () => {
-            document.getElementById('play-pause-icon').className = 'fas fa-play';
-            if (currentActiveIcon) currentActiveIcon.className = 'fas fa-play';
-            progressCircle.style.strokeDashoffset = circumference;
-        });
-
         function playTrack(url, name, artist, img, iconId) {
             document.querySelectorAll('.spotify-card i.fa-play, .spotify-card i.fa-pause').forEach(i => i.className = 'fas fa-play');
             const icon = document.getElementById(iconId);
@@ -230,31 +220,37 @@
             document.getElementById('player-img').src = img;
             playerBar.classList.add('active');
             audio.play();
-            document.getElementById('play-pause-icon').className = 'fas fa-pause';
         }
 
         function togglePlay() {
             if (audio.paused) {
                 audio.play();
                 document.getElementById('play-pause-icon').className = 'fas fa-pause';
-                if (currentActiveIcon) currentActiveIcon.className = 'fas fa-pause';
             } else {
                 audio.pause();
                 document.getElementById('play-pause-icon').className = 'fas fa-play';
-                if (currentActiveIcon) currentActiveIcon.className = 'fas fa-play';
             }
         }
 
-        // --- SHARE MODAL LOGIC ---
         function openShareModal(text) {
             document.getElementById('share-text').innerText = text;
             document.getElementById('share-modal').style.display = 'flex';
         }
+
         function closeShareModal() { document.getElementById('share-modal').style.display = 'none'; }
-        function shareTo(platform) {
-            const url = window.location.href;
-            alert(`Abrindo ${platform} para compartilhar: ${document.getElementById('share-text').innerText}`);
-            closeShareModal();
+
+        async function shareTo() {
+            const text = document.getElementById('share-text').innerText;
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: 'LoreSpace', text: text, url: window.location.href });
+                    closeShareModal();
+                } catch (err) { console.error('Erro:', err); }
+            } else {
+                navigator.clipboard.writeText(`${text} - ${window.location.href}`);
+                alert("Link copiado!");
+                closeShareModal();
+            }
         }
 
         async function previewWiki(title, pageid) {
@@ -262,15 +258,14 @@
             document.getElementById('preview-title').innerText = title;
             document.getElementById('preview-content').innerText = "Carregando...";
             const sugContainer = document.getElementById('wiki-suggestions');
-            sugContainer.innerHTML = "Buscando sugestões...";
-            document.getElementById('preview-link').href = `https://pt.wikipedia.org/?curid=${pageid}`;
+            sugContainer.innerHTML = "Buscando...";
             
             try {
                 const url = `https://pt.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&pageids=${pageid}&format=json&origin=*`;
                 const res = await fetch(url);
                 const data = await res.json();
                 const page = data.query.pages[pageid];
-                document.getElementById('preview-content').innerText = page.extract || "Sem descrição disponível.";
+                document.getElementById('preview-content').innerText = page.extract || "Sem descrição.";
 
                 const urlSug = `https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(title)}&format=json&origin=*&limit=5`;
                 const resSug = await fetch(urlSug);
@@ -285,35 +280,63 @@
                         sugContainer.appendChild(div);
                     }
                 });
-            } catch (e) { document.getElementById('preview-content').innerText = "Erro ao carregar."; }
+            } catch (e) { document.getElementById('preview-content').innerText = "Erro."; }
         }
 
         function closeWikiPreview() { document.getElementById('wiki-preview-modal').style.display = 'none'; }
-
-        function openStreamingModal(track, artist) {
-            activeTrackName = track;
-            activeArtistName = artist;
-            document.getElementById('streaming-modal').style.display = 'flex';
-        }
-
-        function closeStreamingModal() { document.getElementById('streaming-modal').style.display = 'none'; }
-
-        function redirectTo(platform) {
-            const query = `${activeTrackName} ${activeArtistName}`;
-            let url = '';
-            if (platform === 'itunes') url = `https://music.apple.com/search?term=${encodeURIComponent(query)}`;
-            else if (platform === 'spotify') url = `https://open.spotify.com/search/${encodeURIComponent(query)}`;
-            else if (platform === 'youtube') url = `https://music.youtube.com/search?q=${encodeURIComponent(query)}`;
-            window.open(url, '_blank');
-            closeStreamingModal();
-        }
 
         function showView(viewId) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
         }
 
-        function toggleModal(show) { document.getElementById('edit-modal').style.display = show ? 'flex' : 'none'; }
+        async function searchMusic(term) {
+            const content = document.getElementById('modal-content');
+            content.innerHTML = "Buscando...";
+            const script = document.createElement('script');
+            const callbackName = 'cb_' + Date.now();
+            window[callbackName] = function(data) {
+                content.innerHTML = `<h3>Músicas para: ${term}</h3>`;
+                data.results.forEach((song, i) => {
+                    content.innerHTML += `
+                        <div class="spotify-card">
+                            <div class="play-btn-round" onclick="playTrack('${song.previewUrl}', '${song.trackName.replace(/'/g, "")}', '${song.artistName.replace(/'/g, "")}', '${song.artworkUrl100}', 'i${i}')"><i class="fas fa-play" id="i${i}"></i></div>
+                            <img src="${song.artworkUrl100}" class="track-img">
+                            <div class="track-info"><div>${song.trackName}</div><div>${song.artistName}</div></div>
+                            <i class="fas fa-share-nodes action-btn" onclick="openShareModal('Ouvindo: ${song.trackName}')"></i>
+                        </div>
+                    `;
+                });
+                document.body.removeChild(script);
+            };
+            script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=10&callback=${callbackName}`;
+            document.body.appendChild(script);
+        }
+
+        async function openDetail(term) {
+            currentTerm = term;
+            document.getElementById('detail-modal').style.display = 'block';
+            document.getElementById('modal-content').innerHTML = "Pesquisando...";
+            const url = `https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(term)}&format=json&origin=*`;
+            const res = await fetch(url);
+            const data = await res.json();
+            const content = document.getElementById('modal-content');
+            content.innerHTML = `<h3>Resultados para: ${term}</h3>`;
+            data.query.search.forEach(item => {
+                content.innerHTML += `
+                    <div class="result-item">
+                        <div class="result-info">
+                            <div class="result-title" onclick="previewWiki('${item.title.replace(/'/g, "")}', '${item.pageid}')">${item.title}</div>
+                            <div class="result-snippet">${item.snippet}...</div>
+                        </div>
+                        <i class="fas fa-share-nodes action-btn" onclick="openShareModal('Lendo sobre: ${item.title}')"></i>
+                    </div>
+                `;
+            });
+        }
+
+        function handleSearch(e) { if (e.key === 'Enter') openDetail(document.getElementById('main-search').value); }
+        function toggleModal(s) { document.getElementById('edit-modal').style.display = s ? 'flex' : 'none'; }
         function closeDetail() { document.getElementById('detail-modal').style.display = 'none'; }
         function saveProfile() {
             const name = document.getElementById('input-name').value;
@@ -323,115 +346,30 @@
             toggleModal(false);
         }
 
-        async function changeTab(type, el) {
-            document.querySelectorAll('.tab-item-modal').forEach(t => t.classList.remove('active'));
-            el.classList.add('active');
-            if (type === 'music') searchMusic(currentTerm);
-            else openDetail(currentTerm);
-        }
-
-        async function searchMusic(term) {
-            const content = document.getElementById('modal-content');
-            content.innerHTML = "Buscando música...";
-            const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
-            window[callbackName] = function(data) {
-                content.innerHTML = `<h3>Resultados musicais para: ${term}</h3>`;
-                if (data.results && data.results.length > 0) {
-                    data.results.forEach((song, index) => {
-                        const btnId = `btn-icon-${index}`;
-                        const trackName = song.trackName.replace(/'/g, "\\'");
-                        const artistName = song.artistName.replace(/'/g, "\\'");
-                        content.innerHTML += `
-                            <div class="spotify-card">
-                                <div class="play-btn-round" onclick="playTrack('${song.previewUrl}', '${trackName}', '${artistName}', '${song.artworkUrl100}', '${btnId}')">
-                                    <i class="fas fa-play" id="${btnId}"></i>
-                                </div>
-                                <img src="${song.artworkUrl100}" class="track-img">
-                                <div class="track-info">
-                                    <div class="track-name">${song.trackName}</div>
-                                    <div class="track-artist">${song.artistName}</div>
-                                </div>
-                                <i class="fas fa-share-nodes action-btn" onclick="openShareModal('Ouvindo: ${trackName} - ${artistName}')"></i>
-                                <i class="fas fa-external-link-alt action-btn" onclick="openStreamingModal('${trackName}', '${artistName}')"></i>
-                            </div>
-                        `;
-                    });
-                } else { content.innerHTML += `<p>Nenhuma música encontrada para: ${term}</p>`; }
-                document.body.removeChild(script);
-                delete window[callbackName];
-            };
-            const script = document.createElement('script');
-            script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=10&callback=${callbackName}`;
-            document.body.appendChild(script);
-        }
-
-        async function openDetail(term) {
-            currentTerm = term;
-            const modal = document.getElementById('detail-modal');
-            const content = document.getElementById('modal-content');
-            document.querySelectorAll('.tab-item-modal')[0].classList.add('active');
-            document.querySelectorAll('.tab-item-modal')[1].classList.remove('active');
-            modal.style.display = 'block';
-            content.innerHTML = "Pesquisando...";
-            try {
-                const url = `https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(term)}&format=json&origin=*`;
-                const res = await fetch(url);
-                const data = await res.json();
-                content.innerHTML = `<h3>Resultados para: ${term}</h3>`;
-                if(data.query.search && data.query.search.length > 0) {
-                    data.query.search.forEach(item => {
-                        const title = item.title.replace(/'/g, "\\'");
-                        content.innerHTML += `
-                            <div class="result-item">
-                                <div class="result-info">
-                                    <div class="result-title" onclick="previewWiki('${title}', '${item.pageid}')">${item.title}</div>
-                                    <div class="result-snippet">${item.snippet}...</div>
-                                </div>
-                                <i class="fas fa-share-nodes action-btn" onclick="openShareModal('Dando uma lida em: ${title}')"></i>
-                            </div>
-                        `;
-                    });
-                } else { content.innerHTML = "Nenhum resultado encontrado."; }
-            } catch (e) { content.innerHTML = "Erro ao buscar resultados."; }
-        }
-
-        function handleSearch(event) {
-            if (event.key === 'Enter') {
-                const term = document.getElementById('main-search').value;
-                if(term) openDetail(term);
-            }
-        }
-
         const themes = [
-            { title: "Pop", subs: ["Michael Jackson", "Madonna", "Beyoncé", "Taylor Swift"] },
-            { title: "Sports", subs: ["Futebol", "Basquetebol", "Tênis", "Vôlei"] }
+            { title: "Pop", subs: ["Michael Jackson", "Madonna", "Beyoncé"] },
+            { title: "Tecnologia", subs: ["Inteligência artificial", "Programação", "Logística"] }
         ];
 
-        async function fetchWikiImage(term, container) {
-            try {
-                const url = `https://pt.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(term)}&prop=pageimages&format=json&pithumbsize=300&origin=*`;
-                const res = await fetch(url);
-                const data = await res.json();
-                const pages = data.query.pages;
-                const pageId = Object.keys(pages)[0];
-                if (pages[pageId] && pages[pageId].thumbnail) {
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    card.style.backgroundImage = `url(${pages[pageId].thumbnail.source})`;
-                    card.innerHTML = `<div class="card-title">${term}</div>`;
-                    card.onclick = () => openDetail(term);
-                    container.appendChild(card);
-                }
-            } catch (e) {}
-        }
-
-        themes.forEach((theme, index) => {
-            const secDiv = document.createElement('section');
-            secDiv.className = 'carousel-section';
-            secDiv.innerHTML = `<h2>${theme.title}</h2><div class="carousel-container" id="sec-${index}"></div>`;
-            document.getElementById('main-content').appendChild(secDiv);
-            const container = document.getElementById(`sec-${index}`);
-            theme.subs.forEach(sub => fetchWikiImage(sub, container));
+        themes.forEach((theme, idx) => {
+            const sec = document.createElement('section');
+            sec.className = 'carousel-section';
+            sec.innerHTML = `<h2>${theme.title}</h2><div class="carousel-container" id="s${idx}"></div>`;
+            document.getElementById('main-content').appendChild(sec);
+            theme.subs.forEach(sub => {
+                fetch(`https://pt.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(sub)}&prop=pageimages&format=json&pithumbsize=200&origin=*`)
+                .then(r => r.json()).then(d => {
+                    const p = d.query.pages[Object.keys(d.query.pages)[0]];
+                    if(p.thumbnail) {
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.style.backgroundImage = `url(${p.thumbnail.source})`;
+                        div.innerHTML = `<div class="card-title">${sub}</div>`;
+                        div.onclick = () => openDetail(sub);
+                        document.getElementById(`s${idx}`).appendChild(div);
+                    }
+                });
+            });
         });
     </script>
 </body>
