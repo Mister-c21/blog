@@ -39,8 +39,9 @@
         .tab-item-modal.active::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 2px; background-color: var(--primary-color); }
 
         .modal-content-body { padding: 20px; max-width: 700px; margin: 0 auto; }
-        .result-item { margin-bottom: 25px; padding: 15px; border-radius: 15px; background: #fdfdfd; border: 1px solid #eee; }
-        .result-title { color: #1a0dab; font-size: 20px; margin-bottom: 5px; cursor: pointer; display: block; font-weight: bold; text-decoration: underline; }
+        .result-item { margin-bottom: 25px; padding: 15px; border-radius: 15px; background: #fdfdfd; border: 1px solid #eee; display: flex; align-items: center; }
+        .result-info { flex: 1; }
+        .result-title { color: #1a0dab; font-size: 18px; margin-bottom: 5px; cursor: pointer; display: block; font-weight: bold; text-decoration: underline; }
         .result-snippet { line-height: 1.5; color: #4d5156; font-size: 14px; }
 
         .spotify-card { display: flex; align-items: center; padding: 10px; border-radius: 12px; transition: background 0.3s; margin-bottom: 8px; cursor: pointer; }
@@ -50,7 +51,7 @@
         .track-info { flex: 1; }
         .track-name { font-weight: 600; font-size: 15px; color: #121212; }
         .track-artist { font-size: 13px; color: #6a6a6a; margin-top: 2px; }
-        .stream-icon { font-size: 1.2rem; color: var(--primary-color); padding: 10px; }
+        .action-btn { font-size: 1.2rem; color: var(--primary-color); padding: 10px; cursor: pointer; }
 
         .player-bar { position: fixed; bottom: 90px; left: 5%; width: 90%; background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 20px; display: none; align-items: center; padding: 10px; z-index: 1500; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         .player-bar.active { display: flex; }
@@ -79,8 +80,12 @@
         .tabbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; height: 65px; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 35px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index: 1000; }
         .tab-item { padding: 10px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--primary-color); font-size: 1.3rem; }
         
-        /* Suggestion Card */
         .suggestion-card { min-width: 120px; padding: 10px; border: 1px solid var(--glass-border); border-radius: 15px; font-size: 0.8rem; cursor: pointer; text-align: center; background: rgba(255,255,255,0.5); }
+        
+        /* Share Modal Styling */
+        .share-modal-card { background: #fdfdfd; padding: 30px; border-radius: 20px; border: 1px solid #eee; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .share-option { display: flex; align-items: center; justify-content: center; padding: 15px; border: 1px solid #ddd; border-radius: 15px; margin: 10px 0; cursor: pointer; font-weight: 600; }
+        .share-option i { margin-right: 10px; font-size: 1.2rem; }
     </style>
 </head>
 <body>
@@ -109,9 +114,7 @@
         <div class="modal">
             <h3 id="preview-title"></h3>
             <div id="preview-content" style="text-align: left; margin: 15px 0; max-height: 200px; overflow-y: auto; font-size: 0.9rem;">Carregando...</div>
-            
             <div id="wiki-suggestions" style="width: 100%; display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; margin: 15px 0; scrollbar-width: none;"></div>
-
             <a id="preview-link" href="#" target="_blank" class="edit-btn" style="display:block; text-decoration:none; margin-bottom: 10px;">Ver mais na Wikipédia</a>
             <button class="edit-btn" style="background:#ccc;" onclick="closeWikiPreview()">Fechar</button>
         </div>
@@ -127,6 +130,16 @@
         </div>
     </div>
 
+    <div id="share-modal" class="modal-overlay" style="z-index: 30000;">
+        <div class="share-modal-card">
+            <h3 style="margin-bottom: 20px;">Compartilhar</h3>
+            <div id="share-text" style="margin-bottom: 20px; font-weight: bold; color: var(--primary-color);"></div>
+            <div class="share-option" onclick="shareTo('instagram')"><i class="fab fa-instagram"></i> Story Instagram</div>
+            <div class="share-option" onclick="shareTo('tiktok')"><i class="fab fa-tiktok"></i> Story TikTok</div>
+            <button class="edit-btn" style="background:#ccc; margin-top:10px;" onclick="closeShareModal()">Cancelar</button>
+        </div>
+    </div>
+
     <div id="player-bar" class="player-bar">
         <img id="player-img" src="" class="player-thumb">
         <div class="player-info">
@@ -135,10 +148,7 @@
         </div>
         <div class="player-controls">
             <div class="progress-wrapper" onclick="togglePlay()">
-                <svg>
-                    <circle class="progress-circle-bg" cx="22.5" cy="22.5" r="20" />
-                    <circle id="progress-circle" class="progress-circle-fill" cx="22.5" cy="22.5" r="20" />
-                </svg>
+                <svg><circle class="progress-circle-bg" cx="22.5" cy="22.5" r="20" /><circle id="progress-circle" class="progress-circle-fill" cx="22.5" cy="22.5" r="20" /></svg>
                 <i id="play-pause-icon" class="fas fa-pause"></i>
             </div>
         </div>
@@ -235,7 +245,18 @@
             }
         }
 
-        // Função Atualizada com Sugestões
+        // --- SHARE MODAL LOGIC ---
+        function openShareModal(text) {
+            document.getElementById('share-text').innerText = text;
+            document.getElementById('share-modal').style.display = 'flex';
+        }
+        function closeShareModal() { document.getElementById('share-modal').style.display = 'none'; }
+        function shareTo(platform) {
+            const url = window.location.href;
+            alert(`Abrindo ${platform} para compartilhar: ${document.getElementById('share-text').innerText}`);
+            closeShareModal();
+        }
+
         async function previewWiki(title, pageid) {
             document.getElementById('wiki-preview-modal').style.display = 'flex';
             document.getElementById('preview-title').innerText = title;
@@ -245,14 +266,12 @@
             document.getElementById('preview-link').href = `https://pt.wikipedia.org/?curid=${pageid}`;
             
             try {
-                // Conteúdo Principal
                 const url = `https://pt.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&pageids=${pageid}&format=json&origin=*`;
                 const res = await fetch(url);
                 const data = await res.json();
                 const page = data.query.pages[pageid];
                 document.getElementById('preview-content').innerText = page.extract || "Sem descrição disponível.";
 
-                // Sugestões
                 const urlSug = `https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(title)}&format=json&origin=*&limit=5`;
                 const resSug = await fetch(urlSug);
                 const dataSug = await resSug.json();
@@ -332,7 +351,8 @@
                                     <div class="track-name">${song.trackName}</div>
                                     <div class="track-artist">${song.artistName}</div>
                                 </div>
-                                <i class="fas fa-external-link-alt stream-icon" onclick="openStreamingModal('${trackName}', '${artistName}')"></i>
+                                <i class="fas fa-share-nodes action-btn" onclick="openShareModal('Ouvindo: ${trackName} - ${artistName}')"></i>
+                                <i class="fas fa-external-link-alt action-btn" onclick="openStreamingModal('${trackName}', '${artistName}')"></i>
                             </div>
                         `;
                     });
@@ -360,10 +380,14 @@
                 content.innerHTML = `<h3>Resultados para: ${term}</h3>`;
                 if(data.query.search && data.query.search.length > 0) {
                     data.query.search.forEach(item => {
+                        const title = item.title.replace(/'/g, "\\'");
                         content.innerHTML += `
                             <div class="result-item">
-                                <div class="result-title" onclick="previewWiki('${item.title.replace(/'/g, "\\'")}', '${item.pageid}')">${item.title}</div>
-                                <div class="result-snippet">${item.snippet}...</div>
+                                <div class="result-info">
+                                    <div class="result-title" onclick="previewWiki('${title}', '${item.pageid}')">${item.title}</div>
+                                    <div class="result-snippet">${item.snippet}...</div>
+                                </div>
+                                <i class="fas fa-share-nodes action-btn" onclick="openShareModal('Dando uma lida em: ${title}')"></i>
                             </div>
                         `;
                     });
