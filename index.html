@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LoreSpace - Clean Edition</title>
+    <title>LoreSpace - Orion Edition</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
@@ -20,6 +20,11 @@
 
         .search-container { display: flex; align-items: center; padding: 10px 20px; background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border); border-radius: 30px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .search-input { flex-grow: 1; background: transparent; border: none; padding: 10px; color: var(--primary-color); outline: none; }
+        .mic-btn, .search-btn { cursor: pointer; color: var(--primary-color); margin-left: 10px; font-size: 1.2rem; padding: 5px; }
+
+        .lang-container { display: flex; gap: 8px; padding: 10px 20px; overflow-x: auto; background: white; border-bottom: 1px solid #eee; }
+        .lang-btn { background: #f0f0f0; border: none; padding: 6px 14px; border-radius: 15px; cursor: pointer; color: var(--primary-color); font-weight: bold; font-size: 0.75rem; transition: all 0.3s; }
+        .lang-btn.active { background: var(--primary-color); color: white; }
 
         .carousel-list { display: flex; flex-direction: column; gap: 40px; }
         .carousel-section h2 { color: var(--primary-color); margin-bottom: 15px; font-size: 1.2rem; }
@@ -30,7 +35,7 @@
         .card-title { width: 100%; background: rgba(138, 43, 226, 0.8); backdrop-filter: blur(10px); color: white; padding: 8px; font-size: 0.8rem; font-weight: 600; text-align: center; }
 
         .modal-full { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; overflow-y: auto; color: #202124; }
-        .modal-header { padding: 15px; display: flex; align-items: center; border-bottom: 1px solid #dfe1e5; background: white; position: sticky; top: 0; }
+        .modal-header { padding: 15px; display: flex; align-items: center; border-bottom: 1px solid #dfe1e5; background: white; position: sticky; top: 0; z-index: 10; }
         
         .modal-tabbar { display: flex; gap: 25px; padding: 0 20px; background: white; overflow-x: auto; white-space: nowrap; border-bottom: 1px solid #eee; }
         .tab-item-modal { padding: 15px 0; cursor: pointer; color: #70757a; font-size: 1rem; position: relative; transition: color 0.3s ease; }
@@ -74,6 +79,10 @@
         
         .tabbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; height: 65px; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 35px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index: 1000; }
         .tab-item { padding: 10px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--primary-color); font-size: 1.3rem; }
+        
+        /* Voice Animation */
+        .voice-pulse { width: 100px; height: 100px; background: var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(138, 43, 226, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(138, 43, 226, 0); } 100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(138, 43, 226, 0); } }
     </style>
 </head>
 <body>
@@ -81,9 +90,15 @@
     <div id="view-feed" class="view active">
         <div class="search-container">
             <input type="text" id="main-search" placeholder="Buscar no LoreSpace..." class="search-input" onkeypress="handleSearch(event)">
-            <i class="fas fa-search"></i>
+            <i class="fas fa-microphone mic-btn" onclick="startVoiceSearch()"></i>
+            <i class="fas fa-search search-btn" onclick="triggerSearch()"></i>
         </div>
         <div class="carousel-list" id="main-content"></div>
+    </div>
+
+    <div id="voice-overlay" class="modal-overlay" style="display: none; z-index: 30000;">
+        <div class="voice-pulse"><i class="fas fa-microphone"></i></div>
+        <div style="color: white; margin-top: 20px; font-weight: bold;">Ouvindo...</div>
     </div>
 
     <div id="detail-modal" class="modal-full">
@@ -91,6 +106,15 @@
             <i class="fas fa-arrow-left" onclick="closeDetail()" style="font-size: 1.2rem; cursor: pointer; margin-right: 20px;"></i>
             <span style="font-weight: 500;">Resultados da Busca</span>
         </div>
+        
+        <div class="lang-container" id="lang-selector">
+            <button class="lang-btn active" onclick="setLanguage('pt', this)">PT</button>
+            <button class="lang-btn" onclick="setLanguage('en', this)">EN</button>
+            <button class="lang-btn" onclick="setLanguage('es', this)">ES</button>
+            <button class="lang-btn" onclick="setLanguage('ja', this)">JA</button>
+            <button class="lang-btn" onclick="setLanguage('zh', this)">ZH</button>
+        </div>
+
         <div class="modal-tabbar">
             <div class="tab-item-modal active" onclick="changeTab('all', this)">Todos</div>
             <div class="tab-item-modal" onclick="changeTab('music', this)">Música</div>
@@ -98,12 +122,18 @@
         <div id="modal-content" class="modal-content-body"></div>
     </div>
 
-    <div id="wiki-preview-modal" class="modal-overlay" style="z-index: 20005;">
-        <div class="modal">
-            <h3 id="preview-title"></h3>
-            <div id="preview-content" style="text-align: left; margin: 15px 0; max-height: 300px; overflow-y: auto; font-size: 0.9rem;">Carregando...</div>
-            <a id="preview-link" href="#" target="_blank" class="edit-btn" style="display:block; text-decoration:none; margin-bottom: 10px;">Ver mais na Wikipédia</a>
-            <button class="edit-btn" style="background:#ccc;" onclick="closeWikiPreview()">Fechar</button>
+    <div id="wiki-preview-modal" class="modal-overlay" style="z-index: 20005; padding: 0;">
+        <div class="tiktok-profile" style="width: 100%; height: 100%; background: var(--bg-color); overflow-y: auto;">
+            <div id="preview-image-container" style="width: 100%; height: 250px; background-size: cover; background-position: center; position: relative;">
+                <div style="position: absolute; top:0; left:0; width: 100%; height: 100%; background: rgba(138, 43, 226, 0.4);"></div>
+                <i class="fas fa-arrow-left" onclick="closeWikiPreview()" style="position: absolute; top: 20px; left: 20px; font-size: 1.5rem; color: white; cursor: pointer; z-index: 10; text-shadow: 0 0 5px rgba(0,0,0,0.5);"></i>
+            </div>
+            
+            <div style="padding: 20px; background: white; border-radius: 30px 30px 0 0; margin-top: -30px; min-height: 400px; box-shadow: 0 -5px 20px rgba(0,0,0,0.05);">
+                <h2 id="preview-title" style="margin: 0 0 20px 0; color: #333; text-align: center;">Título</h2>
+                <div id="preview-content" style="color: #444; line-height: 1.6; font-size: 1rem; margin-bottom: 20px;">Carregando...</div>
+                <a id="preview-link" href="#" target="_blank" class="edit-btn" style="display:block; text-align:center; text-decoration:none;">Ler artigo completo</a>
+            </div>
         </div>
     </div>
 
@@ -149,6 +179,7 @@
 
     <script>
         let currentTerm = '';
+        let currentLang = 'pt';
         let currentActiveIcon = null; 
         let activeTrackName = '';
         let activeArtistName = '';
@@ -158,6 +189,38 @@
         const circumference = 2 * Math.PI * 20;
 
         progressCircle.style.strokeDasharray = circumference;
+
+        // Speech Recognition
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'pt-BR';
+
+        function startVoiceSearch() {
+            document.getElementById('voice-overlay').style.display = 'flex';
+            recognition.start();
+        }
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            document.getElementById('main-search').value = transcript;
+            closeVoice();
+            openDetail(transcript);
+        };
+
+        recognition.onend = () => closeVoice();
+        function closeVoice() { document.getElementById('voice-overlay').style.display = 'none'; }
+        
+        // Trigger Search (Clicar na lupa)
+        function triggerSearch() {
+            const term = document.getElementById('main-search').value;
+            if(term) openDetail(term);
+        }
+
+        function setLanguage(lang, element) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            element.classList.add('active');
+            if (currentTerm) openDetail(currentTerm);
+        }
 
         audio.addEventListener('timeupdate', () => {
             if (audio.duration) {
@@ -203,14 +266,26 @@
             document.getElementById('wiki-preview-modal').style.display = 'flex';
             document.getElementById('preview-title').innerText = title;
             document.getElementById('preview-content').innerText = "Carregando...";
-            document.getElementById('preview-link').href = `https://pt.wikipedia.org/?curid=${pageid}`;
+            const imgContainer = document.getElementById('preview-image-container');
+            imgContainer.style.backgroundImage = 'none';
+
+            document.getElementById('preview-link').href = `https://${currentLang}.wikipedia.org/?curid=${pageid}`;
             try {
-                const url = `https://pt.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&pageids=${pageid}&format=json&origin=*`;
+                const url = `https://${currentLang}.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro&explaintext&pithumbsize=500&pageids=${pageid}&format=json&origin=*`;
                 const res = await fetch(url);
                 const data = await res.json();
                 const page = data.query.pages[pageid];
+                
                 document.getElementById('preview-content').innerText = page.extract || "Sem descrição disponível.";
-            } catch (e) { document.getElementById('preview-content').innerText = "Erro ao carregar prévia."; }
+                
+                if (page.thumbnail && page.thumbnail.source) {
+                    imgContainer.style.backgroundImage = `url(${page.thumbnail.source})`;
+                } else {
+                    imgContainer.style.backgroundImage = 'linear-gradient(to bottom, #8a2be2, #4b0082)';
+                }
+            } catch (e) { 
+                document.getElementById('preview-content').innerText = "Erro ao carregar prévia."; 
+            }
         }
 
         function closeWikiPreview() { document.getElementById('wiki-preview-modal').style.display = 'none'; }
@@ -243,7 +318,6 @@
         async function changeTab(type, el) {
             document.querySelectorAll('.tab-item-modal').forEach(t => t.classList.remove('active'));
             el.classList.add('active');
-            
             if (type === 'music') searchMusic(currentTerm);
             else openDetail(currentTerm);
         }
@@ -255,9 +329,7 @@
                 const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=10`;
                 const res = await fetch(url);
                 const data = await res.json();
-                
                 content.innerHTML = `<h3>Resultados musicais para: ${term}</h3>`;
-                
                 if (data.results && data.results.length > 0) {
                     data.results.forEach((song, index) => {
                         const btnId = `btn-icon-${index}`;
@@ -283,19 +355,20 @@
             currentTerm = term;
             const modal = document.getElementById('detail-modal');
             const content = document.getElementById('modal-content');
-            
-            document.querySelectorAll('.tab-item-modal')[0].classList.add('active');
-            document.querySelectorAll('.tab-item-modal')[1].classList.remove('active');
-            
             modal.style.display = 'block';
-            content.innerHTML = "Pesquisando...";
 
+            const isMusicTab = document.querySelectorAll('.tab-item-modal')[1].classList.contains('active');
+            if (isMusicTab) {
+                searchMusic(term);
+                return;
+            }
+
+            content.innerHTML = "Pesquisando...";
             try {
-                const url = `https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(term)}&format=json&origin=*`;
+                const url = `https://${currentLang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(term)}&format=json&origin=*`;
                 const res = await fetch(url);
                 const data = await res.json();
-                
-                content.innerHTML = `<h3>Resultados para: ${term}</h3>`;
+                content.innerHTML = `<h3>Resultados em ${currentLang.toUpperCase()} para: ${term}</h3>`;
                 if(data.query.search && data.query.search.length > 0) {
                     data.query.search.forEach(item => {
                         content.innerHTML += `
@@ -317,8 +390,12 @@
         }
 
         const themes = [
-            { title: "Pop", subs: ["Michael Jackson", "Madonna", "Beyoncé", "Taylor Swift"] },
-            { title: "Sports", subs: ["Futebol", "Basquetebol", "Tênis", "Vôlei"] }
+            { title: "Pop", subs: ["Michael Jackson", "Madonna", "Beyoncé", "Taylor Swift", "Lady Gaga", "Rihanna", "Bruno Mars", "Dua Lipa", "Adele"] },
+            { title: "Sports", subs: ["Futebol", "Basquetebol", "Tênis", "Vôlei", "Fórmula 1", "Natação", "Boxe", "Judô", "Skate"] },
+            { title: "Animes", subs: ["Naruto", "One Piece", "Dragon Ball", "Attack on Titan", "Death Note", "Bleach", "Hunter x Hunter", "Fullmetal Alchemist", "Evangelion"] },
+            { title: "Livros", subs: ["Harry Potter", "Dom Casmurro", "O Pequeno Príncipe", "1984", "O Hobbit", "O Alquimista", "Moby Dick", "Hamlet", "A Divina Comédia"] },
+            { title: "Novelas", subs: ["Avenida Brasil", "Senhora do Destino", "O Clone", "Laços de Família", "Pantanal", "Mulheres Apaixonadas", "Roque Santeiro", "Tieta", "Vale Tudo"] },
+            { title: "Séries", subs: ["Stranger Things", "Breaking Bad", "Friends", "Game of Thrones", "The Office", "The Crown", "Dark", "Black Mirror", "The Boys"] }
         ];
 
         async function fetchWikiImage(term, container) {
