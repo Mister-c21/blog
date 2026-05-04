@@ -80,7 +80,6 @@
         .tabbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; height: 65px; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 35px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index: 1000; }
         .tab-item { padding: 10px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--primary-color); font-size: 1.3rem; }
         
-        /* Botão central elevado */
         .tab-item-heart {
             width: 55px;
             height: 55px;
@@ -136,6 +135,7 @@
         <div class="modal-tabbar">
             <div class="tab-item-modal active" onclick="changeTab('all', this)">Todos</div>
             <div class="tab-item-modal" onclick="changeTab('music', this)">Música</div>
+            <div class="tab-item-modal" onclick="changeTab('news', this)">Notícias</div>
         </div>
         <div id="modal-content" class="modal-content-body"></div>
     </div>
@@ -206,6 +206,9 @@
         const playerBar = document.getElementById('player-bar');
         const progressCircle = document.getElementById('progress-circle');
         const circumference = 2 * Math.PI * 20;
+        
+        // --- CONFIGURAÇÃO NEWS API ---
+        const NEWS_API_KEY = 'aa199db9b7774c639b8f68779ad3fcb9'; 
 
         progressCircle.style.strokeDasharray = circumference;
 
@@ -336,6 +339,7 @@
             document.querySelectorAll('.tab-item-modal').forEach(t => t.classList.remove('active'));
             el.classList.add('active');
             if (type === 'music') searchMusic(currentTerm);
+            else if (type === 'news') searchNews(currentTerm);
             else openDetail(currentTerm);
         }
 
@@ -368,17 +372,47 @@
             } catch (e) { content.innerHTML = "Erro ao carregar músicas."; }
         }
 
+        async function searchNews(term) {
+            const content = document.getElementById('modal-content');
+            content.innerHTML = "Buscando notícias...";
+            const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(term)}&language=${currentLang}&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.status === "error") {
+                    content.innerHTML = `<p style="color:red; padding:20px;">Erro da API: ${data.message}</p>`;
+                    return;
+                }
+                content.innerHTML = `<h3>Notícias recentes sobre: ${term}</h3>`;
+                if (data.articles && data.articles.length > 0) {
+                    data.articles.forEach(article => {
+                        content.innerHTML += `
+                            <div class="result-item" onclick="window.open('${article.url}', '_blank')" style="cursor:pointer;">
+                                ${article.urlToImage ? `<img src="${article.urlToImage}" style="width:100%; border-radius:10px; margin-bottom:10px; max-height:200px; object-fit:cover;">` : ''}
+                                <div class="result-title">${article.title}</div>
+                                <div style="font-size: 0.75rem; color: var(--primary-color); margin-bottom: 5px;">
+                                    ${article.source.name} • ${new Date(article.publishedAt).toLocaleDateString()}
+                                </div>
+                                <div class="result-snippet">${article.description || ''}</div>
+                            </div>
+                        `;
+                    });
+                } else { content.innerHTML += `<p>Nenhuma notícia encontrada.</p>`; }
+            } catch (e) { content.innerHTML = "Erro ao carregar notícias."; }
+        }
+
         async function openDetail(term) {
             currentTerm = term;
             const modal = document.getElementById('detail-modal');
             const content = document.getElementById('modal-content');
             modal.style.display = 'block';
 
-            const isMusicTab = document.querySelectorAll('.tab-item-modal')[1].classList.contains('active');
-            if (isMusicTab) {
-                searchMusic(term);
-                return;
-            }
+            const tabs = document.querySelectorAll('.tab-item-modal');
+            const isMusicTab = tabs[1].classList.contains('active');
+            const isNewsTab = tabs[2] ? tabs[2].classList.contains('active') : false;
+
+            if (isMusicTab) { searchMusic(term); return; }
+            if (isNewsTab) { searchNews(term); return; }
 
             content.innerHTML = "Pesquisando...";
             try {
