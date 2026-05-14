@@ -16,7 +16,6 @@
     
     <style>
         :root {
-            /* Paleta: BlueViolet, Ghost White, Vidro Semitransparente */
             --primary: #8a2be2; 
             --primary-light: #a052ee;
             --text: #2d2d2d;
@@ -24,7 +23,7 @@
             --bg: #f8f8ff; 
             --glass: rgba(138, 43, 226, 0.1); 
             --glass-border: rgba(138, 43, 226, 0.2);
-            --card-radius: 16px;
+            --card-radius: 12px;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -48,8 +47,8 @@
             color: var(--text); display: flex; align-items: center; gap: 8px; 
             cursor: pointer; padding: 8px 16px; border-radius: 12px;
             transition: all 0.3s ease; text-decoration: none;
+            flex-shrink: 0;
         }
-        .nav-btn:hover { background: var(--primary); color: white; }
 
         .search-bar { flex: 1; max-width: 600px; margin: 0 20px; position: relative; display: flex; align-items: center; }
         .search-input {
@@ -58,14 +57,12 @@
             backdrop-filter: blur(10px);
         }
         .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); opacity: 0.5; width: 18px; }
-        
         .voice-btn { cursor: pointer; background: none; border: none; color: var(--text); padding: 5px; position: absolute; right: 10px; }
 
         #voiceOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(248, 248, 255, 0.95); z-index: 9999;
             display: none; flex-direction: column; align-items: center; justify-content: center;
-            color: var(--text);
         }
         .pulse { width: 100px; height: 100px; background: var(--primary); border-radius: 50%; animation: pulse-anim 1.5s infinite; }
         @keyframes pulse-anim { 0% { transform: scale(0.8); opacity: 0.5; } 50% { transform: scale(1.2); opacity: 0.8; } 100% { transform: scale(0.8); opacity: 0.5; } }
@@ -77,25 +74,45 @@
         .carousel-track { display: flex; gap: 16px; overflow-x: auto; padding: 10px 20px 20px; scrollbar-width: none; }
         .carousel-track::-webkit-scrollbar { display: none; }
 
-        .game-card { min-width: 140px; width: 140px; cursor: pointer; transition: transform 0.2s; }
+        .game-card { min-width: 120px; width: 120px; cursor: pointer; transition: transform 0.2s; }
         .game-card:hover { transform: translateY(-5px); }
+        
         .card-image-wrapper { 
-            width: 100%; aspect-ratio: 1/1; border-radius: var(--card-radius); 
+            width: 100%; aspect-ratio: 2/3; border-radius: var(--card-radius); 
             overflow: hidden; background: var(--glass); margin-bottom: 8px;
             border: 1px solid var(--glass-border);
         }
         .game-card img { width: 100%; height: 100%; object-fit: cover; }
+        
         .title { font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .category { font-size: 0.75rem; color: var(--text-dim); }
 
-        .list-mode .carousel-track { flex-direction: column; overflow-x: hidden; }
-        .list-mode .game-card { display: flex; width: 100%; min-width: 100%; align-items: center; gap: 15px; padding: 10px 20px; border-bottom: 1px solid var(--glass-border); }
-        .list-mode .card-image-wrapper { width: 60px; height: 60px; min-width: 60px; margin-bottom: 0; }
+        /* Modal da Lista Vertical - Ajustado para evitar Scroll Horizontal */
+        .list-modal-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: var(--bg); z-index: 2500; display: none; flex-direction: column;
+            overflow-x: hidden;
+        }
+        .list-modal-header { 
+            padding: 15px; border-bottom: 1px solid var(--glass-border); 
+            display: flex; align-items: center; gap: 10px; 
+            background: rgba(248, 248, 255, 0.8); backdrop-filter: blur(10px); 
+            width: 100%;
+        }
+        .list-modal-body { 
+            flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 20px; 
+            width: 100%;
+        }
         
-        .btn-return { display: none; color: var(--primary); cursor: pointer; align-items: center; gap: 5px; font-weight: 600; margin-left: 20px; margin-bottom: 15px; }
-        .list-mode-active .btn-return { display: flex; }
-        .hidden-section { display: none !important; }
+        .vertical-item { 
+            display: flex; align-items: center; gap: 15px; padding: 12px 0; 
+            border-bottom: 1px solid var(--glass-border); cursor: pointer; 
+            width: 100%;
+        }
+        .vertical-img { width: 50px; aspect-ratio: 2/3; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+        .vertical-info { flex: 1; min-width: 0; } /* Evita que o texto empurre a largura */
 
+        /* Modal Jogo */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 3000; display: none; }
         .close-btn { position: absolute; top: 15px; right: 15px; width: 40px; height: 40px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 3001; cursor: pointer; color: var(--text); }
     </style>
@@ -109,18 +126,27 @@
             </a>
             <div class="search-bar">
                 <i data-lucide="search" class="search-icon"></i>
-                <input type="text" id="gameSearch" class="search-input" placeholder="Pesquisar..." oninput="handleSearch()">
-                <button class="voice-btn" onclick="startVoiceSearch()"><i data-lucide="mic"></i></button>
+                <input type="text" id="gameSearch" class="search-input" placeholder="Pesquisar..." onfocus="showListModal()" oninput="syncSearch(this.value)">
+                <button class="voice-btn" onclick="startVoiceSearch('gameSearch')"><i data-lucide="mic"></i></button>
             </div>
         </div>
     </header>
 
+    <div id="listModal" class="list-modal-overlay">
+        <div class="list-modal-header">
+            <div class="nav-btn" onclick="hideListModal()" style="padding: 8px 12px;"><i data-lucide="chevron-left"></i></div>
+            <div class="search-bar" style="margin: 0; flex: 1;">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" id="modalSearchInput" class="search-input" placeholder="Buscar na lista..." oninput="syncSearch(this.value)">
+                <button class="voice-btn" onclick="startVoiceSearch('modalSearchInput')"><i data-lucide="mic"></i></button>
+            </div>
+        </div>
+        <div class="list-modal-body" id="listModalContent"></div>
+    </div>
+
     <div id="voiceOverlay"><div class="pulse"></div><p style="margin-top:20px;">Ouvindo...</p></div>
 
-    <main id="mainContainerWrapper">
-        <div id="btnReturn" class="btn-return" onclick="resetView()"><i data-lucide="chevron-left"></i> Voltar</div>
-        <div id="mainContainer"></div>
-    </main>
+    <main id="mainContainer"></main>
 
     <div id="gameModal" class="modal-overlay">
         <div class="close-btn" onclick="closeModal()"><i data-lucide="x"></i></div>
@@ -130,56 +156,88 @@
     <script type="module">
         import { consoles } from './games.js';
 
-        window.startVoiceSearch = function() {
+        let currentFilterKey = null;
+
+        window.startVoiceSearch = function(targetId) {
             const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
             recognition.lang = 'pt-BR';
             const overlay = document.getElementById('voiceOverlay');
-            
-            const startSpeech = new SpeechSynthesisUtterance("Estou a ouvir");
-            startSpeech.lang = 'pt-BR';
-            window.speechSynthesis.speak(startSpeech);
-            
             overlay.style.display = 'flex';
             recognition.start();
             
             recognition.onresult = (event) => {
                 const transcript = event.results[0][0].transcript;
-                document.getElementById('gameSearch').value = transcript;
-                window.handleSearch();
+                syncSearch(transcript);
+                if (targetId === 'gameSearch') showListModal();
                 overlay.style.display = 'none';
             };
-            
             recognition.onend = () => overlay.style.display = 'none';
             recognition.onerror = () => overlay.style.display = 'none';
         }
 
-        window.renderSections = function(searchTerm = "") {
+        window.syncSearch = function(value) {
+            document.getElementById('gameSearch').value = value;
+            document.getElementById('modalSearchInput').value = value;
+            window.updateListSearch(value, currentFilterKey);
+        }
+
+        window.showListModal = function(specificKey = null) {
+            currentFilterKey = specificKey;
+            document.getElementById('listModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            const term = specificKey ? "" : document.getElementById('gameSearch').value;
+            syncSearch(term);
+        }
+
+        window.hideListModal = function() {
+            document.getElementById('listModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+            currentFilterKey = null;
+            syncSearch("");
+        }
+
+        window.updateListSearch = function(term = "", keyFilter = null) {
+            const content = document.getElementById('listModalContent');
+            content.innerHTML = "";
+            Object.entries(consoles).forEach(([sectionTitle, data]) => {
+                if (keyFilter && data.key !== keyFilter) return;
+                const filtered = data.games.filter(g => g.title.toLowerCase().includes(term.toLowerCase()));
+                filtered.forEach(game => {
+                    const item = document.createElement('div');
+                    item.className = 'vertical-item';
+                    item.onclick = () => window.openModal(game.url);
+                    const img = (game.image && game.image.trim() !== "") ? game.image : "https://via.placeholder.com/150x225";
+                    item.innerHTML = `
+                        <img src="${img}" class="vertical-img">
+                        <div class="vertical-info">
+                            <p class="title">${game.title}</p>
+                            <p class="category">${data.key}</p>
+                        </div>
+                    `;
+                    content.appendChild(item);
+                });
+            });
+        }
+
+        window.renderSections = function() {
             const container = document.getElementById('mainContainer');
             container.innerHTML = "";
             Object.entries(consoles).forEach(([sectionTitle, data]) => {
-                const filtered = data.games.filter(g => g.title.toLowerCase().includes(searchTerm.toLowerCase()));
-                const displayList = filtered.slice(0, 10);
-                
-                if (displayList.length === 0) return;
-                
                 const section = document.createElement('section');
                 section.className = 'carousel-container';
-                section.id = `sec-${data.key}`;
                 section.innerHTML = `
                     <div class="section-header">
                         <h2>${sectionTitle}</h2>
-                        ${filtered.length > 10 ? `<span class="see-more" style="cursor:pointer" onclick="activateList('${data.key}')"><i data-lucide="chevron-right"></i></span>` : ''}
+                        <span style="cursor:pointer" onclick="showListModal('${data.key}')"><i data-lucide="chevron-right"></i></span>
                     </div>
                     <div class="carousel-track" id="track-${data.key}"></div>
                 `;
                 container.appendChild(section);
-                
-                displayList.forEach((game) => {
+                data.games.slice(0, 10).forEach((game) => {
                     const card = document.createElement('div');
                     card.className = 'game-card';
                     card.onclick = () => window.openModal(game.url);
-                    // Uso da imagem definida no arquivo games.js, com fallback para placeholder
-                    const img = (game.image && game.image.trim() !== "") ? game.image : "https://via.placeholder.com/180";
+                    const img = (game.image && game.image.trim() !== "") ? game.image : "https://via.placeholder.com/150x225";
                     card.innerHTML = `<div class="card-image-wrapper"><img src="${img}" alt="${game.title}"></div><p class="title">${game.title}</p><p class="category">${data.key}</p>`;
                     document.getElementById(`track-${data.key}`).appendChild(card);
                 });
@@ -187,53 +245,16 @@
             lucide.createIcons();
         }
 
-        window.activateList = function(key) {
-            document.getElementById('mainContainerWrapper').classList.add('list-mode-active');
-            document.querySelectorAll('.carousel-container').forEach(s => {
-                if (s.id === `sec-${key}`) {
-                    s.classList.add('list-mode');
-                    const seeMore = s.querySelector('.see-more');
-                    if(seeMore) seeMore.style.display = 'none';
-                    const track = s.querySelector('.carousel-track');
-                    track.innerHTML = "";
-                    const fullGameList = consoles[Object.keys(consoles).find(k => consoles[k].key === key)].games;
-                    fullGameList.forEach((game) => {
-                        const card = document.createElement('div');
-                        card.className = 'game-card';
-                        card.onclick = () => window.openModal(game.url);
-                        const img = (game.image && game.image.trim() !== "") ? game.image : "https://via.placeholder.com/180";
-                        card.innerHTML = `<div class="card-image-wrapper"><img src="${img}" alt="${game.title}"></div><div><p class="title">${game.title}</p><p class="category">${key}</p></div>`;
-                        track.appendChild(card);
-                    });
-                } else { s.classList.add('hidden-section'); }
-            });
-            window.scrollTo(0,0);
-            lucide.createIcons();
-        }
-
-        window.resetView = function() {
-            document.getElementById('mainContainerWrapper').classList.remove('list-mode-active');
-            window.renderSections(document.getElementById('gameSearch').value);
-        }
-
-        window.handleSearch = function() { 
-            document.getElementById('mainContainerWrapper').classList.remove('list-mode-active');
-            window.renderSections(document.getElementById('gameSearch').value); 
-        }
-
         window.openModal = function(url) { 
             document.getElementById('gameEmbed').src = url; 
             document.getElementById('gameModal').style.display = 'block'; 
         }
-        
         window.closeModal = function() { 
             document.getElementById('gameModal').style.display = 'none'; 
             document.getElementById('gameEmbed').src = ""; 
         }
 
-        window.addEventListener('load', () => {
-            window.renderSections();
-        });
+        window.addEventListener('load', () => { window.renderSections(); });
     </script>
 </body>
 </html>
