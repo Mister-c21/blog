@@ -12,6 +12,7 @@
             --violet-main: #8A2BE2;
             --glass-bg: rgba(255, 255, 255, 0.7);
             --glass-border: rgba(138, 43, 226, 0.2);
+            --header-height: 105px;
         }
 
         body {
@@ -20,7 +21,8 @@
             min-height: 100vh;
             font-family: 'Segoe UI', sans-serif;
             margin: 0;
-            overflow: hidden; /* Evita rolagem dupla com o iframe */
+            overflow: hidden; 
+            transition: background 0.3s ease;
         }
 
         /* --- HEADER --- */
@@ -34,6 +36,8 @@
             border-bottom: 1px solid var(--glass-border);
             z-index: 1000;
             padding: 10px 0;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: transform;
         }
 
         .header-top {
@@ -100,10 +104,12 @@
 
         /* --- CONTAINER DOS IFRAMES --- */
         #content-container {
-            margin-top: 105px; /* Altura do header */
-            height: calc(100vh - 105px);
+            margin-top: var(--header-height);
+            height: calc(100vh - var(--header-height));
             width: 100%;
             position: relative;
+            transition: margin-top 0.4s cubic-bezier(0.4, 0, 0.2, 1), height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: margin-top, height;
         }
 
         .tab-content {
@@ -122,11 +128,23 @@
             height: 100%;
             border: none;
         }
+
+        /* --- ESTADO MOBILE HIDDEN (Animação) --- */
+        @media (max-width: 768px) {
+            body.header-hidden header {
+                transform: translateY(-100%);
+            }
+
+            body.header-hidden #content-container {
+                margin-top: 0;
+                height: 100vh;
+            }
+        }
     </style>
 </head>
-<body>
+<body id="main-body">
 
-    <header>
+    <header id="main-header">
         <div class="header-top">
             <h1 class="page-title">LoreSpace</h1>
             <a href="../../../../index.html" class="nav-button">
@@ -143,12 +161,12 @@
     <main id="content-container">
         <!-- Iframe da Sessão Retro -->
         <div id="retro-frame" class="tab-content active">
-            <iframe src="RetroHub.html" title="Conteúdo Retro"></iframe>
+            <iframe src="RetroHub.html" title="Conteúdo Retro" id="iframe-retro"></iframe>
         </div>
 
         <!-- Iframe da Sessão Mini-games -->
         <div id="minigames-frame" class="tab-content">
-            <iframe src="Mini_games.html" title="Conteúdo Mini-games"></iframe>
+            <iframe src="Mini_games.html" title="Conteúdo Mini-games" id="iframe-minigames"></iframe>
         </div>
     </main>
 
@@ -163,9 +181,48 @@
             const contents = document.querySelectorAll('.tab-content');
             contents.forEach(content => content.classList.remove('active'));
             document.getElementById(frameId).classList.add('active');
+
+            // Ao trocar de aba, mostramos o header novamente
+            document.body.classList.remove('header-hidden');
         }
+
+        // LÓGICA DE SCROLL EXCLUSIVA MOBILE
+        let lastScrollTop = 0;
+        const body = document.body;
+
+        // Escuta mensagens vindas dos iframes (RetroHub e Mini_games)
+        window.addEventListener('message', function(event) {
+            // Verifica se a mensagem contém dados de scroll
+            if (event.data && event.data.type === 'iframeScroll') {
+                const scrollTop = event.data.scrollTop;
+                
+                if (window.innerWidth <= 768) { // Apenas Mobile
+                    if (scrollTop > 60) {
+                        // Scroll para baixo: esconde header
+                        body.classList.add('header-hidden');
+                    } else {
+                        // Perto do topo: mostra header
+                        body.classList.remove('header-hidden');
+                    }
+                }
+                lastScrollTop = scrollTop;
+            }
+        });
+
+        /* 
+           IMPORTANTE: Para que o código acima funcione, você deve adicionar 
+           o seguinte script DENTRO dos seus arquivos "RetroHub.html" e "Mini_games.html":
+
+           <script>
+               window.onscroll = function() {
+                   window.parent.postMessage({
+                       type: 'iframeScroll',
+                       scrollTop: window.pageYOffset || document.documentElement.scrollTop
+                   }, '*');
+               };
+           <\/script>
+        */
     </script>
 
 </body>
 </html>
-
