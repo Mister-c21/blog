@@ -125,6 +125,132 @@
 
         .voice-pulse { width: 100px; height: 100px; background: var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(138, 43, 226, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(138, 43, 226, 0); } 100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(138, 43, 226, 0); } }
+
+        /* ==========================================================================
+           COMPATIBILIDADE E UX ESTILO NAVER (APENAS PARA DESKTOP)
+           ========================================================================== */
+        @media (min-width: 992px) {
+            .modal-full {
+                background: #f4f6fa;
+            }
+            .modal-header {
+                padding: 20px 10%;
+                border-bottom: 1px solid #e2e4e8;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            }
+            .lang-container {
+                padding: 8px 10%;
+                background: #f4f6fa;
+                border-bottom: none;
+            }
+            .modal-tabbar {
+                padding: 0 10%;
+                border-bottom: 1px solid #e2e4e8;
+                background: white;
+                gap: 30px;
+            }
+            .tab-item-modal {
+                font-size: 0.95rem;
+                padding: 12px 0;
+                color: #555;
+            }
+            .tab-item-modal.active {
+                color: var(--primary-color);
+            }
+            
+            /* Grid Estrutural Naver (Conteúdo à esquerda + Sidebar de Contexto à direita) */
+            .modal-content-body {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 30px 10%;
+                display: grid;
+                grid-template-columns: 2fr 1fr;
+                gap: 30px;
+                align-items: start;
+            }
+
+            /* Container Principal de Cartões Empilhados */
+            .naver-main-col {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            /* Blocos Seccionados da UX Naver (Solidificados e Quadrados por Padrão) */
+            .naver-section-card {
+                background: white;
+                border: 1px solid #e4e6eb;
+                border-radius: 8px;
+                padding: 24px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            }
+
+            .naver-section-card h3 {
+                margin-top: 0;
+                margin-bottom: 18px;
+                font-size: 1.15rem;
+                font-weight: 700;
+                color: #000;
+                border-bottom: 1px solid #f1f3f5;
+                padding-bottom: 10px;
+            }
+
+            /* Layout de Snippets de Busca Integrados */
+            .result-item {
+                margin-bottom: 20px;
+                padding: 0;
+                background: transparent;
+                border: none;
+                border-radius: 0;
+            }
+            .result-item:last-child {
+                margin-bottom: 0;
+            }
+            .result-title {
+                color: #00249c;
+                font-size: 1.1rem;
+                font-weight: 600;
+                text-decoration: none;
+                margin-bottom: 6px;
+                display: inline-block;
+            }
+            .result-title:hover {
+                text-decoration: underline;
+            }
+            /* Sub-link superior cinza característico do Naver */
+            .result-item::before {
+                content: "LoreSpace > WikiResult";
+                display: block;
+                font-size: 0.78rem;
+                color: #008000;
+                opacity: 0.8;
+                margin-bottom: 3px;
+            }
+            .result-snippet {
+                color: #404040;
+                font-size: 0.88rem;
+                line-height: 1.6;
+            }
+
+            /* Sidebar Lateral Naver (Painel Inteligente) */
+            .naver-sidebar {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+                position: sticky;
+                top: 90px;
+            }
+
+            .web-search-list {
+                gap: 8px;
+                margin-top: 0;
+            }
+            .web-search-item {
+                border-radius: 6px;
+                padding: 12px 15px;
+                font-size: 0.9rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -409,17 +535,49 @@
             else openDetail(currentTerm);
         }
 
+        /* Helper estrutural para renderização adaptativa estilo Naver no Desktop */
+        function renderNaverLayout(mainContentHtml, sidebarContentHtml = '') {
+            const isDesktop = window.innerWidth >= 992;
+            if (isDesktop) {
+                return `
+                    <div class="naver-main-col">${mainContentHtml}</div>
+                    <div class="naver-sidebar">${sidebarContentHtml}</div>
+                `;
+            }
+            return mainContentHtml + sidebarContentHtml;
+        }
+
+        function getNaverSidebarWeb(term) {
+            const q = encodeURIComponent(term);
+            return `
+                <div class="naver-section-card">
+                    <h3>Motores Adicionais</h3>
+                    <div class="web-search-list">
+                        <a href="https://www.google.com/search?q=${q}" target="_blank" class="web-search-item"><span><i class="fab fa-google"></i> Google</span><i class="fas fa-chevron-right"></i></a>
+                        <a href="https://search.naver.com/search.naver?query=${q}" target="_blank" class="web-search-item"><span><i class="fas fa-search"></i> Naver</span><i class="fas fa-chevron-right"></i></a>
+                        <a href="https://www.baidu.com/s?wd=${q}" target="_blank" class="web-search-item"><span><i class="fas fa-search"></i> Baidu</span><i class="fas fa-chevron-right"></i></a>
+                        <a href="https://www.reddit.com/search/?q=${q}" target="_blank" class="web-search-item"><span><i class="fab fa-reddit"></i> Reddit</span><i class="fas fa-chevron-right"></i></a>
+                    </div>
+                </div>
+            `;
+        }
+
         function searchWeb(term) {
             const content = document.getElementById('modal-content');
             const q = encodeURIComponent(term);
-            content.innerHTML = `
-                <div style="margin-bottom: 20px;"><h3 style="color:var(--primary-color);">Buscadores Web para: "${term}"</h3></div>
-                <div class="web-search-list">
-                    <a href="https://www.google.com/search?q=${q}" target="_blank" class="web-search-item"><span><i class="fab fa-google"></i> Google</span><i class="fas fa-chevron-right"></i></a>
-                    <a href="https://search.naver.com/search.naver?query=${q}" target="_blank" class="web-search-item"><span><i class="fas fa-search"></i> Naver</span><i class="fas fa-chevron-right"></i></a>
-                    <a href="https://www.baidu.com/s?wd=${q}" target="_blank" class="web-search-item"><span><i class="fas fa-search"></i> Baidu</span><i class="fas fa-chevron-right"></i></a>
-                    <a href="https://www.reddit.com/search/?q=${q}" target="_blank" class="web-search-item"><span><i class="fab fa-reddit"></i> Reddit</span><i class="fas fa-chevron-right"></i></a>
+            
+            const mainHtml = `
+                <div class="naver-section-card">
+                    <h3>Buscadores Web para: "${term}"</h3>
+                    <div class="web-search-list">
+                        <a href="https://www.google.com/search?q=${q}" target="_blank" class="web-search-item"><span><i class="fab fa-google"></i> Google</span><i class="fas fa-chevron-right"></i></a>
+                        <a href="https://search.naver.com/search.naver?query=${q}" target="_blank" class="web-search-item"><span><i class="fas fa-search"></i> Naver</span><i class="fas fa-chevron-right"></i></a>
+                        <a href="https://www.baidu.com/s?wd=${q}" target="_blank" class="web-search-item"><span><i class="fas fa-search"></i> Baidu</span><i class="fas fa-chevron-right"></i></a>
+                        <a href="https://www.reddit.com/search/?q=${q}" target="_blank" class="web-search-item"><span><i class="fab fa-reddit"></i> Reddit</span><i class="fas fa-chevron-right"></i></a>
+                    </div>
                 </div>`;
+                
+            content.innerHTML = renderNaverLayout(mainHtml, getNaverSidebarWeb(term));
         }
 
         async function searchMusic(term) {
@@ -429,11 +587,15 @@
                 const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=10`;
                 const res = await fetch(url);
                 const data = await res.json();
-                content.innerHTML = `<h3>Músicas para: ${term}</h3>`;
+                
+                let mainHtml = `
+                    <div class="naver-section-card">
+                        <h3>Músicas para: ${term}</h3>`;
+                        
                 if (data.results && data.results.length > 0) {
                     data.results.forEach((song, index) => {
                         const btnId = `btn-icon-${index}`;
-                        content.innerHTML += `
+                        mainHtml += `
                             <div class="spotify-card">
                                 <div class="play-btn-round" onclick="playTrack('${song.previewUrl}', '${song.trackName.replace(/'/g, "\\'")}', '${song.artistName.replace(/'/g, "\\'")}', '${song.artworkUrl100}', '${btnId}')">
                                     <i class="fas fa-play" id="${btnId}"></i>
@@ -446,7 +608,10 @@
                                 <i class="fas fa-external-link-alt stream-icon" onclick="openStreamingModal('${song.trackName.replace(/'/g, "\\'")}', '${song.artistName.replace(/'/g, "\\'")}')"></i>
                             </div>`;
                     });
-                } else { content.innerHTML += `<p>Nenhuma música encontrada.</p>`; }
+                } else { mainHtml += `<p>Nenhuma música encontrada.</p>`; }
+                
+                mainHtml += `</div>`;
+                content.innerHTML = renderNaverLayout(mainHtml, getNaverSidebarWeb(term));
             } catch (e) { content.innerHTML = "Erro ao carregar músicas."; }
         }
 
@@ -455,7 +620,11 @@
             const modal = document.getElementById('detail-modal');
             const content = document.getElementById('modal-content');
             modal.style.display = 'block';
-            const activeTab = document.querySelector('.tab-item-modal.active').innerText.toLowerCase();
+            
+            // Re-verifica aba ativa baseado no elemento com classe active
+            const activeTabElement = document.querySelector('.tab-item-modal.active');
+            const activeTab = activeTabElement ? activeTabElement.innerText.toLowerCase() : 'todos';
+            
             if (activeTab === 'música') { searchMusic(term); return; }
             if (activeTab === 'web') { searchWeb(term); return; }
 
@@ -464,16 +633,23 @@
                 const url = `https://${currentLang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(term)}&format=json&origin=*`;
                 const res = await fetch(url);
                 const data = await res.json();
-                content.innerHTML = `<h3>Resultados para: ${term}</h3>`;
+                
+                let mainHtml = `
+                    <div class="naver-section-card">
+                        <h3>Resultados para: ${term}</h3>`;
+                        
                 if(data.query.search && data.query.search.length > 0) {
                     data.query.search.forEach(item => {
-                        content.innerHTML += `
+                        mainHtml += `
                             <div class="result-item">
                                 <div class="result-title" onclick="previewWiki('${item.title.replace(/'/g, "\\'")}', '${item.pageid}')">${item.title}</div>
                                 <div class="result-snippet">${item.snippet}...</div>
                             </div>`;
                     });
-                } else { content.innerHTML = "Sem resultados."; }
+                } else { mainHtml += "Sem resultados."; }
+                
+                mainHtml += `</div>`;
+                content.innerHTML = renderNaverLayout(mainHtml, getNaverSidebarWeb(term));
             } catch (e) { content.innerHTML = "Erro na busca."; }
         }
 
