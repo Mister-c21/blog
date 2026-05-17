@@ -22,5 +22,11 @@ const ferramentas = [
         url: "https://code.visualstudio.com",
         imagem: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/vscode/vscode-original.svg",
         tag: "Desenvolvimento"
+    },
+    {
+        nome: "Figma",
+        url: "www.figma.com",
+        imagem: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/figma/figma.svg",
+        tag: "Desenvolvimento"
     }
 ];
