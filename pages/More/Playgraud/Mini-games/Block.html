@@ -1,1 +1,519 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Glow Blast</title>
+    <style>
+        :root {
+            --bg-color: #0d081b;
+            --violet-main: #8a2be2; /* blueviolet */
+            --violet-glow: #9400d3;
+            --ghost-white: rgba(248, 248, 255, 0.15); /* ghost com transparência */
+            --ghost-border: rgba(248, 248, 255, 0.25);
+            --glass-bg: rgba(138, 43, 226, 0.15);
+            --glass-border: rgba(138, 43, 226, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 50%, #1e1233 0%, #0d081b 100%);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #f8f8ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* Container Efeito Vidro (Glassmorphism) */
+        .game-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+            width: 100%;
+            max-width: 420px;
+        }
+
+        header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 0 10px;
+        }
+
+        .score-box {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px var(--violet-glow);
+        }
+
+        /* Botão Estilo Ghost */
+        .btn-ghost {
+            background: transparent;
+            border: 2px solid var(--ghost-border);
+            color: #f8f8ff;
+            padding: 8px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-ghost:hover {
+            background: var(--ghost-white);
+            border-color: #f8f8ff;
+            box-shadow: 0 0 12px rgba(248, 248, 255, 0.2);
+        }
+
+        /* Área de Jogo principal */
+        #game-canvas {
+            background: rgba(13, 8, 27, 0.6);
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            max-width: 100%;
+        }
+
+        /* Overlay de Game Over */
+        .game-over-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(13, 8, 27, 0.85);
+            backdrop-filter: blur(8px);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 24px;
+            z-index: 10;
+        }
+
+        .game-over-overlay h2 {
+            font-size: 32px;
+            color: #f8f8ff;
+            margin-bottom: 15px;
+            text-shadow: 0 0 15px var(--violet-glow);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container" id="container">
+        <header>
+            <div class="score-box">Pontos: <span id="score">0</span></div>
+            <button class="btn-ghost" id="reset-btn">Reiniciar</button>
+        </header>
+
+        <div style="position: relative; width: 100%;">
+            <canvas id="game-canvas" width="400" height="560"></canvas>
+            
+            <div class="game-over-overlay" id="game-over">
+                <h2>Fim de Jogo!</h2>
+                <button class="btn-ghost" id="restart-btn">Jogar Novamente</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const gameOverEl = document.getElementById('game-over');
+        const resetBtn = document.getElementById('reset-btn');
+        const restartBtn = document.getElementById('restart-btn');
+
+        // Configurações do Tabuleiro (8x8)
+        const GRID_SIZE = 8;
+        const CELL_PADDING = 3;
+        const BOARD_OFFSET_Y = 10;
+        let cellSize = 46; 
+        let boardWidth = 0;
+
+        let score = 0;
+        let board = [];
+        let currentPieces = [];
+        
+        // Estrutura para arrastar peças
+        let dragPiece = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        // Definição dos formatos das peças (Matrizes)
+        const SHAPES = [
+            [[1]], // 1x1
+            [[1, 1]], // 1x2 h
+            [[1], [1]], // 2x1 v
+            [[1, 1, 1]], // 1x3 h
+            [[1], [1], [1]], // 3x1 v
+            [[1, 1], [1, 1]], // Quadrado 2x2
+            [[1, 1, 1], [0, 1, 0]], // T
+            [[1, 0], [1, 0], [1, 1]], // L
+            [[1, 1, 1], [1, 0, 0]], // L invertido
+            [[1, 1, 0], [0, 1, 1]]  // Z
+        ];
+
+        // Definições de Cores
+        const COLORS = {
+            bgCell: 'rgba(248, 248, 255, 0.04)',       // Ghost cell vazia
+            borderCell: 'rgba(248, 248, 255, 0.08)',   // Borda ghost
+            block: '#8a2be2',                          // Blueviolet sólido
+            blockGlow: 'rgba(138, 43, 226, 0.5)',
+            preview: 'rgba(138, 43, 226, 0.3)'         // Preview translúcido
+        };
+
+        // Três áreas fixas na parte inferior para as peças disponíveis
+        let pieceSlots = [];
+
+        function initGame() {
+            score = 0;
+            scoreEl.innerText = score;
+            gameOverEl.style.display = 'none';
+            
+            // Inicializa tabuleiro vazio
+            board = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+            
+            // Ajusta dimensões baseado no canvas estático (400x560)
+            boardWidth = canvas.width - 20;
+            cellSize = Math.floor(boardWidth / GRID_SIZE) - CELL_PADDING;
+            
+            // Define posições dos slots das 3 peças de baixo
+            const slotWidth = canvas.width / 3;
+            pieceSlots = [
+                { x: slotWidth * 0.5, y: 480 },
+                { x: slotWidth * 1.5, y: 480 },
+                { x: slotWidth * 2.5, y: 480 }
+            ];
+
+            generateNewPieces();
+            draw();
+        }
+
+        function generateNewPieces() {
+            currentPieces = [];
+            for (let i = 0; i < 3; i++) {
+                const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+                currentPieces.push({
+                    shape: shape,
+                    x: pieceSlots[i].x,
+                    y: pieceSlots[i].y,
+                    initialX: pieceSlots[i].x,
+                    initialY: pieceSlots[i].y,
+                    scale: 0.6, // Fica menor na bandeja inferior
+                    isDragging: false
+                });
+            }
+        }
+
+        // Desenha uma célula estilizada
+        function drawCell(x, y, size, color, isGlow = false) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.roundRect(x, y, size, size, 6);
+            ctx.fill();
+            
+            if (isGlow) {
+                ctx.shadowColor = COLORS.blockGlow;
+                ctx.shadowBlur = 10;
+                ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.shadowBlur = 0; // reseta
+            } else {
+                ctx.strokeStyle = COLORS.borderCell;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Desenha o Tabuleiro de Fundo
+            const startX = (canvas.width - (cellSize + CELL_PADDING) * GRID_SIZE) / 2;
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const x = startX + c * (cellSize + CELL_PADDING);
+                    const y = BOARD_OFFSET_Y + r * (cellSize + CELL_PADDING);
+                    
+                    if (board[r][c] === 0) {
+                        drawCell(x, y, cellSize, COLORS.bgCell);
+                    } else {
+                        drawCell(x, y, cellSize, COLORS.block, true);
+                    }
+                }
+            }
+
+            // 2. Desenha a Projeção/Preview da peça arrastada no tabuleiro
+            if (dragPiece) {
+                const gridPos = getBoardGridCoords(dragPiece);
+                if (gridPos && canPlacePiece(dragPiece.shape, gridPos.row, gridPos.col)) {
+                    for (let r = 0; r < dragPiece.shape.length; r++) {
+                        for (let c = 0; c < dragPiece.shape[r].length; c++) {
+                            if (dragPiece.shape[r][c]) {
+                                const x = startX + (gridPos.col + c) * (cellSize + CELL_PADDING);
+                                const y = BOARD_OFFSET_Y + (gridPos.row + r) * (cellSize + CELL_PADDING);
+                                drawCell(x, y, cellSize, COLORS.preview);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Desenha as Peças Disponíveis / Sendo arrastadas
+            currentPieces.forEach(piece => {
+                if (!piece) return;
+                
+                const size = cellSize * (piece.isDragging ? 1 : piece.scale);
+                const padding = CELL_PADDING * (piece.isDragging ? 1 : piece.scale);
+                
+                const shapeW = piece.shape[0].length;
+                const shapeH = piece.shape.length;
+                
+                // Centralização do desenho em torno do X e Y da peça
+                const totalW = shapeW * size + (shapeW - 1) * padding;
+                const totalH = shapeH * size + (shapeH - 1) * padding;
+                
+                const renderStartX = piece.x - totalW / 2;
+                const renderStartY = piece.y - totalH / 2;
+
+                for (let r = 0; r < shapeH; r++) {
+                    for (let c = 0; c < shapeW; c++) {
+                        if (piece.shape[r][c]) {
+                            const x = renderStartX + c * (size + padding);
+                            const y = renderStartY + r * (size + padding);
+                            drawCell(x, y, size, COLORS.block, piece.isDragging);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Converte a coordenada atual de arraste para indices de linha/coluna do tabuleiro
+        function getBoardGridCoords(piece) {
+            const startX = (canvas.width - (cellSize + CELL_PADDING) * GRID_SIZE) / 2;
+            
+            const shapeW = piece.shape[0].length;
+            const shapeH = piece.shape.length;
+            const totalW = shapeW * cellSize + (shapeW - 1) * CELL_PADDING;
+            const totalH = shapeH * cellSize + (shapeH - 1) * CELL_PADDING;
+            
+            // Ponto superior esquerdo estimado da peça real
+            const pX = piece.x - totalW / 2;
+            const pY = piece.y - totalH / 2;
+
+            const col = Math.round((pX - startX) / (cellSize + CELL_PADDING));
+            const row = Math.round((pY - BOARD_OFFSET_Y) / (cellSize + CELL_PADDING));
+
+            if (col >= 0 && col + shapeW <= GRID_SIZE && row >= 0 && row + shapeH <= GRID_SIZE) {
+                return { row, col };
+            }
+            return null;
+        }
+
+        function canPlacePiece(shape, startRow, startCol) {
+            for (let r = 0; r < shape.length; r++) {
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c] !== 0) {
+                        if (startRow + r >= GRID_SIZE || startCol + c >= GRID_SIZE || board[startRow + r][startCol + c] !== 0) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        function placePiece(piece, startRow, startCol) {
+            for (let r = 0; r < piece.shape.length; r++) {
+                for (let c = 0; c < piece.shape[r].length; c++) {
+                    if (piece.shape[r][c] !== 0) {
+                        board[startRow + r][startCol + c] = 1;
+                        score += 10;
+                    }
+                }
+            }
+            checkLines();
+        }
+
+        function checkLines() {
+            let rowsToRemove = [];
+            let colsToRemove = [];
+
+            // Verifica Linhas
+            for (let r = 0; r < GRID_SIZE; r++) {
+                if (board[r].every(cell => cell === 1)) rowsToRemove.push(r);
+            }
+
+            // Verifica Colunas
+            for (let c = 0; c < GRID_SIZE; c++) {
+                let colFull = true;
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    if (board[r][c] === 0) { colFull = false; break; }
+                }
+                if (colFull) colsToRemove.push(c);
+            }
+
+            // Remove e pontua (Bônus por combos simultâneos)
+            const linesCleared = rowsToRemove.length + colsToRemove.length;
+            if (linesCleared > 0) {
+                rowsToRemove.forEach(r => board[r].fill(0));
+                colsToRemove.forEach(c => {
+                    for (let r = 0; r < GRID_SIZE; r++) board[r][c] = 0;
+                });
+                score += linesCleared * 100 * linesCleared; 
+                scoreEl.innerText = score;
+            }
+        }
+
+        function checkGameOver() {
+            // Se ainda houver peças remanescentes na bandeja
+            const remainingPieces = currentPieces.filter(p => p !== null);
+            if (remainingPieces.length === 0) return false;
+
+            // Para cada peça restante, testa se ela cabe em qualquer lugar vago do tabuleiro
+            for (let piece of remainingPieces) {
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        if (canPlacePiece(piece.shape, r, c)) {
+                            return false; // Ainda tem movimento válido
+                        }
+                    }
+                }
+            }
+            return true; // Bloqueado total
+        }
+
+        // --- SISTEMA DE INPUT UNIFICADO (Mouse & Touch) ---
+        
+        function getPointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            // Regra de três para mapear o tamanho real de renderização do CSS de volta para os 400x560 internos do Canvas
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+        function handleStart(e) {
+            if (gameOverEl.style.display === 'flex') return;
+            const pos = getPointerPos(e);
+
+            // Verifica se clicou/tocou próximo de uma peça válida
+            for (let i = 0; i < currentPieces.length; i++) {
+                let piece = currentPieces[i];
+                if (!piece) continue;
+
+                const size = cellSize * piece.scale;
+                const shapeW = piece.shape[0].length;
+                const shapeH = piece.shape.length;
+                const totalW = shapeW * size;
+                const totalH = shapeH * size;
+
+                // Caixa de colisão simplificada baseada no centro da peça
+                if (pos.x >= piece.x - totalW/1.5 && pos.x <= piece.x + totalW/1.5 &&
+                    pos.y >= piece.y - totalH/1.5 && pos.y <= piece.y + totalH/1.5) {
+                    
+                    dragPiece = piece;
+                    piece.isDragging = true;
+                    // Deslocamento para o arrasto não dar um "pulo" visual
+                    dragOffsetX = pos.x - piece.x;
+                    dragOffsetY = pos.y - piece.y;
+
+                    // Ajuste Mobile: Eleva um pouco a peça acima do dedo para o usuário conseguir enxergar o bloco
+                    if(e.touches) {
+                        dragOffsetY = 50; 
+                    }
+                    break;
+                }
+            }
+        }
+
+        function handleMove(e) {
+            if (!dragPiece) return;
+            e.preventDefault(); // Evita scroll de tela no mobile durante o jogo
+            
+            const pos = getPointerPos(e);
+            dragPiece.x = pos.x - dragOffsetX;
+            dragPiece.y = pos.y - dragOffsetY;
+            
+            draw();
+        }
+
+        function handleEnd(e) {
+            if (!dragPiece) return;
+
+            const gridPos = getBoardGridCoords(dragPiece);
+
+            if (gridPos && canPlacePiece(dragPiece.shape, gridPos.row, gridPos.col)) {
+                placePiece(dragPiece, gridPos.row, gridPos.col);
+                
+                // Remove a peça usada substituindo por null
+                const idx = currentPieces.indexOf(dragPiece);
+                currentPieces[idx] = null;
+
+                // Se usou as 3, gera mais 3
+                if (currentPieces.every(p => p === null)) {
+                    generateNewPieces();
+                }
+                
+                // Valida fim de jogo
+                if (checkGameOver()) {
+                    gameOverEl.style.display = 'flex';
+                }
+            } else {
+                // Devolve a peça para o lugar de origem se solta em local inválido
+                dragPiece.x = dragPiece.initialX;
+                dragPiece.y = dragPiece.initialY;
+                dragPiece.isDragging = false;
+            }
+
+            dragPiece = null;
+            draw();
+        }
+
+        // Eventos Mouse
+        canvas.addEventListener('mousedown', handleStart);
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleEnd);
+
+        // Eventos Touch (Mobile)
+        canvas.addEventListener('touchstart', handleStart, { passive: false });
+        window.addEventListener('touchmove', handleMove, { passive: false });
+        window.addEventListener('touchend', handleEnd);
+
+        // Botões de reset
+        resetBtn.addEventListener('click', initGame);
+        restartBtn.addEventListener('click', initGame);
+
+        // Início automático
+        initGame();
+    </script>
+</body>
+</html>
 
