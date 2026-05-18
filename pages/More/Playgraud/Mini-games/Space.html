@@ -2,8 +2,8 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Shooter - Arcade</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Space Shooter - Arcade & Mobile</title>
     <style>
         * {
             box-sizing: border-box;
@@ -19,16 +19,23 @@
             align-items: center;
             height: 100vh;
             overflow: hidden;
+            touch-action: none; /* Impede zoom e arrastos involuntários no mobile */
         }
         #game-container {
             position: relative;
             box-shadow: 0 0 30px rgba(138, 43, 226, 0.3);
             border-radius: 8px;
             overflow: hidden;
+            width: 100%;
+            max-width: 480px;
+            height: 100vh;
+            max-height: 640px;
         }
         canvas {
             display: block;
             background: #11091c;
+            width: 100%;
+            height: 100%;
         }
         /* Interface de Vidro Semi-transparente */
         .ui-overlay {
@@ -46,6 +53,7 @@
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
             width: 80%;
             max-width: 400px;
+            z-index: 10;
         }
         h1 {
             font-size: 2rem;
@@ -74,6 +82,53 @@
             box-shadow: 0 0 25px rgba(138, 43, 226, 0.8);
             transform: scale(1.05);
         }
+        /* Layout dos Controles Mobile (Vidro Semi-transparente) */
+        .controls-container {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 30px;
+            z-index: 5;
+            pointer-events: none; /* Permite cliques apenas nos botões filhos */
+        }
+        .d-pad {
+            display: flex;
+            gap: 15px;
+            pointer-events: auto;
+        }
+        .btn-control {
+            width: 65px;
+            height: 65px;
+            background: rgba(138, 43, 226, 0.25);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(248, 248, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #F8F8FF;
+            font-size: 24px;
+            font-weight: bold;
+            user-select: none;
+            -webkit-user-select: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .btn-control:active {
+            background: rgba(138, 43, 226, 0.5);
+            border-color: rgba(248, 248, 255, 0.5);
+        }
+        #shoot-btn {
+            pointer-events: auto;
+            background: rgba(248, 248, 255, 0.15);
+            border-color: rgba(138, 43, 226, 0.4);
+        }
+        #shoot-btn:active {
+            background: rgba(248, 248, 255, 0.3);
+        }
         .hidden {
             display: none !important;
         }
@@ -85,10 +140,19 @@
         <!-- Canvas do Jogo -->
         <canvas id="gameCanvas" width="480" height="640"></canvas>
 
+        <!-- Controles Mobile -->
+        <div id="mobile-controls" class="controls-container hidden">
+            <div class="d-pad">
+                <div class="btn-control" id="left-btn">◀</div>
+                <div class="btn-control" id="right-btn">▶</div>
+            </div>
+            <div class="btn-control" id="shoot-btn">▲</div>
+        </div>
+
         <!-- Menu Inicial -->
         <div id="start-menu" class="ui-overlay">
             <h1>SPACE ATTACK</h1>
-            <p>Use as Setas para mover e Espaço para atirar.</p>
+            <p>Use as Setas / Botões para mover e Espaço / Botão Superior para atirar.</p>
             <button id="start-btn">JOGAR</button>
         </div>
 
@@ -107,9 +171,15 @@
         // Elementos da Interface
         const startMenu = document.getElementById('start-menu');
         const gameOverMenu = document.getElementById('game-over-menu');
+        const mobileControls = document.getElementById('mobile-controls');
         const startBtn = document.getElementById('start-btn');
         const restartBtn = document.getElementById('restart-btn');
         const finalScoreText = document.getElementById('final-score');
+
+        // Elementos dos Botões Mobile
+        const leftBtn = document.getElementById('left-btn');
+        const rightBtn = document.getElementById('right-btn');
+        const shootBtn = document.getElementById('shoot-btn');
 
         // Estado do Jogo
         let gameActive = false;
@@ -119,7 +189,7 @@
         // Configurações dos Objetos
         const player = {
             x: canvas.width / 2 - 20,
-            y: canvas.height - 60,
+            y: canvas.height - 120, // Ajustado ligeiramente para não ficar sob os botões
             width: 40,
             height: 40,
             speed: 6,
@@ -140,31 +210,49 @@
             });
         }
 
-        // Event Listeners de Teclado
+        // Event Listeners de Teclado (Desktop)
         window.addEventListener('keydown', (e) => { keys[e.code] = true; });
         window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
-        // Disparo de tiros
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space' && gameActive) {
-                bullets.push({
-                    x: player.x + player.width / 2 - 3,
-                    y: player.y,
-                    width: 6,
-                    height: 15,
-                    speed: 8,
-                    color: '#F8F8FF' // Ghost White
-                });
+                fireBullet();
             }
         });
 
-        // Controles de Botões
+        // Event Listeners de Toque (Mobile)
+        leftBtn.addEventListener('pointerdown', () => { keys['ArrowLeft'] = true; });
+        leftBtn.addEventListener('pointerup', () => { keys['ArrowLeft'] = false; });
+        leftBtn.addEventListener('pointerleave', () => { keys['ArrowLeft'] = false; });
+
+        rightBtn.addEventListener('pointerdown', () => { keys['ArrowRight'] = true; });
+        rightBtn.addEventListener('pointerup', () => { keys['ArrowRight'] = false; });
+        rightBtn.addEventListener('pointerleave', () => { keys['ArrowRight'] = false; });
+
+        shootBtn.addEventListener('pointerdown', () => {
+            if (gameActive) fireBullet();
+        });
+
+        // Função isolada para criar disparos
+        function fireBullet() {
+            bullets.push({
+                x: player.x + player.width / 2 - 3,
+                y: player.y,
+                width: 6,
+                height: 15,
+                speed: 8,
+                color: '#F8F8FF' // Ghost White
+            });
+        }
+
+        // Controles de Botões dos Menus
         startBtn.addEventListener('click', startGame);
         restartBtn.addEventListener('click', startGame);
 
         function startGame() {
             startMenu.classList.add('hidden');
             gameOverMenu.classList.add('hidden');
+            mobileControls.classList.remove('hidden'); // Exibe os botões na tela
             score = 0;
             bullets = [];
             enemies = [];
@@ -195,7 +283,7 @@
         }
 
         function update() {
-            // Mover jogador
+            // Mover jogador (Funciona tanto para Teclado quanto Toque)
             if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
             if (keys['ArrowRight'] && player.x < canvas.width - player.width) player.x += player.speed;
 
@@ -268,7 +356,7 @@
             });
 
             // Desenhar Inimigos
-            ctx.shadowBlur = 0; // Remove o brilho pesado para otimizar os inimigos
+            ctx.shadowBlur = 0;
             enemies.forEach(enemy => {
                 ctx.fillStyle = enemy.color;
                 ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
@@ -285,6 +373,7 @@
 
         function endGame() {
             gameActive = false;
+            mobileControls.classList.add('hidden'); // Oculta botões ao perder
             finalScoreText.innerText = `Pontuação: ${score}`;
             gameOverMenu.classList.remove('hidden');
         }
@@ -298,4 +387,3 @@
     </script>
 </body>
 </html>
-
