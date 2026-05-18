@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interface de Carrosséis - Orion</title>
+    <style>
+        /* Configurações Globais e Paleta (Branco Principal & Detalhes Violeta) */
+        :root {
+            --bg-gradient: linear-gradient(135deg, #090414 0%, #120626 100%);
+            --text-primary: #f8f9fa; /* Ghost White */
+            --text-secondary: #b3a2c7;
+            
+            /* Vidro baseado em Branco Semitransparente */
+            --glass-bg: rgba(248, 249, 250, 0.06); 
+            --glass-border: rgba(248, 249, 250, 0.15);
+            
+            /* Toques sutis em Violeta para os pequenos detalhes */
+            --accent-color: #8a2be2; /* Blueviolet */
+            --glass-glow: rgba(138, 43, 226, 0.3);
+            --border-accent: rgba(138, 43, 226, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 3rem 2rem;
+            overflow-x: hidden;
+        }
+
+        /* Container Principal */
+        .main-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 3.5rem;
+        }
+
+        /* Barra de Busca */
+        .search-container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem 1.5rem 1rem 3.5rem;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            outline: none;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--border-accent);
+            box-shadow: 0 0 15px var(--glass-glow);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        .search-icon-wrapper {
+            position: absolute;
+            left: 1.25rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        /* Estrutura das Linhas de Carrossel */
+        .carousel-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+
+        .carousel-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding-left: 0.25rem;
+        }
+
+        .carousel-icon {
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .carousel-title {
+            font-size: 1.35rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--text-primary);
+        }
+
+        /* Trilho Horizontal de Rolagem */
+        .carousel-track {
+            display: flex;
+            gap: 1.5rem;
+            overflow-x: auto;
+            padding: 0.5rem 0.25rem 1rem 0.25rem;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            snap-type: x mandatory;
+        }
+
+        .carousel-track::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .carousel-track::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.01);
+            border-radius: 10px;
+        }
+
+        .carousel-track::-webkit-scrollbar-thumb {
+            background: var(--glass-border);
+            border-radius: 10px;
+            transition: background 0.3s;
+        }
+
+        .carousel-track:hover::-webkit-scrollbar-thumb {
+            background: rgba(138, 43, 226, 0.4);
+        }
+
+        /* Cards Verticais */
+        .card {
+            flex: 0 0 220px;
+            height: 300px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            overflow: hidden;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            snap-align: start;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: var(--border-accent);
+            box-shadow: 0 8px 24px var(--glass-glow);
+            background-color: rgba(248, 249, 250, 0.1);
+            cursor: pointer;
+        }
+
+        .card-image-wrapper {
+            width: 100%;
+            height: 70%;
+            border-bottom: 1px solid var(--glass-border);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .card-image-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(9, 4, 20, 0.3);
+            z-index: 1;
+        }
+
+        .card-meta-icon {
+            position: relative;
+            z-index: 2;
+            opacity: 0.3;
+            color: var(--text-primary);
+            transition: opacity 0.3s, transform 0.3s, color 0.3s;
+        }
+
+        .card:hover .card-meta-icon {
+            opacity: 0.8;
+            transform: scale(1.1);
+        }
+
+        .card-content {
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            flex-grow: 1;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .card-content h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+        }
+
+        /* MODAIS FULLSCREEN */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: var(--bg-gradient);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-container {
+            width: 100%;
+            height: 100%;
+            padding: 3rem 2rem;
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.active .modal-container {
+            transform: translateY(0);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .modal-close:hover {
+            color: var(--accent-color);
+        }
+
+        .modal-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            padding-right: 4rem;
+        }
+
+        /* Reprodutor do YouTube */
+        .player-wrapper {
+            width: 100%;
+            aspect-ratio: 16/9;
+            max-width: 1200px;
+            max-height: 75vh;
+            background: #000;
+            border-radius: 14px;
+            border: 1px solid var(--glass-border);
+            position: relative;
+            overflow: hidden;
+            margin: 0 auto;
+        }
+
+        .player-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .player-wrapper:hover {
+            border-color: var(--border-accent);
+            box-shadow: 0 0 20px var(--glass-glow);
+        }
+
+        .player-nav-back {
+            align-self: flex-start;
+            margin-bottom: 1.5rem;
+            background: rgba(248, 249, 250, 0.08);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .player-nav-back:hover {
+            border-color: var(--border-accent);
+            background: rgba(138, 43, 226, 0.2);
+        }
+
+        /* Listagem Vertical de Episódios */
+        .episodes-list {
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .episode-row {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.2rem 0.5rem;
+            border-bottom: 1px solid rgba(248, 249, 250, 0.08);
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .episode-row:last-child {
+            border-bottom: none;
+        }
+
+        .episode-row:hover {
+            background-color: rgba(248, 249, 250, 0.04);
+        }
+
+        .episode-thumb {
+            width: 52px;
+            height: 64px;
+            border-radius: 8px;
+            background-size: cover;
+            background-position: center;
+            border: 1px solid var(--glass-border);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(9, 4, 20, 0.4);
+        }
+
+        .episode-thumb-icon {
+            color: var(--text-secondary);
+            opacity: 0.4;
+        }
+
+        .episode-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .episode-row-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            body { padding: 2rem 1rem; }
+            .main-container { gap: 2.5rem; }
+            .card { flex: 0 0 175px; height: 240px; border-radius: 14px; }
+            .carousel-title { font-size: 1.15rem; }
+            .card-content { padding: 0.9rem; }
+            .card-content h3 { font-size: 0.95rem; }
+            .modal-container { padding: 4rem 1rem 2rem 1rem; }
+            .modal-close { top: 1.25rem; right: 1.25rem; }
+            .modal-title { font-size: 1.6rem; margin-bottom: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <main class="main-container" id="appContainer">
+        
+        <div class="search-container">
+            <div class="search-icon-wrapper">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </div>
+            <input type="text" id="searchInput" class="search-input" placeholder="Buscar desenhos, filmes ou séries...">
+        </div>
+
+        </main>
+
+    <div class="modal-overlay" id="mediaModal">
+        <div class="modal-container">
+            <button class="modal-close" id="closeModalBtn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <h2 class="modal-title" id="modalMediaTitle">Nome do Conteúdo</h2>
+            
+            <div id="modalDynamicContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Mapeamento de Ícones SVG reutilizáveis
+        const SVGIcons = {
+            star: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`,
+            trending: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>`,
+            heart: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`,
+            layers: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`,
+            shield: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+            info: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`,
+            thumbDefault: `<svg class="card-meta-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`
+        };
+
+        // ARRAY DE DADOS PRINCIPAL DOS CARROSSÉIS (Contém as 7 seções estruturadas)
+        const carouselData = [
+            {
+                title: "Filmes de Sucesso",
+                type: "movie",
+                icon: SVGIcons.star,
+                items: [
+                    { title: "Interestelar", image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Duna", image: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Matrix", image: "https://images.unsplash.com/photo-1618005198143-e528346d285a?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Batman", image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Inception", image: "https://images.unsplash.com/photo-1604871000636-074fa5117945?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Gladiador", image: "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=400&auto=format&fit=crop" }
+                ]
+            },
+            {
+                title: "Desenhos Animados",
+                type: "show",
+                icon: SVGIcons.trending,
+                items: [
+                    { title: "Rick and Morty", image: "https://images.unsplash.com/photo-1642543492481-44e81e3914a7?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Os Simpsons", image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Avatar", image: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Futurama", image: "https://images.unsplash.com/photo-1618005198143-e528346d285a?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Gravity Falls", image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=400&auto=format&fit=crop" }
+                ]
+            },
+            {
+                title: "Séries de Drama e Suspense",
+                type: "show",
+                icon: SVGIcons.star,
+                items: [
+                    { title: "Breaking Bad", image: "https://images.unsplash.com/photo-1604871000636-074fa5117945?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Succession", image: "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Severance", image: "https://images.unsplash.com/photo-1642543492481-44e81e3914a7?q=80&w=400&auto=format&fit=crop" }
+                ]
+            },
+            {
+                title: "Filmes de Animação",
+                type: "movie",
+                icon: SVGIcons.heart,
+                items: [
+                    { title: "Spider-Man: Verse", image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Toy Story", image: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?q=80&w=400&auto=format&fit=crop" }
+                ]
+            },
+            {
+                title: "Séries Sci-Fi e Fantasia",
+                type: "show",
+                icon: SVGIcons.layers,
+                items: [
+                    { title: "Stranger Things", image: "https://images.unsplash.com/photo-1618005198143-e528346d285a?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Dark", image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=400&auto=format&fit=crop" }
+                ]
+            },
+            {
+                title: "Clássicos do Cinema",
+                type: "movie",
+                icon: SVGIcons.shield,
+                items: [
+                    { title: "The Godfather", image: "https://images.unsplash.com/photo-1604871000636-074fa5117945?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Pulp Fiction", image: "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=400&auto=format&fit=crop" }
+                ]
+            },
+            {
+                title: "Cartoons Nostálgicos",
+                type: "show",
+                icon: SVGIcons.info,
+                items: [
+                    { title: "Coragem cão Covarde", image: "https://images.unsplash.com/photo-1642543492481-44e81e3914a7?q=80&w=400&auto=format&fit=crop" },
+                    { title: "Laboratório de Dexter", image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400&auto=format&fit=crop" }
+                ]
+            }
+        ];
+
+        // Função responsável por construir os elementos HTML a partir do Array
+        function renderApplicationLayout() {
+            const container = document.getElementById('appContainer');
+
+            carouselData.forEach(sectionData => {
+                const section = document.createElement('section');
+                section.className = 'carousel-section';
+                section.setAttribute('data-type', sectionData.type);
+
+                // Cabeçalho da seção
+                const header = document.createElement('div');
+                header.className = 'carousel-header';
+                header.innerHTML = `
+                    <div class="carousel-icon">${sectionData.icon}</div>
+                    <h2 class="carousel-title">${sectionData.title}</h2>
+                `;
+                section.appendChild(header);
+
+                // Trilho horizontal
+                const track = document.createElement('div');
+                track.className = 'carousel-track';
+
+                // Renderização dos Cards internos
+                sectionData.items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-image-wrapper" style="background-image: url('${item.image}');">
+                            ${SVGIcons.thumbDefault}
+                        </div>
+                        <div class="card-content">
+                            <h3>${item.title}</h3>
+                        </div>
+                    `;
+
+                    // Evento de clique para disparar o Modal correspondente
+                    card.addEventListener('click', () => {
+                        openMediaModal(item.title, sectionData.type);
+                    });
+
+                    track.appendChild(card);
+                });
+
+                section.appendChild(track);
+                container.appendChild(section);
+            });
+        }
+
+        // Inicializa a renderização estrutural do app
+        renderApplicationLayout();
+    </script>
+
+    <script>
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase().trim();
+            const sections = document.querySelectorAll('.carousel-section');
+
+            sections.forEach(section => {
+                const cards = section.querySelectorAll('.card');
+                let visibleCardsInSection = 0;
+
+                cards.forEach(card => {
+                    const title = card.querySelector('.card-content h3').textContent.toLowerCase();
+                    
+                    if (title.includes(searchTerm)) {
+                        card.style.display = 'flex';
+                        visibleCardsInSection++;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+
+                if (visibleCardsInSection > 0 || searchTerm === '') {
+                    section.style.display = 'flex';
+                } else {
+                    section.style.display = 'none';
+                }
+            });
+        });
+    </script>
+
+    <script>
+        const modalOverlay = document.getElementById('mediaModal');
+        const modalTitle = document.getElementById('modalMediaTitle');
+        const modalDynamicContent = document.getElementById('modalDynamicContent');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+
+        // Abre o modal atribuindo o título base
+        function openMediaModal(title, type) {
+            modalTitle.textContent = title;
+            modalOverlay.classList.add('active');
+
+            if (type === 'movie') {
+                renderPlayer(title);
+            } else {
+                renderEpisodesList(title);
+            }
+        }
+
+        // Renderiza o Player do YouTube
+        function renderPlayer(title, backTitle = null) {
+            let backButtonHTML = '';
+            if (backTitle) {
+                backButtonHTML = `<button class="player-nav-back" id="playerBackBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg> Voltar para episódios</button>`;
+            }
+
+            const searchQuery = encodeURIComponent(title);
+            
+            modalDynamicContent.innerHTML = `
+                ${backButtonHTML}
+                <div class="player-wrapper">
+                    <iframe 
+                        src="https://www.youtube.com/embed?listType=search&list=${searchQuery}&autoplay=1" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allowfullscreen>
+                    </iframe>
+                </div>
+            `;
+
+            if (backTitle) {
+                document.getElementById('playerBackBtn').addEventListener('click', () => {
+                    renderEpisodesList(backTitle);
+                });
+            }
+        }
+
+        // Renderiza a Lista de Episódios para Séries/Desenhos
+        function renderEpisodesList(title) {
+            let listHTML = '<div class="episodes-list">';
+            
+            for (let i = 1; i <= 5; i++) {
+                listHTML += `
+                    <div class="episode-row" data-ep-title="${title} Episódio 0${i}">
+                        <div class="episode-thumb">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                        </div>
+                        <div class="episode-info">
+                            <div class="episode-row-title">${title}: Episódio 0${i}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            listHTML += '</div>';
+
+            modalDynamicContent.innerHTML = listHTML;
+
+            const rows = modalDynamicContent.querySelectorAll('.episode-row');
+            rows.forEach(row => {
+                row.addEventListener('click', () => {
+                    const epTitle = row.getAttribute('data-ep-title');
+                    modalTitle.textContent = epTitle;
+                    renderPlayer(epTitle, title);
+                });
+            });
+        }
+
+        // Fechamento do modal limpando os iframes em execução
+        closeModalBtn.addEventListener('click', () => {
+            modalOverlay.classList.remove('active');
+            modalDynamicContent.innerHTML = '';
+        });
+
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                modalOverlay.classList.remove('active');
+                modalDynamicContent.innerHTML = '';
+            }
+        });
+    </script>
+
+</body>
+</html>
