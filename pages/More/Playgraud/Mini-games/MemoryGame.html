@@ -1,1 +1,311 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Glow Memory</title>
+    <style>
+        :root {
+            --bg-color: #0d081b;
+            --violet-main: #8a2be2; /* blueviolet */
+            --violet-glow: #9400d3;
+            --ghost-white: rgba(248, 248, 255, 0.15);
+            --ghost-border: rgba(248, 248, 255, 0.25);
+            --glass-bg: rgba(138, 43, 226, 0.12);
+            --glass-border: rgba(138, 43, 226, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 50%, #1e1233 0%, #0d081b 100%);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #f8f8ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* Container Principal em Vidro (Glassmorphism) */
+        .game-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 380px;
+        }
+
+        header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px var(--violet-glow);
+        }
+
+        /* Botão Estilo Ghost */
+        .btn-ghost {
+            background: transparent;
+            border: 2px solid var(--ghost-border);
+            color: #f8f8ff;
+            padding: 8px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-ghost:hover {
+            background: var(--ghost-white);
+            border-color: #f8f8ff;
+        }
+
+        #memory-canvas {
+            background: rgba(13, 8, 27, 0.6);
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            max-width: 100%;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+        }
+
+        .win-message {
+            margin-top: 15px;
+            font-size: 18px;
+            color: #00ff7f;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0,255,127,0.4);
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <header>
+            <h1>Glow Memory</h1>
+            <button class="btn-ghost" id="reset-btn">Reiniciar</button>
+        </header>
+
+        <canvas id="memory-canvas" width="320" height="320"></canvas>
+        
+        <div class="win-message" id="win-txt">Você Venceu! 🎉</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('memory-canvas');
+        const ctx = canvas.getContext('2d');
+        const resetBtn = document.getElementById('reset-btn');
+        const winTxt = document.getElementById('win-txt');
+
+        const COLS = 4;
+        const ROWS = 4;
+        const totalCards = COLS * ROWS;
+        let cardWidth = canvas.width / COLS;
+        let cardHeight = canvas.height / ROWS;
+
+        // Ícones/Textos representativos para os pares (8 pares únicos)
+        const ICONS = ["JS", "CSS", "HTML", "PY", "GIT", "PHP", "JAVA", "WEB"];
+        
+        let cards = [];
+        let selectedCards = [];
+        let lockBoard = false;
+        let isWon = false;
+
+        function initGame() {
+            isWon = false;
+            winTxt.style.display = 'none';
+            selectedCards = [];
+            lockBoard = false;
+            
+            generateCards();
+            draw();
+        }
+
+        function generateCards() {
+            cards = [];
+            // Duplica os ícones para formar os pares
+            const cardValues = [...ICONS, ...ICONS];
+            
+            // Embaralhamento (Fisher-Yates)
+            for (let i = cardValues.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [cardValues[i], cardValues[j]] = [cardValues[j], cardValues[i]];
+            }
+
+            // Mapeia a estrutura de cada carta do grid
+            for (let i = 0; i < totalCards; i++) {
+                cards.push({
+                    id: i,
+                    value: cardValues[i],
+                    isFlipped: false,
+                    isMatched: false
+                });
+            }
+        }
+
+        // Renderização gráfica no Canvas
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < totalCards; i++) {
+                const card = cards[i];
+                const col = i % COLS;
+                const row = Math.floor(i / COLS);
+                const x = col * cardWidth;
+                const y = row * cardHeight;
+                const padding = 6;
+
+                const cx = x + padding;
+                const cy = y + padding;
+                const cw = cardWidth - padding * 2;
+                const ch = cardHeight - padding * 2;
+
+                if (card.isFlipped || card.isMatched) {
+                    // --- CARTA VIRADA PARA CIMA (Estilo Ghost Aberto) ---
+                    ctx.fillStyle = 'rgba(248, 248, 255, 0.08)';
+                    ctx.beginPath();
+                    ctx.roundRect(cx, cy, cw, ch, 12);
+                    ctx.fill();
+
+                    ctx.strokeStyle = card.isMatched ? '#00ff7f' : 'rgba(248, 248, 255, 0.4)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // Desenha o Texto interno da carta
+                    ctx.fillStyle = card.isMatched ? '#00ff7f' : '#f8f8ff';
+                    ctx.font = 'bold 20px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    if(card.isMatched) {
+                        ctx.shadowColor = 'rgba(0, 255, 127, 0.5)';
+                        ctx.shadowBlur = 6;
+                    }
+                    ctx.fillText(card.value, x + cardWidth / 2, y + cardHeight / 2);
+                    ctx.shadowBlur = 0;
+
+                } else {
+                    // --- CARTA VIRADA PARA BAIXO (Estilo BlueViolet Fechado) ---
+                    ctx.fillStyle = '#8a2be2'; 
+                    ctx.beginPath();
+                    ctx.roundRect(cx, cy, cw, ch, 12);
+                    ctx.fill();
+
+                    // Borda interna de realce linear
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+
+                    // Brilho neon externo padrão
+                    ctx.shadowColor = '#9400d3';
+                    ctx.shadowBlur = 2;
+                    ctx.shadowBlur = 0;
+                }
+            }
+        }
+
+        function handleInput(clientX, clientY) {
+            if (lockBoard || isWon) return;
+
+            const rect = canvas.getBoundingClientRect();
+            // Normalização das coordenadas adaptável para mobile/desktop
+            const canvasX = (clientX - rect.left) * (canvas.width / rect.width);
+            const canvasY = (clientY - rect.top) * (canvas.height / rect.height);
+
+            const col = Math.floor(canvasX / cardWidth);
+            const row = Math.floor(canvasY / cardHeight);
+            
+            if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+                const clickedIndex = row * COLS + col;
+                const card = cards[clickedIndex];
+
+                // Evita clicar na mesma carta já aberta ou já combinada
+                if (card.isFlipped || card.isMatched) return;
+
+                card.isFlipped = true;
+                selectedCards.push(card);
+                draw();
+
+                if (selectedCards.length === 2) {
+                    checkMatch();
+                }
+            }
+        }
+
+        function checkMatch() {
+            lockBoard = true;
+            const [card1, card2] = selectedCards;
+
+            if (card1.value === card2.value) {
+                // Deu Match!
+                card1.isMatched = true;
+                card2.isMatched = true;
+                resetTurn();
+                checkWin();
+            } else {
+                // Não deu Match, desvira após 1 segundo
+                setTimeout(() => {
+                    card1.isFlipped = false;
+                    card2.isFlipped = false;
+                    resetTurn();
+                }, 1000);
+            }
+        }
+
+        function resetTurn() {
+            selectedCards = [];
+            lockBoard = false;
+            draw();
+        }
+
+        function checkWin() {
+            const allMatched = cards.every(card => card.isMatched);
+            if (allMatched) {
+                isWon = true;
+                winTxt.style.display = 'block';
+            }
+        }
+
+        // --- Eventos unificados (Cliques e Toques) ---
+        canvas.addEventListener('mousedown', (e) => {
+            handleInput(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Evita scroll ao tocar no canvas
+            const touch = e.touches[0];
+            handleInput(touch.clientX, touch.clientY);
+        }, { passive: false });
+
+        resetBtn.addEventListener('click', initGame);
+
+        // Inicialização automática
+        initGame();
+    </script>
+</body>
+</html>
 
