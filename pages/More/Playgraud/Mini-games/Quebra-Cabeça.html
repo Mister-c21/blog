@@ -1,1 +1,271 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Glow Photo Puzzle</title>
+    <style>
+        :root {
+            --bg-color: #0d081b;
+            --violet-main: #8a2be2; /* blueviolet */
+            --violet-glow: #9400d3;
+            --ghost-white: rgba(248, 248, 255, 0.15);
+            --ghost-border: rgba(248, 248, 255, 0.25);
+            --glass-bg: rgba(138, 43, 226, 0.12);
+            --glass-border: rgba(138, 43, 226, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 50%, #1e1233 0%, #0d081b 100%);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #f8f8ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* Container Principal em Vidro (Glassmorphism) */
+        .game-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 380px;
+        }
+
+        header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px var(--violet-glow);
+        }
+
+        /* Botão Estilo Ghost */
+        .btn-ghost {
+            background: transparent;
+            border: 2px solid var(--ghost-border);
+            color: #f8f8ff;
+            padding: 8px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-ghost:hover {
+            background: var(--ghost-white);
+            border-color: #f8f8ff;
+        }
+
+        #puzzle-canvas {
+            background: rgba(13, 8, 27, 0.6);
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            max-width: 100%;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+        }
+
+        .win-message {
+            margin-top: 15px;
+            font-size: 18px;
+            color: #00ff7f;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0,255,127,0.4);
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <header>
+            <h1>Glow Puzzle</h1>
+            <button class="btn-ghost" id="shuffle-btn">Embaralhar</button>
+        </header>
+
+        <canvas id="puzzle-canvas" width="300" height="300"></canvas>
+        
+        <div class="win-message" id="win-txt">Você Venceu! 🎉</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('puzzle-canvas');
+        const ctx = canvas.getContext('2d');
+        const shuffleBtn = document.getElementById('shuffle-btn');
+        const winTxt = document.getElementById('win-txt');
+
+        const SIZE = 3; // Grade 3x3
+        const cellCount = SIZE * SIZE;
+        let cellSize = canvas.width / SIZE;
+        
+        let board = [];
+        let isWon = false;
+
+        // Carregamento da imagem do quebra-cabeça
+        const img = new Image();
+        // Sinta-se livre para alterar esta URL para qualquer imagem quadrada (.jpg ou .png)
+        const IMAGE_SRC = 'https://picsum.photos/300/300?blur=1'; 
+        img.src = IMAGE_SRC;
+        img.onload = () => {
+            initGame();
+        };
+
+        function initGame() {
+            isWon = false;
+            winTxt.style.display = 'none';
+            resetBoard();
+            shuffleBoard();
+            draw();
+        }
+
+        function resetBoard() {
+            board = [];
+            // Armazena a posição original correta de cada bloco (0 a 7 são as fatias da imagem)
+            for (let i = 0; i < cellCount - 1; i++) {
+                board.push(i);
+            }
+            board.push(-1); // -1 representa o espaço vazio (quadrado preto)
+        }
+
+        function shuffleBoard() {
+            for (let i = 0; i < 150; i++) {
+                let emptyIndex = board.indexOf(-1);
+                let validMoves = getValidMoves(emptyIndex);
+                let randomMove = validMoves[Math.floor(Math.random() * validMoves.length)];
+                
+                board[emptyIndex] = board[randomMove];
+                board[randomMove] = -1;
+            }
+        }
+
+        function getValidMoves(emptyIndex) {
+            let moves = [];
+            let row = Math.floor(emptyIndex / SIZE);
+            let col = emptyIndex % SIZE;
+
+            if (row > 0) moves.push(emptyIndex - SIZE);
+            if (row < SIZE - 1) moves.push(emptyIndex + SIZE);
+            if (col > 0) moves.push(emptyIndex - 1);
+            if (col < SIZE - 1) moves.push(emptyIndex + 1);
+
+            return moves;
+        }
+
+        // Renderização redesenhada focada em fatiar o objeto Image
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < cellCount; i++) {
+                let value = board[i];
+                
+                let currentRow = Math.floor(i / SIZE);
+                let currentCol = i % SIZE;
+                let x = currentCol * cellSize;
+                let y = currentRow * cellSize;
+                const padding = 2; // Linha fina separadora dos blocos da imagem
+
+                if (value === -1) {
+                    // Preenche o espaço vazio com o fundo escuro do tema
+                    ctx.fillStyle = 'rgba(13, 8, 27, 0.8)';
+                    ctx.fillRect(x, y, cellSize, cellSize);
+                    continue; 
+                }
+
+                // Descobre de qual parte da imagem original esse bloco pertence
+                let origRow = Math.floor(value / SIZE);
+                let origCol = value % SIZE;
+                let sx = origCol * cellSize;
+                let sy = origRow * cellSize;
+
+                // Desenha o recorte da imagem original na posição atual do tabuleiro
+                ctx.drawImage(
+                    img, 
+                    sx, sy, cellSize, cellSize, // Recorte de origem (Source)
+                    x + padding, y + padding, cellSize - padding * 2, cellSize - padding * 2 // Destino (Canvas)
+                );
+
+                // Moldura estilizada sutil sobre as fatias da imagem
+                ctx.strokeStyle = 'rgba(138, 43, 226, 0.4)'; // blueviolet semitransparente
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x + padding, y + padding, cellSize - padding * 2, cellSize - padding * 2);
+            }
+        }
+
+        function handleInput(clientX, clientY) {
+            if (isWon) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = (clientX - rect.left) * (canvas.width / rect.width);
+            const canvasY = (clientY - rect.top) * (canvas.height / rect.height);
+
+            const col = Math.floor(canvasX / cellSize);
+            const row = Math.floor(canvasY / cellSize);
+            const clickedIndex = row * SIZE + col;
+
+            const emptyIndex = board.indexOf(-1);
+            const validMoves = getValidMoves(emptyIndex);
+
+            if (validMoves.includes(clickedIndex)) {
+                board[emptyIndex] = board[clickedIndex];
+                board[clickedIndex] = -1;
+                
+                draw();
+                checkWin();
+            }
+        }
+
+        function checkWin() {
+            // Verifica se cada índice voltou à sua posição de origem ordenada (0, 1, 2... 7)
+            for (let i = 0; i < cellCount - 1; i++) {
+                if (board[i] !== i) return;
+            }
+            isWon = true;
+            winTxt.style.display = 'block';
+            
+            // Mostra o quebra-cabeça completo sem divisões ao vencer
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        }
+
+        // Eventos Unificados
+        canvas.addEventListener('mousedown', (e) => {
+            handleInput(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            handleInput(touch.clientX, touch.clientY);
+        }, { passive: false });
+
+        shuffleBtn.addEventListener('click', initGame);
+    </script>
+</body>
+</html>
 
