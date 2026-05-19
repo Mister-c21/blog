@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Editor Glass</title>
+    <!-- Ícones -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Bibliotecas Necessárias para Manipulação de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+    <style>
+        :root {
+            --primary: #8A2BE2;        /* BlueViolet */
+            --primary-hover: #7A1FA2;
+            --bg-ghost: #F8F8FF;       /* Ghost White */
+            --glass-bg: rgba(248, 248, 255, 0.06);
+            --glass-border: rgba(248, 248, 255, 0.15);
+            --text-main: #F8F8FF;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0b0714 0%, #130a29 100%);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        /* Barra de Ferramentas Superior (Glassmorphism) */
+        .navbar {
+            background: rgba(138, 43, 226, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .brand {
+            font-size: 1.3rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--bg-ghost);
+        }
+
+        .brand .icon { color: var(--primary); }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        /* Customização do Input de Arquivo */
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .btn {
+            background: var(--glass-border);
+            border: 1px solid transparent;
+            color: var(--bg-ghost);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: var(--primary);
+            border-color: var(--bg-ghost);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            box-shadow: 0 4px 15px rgba(138, 43, 226, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        /* Área de Visualização Principal */
+        .workspace {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 30px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        /* Container do Canvas onde o PDF é desenhado */
+        .pdf-render-container {
+            position: relative;
+            background: white;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+            border-radius: 4px;
+            overflow: hidden;
+            display: none; /* Só aparece quando carregar um arquivo */
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Camada Interativa superior para adicionar elementos */
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Permite clicar através se necessário */
+        }
+
+        /* Caixa de texto flutuante criada pelo usuário */
+        .added-text {
+            position: absolute;
+            color: black;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            border: 1px dashed var(--primary);
+            padding: 2px 4px;
+            background: rgba(255, 255, 255, 0.8);
+            pointer-events: auto;
+            cursor: move;
+            outline: none;
+        }
+
+        /* Tela de Boas-Vindas */
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            height: 60vh;
+            text-align: center;
+        }
+
+        .welcome-screen .icon-large {
+            font-size: 4.5rem;
+            color: var(--primary);
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Topbar -->
+    <div class="navbar">
+        <div class="brand">
+            <span class="material-icons icon">picture_as_pdf</span>
+            <span>PDFEditor.io</span>
+        </div>
+        <div class="controls">
+            <div class="file-input-wrapper">
+                <button class="btn"><span class="material-icons">upload_file</span> Abrir PDF</button>
+                <input type="file" id="pdfFile" accept="application/pdf" />
+            </div>
+            <button class="btn" id="addTextBtn" disabled><span class="material-icons">text_fields</span> Add Texto</button>
+            <button class="btn btn-primary" id="downloadBtn" disabled><span class="material-icons">download</span> Salvar</button>
+        </div>
+    </div>
+
+    <!-- Espaço de Trabalho -->
+    <div class="workspace">
+        <!-- Estado Inicial -->
+        <div class="welcome-screen" id="welcome">
+            <span class="material-icons icon-large">picture_as_pdf</span>
+            <h2>Nenhum documento carregado</h2>
+            <p style="color: rgba(248,248,255,0.5)">Selecione um arquivo PDF acima para começar a aplicar anotações.</p>
+        </div>
+
+        <!-- Renderizador do PDF -->
+        <div class="pdf-render-container" id="pdfContainer">
+            <canvas id="pdfCanvas"></canvas>
+            <div class="canvas-overlay" id="canvasOverlay"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configurando a URL do Worker do PDF.js de forma estática
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        let pdfDoc = null;
+        let originalBytes = null;
+        const scale = 1.3; // Define o zoom do PDF na tela
+
+        const fileInput = document.getElementById('pdfFile');
+        const welcome = document.getElementById('welcome');
+        const pdfContainer = document.getElementById('pdfContainer');
+        const canvas = document.getElementById('pdfCanvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('canvasOverlay');
+        const addTextBtn = document.getElementById('addTextBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        // Monitora o upload do arquivo
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const fileReader = new FileReader();
+            fileReader.onload = async function() {
+                originalBytes = new Uint8Array(this.result);
+                
+                // Carrega o PDF na tela usando PDF.js
+                const loadingTask = pdfjsLib.getDocument({data: originalBytes});
+                pdfDoc = await loadingTask.promise;
+                
+                renderPage(1); // Renderiza a primeira página
+            };
+            fileReader.readAsArrayBuffer(file);
+        });
+
+        // Função para desenhar a página do PDF no HTML Canvas
+        async function renderPage(pageNum) {
+            const page = await pdfDoc.getPage(pageNum);
+            const viewport = page.getViewport({scale: scale});
+            
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            // Força o container e a camada de marcações a terem o tamanho exato da página
+            pdfContainer.style.width = viewport.width + 'px';
+            pdfContainer.style.height = viewport.height + 'px';
+
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            
+            await page.render(renderContext).promise;
+
+            // Altera o estado dos elementos na tela
+            welcome.style.display = 'none';
+            pdfContainer.style.display = 'block';
+            addTextBtn.disabled = false;
+            downloadBtn.disabled = false;
+        }
+
+        // Função para adicionar uma caixa de texto móvel por cima do PDF
+        addTextBtn.addEventListener('click', () => {
+            const textDiv = document.createElement('div');
+            textDiv.className = 'added-text';
+            textDiv.contentEditable = true;
+            textDiv.innerText = 'Clique e edite';
+            
+            // Posição inicial no topo esquerdo do documento
+            textDiv.style.left = '50px';
+            textDiv.style.top = '50px';
+
+            // Sistema básico de arrastar e soltar (Drag and Drop)
+            textDiv.addEventListener('mousedown', function(e) {
+                let shiftX = e.clientX - textDiv.getBoundingClientRect().left;
+                let shiftY = e.clientY - textDiv.getBoundingClientRect().top;
+
+                function moveAt(pageX, pageY) {
+                    let containerRect = pdfContainer.getBoundingClientRect();
+                    textDiv.style.left = (pageX - containerRect.left - shiftX) + 'px';
+                    textDiv.style.top = (pageY - containerRect.top - shiftY) + 'px';
+                }
+
+                function onMouseMove(event) {
+                    moveAt(event.clientX, event.clientY);
+                }
+
+                document.addEventListener('mousemove', onMouseMove);
+
+                document.onmouseup = function() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    textDiv.onmouseup = null;
+                };
+            });
+
+            // Evita que o comportamento de arrastar quebre a seleção de texto nativa interna
+            textDiv.ondragstart = function() { return false; };
+
+            overlay.appendChild(textDiv);
+            textDiv.focus();
+        });
+
+        // Junta as anotações feitas em tela com o PDF original e faz o download
+        downloadBtn.addEventListener('click', async () => {
+            if (!originalBytes) return;
+
+            // Carrega os bytes na biblioteca pdf-lib
+            const pdfDocInstance = await PDFLib.PDFDocument.load(originalBytes);
+            const pages = pdfDocInstance.getPages();
+            const firstPage = pages[0]; // Aplica as alterações na página 1
+            const { height } = firstPage.getSize();
+
+            // Pega todas as caixas de texto adicionadas na camada visual
+            const textElements = document.querySelectorAll('.added-text');
+
+            textElements.forEach(el => {
+                const text = el.innerText;
+                
+                // Converte as coordenadas do HTML para o sistema de coordenadas do PDF (onde o ponto 0,0 fica no rodapé esquerdo)
+                const xHTML = parseFloat(el.style.left);
+                const yHTML = parseFloat(el.style.top);
+
+                // Ajusta a escala proporcional entre o Canvas e o PDF real
+                const pdfX = xHTML / scale;
+                const pdfY = height - (yHTML / scale) - 12; // Compensação da altura da fonte
+
+                // Desenha o texto de forma permanente no arquivo final
+                firstPage.drawText(text, {
+                    x: pdfX,
+                    y: pdfY,
+                    size: 14,
+                    color: PDFLib.rgb(0, 0, 0) // Texto preto
+                });
+            });
+
+            // Salva o arquivo e gera o link de download automático para o usuário
+            const pdfBytes = await pdfDocInstance.save();
+            const blob = new Blob([pdfBytes], { type: "application/pdf" });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = "documento_editado.pdf";
+            link.click();
+        });
+    </script>
+</body>
+</html>
