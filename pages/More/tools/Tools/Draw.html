@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PaintStudio Glass</title>
+    <!-- Ícones -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #8A2BE2;        /* BlueViolet */
+            --primary-hover: #7A1FA2;
+            --bg-ghost: #F8F8FF;       /* Ghost White */
+            --glass-bg: rgba(248, 248, 255, 0.07);
+            --glass-border: rgba(248, 248, 255, 0.15);
+            --text-main: #F8F8FF;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, #090514 0%, #110825 100%);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            color: var(--text-main);
+        }
+
+        /* Painel Superior (Glassmorphism) */
+        .header {
+            background: rgba(138, 43, 226, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .brand {
+            font-size: 1.3rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--bg-ghost);
+        }
+
+        .brand .icon { color: var(--primary); }
+
+        /* Barra de Ferramentas e Opções */
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(248, 248, 255, 0.05);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .btn {
+            background: transparent;
+            border: none;
+            color: var(--bg-ghost);
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover, .btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-save {
+            background: var(--primary);
+            box-shadow: 0 4px 15px rgba(138, 43, 226, 0.3);
+        }
+
+        .btn-save:hover { background: var(--primary-hover); }
+
+        /* Customização dos Seletores Nativos */
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: 2px solid var(--bg-ghost); border-radius: 50%; }
+
+        input[type="range"] {
+            accent-color: var(--primary);
+            cursor: pointer;
+            width: 80px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: rgba(248, 248, 255, 0.6);
+        }
+
+        /* Área de Desenho */
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        canvas {
+            background: #FFFFFF; /* Fundo branco fixo para a folha de desenho */
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+            cursor: crosshair;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Topbar com Ferramentas -->
+    <div class="header">
+        <div class="brand">
+            <span class="material-icons icon">brush</span>
+            <span>PaintStudio.io</span>
+        </div>
+        
+        <div class="controls">
+            <!-- Modos: Pincel ou Borracha -->
+            <div class="control-group">
+                <button class="btn active" id="brushBtn" title="Pincel"><span class="material-icons">brush</span></button>
+                <button class="btn" id="eraserBtn" title="Borracha"><span class="material-icons">layers_clear</span></button>
+            </div>
+
+            <!-- Paleta e Espessura -->
+            <div class="control-group">
+                <input type="color" id="colorPicker" value="#8A2BE2" title="Escolher Cor">
+                
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <input type="range" id="sizeSlider" min="1" max="50" value="5">
+                    <label id="sizeLabel">Tam: 5px</label>
+                </div>
+            </div>
+
+            <!-- Ações -->
+            <div class="control-group" style="border: none; background: transparent; padding: 0;">
+                <button class="btn" id="clearBtn" title="Limpar Tela"><span class="material-icons">delete</span></button>
+                <button class="btn btn-save" id="saveBtn" title="Exportar PNG"><span class="material-icons">download</span> Exportar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela de Pintura -->
+    <div class="canvas-container">
+        <canvas id="paintCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('paintCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const brushBtn = document.getElementById('brushBtn');
+        const eraserBtn = document.getElementById('eraserBtn');
+        const colorPicker = document.getElementById('colorPicker');
+        const sizeSlider = document.getElementById('sizeSlider');
+        const sizeLabel = document.getElementById('sizeLabel');
+        const clearBtn = document.getElementById('clearBtn');
+        const saveBtn = document.getElementById('saveBtn');
+
+        // Estado do Aplicativo
+        let isDrawing = false;
+        let mode = 'brush'; // Opções: 'brush' ou 'eraser'
+        let lastX = 0;
+        let lastY = 0;
+
+        // Redimensiona o canvas para preencher a tela de forma adequada mantendo proporção estável
+        function resizeCanvas() {
+            // Define o tamanho da folha de desenho baseado no espaço disponível na tela
+            canvas.width = window.innerWidth * 0.85;
+            canvas.height = window.innerHeight * 0.75;
+            
+            // Garante que o fundo inicial do canvas seja puramente branco (evita transparência no arquivo final)
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Reconfigura propriedades do traço que são apagadas ao mudar o tamanho do canvas
+            setupBrushProperties();
+        }
+
+        function setupBrushProperties() {
+            ctx.lineCap = 'round'; // Garante linhas suaves e pontas arredondadas
+            ctx.lineJoin = 'round';
+        }
+
+        // Configuração de Eventos de Desenho (Mouse e Touchscreen para Mobile)
+        function startDrawing(e) {
+            isDrawing = true;
+            const coords = getEventCoords(e);
+            lastX = coords.x;
+            lastY = coords.y;
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault(); // Evita scroll acidental no mobile ao desenhar
+
+            const coords = getEventCoords(e);
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(coords.x, coords.y);
+            
+            // Altera dinamicamente as propriedades dependendo do modo ativo
+            ctx.lineWidth = sizeSlider.value;
+            ctx.strokeStyle = (mode === 'brush') ? colorPicker.value : '#FFFFFF';
+            
+            ctx.stroke();
+
+            lastX = coords.x;
+            lastY = coords.y;
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        // Função utilitária para normalizar coordenadas do Mouse e do Toque de telas mobile
+        function getEventCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        // Alternância de Ferramentas (Pincel / Borracha)
+        brushBtn.addEventListener('click', () => {
+            mode = 'brush';
+            brushBtn.classList.add('active');
+            eraserBtn.classList.remove('active');
+        });
+
+        eraserBtn.addEventListener('click', () => {
+            mode = 'eraser';
+            eraserBtn.classList.add('active');
+            brushBtn.classList.remove('active');
+        });
+
+        // Atualiza a legenda do controle deslizante (Slider)
+        sizeSlider.addEventListener('input', () => {
+            sizeLabel.textContent = `Tam: ${sizeSlider.value}px`;
+        });
+
+        // Limpar tela inteira
+        clearBtn.addEventListener('click', () => {
+            if (confirm("Tem certeza de que deseja apagar todo o seu desenho?")) {
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        });
+
+        // Exportar a arte como imagem PNG para download local
+        saveBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'minha_arte.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+
+        // Listeners para Mouse
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        window.addEventListener('mouseup', stopDrawing);
+
+        // Listeners para Dispositivos Móveis (Touchscreen)
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchmove', draw);
+        window.addEventListener('touchend', stopDrawing);
+
+        // Inicialização
+        window.addEventListener('load', resizeCanvas);
+    </script>
+</body>
+</html>
