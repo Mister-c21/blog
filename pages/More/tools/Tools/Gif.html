@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video to GIF Converter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.4.5/gifshot.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f8f8ff; /* Ghost White */
+            --primary-color: #8a2be2; /* Blueviolet */
+            --glass-bg: rgba(255, 255, 255, 0.4);
+            --glass-border: rgba(255, 255, 255, 0.25);
+            --text-color: #2c2c2c;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            background-image: linear-gradient(135deg, #f8f8ff 0%, #e6e6fa 100%);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Container Glassmorphic */
+        .container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 8px 32px 0 rgba(138, 43, 226, 0.12);
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-top: 0;
+            font-size: 1.8rem;
+            letter-spacing: -0.5px;
+        }
+
+        /* Área de Seleção de Vídeo */
+        .upload-area {
+            border: 2px dashed var(--primary-color);
+            border-radius: 12px;
+            padding: 30px 20px;
+            margin: 20px 0;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2);
+            transition: background 0.3s, border-color 0.3s;
+        }
+
+        .upload-area:hover {
+            background: rgba(138, 43, 226, 0.05);
+        }
+
+        .upload-icon {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--primary-color);
+            border-radius: 50%;
+            position: relative;
+            margin-bottom: 10px;
+        }
+        .upload-icon::before {
+            content: "";
+            position: absolute;
+            top: 10px;
+            left: 17px;
+            width: 0;
+            height: 0;
+            border-left: 3px solid transparent;
+            border-right: 3px solid transparent;
+            border-bottom: 12px solid var(--primary-color);
+        }
+        .upload-icon::after {
+            content: "";
+            position: absolute;
+            top: 22px;
+            left: 15px;
+            width: 4px;
+            height: 4px;
+            background: var(--primary-color);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Preview do Vídeo Original */
+        #video-preview-container {
+            display: none;
+            margin: 20px 0;
+        }
+
+        video {
+            width: 100%;
+            max-height: 280px;
+            border-radius: 10px;
+            background: #000;
+        }
+
+        /* Controles de Corte de Tempo */
+        .time-controls {
+            background: rgba(255, 255, 255, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .range-group {
+            margin-bottom: 15px;
+        }
+
+        .range-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .range-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--primary-color);
+            margin: 0;
+        }
+
+        /* Configurações Adicionais */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #444;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        select, input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.7);
+            box-sizing: border-box;
+            font-size: 0.9rem;
+        }
+
+        /* Botão de Ação */
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-size: 1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            transition: opacity 0.2s, transform 0.1s;
+            box-shadow: 0 4px 12px rgba(138, 43, 226, 0.2);
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:active {
+            transform: scale(0.99);
+        }
+
+        button:disabled {
+            background-color: #b5b5b5;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        #status-message {
+            margin-top: 15px;
+            font-weight: 500;
+            color: var(--primary-color);
+            font-size: 0.95rem;
+        }
+
+        /* Container de Resultado */
+        #result-container {
+            display: none;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        #result-gif {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .download-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 15px;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: bold;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 2px;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Video to GIF Converter</h1>
+        
+        <div class="upload-area" id="drop-zone" onclick="document.getElementById('video-input').click()">
+            <div class="upload-icon"></div>
+            <p style="margin: 5px 0 0 0; font-weight: 500;">Selecione um arquivo de vídeo</p>
+            <span style="font-size: 0.8rem; color: #666;">(MP4, WebM ou Ogg)</span>
+            <input type="file" id="video-input" accept="video/mp4, video/webm, video/ogg">
+        </div>
+
+        <div id="video-preview-container">
+            <video id="main-video" controls muted></video>
+
+            <div class="time-controls">
+                <div class="range-group">
+                    <div class="range-label">
+                        <span>Ponto de Início</span>
+                        <span id="start-val">0.0s</span>
+                    </div>
+                    <input type="range" id="trim-start" min="0" max="10" step="0.1" value="0">
+                </div>
+                
+                <div class="range-group">
+                    <div class="range-label">
+                        <span>Ponto de Fim</span>
+                        <span id="end-val">5.0s</span>
+                    </div>
+                    <input type="range" id="trim-end" min="0" max="10" step="0.1" value="5">
+                </div>
+            </div>
+
+            <div class="settings-grid">
+                <div>
+                    <label for="gif-fps">Quadros por segundo (FPS):</label>
+                    <select id="gif-fps">
+                        <option value="10">10 FPS (Mais leve)</option>
+                        <option value="15" selected>15 FPS (Padrão)</option>
+                        <option value="20">20 FPS (Mais fluido)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="gif-width">Largura do GIF (px):</label>
+                    <input type="number" id="gif-width" value="360" min="100" max="800" step="20">
+                </div>
+            </div>
+
+            <button id="convert-btn">Converter para GIF</button>
+        </div>
+
+        <div id="status-message"></div>
+
+        <div id="result-container">
+            <h3 style="margin-top: 0; color: #333;">GIF Convertido com Sucesso!</h3>
+            <img id="result-gif" src="" alt="GIF gerado a partir do vídeo">
+            <br>
+            <a id="download-btn" class="download-link" href="#" download="video_convertido.gif">
+                Salvar GIF no dispositivo
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const videoInput = document.getElementById('video-input');
+        const videoContainer = document.getElementById('video-preview-container');
+        const video = document.getElementById('main-video');
+        const trimStart = document.getElementById('trim-start');
+        const trimEnd = document.getElementById('trim-end');
+        const startVal = document.getElementById('start-val');
+        const endVal = document.getElementById('end-val');
+        const convertBtn = document.getElementById('convert-btn');
+        const statusMessage = document.getElementById('status-message');
+        const resultContainer = document.getElementById('result-container');
+        const resultGif = document.getElementById('result-gif');
+        const downloadBtn = document.getElementById('download-btn');
+
+        let videoDuration = 0;
+
+        // Ao carregar o arquivo de vídeo
+        videoInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const fileURL = URL.createObjectURL(file);
+            video.src = fileURL;
+            
+            // Oculta resultados antigos ao carregar novo vídeo
+            resultContainer.style.display = 'none';
+            statusMessage.textContent = "";
+        });
+
+        // Captura os metadados do vídeo carregado para ajustar os sliders
+        video.addEventListener('loadedmetadata', function() {
+            videoDuration = video.duration;
+            
+            // Configura os limites dos sliders baseados na duração real do vídeo
+            trimStart.max = videoDuration;
+            trimStart.value = 0;
+            
+            trimEnd.max = videoDuration;
+            // Define o fim por padrão em 5 segundos ou no tamanho total do vídeo (o que for menor)
+            trimEnd.value = Math.min(5, videoDuration);
+
+            updateLabels();
+            videoContainer.style.display = 'block';
+        });
+
+        // Atualiza a exibição de texto dos tempos selecionados e checa validação
+        function updateLabels() {
+            const start = parseFloat(trimStart.value);
+            const end = parseFloat(trimEnd.value);
+
+            // Impede que o início seja maior ou igual ao fim
+            if (start >= end) {
+                trimStart.value = Math.max(0, end - 0.5);
+            }
+
+            startVal.textContent = parseFloat(trimStart.value).toFixed(1) + 's';
+            endVal.textContent = parseFloat(trimEnd.value).toFixed(1) + 's';
+        }
+
+        trimStart.addEventListener('input', () => {
+            updateLabels();
+            video.currentTime = parseFloat(trimStart.value); // pula o vídeo pro ponto selecionado
+        });
+
+        trimEnd.addEventListener('input', () => {
+            updateLabels();
+            video.currentTime = parseFloat(trimEnd.value); // pula o vídeo pro ponto selecionado
+        });
+
+        // Executa o processamento do vídeo para criar o GIF animado
+        convertBtn.addEventListener('click', function() {
+            statusMessage.textContent = "Processando vídeo e capturando quadros... Aguarde.";
+            convertBtn.disabled = true;
+            resultContainer.style.display = 'none';
+
+            const startTime = parseFloat(trimStart.value);
+            const endTime = parseFloat(trimEnd.value);
+            const durationToCapture = endTime - startTime;
+
+            const fps = parseInt(document.getElementById('gif-fps').value);
+            const width = parseInt(document.getElementById('gif-width').value);
+            
+            // Calcula o intervalo entre frames baseado no FPS desejado
+            const intervalValue = 1 / fps; 
+
+            // Define de onde o vídeo começará a extração
+            video.currentTime = startTime;
+
+            // Configuração da biblioteca Gifshot focada em vídeo nativo
+            gifshot.createGIF({
+                video: [video.src],
+                offset: startTime,
+                numFrames: Math.floor(durationToCapture * fps),
+                interval: intervalValue,
+                gifWidth: width,
+                numWorkers: 2,
+                sampleInterval: 10 // Qualidade de cor (valores menores = mais definição / mais lento)
+            }, function(obj) {
+                if (!obj.error) {
+                    const animatedImage = obj.image;
+                    
+                    resultGif.src = animatedImage;
+                    downloadBtn.href = animatedImage;
+                    
+                    resultContainer.style.display = 'block';
+                    statusMessage.textContent = "Conversão concluída!";
+                } else {
+                    statusMessage.textContent = "Erro ao processar o vídeo. Certifique-se de que é um formato aceito.";
+                    console.error(obj.error);
+                }
+                convertBtn.disabled = false;
+            });
+        });
+    </script>
+</body>
+</html>
