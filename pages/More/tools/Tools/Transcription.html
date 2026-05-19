@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VozScript - Transcritor de Áudio</title>
+    <!-- Ícones -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #8A2BE2;        /* BlueViolet */
+            --primary-glow: rgba(138, 43, 226, 0.4);
+            --bg-ghost: #F8F8FF;       /* Ghost White */
+            --glass-bg: rgba(248, 248, 255, 0.07);
+            --glass-border: rgba(248, 248, 255, 0.15);
+            --text-main: #F8F8FF;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f0a1c 0%, #170d33 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        /* Container Principal (Glassmorphism) */
+        .app-container {
+            width: 100%;
+            max-width: 800px;
+            height: 80vh;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Topo */
+        .app-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(138, 43, 226, 0.1);
+        }
+
+        .title {
+            color: var(--bg-ghost);
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+
+        .title span.icon {
+            color: var(--primary);
+            animation: pulse-slow 3s infinite;
+        }
+
+        /* Área de Texto Gerado */
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow: hidden;
+        }
+
+        .output-box {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 20px;
+            color: var(--text-main);
+            font-size: 1.1rem;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            overflow-y: auto;
+        }
+
+        .output-box::placeholder {
+            color: rgba(248, 248, 255, 0.3);
+        }
+
+        /* Painel de Controle Inferior */
+        .controls-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 10px;
+        }
+
+        .mic-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* Botão do Microfone Estilizado */
+        .btn-mic {
+            width: 64px;
+            height: 64px;
+            background: var(--primary);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 15px var(--primary-glow);
+            transition: transform 0.2s, background-color 0.3s, box-shadow 0.3s;
+        }
+
+        .btn-mic:hover {
+            transform: scale(1.05);
+            background: #9440ed;
+        }
+
+        .btn-mic.recording {
+            background: #ff3b30;
+            box-shadow: 0 0 25px rgba(255, 59, 48, 0.6);
+            animation: pulse-recording 1.5s infinite;
+        }
+
+        .status-text {
+            color: var(--bg-ghost);
+            font-size: 0.95rem;
+            opacity: 0.7;
+        }
+
+        .utility-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-util {
+            background: rgba(248, 248, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            color: var(--bg-ghost);
+            padding: 10px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-util:hover {
+            background: var(--primary);
+            border-color: transparent;
+        }
+
+        /* Animações */
+        @keyframes pulse-recording {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes pulse-slow {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        /* Customização Básica de Scrollbar */
+        .output-box::-webkit-scrollbar {
+            width: 6px;
+        }
+        .output-box::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Topo -->
+        <div class="app-header">
+            <div class="title">
+                <span class="material-icons icon">mic</span>
+                <span>VozScript.io</span>
+            </div>
+        </div>
+
+        <!-- Área Central -->
+        <div class="main-content">
+            <!-- Caixa de Texto Modificável -->
+            <textarea class="output-box" id="output" placeholder="Clique no microfone abaixo e comece a falar para transcrever..." ></textarea>
+            
+            <!-- Controles -->
+            <div class="controls-panel">
+                <div class="mic-section">
+                    <button class="btn-mic" id="micBtn" title="Iniciar/Parar Gravação">
+                        <span class="material-icons" id="micIcon" style="font-size: 28px;">mic</span>
+                    </button>
+                    <span class="status-text" id="status">Microfone pronto.</span>
+                </div>
+
+                <div class="utility-btns">
+                    <button class="btn-util" id="copyBtn" title="Copiar texto">
+                        <span class="material-icons">content_copy</span> Copiar
+                    </button>
+                    <button class="btn-util" id="clearBtn" title="Limpar texto">
+                        <span class="material-icons">delete</span> Limpar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Verificação de compatibilidade da API no navegador
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        const outputBox = document.getElementById('output');
+        const micBtn = document.getElementById('micBtn');
+        const micIcon = document.getElementById('micIcon');
+        const statusText = document.getElementById('status');
+        const copyBtn = document.getElementById('copyBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        if (!SpeechRecognition) {
+            statusText.textContent = "Aviso: Seu navegador não suporta transcrição de áudio nativa (Recomendado: Chrome ou Edge).";
+            micBtn.disabled = true;
+            micBtn.style.opacity = "0.3";
+        } else {
+            const recognition = new SpeechRecognition();
+            
+            // Configurações do Transcritor
+            recognition.lang = 'pt-BR'; // Idioma principal
+            recognition.continuous = true; // Continua ouvindo mesmo se houver pausas
+            recognition.interimResults = true; // Exibe resultados provisórios enquanto fala
+
+            let isRecording = false;
+            let finalTranscript = '';
+
+            // Dispara ao clicar no botão do microfone
+            micBtn.addEventListener('click', () => {
+                if (!isRecording) {
+                    recognition.start();
+                } else {
+                    recognition.stop();
+                }
+            });
+
+            // Quando a gravação inicia
+            recognition.onstart = () => {
+                isRecording = true;
+                micBtn.classList.add('recording');
+                micIcon.textContent = 'mic_off';
+                statusText.textContent = "Ouvindo... Pode falar.";
+            };
+
+            // Trata erros (como microfone bloqueado)
+            recognition.onerror = (event) => {
+                console.error(event.error);
+                statusText.textContent = `Erro na gravação: ${event.error}`;
+                stopRecordingState();
+            };
+
+            // Quando a gravação é encerrada
+            recognition.onend = () => {
+                stopRecordingState();
+            };
+
+            // Processa o áudio capturado e converte em texto
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + ' ';
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                // Atualiza a caixa de texto combinando o texto definitivo com o que está sendo processado
+                outputBox.value = finalTranscript + interimTranscript;
+                
+                // Rola automaticamente para o fim da caixa de texto
+                outputBox.scrollTop = outputBox.scrollHeight;
+            };
+
+            function stopRecordingState() {
+                isRecording = false;
+                micBtn.classList.remove('recording');
+                micIcon.textContent = 'mic';
+                statusText.textContent = "Gravação finalizada.";
+            }
+        }
+
+        // Funcionalidade do botão Copiar
+        copyBtn.addEventListener('click', () => {
+            if (outputBox.value.trim() === '') return;
+            navigator.clipboard.writeText(outputBox.value);
+            
+            const originalText = copyBtn.innerHTML;
+            copyBtn.innerHTML = '<span class="material-icons">done</span> Copiado!';
+            setTimeout(() => {
+                copyBtn.innerHTML = originalText;
+            }, 1500);
+        });
+
+        // Funcionalidade do botão Limpar
+        clearBtn.addEventListener('click', () => {
+            outputBox.value = '';
+            finalTranscript = '';
+            statusText.textContent = "Texto limpo. Microfone pronto.";
+        });
+    </script>
+</body>
+</html>
