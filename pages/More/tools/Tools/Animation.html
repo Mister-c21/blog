@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Estúdio de Animação 2D</title>
+    <style>
+        :root {
+            --bg-color: #f8f8ff; /* ghost */
+            --primary-color: #8a2be2; /* blueviolet */
+            --glass-bg: rgba(255, 255, 255, 0.45);
+            --glass-border: rgba(138, 43, 226, 0.2);
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        /* Interface Vidro Semitransparente (Glassmorphism) */
+        .studio-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            max-width: 100%;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 640px;
+            height: 360px;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+        }
+
+        /* Canvas invisível usado apenas para renderizar a casca de cebola */
+        #onionCanvas {
+            pointer-events: none;
+            opacity: 0.3;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button, input[type="color"] {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover {
+            background: var(--primary-color);
+            color: #ffffff;
+        }
+
+        button.active {
+            background: var(--primary-color);
+            color: #ffffff;
+            box-shadow: 0 0 8px rgba(138, 43, 226, 0.5);
+        }
+
+        input[type="color"] {
+            padding: 2px;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+        }
+
+        .frame-counter {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .timeline-preview {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 10px;
+            max-width: 640px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+        }
+
+        .frame-thumb {
+            width: 60px;
+            height: 34px;
+            background: white;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .frame-thumb.active {
+            border-color: var(--primary-color);
+            background: #f0e6ff;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>FlipStudio Animador</h1>
+
+    <div class="studio-container">
+        <!-- Contador e Status -->
+        <div class="frame-counter">
+            Frame: <span id="currentFrameLabel">1</span> / <span id="totalFramesLabel">1</span>
+        </div>
+
+        <!-- Área do Desenho -->
+        <div class="canvas-wrapper">
+            <!-- Canvas de fundo para o efeito Onion Skin -->
+            <canvas id="onionCanvas" width="640" height="360"></canvas>
+            <!-- Canvas principal de desenho -->
+            <canvas id="mainCanvas" width="640" height="360"></canvas>
+        </div>
+
+        <!-- Barra de Ferramentas -->
+        <div class="toolbar">
+            <input type="color" id="colorPicker" value="#000000" title="Cor do Pincel">
+            <button id="btnPen" class="active">✏️ Lápis</button>
+            <button id="btnEraser">🧽 Borracha</button>
+            <button id="btnOnion" class="active">🧅 Onion Skin: ON</button>
+            <button id="btnClear">🗑️ Limpar Frame</button>
+        </div>
+
+        <!-- Controles de Animação e Linha do Tempo -->
+        <div class="toolbar">
+            <button id="btnPrev">◀ Anterior</button>
+            <button id="btnNewFrame">➕ Novo Frame</button>
+            <button id="btnNext">Próximo ▶</button>
+            <button id="btnPlay" style="background-color: var(--primary-color); color: white;">▶ Play</button>
+        </div>
+
+        <!-- Miniaturas dos Frames -->
+        <div class="timeline-preview" id="timelineThumbs">
+            <!-- Gerado via JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        // Configurações e Elementos do DOM
+        const mainCanvas = document.getElementById('mainCanvas');
+        const mainCtx = mainCanvas.getContext('2d');
+        const onionCanvas = document.getElementById('onionCanvas');
+        const onionCtx = onionCanvas.getContext('2d');
+
+        const colorPicker = document.getElementById('colorPicker');
+        const btnPen = document.getElementById('btnPen');
+        const btnEraser = document.getElementById('btnEraser');
+        const btnOnion = document.getElementById('btnOnion');
+        const btnClear = document.getElementById('btnClear');
+        const btnPrev = document.getElementById('btnPrev');
+        const btnNext = document.getElementById('btnNext');
+        const btnNewFrame = document.getElementById('btnNewFrame');
+        const btnPlay = document.getElementById('btnPlay');
+        const currentFrameLabel = document.getElementById('currentFrameLabel');
+        const totalFramesLabel = document.getElementById('totalFramesLabel');
+        const timelineThumbs = document.getElementById('timelineThumbs');
+
+        // Estado do Aplicativo
+        let frames = []; // Guarda os dados de imagem (DataURLs) de cada frame
+        let currentFrameIndex = 0;
+        let isDrawing = false;
+        let mode = 'pen'; // pen ou eraser
+        let useOnionSkin = true;
+        let isPlaying = false;
+        let playInterval = null;
+        let fps = 6; // Velocidade da reprodução da animação
+
+        // Inicializa o primeiro frame vazio
+        saveFrameState(0);
+        updateStudioUI();
+
+        // --- Sistema de Desenho (Canvas) ---
+        mainCtx.lineCap = 'round';
+        mainCtx.lineJoin = 'round';
+        mainCtx.lineWidth = 5;
+
+        function getMousePos(e) {
+            const rect = mainCanvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        mainCanvas.addEventListener('mousedown', (e) => {
+            if (isPlaying) stopAnimation();
+            isDrawing = true;
+            const pos = getMousePos(e);
+            mainCtx.beginPath();
+            mainCtx.moveTo(pos.x, pos.y);
+        });
+
+        mainCanvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            const pos = getMousePos(e);
+            
+            if (mode === 'eraser') {
+                mainCtx.globalCompositeOperation = 'destination-out';
+                mainCtx.lineWidth = 20;
+            } else {
+                mainCtx.globalCompositeOperation = 'source-over';
+                mainCtx.lineWidth = 5;
+                mainCtx.strokeStyle = colorPicker.value;
+            }
+            
+            mainCtx.lineTo(pos.x, pos.y);
+            mainCtx.stroke();
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDrawing) {
+                isDrawing = false;
+                mainCtx.closePath();
+                // Salva o desenho atual na nossa lista de frames
+                saveFrameState(currentFrameIndex);
+            }
+        });
+
+        // --- Gerenciamento de Frames e Estados ---
+        function saveFrameState(index) {
+            frames[index] = mainCanvas.toDataURL();
+            updateTimeline();
+        }
+
+        function loadFrameState(index) {
+            mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+            mainCtx.globalCompositeOperation = 'source-over';
+            
+            if (frames[index]) {
+                const img = new Image();
+                img.src = frames[index];
+                img.onload = () => {
+                    mainCtx.drawImage(img, 0, 0);
+                };
+            }
+            
+            drawOnionSkin();
+        }
+
+        function drawOnionSkin() {
+            onionCtx.clearRect(0, 0, onionCanvas.width, onionCanvas.height);
+            
+            // Só exibe se a opção estiver ligada e se houver um frame anterior
+            if (useOnionSkin && currentFrameIndex > 0 && frames[currentFrameIndex - 1]) {
+                const img = new Image();
+                img.src = frames[currentFrameIndex - 1];
+                img.onload = () => {
+                    onionCtx.drawImage(img, 0, 0);
+                };
+            }
+        }
+
+        function updateStudioUI() {
+            currentFrameLabel.textContent = currentFrameIndex + 1;
+            totalFramesLabel.textContent = frames.length;
+            updateTimeline();
+        }
+
+        function updateTimeline() {
+            timelineThumbs.innerHTML = '';
+            frames.forEach((_, idx) => {
+                const thumb = document.createElement('div');
+                thumb.classList.add('frame-thumb');
+                if (idx === currentFrameIndex) thumb.classList.add('active');
+                thumb.textContent = idx + 1;
+                thumb.onclick = () => {
+                    if (isPlaying) stopAnimation();
+                    currentFrameIndex = idx;
+                    loadFrameState(currentFrameIndex);
+                    updateStudioUI();
+                };
+                timelineThumbs.appendChild(thumb);
+            });
+        }
+
+        // --- Controles e Botões ---
+        btnPen.onclick = () => {
+            mode = 'pen';
+            btnPen.classList.add('active');
+            btnEraser.classList.remove('active');
+        };
+
+        btnEraser.onclick = () => {
+            mode = 'eraser';
+            btnEraser.classList.add('active');
+            btnPen.classList.remove('active');
+        };
+
+        btnOnion.onclick = () => {
+            useOnionSkin = !useOnionSkin;
+            btnOnion.textContent = useOnionSkin ? "🧅 Onion Skin: ON" : "🧅 Onion Skin: OFF";
+            btnOnion.classList.toggle('active', useOnionSkin);
+            drawOnionSkin();
+        };
+
+        btnClear.onclick = () => {
+            mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+            saveFrameState(currentFrameIndex);
+        };
+
+        btnNewFrame.onclick = () => {
+            if (isPlaying) stopAnimation();
+            // Adiciona um novo frame em branco logo após o atual
+            currentFrameIndex++;
+            frames.splice(currentFrameIndex, 0, mainCanvas.toDataURL()); // inicia temporariamente com o atual ou limpo
+            
+            // Limpa o canvas para o novo desenho
+            mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+            saveFrameState(currentFrameIndex);
+            
+            loadFrameState(currentFrameIndex);
+            updateStudioUI();
+        };
+
+        btnPrev.onclick = () => {
+            if (currentFrameIndex > 0) {
+                if (isPlaying) stopAnimation();
+                currentFrameIndex--;
+                loadFrameState(currentFrameIndex);
+                updateStudioUI();
+            }
+        };
+
+        btnNext.onclick = () => {
+            if (currentFrameIndex < frames.length - 1) {
+                if (isPlaying) stopAnimation();
+                currentFrameIndex++;
+                loadFrameState(currentFrameIndex);
+                updateStudioUI();
+            }
+        };
+
+        // --- Motor de Reprodução (Play / Stop) ---
+        function startAnimation() {
+            isPlaying = true;
+            btnPlay.textContent = "⏸ Pausar";
+            // Desativa temporariamente o onion skin visual durante o play para não atrapalhar
+            onionCtx.clearRect(0, 0, onionCanvas.width, onionCanvas.height);
+
+            playInterval = setInterval(() => {
+                currentFrameIndex = (currentFrameIndex + 1) % frames.length;
+                loadFrameState(currentFrameIndex);
+                currentFrameLabel.textContent = currentFrameIndex + 1;
+                
+                // Destaca a miniatura atual na timeline
+                document.querySelectorAll('.frame-thumb').forEach((thumb, idx) => {
+                    thumb.classList.toggle('active', idx === currentFrameIndex);
+                });
+            }, 1000 / fps);
+        }
+
+        function stopAnimation() {
+            isPlaying = false;
+            btnPlay.textContent = "▶ Play";
+            clearInterval(playInterval);
+            loadFrameState(currentFrameIndex);
+            updateStudioUI();
+        }
+
+        btnPlay.onclick = () => {
+            if (isPlaying) {
+                stopAnimation();
+            } else {
+                startAnimation();
+            }
+        };
+    </script>
+</body>
+</html>
