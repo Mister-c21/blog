@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Glow Photo Puzzle</title>
+    <title>Glow Memory</title>
     <style>
         :root {
-            --bg-color: #0d081b;
-            --violet-main: #8a2be2; /* blueviolet */
-            --violet-glow: #9400d3;
-            --ghost-white: rgba(248, 248, 255, 0.15);
+            --bg-color: #0b071e;
+            --violet-main: #8a2be2; /* blueviolet-color */
+            --violet-glow: rgba(138, 43, 226, 0.65);
+            --ghost-white: rgba(248, 248, 255, 0.15); /* ghost */
             --ghost-border: rgba(248, 248, 255, 0.25);
-            --glass-bg: rgba(138, 43, 226, 0.12);
-            --glass-border: rgba(138, 43, 226, 0.3);
+            --glass-bg: rgba(138, 43, 226, 0.12); /* vidro semitransparente */
+            --glass-border: rgba(248, 248, 255, 0.2);
         }
 
         * {
@@ -25,7 +25,7 @@
 
         body {
             background-color: var(--bg-color);
-            background-image: radial-gradient(circle at 50% 50%, #1e1233 0%, #0d081b 100%);
+            background-image: radial-gradient(circle at 50% 50%, #150a2e 0%, #0b071e 100%);
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             color: #f8f8ff;
             display: flex;
@@ -35,41 +35,65 @@
             min-height: 100vh;
             overflow: hidden;
             touch-action: none;
+            padding: 0;
         }
 
-        /* Container Principal em Vidro (Glassmorphism) */
         .game-container {
             background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            padding: 20px;
+            border-radius: 0;
+            padding: 24px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-            width: 90%;
-            max-width: 380px;
+            justify-content: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            width: 100%;
+            height: 100vh;
         }
 
         header {
             width: 100%;
+            max-width: 600px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 2vh;
+            flex-shrink: 0;
         }
 
         h1 {
-            font-size: 24px;
+            font-size: clamp(20px, 4vw, 32px);
             font-weight: bold;
-            text-shadow: 0 0 10px var(--violet-glow);
+            text-shadow: 0 0 10px var(--violet-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        /* Botão Estilo Ghost */
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .timer-badge {
+            font-size: clamp(14px, 2vw, 18px);
+            font-weight: bold;
+            background: rgba(248, 248, 255, 0.08);
+            border: 1px solid var(--ghost-border);
+            padding: 6px 12px;
+            border-radius: 12px;
+            text-shadow: 0 0 5px var(--violet-main);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
         .btn-ghost {
-            background: transparent;
+            background: rgba(248, 248, 255, 0.05);
             border: 2px solid var(--ghost-border);
             color: #f8f8ff;
             padding: 8px 16px;
@@ -77,195 +101,971 @@
             cursor: pointer;
             font-weight: 600;
             transition: all 0.3s ease;
+            font-size: clamp(14px, 2vw, 18px);
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .btn-ghost:hover {
             background: var(--ghost-white);
             border-color: #f8f8ff;
+            box-shadow: 0 0 12px rgba(248, 248, 255, 0.2);
         }
 
         #puzzle-canvas {
-            background: rgba(13, 8, 27, 0.6);
-            border-radius: 16px;
+            background: rgba(11, 7, 30, 0.8);
+            border-radius: 12px;
             border: 1px solid var(--glass-border);
-            max-width: 100%;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+            box-shadow: inset 0 0 25px rgba(0,0,0,0.8), 0 0 20px rgba(138, 43, 226, 0.15);
+            display: block;
         }
 
         .win-message {
-            margin-top: 15px;
-            font-size: 18px;
+            margin-top: 2vh;
+            font-size: clamp(16px, 3vw, 24px);
             color: #00ff7f;
             font-weight: bold;
-            text-shadow: 0 0 10px rgba(0,255,127,0.4);
+            text-shadow: 0 0 15px rgba(0,255,127,0.5);
             display: none;
+            flex-shrink: 0;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .win-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* --- Modal Estilo Pinterest Cobertura Total --- */
+        .modal-theme {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(11, 7, 30, 0.94);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px;
+            overflow-y: auto;
+            opacity: 1;
+            pointer-events: all;
+            transition: opacity 0.4s ease;
+        }
+
+        .modal-theme.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .modal-title {
+            font-size: clamp(22px, 5vw, 36px);
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 8px;
+            text-shadow: 0 0 15px var(--violet-main);
+        }
+
+        .modal-subtitle {
+            font-size: clamp(14px, 2.5vw, 18px);
+            color: rgba(248, 248, 255, 0.6);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* --- Estilização da Barra de Busca --- */
+        .search-container {
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 16px;
+            position: relative;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 50px 14px 20px;
+            background: rgba(248, 248, 255, 0.06);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            color: #f8f8ff;
+            font-family: inherit;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .search-input:focus {
+            background: rgba(138, 43, 226, 0.15);
+            border-color: var(--violet-main);
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.5);
+        }
+
+        .search-input::placeholder {
+            color: rgba(248, 248, 255, 0.4);
+        }
+
+        .voice-btn {
+            position: absolute;
+            right: 15px;
+            background: transparent;
+            border: none;
+            color: rgba(248, 248, 255, 0.6);
+            cursor: pointer;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            border-radius: 50%;
+        }
+
+        .voice-btn:hover {
+            color: #f8f8ff;
+            transform: scale(1.1);
+        }
+
+        .voice-btn.listening {
+            color: #ff4500;
+            animation: pulse-mic 1.2s infinite ease-in-out;
+            text-shadow: 0 0 10px #ff4500;
+        }
+
+        @keyframes pulse-mic {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 69, 0, 0.4); }
+            70% { transform: scale(1.15); box-shadow: 0 0 0 10px rgba(255, 69, 0, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 69, 0, 0); }
+        }
+
+        /* --- Container Horizontal de Opções de Dificuldade --- */
+        .difficulty-container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 30px;
+            flex-shrink: 0;
+        }
+
+        .difficulty-btn {
+            flex: 1;
+            padding: 10px 16px;
+            background: rgba(248, 248, 255, 0.04);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            color: rgba(248, 248, 255, 0.6);
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            text-align: center;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        .difficulty-btn:hover {
+            background: rgba(248, 248, 255, 0.08);
+            color: #f8f8ff;
+            border-color: rgba(248, 248, 255, 0.4);
+        }
+
+        .difficulty-btn.active {
+            background: rgba(138, 43, 226, 0.25);
+            border-color: var(--violet-main);
+            color: #f8f8ff;
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.4);
+            text-shadow: 0 0 5px var(--violet-main);
+        }
+
+        /* Grid de 3 Colunas Vertical Estilo Pinterest */
+        .pinterest-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            width: 100%;
+            max-width: 800px;
+            padding-bottom: 40px;
+        }
+
+        .theme-card {
+            background: rgba(248, 248, 255, 0.04);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            border-radius: 8px;
+        }
+
+        .pinterest-grid .theme-card:nth-child(3n+1) { min-height: 170px; height: 24vh; }
+        .pinterest-grid .theme-card:nth-child(3n+2) { min-height: 210px; height: 29vh; }
+        .pinterest-grid .theme-card:nth-child(3n+3) { min-height: 140px; height: 19vh; }
+
+        .theme-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--violet-main);
+            box-shadow: 0 10px 25px rgba(138, 43, 226, 0.4);
+            background: rgba(248, 248, 255, 0.1);
+        }
+
+        .theme-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            flex-grow: 1;
+            pointer-events: none;
+            filter: grayscale(15%);
+            transition: filter 0.3s ease;
+        }
+
+        .theme-card:hover img {
+            filter: grayscale(0%);
+        }
+
+        .theme-card-title {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(transparent, rgba(11, 7, 30, 0.95));
+            padding: 12px 8px 6px 8px;
+            font-size: clamp(11px, 1.8vw, 14px);
+            font-weight: 600;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .loading-text {
+            grid-column: span 3;
+            text-align: center;
+            font-size: 18px;
+            color: var(--violet-main);
+            margin-top: 50px;
+            text-shadow: 0 0 8px var(--violet-main);
+        }
+
+        .inline-icon {
+            display: inline-block;
+            vertical-align: middle;
+            fill: currentColor;
         }
     </style>
 </head>
 <body>
 
-    <div class="game-container">
-        <header>
-            <h1>Glow Puzzle</h1>
-            <button class="btn-ghost" id="shuffle-btn">Embaralhar</button>
+    <!-- Modal Inicial de Escolha de Temas -->
+    <div class="modal-theme" id="theme-modal">
+        <h2 class="modal-title">Escolha um Tema</h2>
+        <p class="modal-subtitle">Selecione um anime para gerar fatias do quebra-cabeça deslizante</p>
+        
+        <!-- Barra de busca com opção de voz -->
+        <div class="search-container">
+            <input type="text" id="anime-search" class="search-input" placeholder="Pesquisar anime de sua escolha..." autocomplete="off">
+            <button id="voice-search-btn" class="voice-btn" title="Pesquisar por voz">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                    <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+                    <line x1="12" x2="12" y1="19" y2="22"></line>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Container Horizontal de Dificuldade -->
+        <div class="difficulty-container">
+            <button class="difficulty-btn active" data-mode="easy">Fácil (4x4)</button>
+            <button class="difficulty-btn" data-mode="medium">Médio (6x4)</button>
+            <button class="difficulty-btn" data-mode="hard">Difícil (6x6)</button>
+        </div>
+
+        <div class="pinterest-grid" id="grid-content">
+            <div class="loading-text">Buscando animes na API...</div>
+        </div>
+    </div>
+
+    <div class="game-container" id="container">
+        <header id="game-header">
+            <h1>
+                <svg class="inline-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M7 10H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2z"/>
+                    <path d="M21 10h-4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2z"/>
+                    <path d="M7 22H3a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2z"/>
+                    <path d="M17 22h-2a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h2"/>
+                </svg>
+                Glow Memory
+            </h1>
+            <div class="header-controls">
+                <div class="timer-badge" id="timer-display">
+                    <svg class="inline-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span id="timer-text">180s</span>
+                </div>
+                <button class="btn-ghost" id="reset-btn">
+                    <svg class="inline-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    Temas
+                </button>
+            </div>
         </header>
 
-        <canvas id="puzzle-canvas" width="300" height="300"></canvas>
+        <canvas id="puzzle-canvas"></canvas>
         
-        <div class="win-message" id="win-txt">Você Venceu! 🎉</div>
+        <div class="win-message" id="win-txt">
+            <div class="win-controls">
+                <svg class="inline-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+                    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+                    <path d="M4 22h16"></path>
+                    <path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"></path>
+                    <path d="M12 2a6.45 6.45 0 0 1 6 6.5c0 3.55-2.61 5.5-6 5.5s-6-1.95-6-5.5A6.45 6.45 0 0 1 12 2Z"></path>
+                </svg>
+                <span id="win-message-text">Você Venceu!</span>
+            </div>
+            <button class="btn-ghost" id="share-btn" style="border-color: #00ff7f; color: #00ff7f;">
+                <svg class="inline-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="18" cy="5" r="3"></circle>
+                    <circle cx="6" cy="12" r="3"></circle>
+                    <circle cx="18" cy="19" r="3"></circle>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+                Compartilhar Time
+            </button>
+        </div>
     </div>
 
     <script>
+        const container = document.getElementById('container');
+        const header = document.getElementById('game-header');
         const canvas = document.getElementById('puzzle-canvas');
         const ctx = canvas.getContext('2d');
-        const shuffleBtn = document.getElementById('shuffle-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const shareBtn = document.getElementById('share-btn');
         const winTxt = document.getElementById('win-txt');
-
-        const SIZE = 3; // Grade 3x3
-        const cellCount = SIZE * SIZE;
-        let cellSize = canvas.width / SIZE;
+        const winMessageText = document.getElementById('win-message-text');
+        const timerDisplay = document.getElementById('timer-display');
+        const timerText = document.getElementById('timer-text');
         
-        let board = [];
+        const themeModal = document.getElementById('theme-modal');
+        const gridContent = document.getElementById('grid-content');
+        const animeSearch = document.getElementById('anime-search');
+        const voiceSearchBtn = document.getElementById('voice-search-btn');
+        const difficultyButtons = document.querySelectorAll('.difficulty-btn');
+
+        // Configurações padrão de Dificuldade (Fácil com tempo aumentado)
+        let COLS = 4;
+        let ROWS = 4;
+        let initialTime = 180;
+        let totalPieces = COLS * ROWS;
+        let pieceWidth, pieceHeight;
+
+        let activePuzzleImage = null;
+        let board = []; 
+        let emptyX, emptyY; 
+
+        let lockBoard = false;
         let isWon = false;
 
-        // Carregamento da imagem do quebra-cabeça
-        const img = new Image();
-        // Sinta-se livre para alterar esta URL para qualquer imagem quadrada (.jpg ou .png)
-        const IMAGE_SRC = 'https://picsum.photos/300/300?blur=1'; 
-        img.src = IMAGE_SRC;
-        img.onload = () => {
-            initGame();
-        };
+        let activeThemeCoverUrl = "";
+        let activeThemeTitle = "";
 
-        function initGame() {
-            isWon = false;
-            winTxt.style.display = 'none';
-            resetBoard();
-            shuffleBoard();
+        let timer = 180;
+        let timerInterval = null;
+        let isTimeOut = false;
+
+        let particles = [];
+        let mouseX = -1000;
+        let mouseY = -1000;
+
+        let bgMusic = null;
+        let searchTimeout = null;
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.radius = Math.random() * 4 + 2;
+                this.color = color;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.02 + 0.015;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function spawnParticles(x, y, color) {
+            for (let i = 0; i < 20; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        difficultyButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                difficultyButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                const mode = button.getAttribute('data-mode');
+                if (mode === 'easy') {
+                    COLS = 4; ROWS = 4; initialTime = 180;
+                } else if (mode === 'medium') {
+                    COLS = 6; ROWS = 4; initialTime = 240;
+                } else if (mode === 'hard') {
+                    COLS = 6; ROWS = 6; initialTime = 360;
+                }
+                totalPieces = COLS * ROWS;
+            });
+        });
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timer = initialTime;
+            isTimeOut = false;
+            timerText.textContent = timer + 's';
+            timerDisplay.style.color = '#f8f8ff';
+            timerDisplay.style.textShadow = '0 0 5px var(--violet-main)';
+            
+            timerInterval = setInterval(() => {
+                if (isWon || lockBoard || isTimeOut) return;
+                timer--;
+                timerText.textContent = timer + 's';
+                
+                if (timer <= 15) {
+                    timerDisplay.style.color = '#ff4500';
+                    timerDisplay.style.textShadow = '0 0 10px #ff4500';
+                }
+                
+                if (timer <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeOut();
+                }
+            }, 1000);
+        }
+
+        function handleTimeOut() {
+            isTimeOut = true;
+            lockBoard = true;
+            winMessageText.textContent = "Tempo Esgotado!";
+            winTxt.style.color = "#ff4500";
+            winTxt.style.textShadow = "0 0 10px rgba(255, 69, 0, 0.4)";
+            shareBtn.style.display = 'none'; 
+            winTxt.style.display = 'flex';
+            resizeCanvas();
+        }
+
+        async function fetchAudioFromITunes(animeTitle) {
+            if (bgMusic) {
+                bgMusic.pause();
+                bgMusic = null;
+            }
+
+            const cleanTitle = animeTitle.replace(/[^a-zA-Z0-9 ]/g, '');
+            const url = `https://itunes.apple.com/search?term=${encodeURIComponent(cleanTitle + ' soundtrack')}&media=music&limit=5`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.results && data.results.length > 0) {
+                    const track = data.results[0];
+                    if (track.previewUrl) {
+                        bgMusic = new Audio(track.previewUrl);
+                        bgMusic.loop = true;
+                        bgMusic.volume = 0.4;
+                        
+                        bgMusic.play().catch(err => {
+                            console.log("Aguardando clique do usuário para iniciar música tema.");
+                        });
+                    }
+                }
+            } catch (error) {
+                console.log("Não foi possível carregar a música tema do iTunes:", error);
+            }
+        }
+
+        async function fetchThemes(searchQuery = '') {
+            gridContent.innerHTML = `<div class="loading-text">Buscando animes na API...</div>`;
+            
+            const hasFilter = searchQuery.trim().length > 0;
+            const variables = hasFilter ? `, search: "${searchQuery.replace(/"/g, '\\"')}"` : '';
+
+            const query = `
+            query {
+                Page(page: 1, perPage: 15) {
+                    media(sort: POPULARITY_DESC, type: ANIME ${variables}) {
+                        id
+                        title { english romaji }
+                        coverImage { large }
+                    }
+                }
+            }`;
+
+            try {
+                const response = await fetch('https://graphql.anilist.co', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+                const result = await response.json();
+                
+                if(result.data && result.data.Page && result.data.Page.media.length > 0) {
+                    renderThemeGrid(result.data.Page.media);
+                } else {
+                    gridContent.innerHTML = `<div class="loading-text" style="color: rgba(248, 248, 255, 0.6);">Nenhum anime encontrado com esse nome.</div>`;
+                }
+            } catch (error) {
+                gridContent.innerHTML = `<div class="loading-text" style="color: #ff4500;">Erro ao conectar à API do catálogo. Verifique sua conexão.</div>`;
+            }
+        }
+
+        function renderThemeGrid(animeList) {
+            gridContent.innerHTML = "";
+            
+            animeList.forEach(anime => {
+                const card = document.createElement('div');
+                card.className = 'theme-card';
+                const titleStr = anime.title.english || anime.title.romaji;
+                
+                card.innerHTML = `
+                    <img src="${anime.coverImage.large}" alt="${titleStr}">
+                    <div class="theme-card-title">${titleStr}</div>
+                `;
+                
+                card.addEventListener('click', () => {
+                    animeSearch.value = ""; 
+                    activeThemeCoverUrl = anime.coverImage.large;
+                    activeThemeTitle = titleStr;
+                    selectTheme(anime.coverImage.large, titleStr);
+                });
+                gridContent.appendChild(card);
+            });
+        }
+
+        function selectTheme(imageUrl, animeTitle) {
+            gridContent.innerHTML = `<div class="loading-text">Fatiando imagem e buscando trilha de ${animeTitle}...</div>`;
+            
+            fetchAudioFromITunes(animeTitle);
+
+            const img = new Image();
+            img.crossOrigin = "anonymous"; 
+            img.src = imageUrl;
+            img.onload = () => {
+                activePuzzleImage = img;
+                themeModal.classList.add('hidden');
+                initGame();
+            };
+        }
+
+        function resizeCanvas() {
+            const paddingConst = 48; 
+            const headerHeight = header.offsetHeight + parseFloat(window.getComputedStyle(header).marginBottom);
+            const winTxtHeight = (isWon || isTimeOut) ? winTxt.offsetHeight + parseFloat(window.getComputedStyle(winTxt).marginTop) : 0;
+            
+            const availableWidth = container.clientWidth - 48;
+            const availableHeight = container.clientHeight - paddingConst - headerHeight - winTxtHeight;
+
+            let sizeWidth = availableWidth;
+            let sizeHeight = (availableWidth / COLS) * ROWS;
+
+            if (sizeHeight > availableHeight) {
+                sizeHeight = availableHeight;
+                sizeWidth = (availableHeight / ROWS) * COLS;
+            }
+
+            canvas.width = sizeWidth;
+            canvas.height = sizeHeight;
+
+            pieceWidth = canvas.width / COLS;
+            pieceHeight = canvas.height / ROWS;
+
             draw();
         }
 
-        function resetBoard() {
+        function initGame() {
+            isWon = false;
+            winMessageText.textContent = "Você Venceu!";
+            winTxt.style.color = "#00ff7f";
+            winTxt.style.textShadow = "0 0 10px rgba(0,255,127,0.4)";
+            shareBtn.style.display = 'flex'; 
+            winTxt.style.display = 'none';
+            lockBoard = false;
+            particles = [];
+            
+            generatePuzzle();
+            resizeCanvas();
+            startTimer();
+        }
+
+        function generatePuzzle() {
             board = [];
-            // Armazena a posição original correta de cada bloco (0 a 7 são as fatias da imagem)
-            for (let i = 0; i < cellCount - 1; i++) {
+            for (let i = 0; i < totalPieces; i++) {
                 board.push(i);
             }
-            board.push(-1); // -1 representa o espaço vazio (quadrado preto)
-        }
+            
+            emptyX = COLS - 1;
+            emptyY = ROWS - 1;
 
-        function shuffleBoard() {
-            for (let i = 0; i < 150; i++) {
-                let emptyIndex = board.indexOf(-1);
-                let validMoves = getValidMoves(emptyIndex);
-                let randomMove = validMoves[Math.floor(Math.random() * validMoves.length)];
+            const shuffleMoves = COLS * ROWS * 20; 
+            for (let i = 0; i < shuffleMoves; i++) {
+                const validMoves = [];
+                if (emptyX > 0) validMoves.push({x: emptyX - 1, y: emptyY});
+                if (emptyX < COLS - 1) validMoves.push({x: emptyX + 1, y: emptyY});
+                if (emptyY > 0) validMoves.push({x: emptyX, y: emptyY - 1});
+                if (emptyY < ROWS - 1) validMoves.push({x: emptyX, y: emptyY + 1});
+
+                const randomMove = validMoves[Math.floor(Math.random() * validMoves.length)];
                 
-                board[emptyIndex] = board[randomMove];
-                board[randomMove] = -1;
+                const idx1 = emptyY * COLS + emptyX;
+                const idx2 = randomMove.y * COLS + randomMove.x;
+                
+                [board[idx1], board[idx2]] = [board[idx2], board[idx1]];
+                
+                emptyX = randomMove.x;
+                emptyY = randomMove.y;
             }
         }
 
-        function getValidMoves(emptyIndex) {
-            let moves = [];
-            let row = Math.floor(emptyIndex / SIZE);
-            let col = emptyIndex % SIZE;
-
-            if (row > 0) moves.push(emptyIndex - SIZE);
-            if (row < SIZE - 1) moves.push(emptyIndex + SIZE);
-            if (col > 0) moves.push(emptyIndex - 1);
-            if (col < SIZE - 1) moves.push(emptyIndex + 1);
-
-            return moves;
-        }
-
-        // Renderização redesenhada focada em fatiar o objeto Image
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!activePuzzleImage) return;
 
-            for (let i = 0; i < cellCount; i++) {
-                let value = board[i];
+            const gap = 2; 
+            const borderRadius = 6;
+
+            const srcW = activePuzzleImage.width / COLS;
+            const srcH = activePuzzleImage.height / ROWS;
+
+            for (let i = 0; i < totalPieces; i++) {
+                const col = i % COLS;
+                const row = Math.floor(i / COLS);
                 
-                let currentRow = Math.floor(i / SIZE);
-                let currentCol = i % SIZE;
-                let x = currentCol * cellSize;
-                let y = currentRow * cellSize;
-                const padding = 2; // Linha fina separadora dos blocos da imagem
+                const value = board[i];
 
-                if (value === -1) {
-                    // Preenche o espaço vazio com o fundo escuro do tema
-                    ctx.fillStyle = 'rgba(13, 8, 27, 0.8)';
-                    ctx.fillRect(x, y, cellSize, cellSize);
-                    continue; 
+                const x = col * pieceWidth;
+                const y = row * pieceHeight;
+
+                if (value === (totalPieces - 1) && !isTimeOut && !isWon) {
+                    continue;
                 }
 
-                // Descobre de qual parte da imagem original esse bloco pertence
-                let origRow = Math.floor(value / SIZE);
-                let origCol = value % SIZE;
-                let sx = origCol * cellSize;
-                let sy = origRow * cellSize;
+                const origCol = value % COLS;
+                const origRow = Math.floor(value / COLS);
+                const srcX = origCol * srcW;
+                const srcY = origRow * srcH;
 
-                // Desenha o recorte da imagem original na posição atual do tabuleiro
-                ctx.drawImage(
-                    img, 
-                    sx, sy, cellSize, cellSize, // Recorte de origem (Source)
-                    x + padding, y + padding, cellSize - padding * 2, cellSize - padding * 2 // Destino (Canvas)
-                );
+                const isHovered = (mouseX >= x && mouseX < x + pieceWidth && mouseY >= y && mouseY < y + pieceHeight) && !lockBoard && !isWon && !isTimeOut;
 
-                // Moldura estilizada sutil sobre as fatias da imagem
-                ctx.strokeStyle = 'rgba(138, 43, 226, 0.4)'; // blueviolet semitransparente
-                ctx.lineWidth = 1;
-                ctx.strokeRect(x + padding, y + padding, cellSize - padding * 2, cellSize - padding * 2);
+                ctx.save();
+                ctx.beginPath();
+                ctx.roundRect(x + gap, y + gap, pieceWidth - gap * 2, pieceHeight - gap * 2, borderRadius);
+                ctx.clip();
+                
+                ctx.drawImage(activePuzzleImage, srcX, srcY, srcW, srcH, x + gap, y + gap, pieceWidth - gap * 2, pieceHeight - gap * 2);
+                ctx.restore();
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.roundRect(x + gap, y + gap, pieceWidth - gap * 2, pieceHeight - gap * 2, borderRadius);
+                
+                if (isHovered && isAdjacentToEmpty(col, row)) {
+                    ctx.strokeStyle = '#9d4edf';
+                    ctx.lineWidth = 2;
+                    ctx.shadowColor = '#8a2be2';
+                    ctx.shadowBlur = 10;
+                } else {
+                    ctx.strokeStyle = 'rgba(248, 248, 255, 0.15)';
+                    ctx.lineWidth = 1;
+                }
+                ctx.stroke();
+                ctx.restore();
             }
+        }
+
+        function isAdjacentToEmpty(x, y) {
+            return (Math.abs(x - emptyX) === 1 && y === emptyY) || (Math.abs(y - emptyY) === 1 && x === emptyX);
+        }
+
+        function loop() {
+            draw();
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                if (particles[i].alpha <= 0) {
+                    particles.splice(i, 1);
+                } else {
+                    particles[i].draw();
+                }
+            }
+            requestAnimationFrame(loop);
         }
 
         function handleInput(clientX, clientY) {
-            if (isWon) return;
+            if (bgMusic && bgMusic.paused) {
+                bgMusic.play().catch(() => {});
+            }
+
+            if (lockBoard || isWon || isTimeOut) return;
 
             const rect = canvas.getBoundingClientRect();
             const canvasX = (clientX - rect.left) * (canvas.width / rect.width);
             const canvasY = (clientY - rect.top) * (canvas.height / rect.height);
 
-            const col = Math.floor(canvasX / cellSize);
-            const row = Math.floor(canvasY / cellSize);
-            const clickedIndex = row * SIZE + col;
+            const col = Math.floor(canvasX / pieceWidth);
+            const row = Math.floor(canvasY / pieceHeight);
+            
+            if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+                if (isAdjacentToEmpty(col, row)) {
+                    const clickedIdx = row * COLS + col;
+                    const emptyIdx = emptyY * COLS + emptyX;
 
-            const emptyIndex = board.indexOf(-1);
-            const validMoves = getValidMoves(emptyIndex);
+                    board[emptyIdx] = board[clickedIdx];
+                    board[clickedIdx] = totalPieces - 1;
 
-            if (validMoves.includes(clickedIndex)) {
-                board[emptyIndex] = board[clickedIndex];
-                board[clickedIndex] = -1;
-                
-                draw();
-                checkWin();
+                    spawnParticles(col * pieceWidth + pieceWidth / 2, row * pieceHeight + pieceHeight / 2, '#8a2be2');
+
+                    emptyX = col;
+                    emptyY = row;
+
+                    checkWin();
+                }
             }
         }
 
         function checkWin() {
-            // Verifica se cada índice voltou à sua posição de origem ordenada (0, 1, 2... 7)
-            for (let i = 0; i < cellCount - 1; i++) {
-                if (board[i] !== i) return;
+            let win = true;
+            for (let i = 0; i < totalPieces; i++) {
+                if (board[i] !== i) {
+                    win = false;
+                    break;
+                }
             }
-            isWon = true;
-            winTxt.style.display = 'block';
-            
-            // Mostra o quebra-cabeça completo sem divisões ao vencer
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            if (win) {
+                isWon = true;
+                clearInterval(timerInterval);
+                winTxt.style.display = 'flex';
+                resizeCanvas();
+            }
         }
 
-        // Eventos Unificados
+        function shareScoreCard() {
+            const shareCanvas = document.createElement('canvas');
+            const sCtx = shareCanvas.getContext('2d');
+            
+            shareCanvas.width = 600;
+            shareCanvas.height = 700;
+
+            const gradientBg = sCtx.createLinearGradient(0, 0, shareCanvas.width, shareCanvas.height);
+            gradientBg.addColorStop(0, '#0b071e'); 
+            gradientBg.addColorStop(0.5, '#4c1a8a'); 
+            gradientBg.addColorStop(1, '#8a2be2'); 
+            
+            sCtx.fillStyle = gradientBg;
+            sCtx.fillRect(0, 0, shareCanvas.width, shareCanvas.height);
+
+            sCtx.save();
+            sCtx.fillStyle = "rgba(248, 248, 255, 0.03)";
+            sCtx.fillRect(0, 0, shareCanvas.width, shareCanvas.height);
+            sCtx.restore();
+
+            sCtx.fillStyle = "#f8f8ff";
+            sCtx.textAlign = "center";
+            sCtx.font = "bold 38px 'Segoe UI', Roboto, sans-serif";
+            sCtx.shadowBlur = 15;
+            sCtx.shadowColor = "#8a2be2";
+            sCtx.fillText("GLOW MEMORY", shareCanvas.width / 2, 120);
+            sCtx.shadowBlur = 0;
+
+            sCtx.font = "600 20px 'Segoe UI', Roboto, sans-serif";
+            sCtx.fillStyle = "rgba(248, 248, 255, 0.8)";
+            sCtx.fillText(`Tema: ${activeThemeTitle}`, shareCanvas.width / 2, 170);
+
+            sCtx.fillStyle = "rgba(138, 43, 226, 0.12)";
+            sCtx.strokeStyle = "rgba(248, 248, 255, 0.25)";
+            sCtx.lineWidth = 2;
+            sCtx.beginPath();
+            sCtx.roundRect(100, 240, 400, 180, 16);
+            sCtx.fill();
+            sCtx.stroke();
+
+            sCtx.fillStyle = "#00ff7f";
+            sCtx.font = "bold 24px 'Segoe UI', Roboto, sans-serif";
+            
+            let diffLabel = "FÁCIL";
+            if(COLS === 6 && ROWS === 4) diffLabel = "MÉDIO";
+            if(COLS === 6 && ROWS === 6) diffLabel = "DIFÍCIL";
+            
+            sCtx.fillText(`QUEBRA-CABEÇA RESOLVIDO! (${diffLabel})`, shareCanvas.width / 2, 295);
+
+            sCtx.fillStyle = "#f8f8ff";
+            sCtx.font = "bold 46px 'Segoe UI', Roboto, sans-serif";
+            sCtx.fillText(`${initialTime - timer}s`, shareCanvas.width / 2, 370);
+            sCtx.font = "14px 'Segoe UI', Roboto, sans-serif";
+            sCtx.fillStyle = "rgba(248, 248, 255, 0.7)";
+            sCtx.fillText("Tempo de Resolução", shareCanvas.width / 2, 395);
+
+            sCtx.fillStyle = "#f8f8ff";
+            sCtx.font = "bold 24px 'Segoe UI', Roboto, sans-serif";
+            sCtx.shadowBlur = 10;
+            sCtx.shadowColor = "rgba(138, 43, 226, 0.6)";
+            sCtx.fillText("Jogue em LoreSpace.com.br", shareCanvas.width / 2, shareCanvas.height - 60);
+            sCtx.shadowBlur = 0;
+
+            shareCanvas.toBlob((blob) => {
+                if (!blob) return;
+                const file = new File([blob], "glow-memory-score.png", { type: "image/png" });
+                
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({
+                        files: [file],
+                        title: 'Meu tempo no Glow Memory!',
+                        text: `Resolvi o quebra-cabeça deslizante de ${activeThemeTitle} no modo ${diffLabel} em ${initialTime - timer} segundos! Pode bater meu recorde no LoreSpace?`,
+                    }).catch((err) => console.log("Partilha cancelada."));
+                } else {
+                    const link = document.createElement('a');
+                    link.download = 'glow-memory-score.png';
+                    link.href = shareCanvas.toDataURL();
+                    link.click();
+                }
+            }, "image/png");
+        }
+
+        animeSearch.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value;
+            searchTimeout = setTimeout(() => {
+                fetchThemes(query);
+            }, 500);
+        });
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'pt-BR';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            voiceSearchBtn.addEventListener('click', () => {
+                if (voiceSearchBtn.classList.contains('listening')) {
+                    recognition.stop();
+                    return;
+                }
+                recognition.start();
+            });
+
+            recognition.onstart = () => {
+                voiceSearchBtn.classList.add('listening');
+                animeSearch.placeholder = "Ouvindo...";
+            };
+
+            recognition.onresult = (event) => {
+                const speechResult = event.results[0][0].transcript;
+                animeSearch.value = speechResult;
+                fetchThemes(speechResult);
+            };
+
+            recognition.onerror = (event) => {
+                console.log('Erro no reconhecimento de voz: ' + event.error);
+                voiceSearchBtn.classList.remove('listening');
+                animeSearch.placeholder = "Pesquisar anime de sua escolha...";
+            };
+
+            recognition.onend = () => {
+                voiceSearchBtn.classList.remove('listening');
+                if (animeSearch.value === "") {
+                    animeSearch.placeholder = "Pesquisar anime de sua escolha...";
+                }
+            };
+        } else {
+            voiceSearchBtn.style.display = 'none';
+        }
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            mouseX = -1000;
+            mouseY = -1000;
+        });
+
         canvas.addEventListener('mousedown', (e) => {
+            if(e.target === animeSearch || e.target.closest('#voice-search-btn') || e.target.closest('.difficulty-container')) return;
             handleInput(e.clientX, e.clientY);
         });
 
         canvas.addEventListener('touchstart', (e) => {
+            if(e.target === animeSearch || e.target.closest('#voice-search-btn') || e.target.closest('.difficulty-container')) return;
             e.preventDefault();
             const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            mouseX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+            mouseY = (touch.clientY - rect.top) * (canvas.height / rect.height);
             handleInput(touch.clientX, touch.clientY);
         }, { passive: false });
 
-        shuffleBtn.addEventListener('click', initGame);
+        canvas.addEventListener('touchend', (e) => {
+            if(e.target === animeSearch || e.target.closest('#voice-search-btn') || e.target.closest('.difficulty-container')) return;
+            mouseX = -1000;
+            mouseY = -1000;
+        });
+
+        resetBtn.addEventListener('click', () => {
+            clearInterval(timerInterval);
+            themeModal.classList.remove('hidden');
+            fetchThemes();
+        });
+
+        shareBtn.addEventListener('click', shareScoreCard);
+        
+        window.addEventListener('resize', resizeCanvas);
+
+        fetchThemes();
+        requestAnimationFrame(loop);
     </script>
 </body>
 </html>
-
