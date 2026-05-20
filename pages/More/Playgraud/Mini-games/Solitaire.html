@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Glow Solitaire</title>
+    <style>
+        :root {
+            --bg-color: #0b071e;
+            --violet-main: #8a2be2; /* blueviolet-color */
+            --violet-glow: rgba(138, 43, 226, 0.65);
+            --ghost-white: rgba(248, 248, 255, 0.15); /* ghost */
+            --ghost-border: rgba(248, 248, 255, 0.25);
+            --glass-bg: rgba(138, 43, 226, 0.12); /* vidro semitransparente */
+            --glass-border: rgba(248, 248, 255, 0.2);
+            --card-red: #ff4569;
+            --card-black: #f8f8ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 50%, #150a2e 0%, #0b071e 100%);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #f8f8ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+            padding: 0;
+        }
+
+        .game-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 0;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            width: 100%;
+            height: 100vh;
+        }
+
+        header {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2vh;
+            flex-shrink: 0;
+        }
+
+        h1 {
+            font-size: clamp(20px, 4vw, 32px);
+            font-weight: bold;
+            text-shadow: 0 0 10px var(--violet-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stats-badge {
+            font-size: clamp(14px, 2vw, 18px);
+            font-weight: bold;
+            background: rgba(248, 248, 255, 0.08);
+            border: 1px solid var(--ghost-border);
+            padding: 6px 12px;
+            border-radius: 12px;
+            text-shadow: 0 0 5px var(--violet-main);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-ghost {
+            background: rgba(248, 248, 255, 0.05);
+            border: 2px solid var(--ghost-border);
+            color: #f8f8ff;
+            padding: 8px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: clamp(14px, 2vw, 18px);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-ghost:hover {
+            background: var(--ghost-white);
+            border-color: #f8f8ff;
+            box-shadow: 0 0 12px rgba(248, 248, 255, 0.2);
+        }
+
+        #solitaire-canvas {
+            background: rgba(11, 7, 30, 0.6);
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            box-shadow: inset 0 0 25px rgba(0,0,0,0.8), 0 0 20px rgba(138, 43, 226, 0.15);
+            display: block;
+            max-width: 100%;
+        }
+
+        .win-message {
+            margin-top: 2vh;
+            font-size: clamp(16px, 3vw, 24px);
+            color: #00ff7f;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(0,255,127,0.5);
+            display: none;
+            flex-shrink: 0;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .inline-icon {
+            display: inline-block;
+            vertical-align: middle;
+            fill: currentColor;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container" id="container">
+        <header id="game-header">
+            <h1>
+                <svg class="inline-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                </svg>
+                Glow Solitaire
+            </h1>
+            <div class="header-controls">
+                <div class="stats-badge">
+                    <svg class="inline-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span id="timer-text">00:00</span>
+                </div>
+                <div class="stats-badge">
+                    <span>Pontos:</span>
+                    <span id="score-text">0</span>
+                </div>
+                <button class="btn-ghost" id="restart-btn">
+                    <svg class="inline-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+                    </svg>
+                    Reiniciar
+                </button>
+            </div>
+        </header>
+
+        <canvas id="solitaire-canvas"></canvas>
+        
+        <div class="win-message" id="win-txt">
+            <span>Parabéns! Você venceu!</span>
+            <button class="btn-ghost" id="share-btn" style="border-color: #00ff7f; color: #00ff7f;">
+                <svg class="inline-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="18" cy="5" r="3"></circle>
+                    <circle cx="6" cy="12" r="3"></circle>
+                    <circle cx="18" cy="19" r="3"></circle>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+                Compartilhar Placar
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const container = document.getElementById('container');
+        const header = document.getElementById('game-header');
+        const canvas = document.getElementById('solitaire-canvas');
+        const ctx = canvas.getContext('2d');
+        const restartBtn = document.getElementById('restart-btn');
+        const shareBtn = document.getElementById('share-btn');
+        const winTxt = document.getElementById('win-txt');
+        const timerText = document.getElementById('timer-text');
+        const scoreText = document.getElementById('score-text');
+
+        // Configurações Globais de Renderização
+        let cardWidth = 80;
+        let cardHeight = 115;
+        let cardRadius = 8;
+        let cardSpacing = 15;
+        let topMargin = 20;
+
+        // Estrutura de Naipes e Valores
+        const SUITS = {
+            HEARTS: { symbol: '♥', color: 'var(--card-red)', isRed: true },
+            DIAMONDS: { symbol: '♦', color: 'var(--card-red)', isRed: true },
+            CLUBS: { symbol: '♣', color: 'var(--card-black)', isRed: false },
+            SPADES: { symbol: '♠', color: 'var(--card-black)', isRed: false }
+        };
+        const VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+        // Estado do Tabuleiro
+        let stock = [];       // Monte de compra
+        let waste = [];       // Descarte aberto
+        let foundations = [[], [], [], []]; // 4 Pilhas finais (Ases)
+        let tableaus = [[], [], [], [], [], [], []]; // 7 Pilhas de jogo
+
+        // Controle de Interação / Arrasto
+        let dragInfo = null;
+        let isWon = false;
+        let score = 0;
+        let timeElapsed = 0;
+        let timerInterval = null;
+
+        // Partículas de Efeito
+        let particles = [];
+
+        class Card {
+            constructor(value, suitIdx, suit) {
+                this.value = value;
+                this.suitIdx = suitIdx; // Index numérico para regras
+                this.suit = suit;
+                this.isFaceUp = false;
+                this.x = 0;
+                this.y = 0;
+            }
+
+            get valueIndex() {
+                return VALUES.indexOf(this.value);
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 6;
+                this.vy = (Math.random() - 0.5) * 6;
+                this.radius = Math.random() * 3 + 2;
+                this.color = color;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.03 + 0.02;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function createDeck() {
+            let deck = [];
+            Object.keys(SUITS).forEach((suitKey, suitIdx) => {
+                VALUES.forEach(val => {
+                    deck.push(new Card(val, suitIdx, SUITS[suitKey]));
+                });
+            });
+            return deck;
+        }
+
+        function shuffle(deck) {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+            return deck;
+        }
+
+        function initGame() {
+            clearInterval(timerInterval);
+            isWon = false;
+            score = 0;
+            timeElapsed = 0;
+            winTxt.style.display = 'none';
+            scoreText.textContent = score;
+            timerText.textContent = "00:00";
+            particles = [];
+
+            let deck = shuffle(createDeck());
+
+            // Distribuir para os Tableaus
+            tableaus = [[], [], [], [], [], [], []];
+            for (let i = 0; i < 7; i++) {
+                for (let j = i; j < 7; j++) {
+                    tableaus[j].push(deck.pop());
+                }
+                tableaus[i][tableaus[i].length - 1].isFaceUp = true;
+            }
+
+            stock = deck;
+            waste = [];
+            foundations = [[], [], [], []];
+
+            timerInterval = setInterval(() => {
+                if (isWon) return;
+                timeElapsed++;
+                const mins = String(Math.floor(timeElapsed / 60)).padStart(2, '0');
+                const secs = String(timeElapsed % 60).padStart(2, '0');
+                timerText.textContent = `${mins}:${secs}`;
+            }, 1000);
+
+            resizeCanvas();
+        }
+
+        function resizeCanvas() {
+            const padding = 32;
+            const headerHeight = header.offsetHeight + parseFloat(window.getComputedStyle(header).marginBottom);
+            const availableWidth = container.clientWidth - padding;
+            const availableHeight = container.clientHeight - padding - headerHeight - (isWon ? winTxt.offsetHeight : 0);
+
+            // Resolução virtual padrão proporcional
+            canvas.width = Math.max(availableWidth, 750);
+            canvas.height = Math.max(availableHeight, 550);
+
+            // Ajustar o tamanho das cartas dinamicamente baseado na largura do canvas
+            cardSpacing = canvas.width * 0.02;
+            cardWidth = (canvas.width - (cardSpacing * 8)) / 7;
+            cardHeight = cardWidth * 1.4;
+            cardRadius = cardWidth * 0.1;
+
+            draw();
+        }
+
+        function drawCardGeometry(x, y, radius, isFaceUp, card) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(x, y, cardWidth, cardHeight, radius);
+            
+            if (isFaceUp && card) {
+                // Frente da carta (Glassmorphism White)
+                ctx.fillStyle = 'rgba(248, 248, 255, 0.9)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(248, 248, 255, 0.4)';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Renderizar Texto e Símbolo
+                ctx.fillStyle = card.suit.color;
+                ctx.font = `bold ${cardWidth * 0.22}px 'Segoe UI', Roboto, sans-serif`;
+                ctx.fillText(card.value, x + cardWidth * 0.1, y + cardHeight * 0.25);
+                
+                ctx.font = `${cardWidth * 0.35}px 'Segoe UI', Roboto, sans-serif`;
+                ctx.fillText(card.suit.symbol, x + cardWidth * 0.1, y + cardHeight * 0.6);
+
+                // Símbolo central maior e sutil
+                ctx.save();
+                ctx.globalAlpha = 0.15;
+                ctx.font = `${cardWidth * 0.6}px 'Segoe UI', Roboto, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(card.suit.symbol, x + cardWidth * 0.6, y + cardHeight * 0.65);
+                ctx.restore();
+            } else {
+                // Verso da carta (Glow/Violet Glass)
+                ctx.fillStyle = 'rgba(138, 43, 226, 0.25)';
+                ctx.fill();
+                ctx.strokeStyle = 'var(--violet-main)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Detalhe interno do verso
+                ctx.beginPath();
+                ctx.roundRect(x + 5, y + 5, cardWidth - 10, cardHeight - 10, radius - 2);
+                ctx.strokeStyle = 'rgba(248, 248, 255, 0.15)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawPlaceholder(x, y, symbol = "") {
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(x, y, cardWidth, cardHeight, cardRadius);
+            ctx.fillStyle = 'rgba(248, 248, 255, 0.03)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(248, 248, 255, 0.15)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            if (symbol) {
+                ctx.fillStyle = 'rgba(248, 248, 255, 0.2)';
+                ctx.font = `${cardWidth * 0.4}px 'Segoe UI', Roboto, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(symbol, x + cardWidth / 2, y + cardHeight / 2);
+            }
+            ctx.restore();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Desenhar Stock e Waste (Canto Superior Esquerdo)
+            let currentX = cardSpacing;
+            let currentY = topMargin;
+
+            if (stock.length === 0) {
+                drawPlaceholder(currentX, currentY, '↻');
+            } else {
+                drawCardGeometry(currentX, currentY, cardRadius, false);
+            }
+            stock.forEach(c => { c.x = currentX; c.y = currentY; });
+
+            currentX += cardWidth + cardSpacing;
+            if (waste.length === 0) {
+                drawPlaceholder(currentX, currentY);
+            } else {
+                // Mostrar até as últimas 3 cartas com leve deslocamento lateral
+                const start = Math.max(0, waste.length - 3);
+                for (let i = start; i < waste.length; i++) {
+                    const offset = (i - start) * (cardWidth * 0.2);
+                    const card = waste[i];
+                    card.x = currentX + offset;
+                    card.y = currentY;
+                    drawCardGeometry(card.x, card.y, cardRadius, true, card);
+                }
+            }
+
+            // 2. Desenhar Foundations (Canto Superior Direito)
+            const foundationStartX = canvas.width - (4 * cardWidth) - (4 * cardSpacing);
+            for (let i = 0; i < 4; i++) {
+                const fX = foundationStartX + i * (cardWidth + cardSpacing);
+                if (foundations[i].length === 0) {
+                    drawPlaceholder(fX, currentY, 'A');
+                } else {
+                    const card = foundations[i][foundations[i].length - 1];
+                    card.x = fX;
+                    card.y = currentY;
+                    drawCardGeometry(card.x, card.y, cardRadius, true, card);
+                }
+            }
+
+            // 3. Desenhar Tableaus
+            const tableauY = topMargin + cardHeight + topMargin * 1.5;
+            for (let i = 0; i < 7; i++) {
+                const tX = cardSpacing + i * (cardWidth + cardSpacing);
+                const pile = tableaus[i];
+
+                if (pile.length === 0) {
+                    drawPlaceholder(tX, tableauY);
+                } else {
+                    let currentStackY = tableauY;
+                    pile.forEach((card, index) => {
+                        // Se estiver sendo arrastada, pula a renderização aqui para desenhar por cima depois
+                        if (dragInfo && dragInfo.pileType === 'tableau' && dragInfo.pileIdx === i && index >= dragInfo.cardIdx) {
+                            return;
+                        }
+                        card.x = tX;
+                        card.y = currentStackY;
+                        drawCardGeometry(card.x, card.y, cardRadius, card.isFaceUp, card);
+                        
+                        // Deslocamento vertical dependendo de estar aberta ou fechada
+                        currentStackY += card.isFaceUp ? (cardHeight * 0.28) : (cardHeight * 0.15);
+                    });
+                }
+            }
+
+            // 4. Desenhar Cartas sendo Arrastadas (Overlay)
+            if (dragInfo) {
+                let overlayY = dragInfo.currentY - dragInfo.offsetY;
+                dragInfo.cards.forEach((card, idx) => {
+                    drawCardGeometry(dragInfo.currentX - dragInfo.offsetX, overlayY, cardRadius, true, card);
+                    overlayY += cardHeight * 0.28;
+                });
+            }
+        }
+
+        // Regras de Validação de Movimentos
+        function canMoveToTableau(card, targetPile) {
+            if (targetPile.length === 0) {
+                return card.value === 'K';
+            }
+            const topCard = targetPile[targetPile.length - 1];
+            return topCard.isFaceUp && topCard.suit.isRed !== card.suit.isRed && topCard.valueIndex === card.valueIndex + 1;
+        }
+
+        function canMoveToFoundation(card, targetPile) {
+            if (targetPile.length === 0) {
+                return card.value === 'A';
+            }
+            const topCard = targetPile[targetPile.length - 1];
+            return topCard.suitIdx === card.suitIdx && topCard.valueIndex === card.valueIndex - 1;
+        }
+
+        function checkWin() {
+            for (let i = 0; i < 4; i++) {
+                if (foundations[i].length !== 13) return;
+            }
+            isWon = true;
+            clearInterval(timerInterval);
+            winTxt.style.display = 'flex';
+            resizeCanvas();
+        }
+
+        function addScore(points) {
+            score = Math.max(0, score + points);
+            scoreText.textContent = score;
+        }
+
+        // Tentar mover automaticamente ao dar duplo clique ou clique rápido
+        function tryAutoMove(card, sourceInfo) {
+            // 1. Tentar mover para Foundations
+            for (let i = 0; i < 4; i++) {
+                if (canMoveToFoundation(card, foundations[i])) {
+                    executeMove(sourceInfo, { type: 'foundation', idx: i }, [card]);
+                    addScore(10);
+                    spawnParticles(card.x + cardWidth/2, card.y + cardHeight/2, 'var(--violet-main)');
+                    return true;
+                }
+            }
+            // 2. Tentar mover para Tableaus
+            for (let i = 0; i < 7; i++) {
+                if (canMoveToTableau(card, tableaus[i])) {
+                    executeMove(sourceInfo, { type: 'tableau', idx: i }, [card]);
+                    addScore(5);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function executeMove(source, dest, cardsMoved) {
+            // Remover da origem
+            if (source.type === 'waste') {
+                waste.pop();
+            } else if (source.type === 'tableau') {
+                tableaus[source.idx].splice(source.cardIdx);
+                // Abrir a carta anterior se necessário
+                if (tableaus[source.idx].length > 0 && !tableaus[source.idx][tableaus[source.idx].length - 1].isFaceUp) {
+                    tableaus[source.idx][tableaus[source.idx].length - 1].isFaceUp = true;
+                    addScore(5);
+                }
+            } else if (source.type === 'foundation') {
+                foundations[source.idx].pop();
+            }
+
+            // Inserir no destino
+            if (dest.type === 'tableau') {
+                tableaus[dest.idx].push(...cardsMoved);
+            } else if (dest.type === 'foundation') {
+                foundations[dest.idx].push(...cardsMoved);
+            }
+            checkWin();
+        }
+
+        // Eventos de Input e Interação
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height),
+                rawX: clientX,
+                rawY: clientY
+            };
+        }
+
+        function handleStart(e) {
+            if (isWon) return;
+            const pos = getMousePos(e);
+            
+            // Verificar clique no Monte de Compra (Stock)
+            if (pos.x >= cardSpacing && pos.x <= cardSpacing + cardWidth && pos.y >= topMargin && pos.y <= topMargin + cardHeight) {
+                if (stock.length === 0) {
+                    stock = waste.reverse().map(c => { c.isFaceUp = false; return c; });
+                    waste = [];
+                } else {
+                    const card = stock.pop();
+                    card.isFaceUp = true;
+                    waste.push(card);
+                }
+                draw();
+                return;
+            }
+
+            // Verificar clique em Waste
+            if (waste.length > 0) {
+                const topWaste = waste[waste.length - 1];
+                if (pos.x >= topWaste.x && pos.x <= topWaste.x + cardWidth && pos.y >= topWaste.y && pos.y <= topWaste.y + cardHeight) {
+                    if (e.type === 'touchstart' || dragInfo) { // duplo clique simulado ou toque longo
+                        if (tryAutoMove(topWaste, { type: 'waste' })) { draw(); return; }
+                    }
+                    dragInfo = {
+                        cards: [topWaste],
+                        pileType: 'waste',
+                        offsetX: pos.x - topWaste.x,
+                        offsetY: pos.y - topWaste.y,
+                        currentX: pos.x,
+                        currentY: pos.y
+                    };
+                    return;
+                }
+            }
+
+            // Verificar clique em Foundations
+            const foundationStartX = canvas.width - (4 * cardWidth) - (4 * cardSpacing);
+            for (let i = 0; i < 4; i++) {
+                const fX = foundationStartX + i * (cardWidth + cardSpacing);
+                if (foundations[i].length > 0 && pos.x >= fX && pos.x <= fX + cardWidth && pos.y >= topMargin && pos.y <= topMargin + cardHeight) {
+                    const topCard = foundations[i][foundations[i].length - 1];
+                    dragInfo = {
+                        cards: [topCard],
+                        pileType: 'foundation',
+                        pileIdx: i,
+                        offsetX: pos.x - fX,
+                        offsetY: pos.y - topMargin,
+                        currentX: pos.x,
+                        currentY: pos.y
+                    };
+                    return;
+                }
+            }
+
+            // Verificar clique em Tableaus
+            const tableauY = topMargin + cardHeight + topMargin * 1.5;
+            for (let i = 0; i < 7; i++) {
+                const pile = tableaus[i];
+                if (pile.length === 0) continue;
+
+                // Percorrer de trás para frente para detectar a carta exata visível clicada
+                for (let j = pile.length - 1; j >= 0; j--) {
+                    const card = pile[j];
+                    if (card.isFaceUp && pos.x >= card.x && pos.x <= card.x + cardWidth && pos.y >= card.y && pos.y <= card.y + cardHeight) {
+                        
+                        if (e.type === 'touchstart' && j === pile.length - 1) {
+                            if (tryAutoMove(card, { type: 'tableau', idx: i, cardIdx: j })) { draw(); return; }
+                        }
+
+                        dragInfo = {
+                            cards: pile.slice(j),
+                            pileType: 'tableau',
+                            pileIdx: i,
+                            cardIdx: j,
+                            offsetX: pos.x - card.x,
+                            offsetY: pos.y - card.y,
+                            currentX: pos.x,
+                            currentY: pos.y
+                        };
+                        return;
+                    }
+                }
+            }
+        }
+
+        function handleMove(e) {
+            if (!dragInfo) return;
+            const pos = getMousePos(e);
+            dragInfo.currentX = pos.x;
+            dragInfo.currentY = pos.y;
+        }
+
+        function handleEnd(e) {
+            if (!dragInfo) return;
+
+            const targetCard = dragInfo.cards[0];
+            let dropSuccess = false;
+
+            // 1. Tentar soltar em Foundations (Apenas se mover uma única carta)
+            if (dragInfo.cards.length === 1) {
+                const foundationStartX = canvas.width - (4 * cardWidth) - (4 * cardSpacing);
+                for (let i = 0; i < 4; i++) {
+                    const fX = foundationStartX + i * (cardWidth + cardSpacing);
+                    if (dragInfo.currentX >= fX && dragInfo.currentX <= fX + cardWidth && dragInfo.currentY >= topMargin && dragInfo.currentY <= topMargin + cardHeight) {
+                        if (canMoveToFoundation(targetCard, foundations[i])) {
+                            executeMove({ type: dragInfo.pileType, idx: dragInfo.pileIdx, cardIdx: dragInfo.cardIdx }, { type: 'foundation', idx: i }, dragInfo.cards);
+                            addScore(10);
+                            spawnParticles(fX + cardWidth/2, topMargin + cardHeight/2, 'var(--violet-main)');
+                            dropSuccess = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 2. Tentar soltar em Tableaus
+            if (!dropSuccess) {
+                for (let i = 0; i < 7; i++) {
+                    const tX = cardSpacing + i * (cardWidth + cardSpacing);
+                    const pile = tableaus[i];
+                    
+                    // Área de colisão estendida verticalmente para capturar arrastos na pilha inteira
+                    if (dragInfo.currentX >= tX && dragInfo.currentX <= tX + cardWidth) {
+                        if (canMoveToTableau(targetCard, pile)) {
+                            executeMove({ type: dragInfo.pileType, idx: dragInfo.pileIdx, cardIdx: dragInfo.cardIdx }, { type: 'tableau', idx: i }, dragInfo.cards);
+                            if (dragInfo.pileType === 'waste') addScore(5);
+                            dropSuccess = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            dragInfo = null;
+            draw();
+        }
+
+        function spawnParticles(x, y, color) {
+            for (let i = 0; i < 15; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        function loop() {
+            draw();
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                if (particles[i].alpha <= 0) {
+                    particles.splice(i, 1);
+                } else {
+                    particles[i].draw();
+                }
+            }
+            requestAnimationFrame(loop);
+        }
+
+        // Registro de Listeners
+        canvas.addEventListener('mousedown', handleStart);
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleEnd);
+
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleStart(e); }, { passive: false });
+        window.addEventListener('touchmove', handleMove);
+        window.addEventListener('touchend', handleEnd);
+
+        canvas.addEventListener('dblclick', (e) => {
+            const pos = getMousePos(e);
+            // Atalho duplo clique no topo do descarte
+            if (waste.length > 0) {
+                const topWaste = waste[waste.length - 1];
+                if (pos.x >= topWaste.x && pos.x <= topWaste.x + cardWidth && pos.y >= topWaste.y && pos.y <= topWaste.y + cardHeight) {
+                    tryAutoMove(topWaste, { type: 'waste' });
+                }
+            }
+            // Atalho duplo clique nos Tableaus
+            for (let i = 0; i < 7; i++) {
+                const pile = tableaus[i];
+                if (pile.length === 0) continue;
+                const topCard = pile[pile.length - 1];
+                if (pos.x >= topCard.x && pos.x <= topCard.x + cardWidth && pos.y >= topCard.y && pos.y <= topCard.y + cardHeight) {
+                    tryAutoMove(topCard, { type: 'tableau', idx: i, cardIdx: pile.length - 1 });
+                }
+            }
+        });
+
+        restartBtn.addEventListener('click', initGame);
+        window.addEventListener('resize', resizeCanvas);
+
+        // Inicialização
+        initGame();
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>
