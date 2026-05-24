@@ -13,12 +13,10 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            /* Fundo gradiente usando Blueviolet */
             background: linear-gradient(135deg, #2e0854 0%, #8a2be2 100%);
             background-attachment: fixed;
         }
 
-        /* Efeito de Vidro Semitransparente (Glassmorphism) */
         .glass-panel {
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(12px);
@@ -40,15 +38,14 @@
             transform: translateY(-2px);
         }
 
-        /* Customização dos selects para alinhar com o design do app */
         select option {
             background: #1e053a;
             color: #ffffff;
         }
 
-        /* Customização da barra de rolagem estilo "Ghost" */
         ::-webkit-scrollbar {
             width: 6px;
+            height: 0px;
         }
         ::-webkit-scrollbar-track {
             background: transparent;
@@ -61,16 +58,7 @@
             background: rgba(138, 43, 226, 0.6);
         }
 
-        /* Estilos dedicados para Desktop (Inspirado no LoreSpace) */
         @media (min-width: 768px) {
-            .desktop-floating-tabbar {
-                background: rgba(15, 2, 28, 0.4) !important;
-                border: 1px solid rgba(255, 255, 255, 0.08) !important;
-                backdrop-filter: blur(20px) saturate(160%);
-                -webkit-backdrop-filter: blur(20px) saturate(160%);
-                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            }
-            /* Suaviza a transição de layout */
             main {
                 animation: fadeIn 0.4s ease-out;
             }
@@ -81,7 +69,6 @@
             to { opacity: 1; transform: scale(1); }
         }
 
-        /* Estilização para as partículas de emoji */
         .emoji-particle {
             position: absolute;
             pointer-events: none;
@@ -98,6 +85,68 @@
                 transform: translate(var(--x), var(--y)) scale(0.3);
                 opacity: 0;
             }
+        }
+
+        .animate-spin-slow {
+            animation: spin 8s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .tinder-card-container {
+            position: relative;
+            width: 100%;
+            max-width: 360px;
+            aspect-ratio: 3/4;
+            perspective: 1000px;
+        }
+
+        .tinder-card {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+            transition: transform 0.4s ease, opacity 0.4s ease;
+        }
+
+        .tinder-card:active {
+            cursor: grabbing;
+        }
+
+        .swipe-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 15;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .swipe-overlay-like {
+            background: linear-gradient(to bottom, rgba(16, 185, 129, 0.3), rgba(6, 78, 59, 0.5));
+        }
+
+        .swipe-overlay-dislike {
+            background: linear-gradient(to bottom, rgba(239, 68, 68, 0.3), rgba(127, 29, 29, 0.5));
+        }
+
+        .swipe-badge {
+            font-size: 2.5rem;
+            font-weight: 900;
+            padding: 0.5rem 1.5rem;
+            border-radius: 1rem;
+            text-transform: uppercase;
+            transform: scale(0.8) rotate(-15deg);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            border-width: 4px;
+            backdrop-filter: blur(4px);
         }
     </style>
 </head>
@@ -201,121 +250,58 @@
         </div>
 
         <header class="p-4 border-b border-white/10 flex items-center justify-end relative bg-white/5 h-[61px] flex-shrink-0 z-10">
-            <h1 id="header-title" class="text-xl font-bold tracking-wide text-white/95 absolute left-1/2 -translate-x-1/2">Explorar</h1>
+            <h1 id="header-title" class="text-xl font-bold tracking-wide text-white/95 absolute left-1/2 -translate-x-1/2">Moments</h1>
             <div class="flex items-center gap-2">
+                <button id="btn-post" class="p-2 bg-white/10 rounded-full cursor-pointer hover:bg-white/20 transition text-white/90">
+                    <i data-lucide="plus" class="w-5 h-5"></i>
+                </button>
                 <div id="btn-profile" class="p-2 bg-white/10 rounded-full cursor-pointer hover:bg-white/20 transition">
                     <i data-lucide="user" class="w-5 h-5 text-white"></i>
                 </div>
             </div>
         </header>
 
-        <div id="modal-post" class="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 w-48 glass-card rounded-2xl p-2 border border-white/20 shadow-2xl hidden transition-all duration-200">
-            <div class="flex flex-col gap-1">
-                <button id="modal-opt-story" class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/10 text-sm font-medium transition text-left cursor-pointer text-white/90">
-                    <i data-lucide="circle-dot" class="w-4 h-4 text-[blueviolet]"></i>
-                    Criar Story
+        <div id="modal-music-player" class="absolute inset-0 bg-neutral-950/80 backdrop-blur-md z-[80] flex items-center justify-center p-6 hidden">
+            <div class="glass-panel w-full max-w-xs rounded-3xl p-6 border border-white/20 shadow-2xl flex flex-col items-center text-center space-y-5 relative">
+                <button id="btn-close-music" class="absolute top-4 right-4 p-1.5 bg-white/10 hover:bg-white/20 rounded-full transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4 text-white"></i>
                 </button>
-                <div class="h-[1px] bg-white/10 mx-2 hidden max-md:block"></div>
-                <button id="modal-opt-moments" class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/10 text-sm font-medium transition text-left cursor-pointer text-white/90 hidden max-md:flex">
-                    <i data-lucide="zap" class="w-4 h-4 text-[blueviolet]"></i>
-                    Novo Moment
-                </button>
+                
+                <div class="relative w-36 h-36 rounded-full p-1 bg-gradient-to-tr from-[blueviolet] to-pink-500 shadow-xl">
+                    <div class="w-full h-full rounded-full overflow-hidden bg-neutral-950 flex items-center justify-center relative animate-spin-slow">
+                        <img id="player-music-cover" src="" class="w-full h-full object-cover opacity-80">
+                        <div class="absolute w-6 h-6 rounded-full bg-neutral-900 border border-white/20 shadow-inner"></div>
+                    </div>
+                </div>
+
+                <div class="space-y-1 w-full px-2">
+                    <h3 id="player-music-title" class="font-bold text-base text-white truncate">Nome da Música</h3>
+                    <p id="player-music-artist" class="text-xs text-white/60 truncate">Artista / Álbum</p>
+                </div>
+
+                <div class="w-full space-y-1">
+                    <div class="w-full h-1 bg-white/20 rounded-full overflow-hidden">
+                        <div class="w-1/3 h-full bg-[blueviolet] rounded-full"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-white/40 px-0.5">
+                        <span>0:10</span>
+                        <span>0:30</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-6">
+                    <button class="text-white/60 hover:text-white transition"><i data-lucide="skip-back" class="w-5 h-5"></i></button>
+                    <button class="w-12 h-12 rounded-full bg-white text-neutral-950 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition cursor-pointer">
+                        <i data-lucide="pause" class="w-5 h-5 fill-current text-neutral-950"></i>
+                    </button>
+                    <button class="text-white/60 hover:text-white transition"><i data-lucide="skip-forward" class="w-5 h-5"></i></button>
+                </div>
             </div>
         </div>
 
-        <footer class="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md md:max-w-xl p-4 bg-white/10 backdrop-blur-md border border-white/15 flex justify-around items-center rounded-2xl desktop-floating-tabbar transition-all duration-300 shadow-xl">
-            <button id="btn-home" class="flex flex-col items-center text-[blueviolet] hover:scale-110 transition-transform cursor-pointer md:px-6">
-                <i data-lucide="home" class="w-6 h-6"></i>
-            </button>
-            <button id="btn-stories" class="flex flex-col items-center text-white/60 hover:text-white hover:scale-110 transition cursor-pointer md:px-6">
-                <i data-lucide="circle-dot" class="w-6 h-6"></i>
-            </button>
-            <button id="btn-moments" class="flex flex-col items-center text-white/60 hover:text-white hover:scale-110 transition cursor-pointer md:px-6">
-                <i data-lucide="zap" class="w-6 h-6"></i>
-            </button>
-            <button id="btn-post" class="flex flex-col items-center text-white/60 hover:text-white hover:scale-110 transition cursor-pointer md:px-6 relative">
-                <i data-lucide="plus" class="w-6 h-6"></i>
-            </button>
-        </footer>
-
-        <div id="nav-categories">
-            <nav class="flex gap-3 px-4 py-3 overflow-x-auto whitespace-nowrap border-b border-white/5 bg-white/2 flex-shrink-0">
-                <button class="px-4 py-1.5 rounded-full text-xs font-semibold bg-[blueviolet] text-white shadow-md shadow-[blueviolet]/30 cursor-pointer">Tudo</button>
-                <button class="px-4 py-1.5 rounded-full text-xs font-semibold bg-white/10 text-white/80 hover:bg-white/20 transition cursor-pointer">Animes</button>
-                <button class="px-4 py-1.5 rounded-full text-xs font-semibold bg-white/10 text-white/80 hover:bg-white/20 transition cursor-pointer">Jogos</button>
-                <button class="px-4 py-1.5 rounded-full text-xs font-semibold bg-white/10 text-white/80 hover:bg-white/20 transition cursor-pointer">K-Pop</button>
-                <button class="px-4 py-1.5 rounded-full text-xs font-semibold bg-white/10 text-white/80 hover:bg-white/20 transition cursor-pointer">Roleplay</button>
-            </nav>
-        </div>
-
-        <section id="content-explorar" class="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
-            <div class="glass-card flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/15 focus-within:border-[blueviolet]/60 transition-all duration-300 md:max-w-4xl md:mx-auto">
-                <i data-lucide="search" class="w-5 h-5 text-white/50 flex-shrink-0"></i>
-                <input type="text" placeholder="Buscar novas comunidades..." class="w-full bg-transparent text-sm text-white placeholder-white/40 outline-none">
-            </div>
-
-            <div class="md:max-w-4xl md:mx-auto">
-                <h2 class="text-xs font-bold uppercase tracking-wider text-white/60 pt-2 mb-2">Recomendadas para Você</h2>
-                
-                <div class="glass-card p-4 rounded-2xl flex items-center justify-between cursor-pointer">
-                    <div class="flex items-center gap-4">
-                        <div class="w-14 h-14 rounded-2xl overflow-hidden border-2 border-[blueviolet] flex-shrink-0 bg-neutral-800">
-                            <img src="https://images.unsplash.com/photo-1578632767115-351597cf2477?w=150&auto=format&fit=crop&q=60" alt="Anime" class="w-full h-full object-cover">
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-sm text-white/90 flex items-center gap-1.5">Anime & Mangá PT/BR <i data-lucide="badge-check" class="w-4 h-4 text-[blueviolet]"></i></h3>
-                            <p class="text-xs text-white/60 line-clamp-1 mt-0.5">O maior ponto de encontro de otakus!</p>
-                        </div>
-                    </div>
-                    <button id="btn-join-community" class="px-4 py-2 rounded-xl text-xs font-bold bg-[blueviolet] text-white transition-all cursor-pointer">Entrar</button>
-                </div>
-            </div>
-        </section>
-
-        <section id="content-stories" class="flex-1 overflow-y-auto p-4 pb-24 hidden">
-            <div class="grid grid-cols-2 gap-3 max-w-4xl mx-auto">
-                
-                <div id="story-card-add" class="glass-card aspect-[9/16] rounded-2xl overflow-hidden relative cursor-pointer group">
-                    <img src="https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&auto=format&fit=crop&q=80" class="w-full h-full object-cover brightness-75 group-hover:scale-105 transition duration-300" alt="Seu Story">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                    <div class="absolute top-3 left-3 w-8 h-8 rounded-full bg-[blueviolet] flex items-center justify-center border border-white/20 shadow-lg">
-                        <i data-lucide="plus" class="w-5 h-5 text-white"></i>
-                    </div>
-                    <span class="absolute bottom-3 left-3 text-xs font-bold text-white">Adicionar ao story</span>
-                </div>
-
-                <div id="story-card-me" class="glass-card aspect-[9/16] rounded-2xl overflow-hidden relative cursor-pointer group">
-                    <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80" class="w-full h-full object-cover brightness-75 group-hover:scale-105 transition duration-300" alt="Story">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                    <div class="absolute top-3 left-3 w-8 h-8 rounded-full overflow-hidden border-2 border-white/40 bg-neutral-800">
-                        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80" class="w-full h-full object-cover">
-                    </div>
-                    <span class="absolute bottom-3 left-3 text-xs font-bold text-white/90">Seu story</span>
-                </div>
-
-                <div id="story-card-jameson" class="glass-card aspect-[9/16] rounded-2xl overflow-hidden relative cursor-pointer group">
-                    <img src="https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?w=400&auto=format&fit=crop&q=80" class="w-full h-full object-cover brightness-75 group-hover:scale-105 transition duration-300" alt="Story">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                    <div class="absolute top-3 left-3 w-9 h-9 rounded-full overflow-hidden border-2 border-[blueviolet] p-0.5 bg-neutral-900 shadow-md">
-                        <img src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=80" class="w-full h-full object-cover rounded-full">
-                    </div>
-                    <span class="absolute bottom-3 left-3 text-xs font-bold text-white/90 truncate right-3">David</span>
-                </div>
-
-                <div id="story-card-jefferson" class="glass-card aspect-[9/16] rounded-2xl overflow-hidden relative cursor-pointer group">
-                    <img src="https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=400&auto=format&fit=crop&q=80" class="w-full h-full object-cover brightness-75 group-hover:scale-105 transition duration-300" alt="Story">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                    <div class="absolute top-3 left-3 w-9 h-9 rounded-full overflow-hidden border-2 border-[blueviolet] p-0.5 bg-neutral-900 shadow-md">
-                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80" class="w-full h-full object-cover rounded-full">
-                    </div>
-                    <span class="absolute bottom-3 left-3 text-xs font-bold text-white/90 truncate right-3">Miqueias</span>
-                </div>
-            </div>
-        </section>
-
-        <section id="content-moments" class="flex-1 flex flex-col justify-center items-center p-4 pb-28 hidden select-none relative">
+        <section id="content-moments" class="flex-1 overflow-y-auto p-4 pb-6 select-none relative flex flex-col justify-center items-center">
             
-            <div id="modal-emoji" class="absolute bottom-32 glass-panel p-2 rounded-full shadow-2xl flex items-center justify-center gap-3 z-30 hidden transition-all duration-300 max-h-14 overflow-hidden w-auto px-4">
+            <div id="modal-emoji" class="absolute bottom-40 glass-panel p-2 rounded-full shadow-2xl flex items-center justify-center gap-3 z-30 hidden transition-all duration-300 max-h-14 overflow-hidden w-auto px-4">
                 <div id="emoji-container-wrapper" class="flex items-center gap-3 w-full">
                     <div id="emoji-main-list" class="flex items-center gap-3 transition-all duration-300">
                         <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">❤️</button>
@@ -333,34 +319,21 @@
                 </div>
             </div>
 
-            <div class="w-full max-w-sm aspect-[3/4] glass-card rounded-3xl overflow-hidden relative shadow-2xl flex flex-col justify-end p-6 border border-white/20">
-                <img src="https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80" class="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" alt="Moments">
-                <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10"></div>
-                
-                <div class="relative z-20 space-y-3">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full border-2 border-[blueviolet] overflow-hidden bg-neutral-800">
-                            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80" class="w-full h-full object-cover">
-                        </div>
-                        <div>
-                            <h2 class="font-bold text-base flex items-center gap-1.5">Aline Silva, 22 <i data-lucide="badge-check" class="w-4 h-4 text-[blueviolet]"></i></h2>
-                            <p class="text-xs text-white/60">Há 5 min em São Paulo</p>
-                        </div>
-                    </div>
-                    <p class="text-sm text-white/90 leading-relaxed line-clamp-3">Observando essa vista maravilhosa hoje! ✨ Quem aí curte astrofotografia e uma boa conversa?</p>
-                    
-                    <div class="flex justify-center items-center gap-4 pt-2">
-                        <button class="w-12 h-12 rounded-full bg-white/10 hover:bg-red-500/20 hover:scale-110 active:scale-95 border border-white/10 hover:border-red-500 flex items-center justify-center transition cursor-pointer text-white hover:text-red-500">
-                            <i data-lucide="x" class="w-6 h-6"></i>
-                        </button>
-                        <button id="btn-reactions" class="w-12 h-12 rounded-full bg-[blueviolet]/20 hover:bg-[blueviolet]/40 hover:scale-110 active:scale-95 border border-[blueviolet]/40 flex items-center justify-center transition cursor-pointer text-[blueviolet] text-2xl">
-                            <i data-lucide="smile" id="icon-reaction-default" class="w-6 h-6"></i>
-                        </button>
-                        <button id="btn-share" class="w-12 h-12 rounded-full bg-white/10 hover:bg-cyan-500/20 hover:scale-110 active:scale-95 border border-white/10 hover:border-cyan-500 flex items-center justify-center transition cursor-pointer text-white hover:text-cyan-500">
-                            <i data-lucide="share-2" class="w-5 h-5"></i>
-                        </button>
-                    </div>
-                </div>
+            <div id="tinder-container" class="tinder-card-container"></div>
+
+            <div class="flex justify-center items-center gap-6 pt-6 relative z-20 w-full max-w-sm">
+                <button id="tinder-dislike" class="w-14 h-14 rounded-full bg-white/10 hover:bg-red-500/20 hover:scale-110 active:scale-95 border border-white/10 hover:border-red-500 flex items-center justify-center transition cursor-pointer text-white hover:text-red-500 shadow-lg">
+                    <i data-lucide="x" class="w-7 h-7"></i>
+                </button>
+                <button id="btn-reactions" class="w-14 h-14 rounded-full bg-[blueviolet]/20 hover:bg-[blueviolet]/40 hover:scale-110 active:scale-95 border border-[blueviolet]/40 flex items-center justify-center transition cursor-pointer text-[blueviolet] text-2xl shadow-lg">
+                    <i data-lucide="smile" id="icon-reaction-default" class="w-7 h-7"></i>
+                </button>
+                <button id="tinder-like" class="w-14 h-14 rounded-full bg-white/10 hover:bg-emerald-500/20 hover:scale-110 active:scale-95 border border-white/10 hover:border-emerald-500 flex items-center justify-center transition cursor-pointer text-white hover:text-emerald-500 shadow-lg">
+                    <i data-lucide="heart" class="w-7 h-7"></i>
+                </button>
+                <button id="btn-share" class="w-12 h-12 rounded-full bg-white/10 hover:bg-cyan-500/20 hover:scale-110 active:scale-95 border border-white/10 hover:border-cyan-500 flex items-center justify-center transition cursor-pointer text-white hover:text-cyan-500 shadow-lg">
+                    <i data-lucide="share-2" class="w-5 h-5"></i>
+                </button>
             </div>
         </section>
         
@@ -379,44 +352,31 @@
     <script>
         lucide.createIcons();
 
-        // Variável de controle do estado de login
         let usuarioLogado = false;
 
-        // Elementos da Interface
-        const btnHome = document.getElementById('btn-home');
-        const btnStories = document.getElementById('btn-stories');
-        const btnMoments = document.getElementById('btn-moments');
         const btnPost = document.getElementById('btn-post');
         const btnReactions = document.getElementById('btn-reactions');
         const btnShare = document.getElementById('btn-share');
         const btnNativeEmoji = document.getElementById('btn-native-emoji');
         
         const btnProfile = document.getElementById('btn-profile');
-        const btnJoinCommunity = document.getElementById('btn-join-community');
         const fullscreenModal = document.getElementById('fullscreen-modal');
         const fullscreenIframe = document.getElementById('fullscreen-iframe');
         const fullscreenModalTitle = document.getElementById('fullscreen-modal-title');
         const btnCloseFullscreen = document.getElementById('btn-close-fullscreen');
         
-        const modalPost = document.getElementById('modal-post');
         const modalEmoji = document.getElementById('modal-emoji');
-        const modalOptStory = document.getElementById('modal-opt-story');
-        const modalOptMoments = document.getElementById('modal-opt-moments');
+
+        const modalMusicPlayer = document.getElementById('modal-music-player');
+        const btnCloseMusic = document.getElementById('btn-close-music');
+        const playerMusicCover = document.getElementById('player-music-cover');
+        const playerMusicTitle = document.getElementById('player-music-title');
+        const playerMusicArtist = document.getElementById('player-music-artist');
         
         const headerTitle = document.getElementById('header-title');
-        const navCategories = document.getElementById('nav-categories');
         
-        const contentExplorar = document.getElementById('content-explorar');
-        const contentStories = document.getElementById('content-stories');
         const contentMoments = document.getElementById('content-moments');
 
-        // Elementos dos Cards de Stories
-        const storyCardAdd = document.getElementById('story-card-add');
-        const storyCardMe = document.getElementById('story-card-me');
-        const storyCardJameson = document.getElementById('story-card-jameson');
-        const storyCardJefferson = document.getElementById('story-card-jefferson');
-
-        // Elementos do Modal de Autenticação
         const authModal = document.getElementById('auth-modal');
         const authTitle = document.getElementById('auth-title');
         const authSubtitle = document.getElementById('auth-subtitle');
@@ -427,9 +387,8 @@
         const btnAuthToggle = document.getElementById('btn-auth-toggle');
         const authToggleText = document.getElementById('auth-toggle-text');
         
-        let modoLogin = true; // Controla se está no modo Login ou Criar Conta
+        let modoLogin = true;
 
-        // Função para gerenciar e validar visualização do estado de login
         function verificarStatusAutenticacao() {
             if (!usuarioLogado) {
                 authModal.classList.remove('hidden');
@@ -438,7 +397,6 @@
             }
         }
 
-        // Alternador dinâmico entre Login e Criação de Conta
         btnAuthToggle.addEventListener('click', () => {
             modoLogin = !modoLogin;
             if (modoLogin) {
@@ -459,98 +417,48 @@
             document.getElementById('btn-auth-toggle').addEventListener('click', arguments.callee);
         });
 
-        // Submissão simulada do formulário de autenticação
         authForm.addEventListener('submit', () => {
             usuarioLogado = true;
             verificarStatusAutenticacao();
-            console.log("Usuário autenticado com sucesso!");
         });
 
-        // Executa a validação de login na inicialização da página
         verificarStatusAutenticacao();
 
-        // Coleção de emojis rica para a gaveta expandida de reações do Instagram
         const listaEmojisEstendida = [
             '❤️', '🔥', '😂', '😮', '😢', '👏', '🎉', '✨', '🚀', '💯', 
             '👍', '🙌', '😎', '🤩', '🤔', '👀', '🤯', '💖', '👑', '🥳', 
             '👾', '🎨', '🍿', '🎧', '⚡', '🌌', '🍀', '🐾', '🍕', '🥤'
         ];
 
-        // Função Centralizada para gerenciar a Tabbar
-        function alternarAba(abaAtiva, titulo, mostrarCategorias, sectionVisivel) {
-            modalPost.classList.add('hidden');
-            fecharMenuEmoji();
-
-            [btnHome, btnStories, btnMoments, btnPost].forEach(btn => {
-                btn.classList.remove('text-[blueviolet]');
-                btn.classList.add('text-white/60', 'hover:text-white');
-            });
-
-            if(abaAtiva !== btnPost) {
-                abaAtiva.classList.remove('text-white/60', 'hover:text-white');
-                abaAtiva.classList.add('text-[blueviolet]');
-            }
-
-            headerTitle.textContent = titulo;
-            if (mostrarCategorias) {
-                navCategories.classList.remove('hidden');
-            } else {
-                navCategories.classList.add('hidden');
-            }
-
-            [contentExplorar, contentStories, contentMoments].forEach(section => section.classList.add('hidden'));
-            sectionVisivel.classList.remove('hidden');
-        }
-
         function abrirFullscreenIframe(titulo, caminhoArquivo) {
             fullscreenModalTitle.textContent = titulo;
             fullscreenIframe.src = caminhoArquivo;
             fullscreenModal.classList.remove('hidden');
-            modalPost.classList.add('hidden');
         }
 
-        // Interações vinculando os caminhos dos arquivos externos individuais
         btnProfile.addEventListener('click', () => abrirFullscreenIframe("Perfil do Usuário", "perfil.html"));
-        modalOptStory.addEventListener('click', () => abrirFullscreenIframe("Criar Story", "criar-story.html"));
-        modalOptMoments.addEventListener('click', () => abrirFullscreenIframe("Novo Moment", "./Moments/Index.html"));
-        btnJoinCommunity.addEventListener('click', (e) => {
-            e.stopPropagation();
-            abrirFullscreenIframe("Comunidade Amino", "comunidade.html");
+        
+        btnPost.addEventListener('click', () => abrirFullscreenIframe("Novo Moment", "./Moments/Index.html"));
+
+        btnCloseMusic.addEventListener('click', () => {
+            modalMusicPlayer.classList.add('hidden');
         });
 
-        // MODIFICADO: Listeners dos stories apontando para story_users.html quando o story não é do próprio usuário
-        storyCardAdd.addEventListener('click', () => abrirFullscreenIframe("Criar Story", "criar-story.html"));
-        storyCardMe.addEventListener('click', () => abrirFullscreenIframe("Meu Story", "story-meu.html"));
-        storyCardJameson.addEventListener('click', () => abrirFullscreenIframe("Story de David", "story_users.html"));
-        storyCardJefferson.addEventListener('click', () => abrirFullscreenIframe("Story de Miqueias", "story_users.html"));
-
-        // Fechar Modal Fullscreen
         btnCloseFullscreen.addEventListener('click', () => {
             fullscreenModal.classList.add('hidden');
             fullscreenIframe.src = 'about:blank';
         });
 
-        // Listeners de Evento para cliques na Tabbar
-        btnHome.addEventListener('click', () => {
-            alternarAba(btnHome, "Explorar", true, contentExplorar);
-        });
-
-        btnStories.addEventListener('click', () => {
-            alternarAba(btnStories, "Stories", false, contentStories);
-        });
-
-        btnMoments.addEventListener('click', () => {
-            alternarAba(btnMoments, "Moments", false, contentMoments);
-        });
-
-        btnPost.addEventListener('click', (e) => {
-            e.stopPropagation();
-            modalPost.classList.toggle('hidden');
-        });
-
-        // Evento para abrir/fechar o seletor de emojis nos Moments
         btnReactions.addEventListener('click', (e) => {
             e.stopPropagation();
+            
+            const cardTopo = dadosMoments[indiceCardAtual];
+            if (cardTopo && cardTopo.reaction) {
+                removerReacaoAtual(cardTopo);
+                fecharMenuEmoji();
+                return;
+            }
+
             if (modalEmoji.classList.contains('hidden')) {
                 modalEmoji.classList.remove('hidden');
             } else {
@@ -558,35 +466,42 @@
             }
         });
 
-        // Restaura o menu para a pílula flutuante horizontal padrão
         function fecharMenuEmoji() {
             modalEmoji.classList.add('hidden');
             modalEmoji.classList.remove('max-h-[280px]', 'w-[280px]', 'flex-col', 'overflow-y-auto', 'bottom-20', 'rounded-3xl', 'p-4');
             modalEmoji.classList.add('max-h-14', 'overflow-hidden', 'rounded-full', 'p-2', 'bottom-32', 'w-auto', 'px-4');
             
             const wrapper = document.getElementById('emoji-container-wrapper');
-            wrapper.classList.remove('flex-col-reverse', 'h-full', 'justify-between');
-            wrapper.classList.add('items-center');
+            if (wrapper) {
+                wrapper.classList.remove('flex-col-reverse', 'h-full', 'justify-between');
+                wrapper.classList.add('items-center');
+            }
 
             const mainList = document.getElementById('emoji-main-list');
-            mainList.classList.remove('grid', 'grid-cols-5', 'gap-4', 'overflow-y-auto', 'p-1', 'max-h-[200px]', 'w-full', 'justify-items-center');
-            mainList.classList.add('flex', 'items-center', 'gap-3');
-            mainList.innerHTML = `
-                <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">❤️</button>
-                <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">🔥</button>
-                <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">😂</button>
-                <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">😮</button>
-                <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">😢</button>
-            `;
+            if (mainList) {
+                mainList.classList.remove('grid', 'grid-cols-5', 'gap-4', 'overflow-y-auto', 'p-1', 'max-h-[200px]', 'w-full', 'justify-items-center');
+                mainList.classList.add('flex', 'items-center', 'gap-3');
+                mainList.innerHTML = `
+                    <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">❤️</button>
+                    <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">🔥</button>
+                    <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">😂</button>
+                    <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">😮</button>
+                    <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">😢</button>
+                `;
+            }
             
-            document.getElementById('emoji-divider').classList.remove('hidden');
-            document.getElementById('btn-native-emoji').className = 'w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition flex items-center justify-center cursor-pointer text-white flex-shrink-0';
-            document.getElementById('btn-native-emoji').innerHTML = '<i data-lucide="plus" id="icon-plus-emoji" class="w-4 h-4"></i>';
+            const divider = document.getElementById('emoji-divider');
+            if (divider) divider.classList.remove('hidden');
+            
+            const nativeBtn = document.getElementById('btn-native-emoji');
+            if (nativeBtn) {
+                nativeBtn.className = 'w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition flex items-center justify-center cursor-pointer text-white flex-shrink-0';
+                nativeBtn.innerHTML = '<i data-lucide="plus" id="icon-plus-emoji" class="w-4 h-4"></i>';
+            }
             lucide.createIcons();
             configurarCliquesEmojis();
         }
 
-        // Transforma a pílula em um painel/folha elegante de emojis baseado no estilo Instagram
         btnNativeEmoji.addEventListener('click', (e) => {
             e.stopPropagation();
             
@@ -620,7 +535,6 @@
             configurarCliquesEmojis();
         });
 
-        // Gerencia a explosão de micro-partículas e fixa o emoji no botão primário
         function criarEfeitoParticulaReacao(elementoOrigem, emoji) {
             const numParticulas = 12;
             const retanguloBotao = elementoOrigem.getBoundingClientRect();
@@ -640,9 +554,9 @@
                 particula.style.fontSize = `${Math.random() * (22 - 14) + 14}px`;
 
                 const angulo = Math.random() * Math.PI * 2;
-                const distanciaDispersao = Math.random() * (130 - 60) + 60;
-                const direcaoX = Math.cos(angulo) * distanciaDispersao;
-                const direcaoY = Math.sin(angulo) * distanciaDispersao;
+                const distanciaDisvarsao = Math.random() * (130 - 60) + 60;
+                const direcaoX = Math.cos(angulo) * distanciaDisvarsao;
+                const direcaoY = Math.sin(angulo) * distanciaDisvarsao;
 
                 particula.style.setProperty('--x', `${direcaoX}px`);
                 particula.style.setProperty('--y', `${direcaoY}px`);
@@ -657,13 +571,26 @@
             btnReactions.innerHTML = emoji;
         }
 
+        function removerReacaoAtual(cardData) {
+            cardData.reaction = null;
+            btnReactions.innerHTML = `<i data-lucide="smile" id="icon-reaction-default" class="w-7 h-7"></i>`;
+            lucide.createIcons();
+        }
+
         function configurarCliquesEmojis() {
             document.querySelectorAll('.emoji-btn').forEach(button => {
                 button.addEventListener('click', (e) => {
                     const emojiSelecionado = button.textContent;
-                    console.log(`Reagido com: ${emojiSelecionado}`);
-                    
-                    criarEfeitoParticulaReacao(btnReactions, emojiSelecionado);
+                    const cardData = dadosMoments[indiceCardAtual];
+
+                    if (cardData) {
+                        if (cardData.reaction === emojiSelecionado) {
+                            removerReacaoAtual(cardData);
+                        } else {
+                            cardData.reaction = emojiSelecionado;
+                            criarEfeitoParticulaReacao(btnReactions, emojiSelecionado);
+                        }
+                    }
                     fecharMenuEmoji();
                 });
             });
@@ -672,10 +599,9 @@
         configurarCliquesEmojis();
 
         btnShare.addEventListener('click', () => {
-            console.log("Compartilhar clicado!");
             if (navigator.share) {
                 navigator.share({
-                    title: 'Moment de Aline Silva',
+                    title: 'Moment',
                     text: 'Olha só esse Moment que encontrei!',
                     url: window.location.href
                 }).catch(console.error);
@@ -684,15 +610,214 @@
             }
         });
 
-        // Fecha a pílula de emojis caso o clique aconteça no cenário fora dela
         document.addEventListener('click', (e) => {
-            if (!modalPost.contains(e.target) && e.target !== btnPost) {
-                modalPost.classList.add('hidden');
-            }
             if (!modalEmoji.contains(e.target) && !btnReactions.contains(e.target)) {
                 fecharMenuEmoji();
             }
         });
+
+        const dadosMoments = [
+            {
+                nome: "Aline Silva",
+                imagem: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80",
+                avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80",
+                reaction: null
+            },
+            {
+                nome: "Marcos Viana",
+                imagem: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&auto=format&fit=crop&q=80",
+                avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80",
+                reaction: null
+            },
+            {
+                nome: "Julia Costa",
+                imagem: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80",
+                avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80",
+                reaction: null
+            }
+        ];
+
+        const tinderContainer = document.getElementById('tinder-container');
+        const btnLike = document.getElementById('tinder-like');
+        const btnDislike = document.getElementById('tinder-dislike');
+        let indiceCardAtual = dadosMoments.length - 1;
+
+        function atualizarIconeReacaoBotao() {
+            const cardData = dadosMoments[indiceCardAtual];
+            if (cardData && cardData.reaction) {
+                btnReactions.innerHTML = cardData.reaction;
+            } else {
+                btnReactions.innerHTML = `<i data-lucide="smile" id="icon-reaction-default" class="w-7 h-7"></i>`;
+                lucide.createIcons();
+            }
+        }
+
+        function inicializarDeckTinder() {
+            tinderContainer.innerHTML = '';
+            indiceCardAtual = dadosMoments.length - 1;
+            
+            for (let i = dadosMoments.length - 1; i >= 0; i--) {
+                const item = dadosMoments[i];
+                const card = document.createElement('div');
+                card.className = 'tinder-card glass-card rounded-3xl overflow-hidden relative shadow-2xl flex flex-col justify-end p-6 border border-white/20';
+                
+                card.innerHTML = `
+                    <img src="${item.imagem}" class="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" alt="Moments">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
+                    
+                    <div class="swipe-overlay swipe-overlay-like">
+                        <div class="swipe-badge border-emerald-500 text-emerald-400 bg-emerald-950/80">Like</div>
+                    </div>
+                    <div class="swipe-overlay swipe-overlay-dislike">
+                        <div class="swipe-badge border-red-500 text-red-400 bg-red-950/80">Nope</div>
+                    </div>
+
+                    <div class="relative z-20 space-y-3 pointer-events-none">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full border-2 border-[blueviolet] overflow-hidden bg-neutral-800">
+                                <img src="${item.avatar}" class="w-full h-full object-cover">
+                            </div>
+                            <div>
+                                <h2 class="font-bold text-base flex items-center gap-1.5">${item.nome} <i data-lucide="badge-check" class="w-4 h-4 text-[blueviolet]"></i></h2>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                tinderContainer.appendChild(card);
+                configurarArrastoCard(card);
+            }
+            lucide.createIcons();
+            atualizarIconeReacaoBotao();
+        }
+
+        function criarExplosaoEmojisTinder(isLike) {
+            const emojiUsado = isLike ? '❤️' : '❌';
+            const containerMain = document.querySelector('main');
+            const retanguloMain = containerMain.getBoundingClientRect();
+            
+            const centerX = retanguloMain.width / 2;
+            const centerY = retanguloMain.height / 2;
+
+            for (let i = 0; i < 10; i++) {
+                const particula = document.createElement('span');
+                particula.classList.add('emoji-particle');
+                particula.textContent = emojiUsado;
+                particula.style.left = `${centerX}px`;
+                particula.style.top = `${centerY}px`;
+                particula.style.fontSize = `${Math.random() * (32 - 20) + 20}px`;
+
+                const anguloBase = isLike ? -Math.PI / 4 : -Math.PI * 3 / 4; 
+                const angulo = anguloBase + (Math.random() - 0.5) * 1.5;
+                const distanciaDisvarsao = Math.random() * (200 - 100) + 100;
+                
+                const direcaoX = Math.cos(angulo) * distanciaDisvarsao;
+                const direcaoY = Math.sin(angulo) * distanciaDisvarsao;
+
+                particula.style.setProperty('--x', `${direcaoX}px`);
+                particula.style.setProperty('--y', `${direcaoY}px`);
+
+                containerMain.appendChild(particula);
+                particula.addEventListener('animationend', () => particula.remove());
+            }
+        }
+
+        function configurarArrastoCard(card) {
+            let startX = 0;
+            let currentX = 0;
+            let isDragging = false;
+            
+            const overlayLike = card.querySelector('.swipe-overlay-like');
+            const overlayDislike = card.querySelector('.swipe-overlay-dislike');
+
+            card.addEventListener('mousedown', (e) => iniciarArrasto(e.clientX));
+            window.addEventListener('mousemove', (e) => moverArrasto(e.clientX));
+            window.addEventListener('mouseup', terminarArrasto);
+
+            card.addEventListener('touchstart', (e) => iniciarArrasto(e.touches[0].clientX));
+            card.addEventListener('touchmove', (e) => moverArrasto(e.touches[0].clientX));
+            card.addEventListener('touchend', terminarArrasto);
+
+            function iniciarArrasto(clientX) {
+                isDragging = true;
+                startX = clientX;
+                card.style.transition = 'none';
+                if(overlayLike) overlayLike.style.transition = 'none';
+                if(overlayDislike) overlayDislike.style.transition = 'none';
+            }
+
+            function moverArrasto(clientX) {
+                if (!isDragging) return;
+                currentX = clientX - startX;
+                let rotação = currentX / 10;
+                card.style.transform = `translateX(${currentX}px) rotate(${rotação}deg)`;
+
+                if (currentX > 0) {
+                    if(overlayLike) overlayLike.style.opacity = Math.min(currentX / 150, 1);
+                    if(overlayDislike) overlayDislike.style.opacity = 0;
+                } else {
+                    if(overlayDislike) overlayDislike.style.opacity = Math.min(Math.abs(currentX) / 150, 1);
+                    if(overlayLike) overlayLike.style.opacity = 0;
+                }
+            }
+
+            function terminarArrasto() {
+                if (!isDragging) return;
+                isDragging = false;
+                
+                card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
+                if(overlayLike) overlayLike.style.transition = 'opacity 0.3s ease';
+                if(overlayDislike) overlayDislike.style.transition = 'opacity 0.3s ease';
+
+                if (currentX > 120) {
+                    animarSaidaCard(card, true);
+                } else if (currentX < -120) {
+                    animarSaidaCard(card, false);
+                } else {
+                    card.style.transform = 'none';
+                    if(overlayLike) overlayLike.style.opacity = 0;
+                    if(overlayDislike) overlayDislike.style.opacity = 0;
+                }
+                currentX = 0;
+            }
+        }
+
+        function animarSaidaCard(card, isLike) {
+            const overlayLike = card.querySelector('.swipe-overlay-like');
+            const overlayDislike = card.querySelector('.swipe-overlay-dislike');
+            
+            if (isLike && overlayLike) overlayLike.style.opacity = 1;
+            if (!isLike && overlayDislike) overlayDislike.style.opacity = 1;
+
+            criarExplosaoEmojisTinder(isLike);
+
+            const direcaoX = isLike ? 500 : -500;
+            const rotacao = isLike ? 45 : -45;
+            card.style.transform = `translateX(${direcaoX}px) rotate(${rotacao}deg)`;
+            card.style.opacity = '0';
+            
+            setTimeout(() => {
+                card.remove();
+                indiceCardAtual--;
+                
+                if (tinderContainer.children.length === 0) {
+                    inicializarDeckTinder();
+                } else {
+                    atualizarIconeReacaoBotao();
+                }
+            }, 300);
+        }
+
+        btnLike.addEventListener('click', () => {
+            const topoCard = tinderContainer.lastElementChild;
+            if (topoCard) animarSaidaCard(topoCard, true);
+        });
+
+        btnDislike.addEventListener('click', () => {
+            const topoCard = tinderContainer.lastElementChild;
+            if (topoCard) animarSaidaCard(topoCard, false);
+        });
+
+        inicializarDeckTinder();
     </script>
 </body>
 </html>
