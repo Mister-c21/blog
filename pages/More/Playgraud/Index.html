@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Playgraud</title>
+    <!-- Font Awesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
         :root {
@@ -128,29 +129,14 @@
             border: none;
         }
 
-        /* --- ESTADO MOBILE HIDDEN (Animação e Rotação) --- */
-        @media (max-width: 768px) {
-            /* Controle via Scroll do Script original */
-            body.header-hidden header {
-                transform: translateY(-100%);
-            }
+        /* --- CLASS DE CONTROLE GLOBAL MOBILE --- */
+        body.header-hidden header {
+            transform: translateY(-100%) !important;
+        }
 
-            body.header-hidden #content-container {
-                margin-top: 0;
-                height: 100vh;
-            }
-
-            /* Controle Automático por Orientação Horizontal (Landscape) */
-            @media (orientation: landscape) {
-                header {
-                    transform: translateY(-100%) !important;
-                }
-
-                #content-container {
-                    margin-top: 0 !important;
-                    height: 100vh !important;
-                }
-            }
+        body.header-hidden #content-container {
+            margin-top: 0 !important;
+            height: 100vh !important;
         }
     </style>
 </head>
@@ -171,16 +157,20 @@
     </header>
 
     <main id="content-container">
+        <!-- Iframe da Sessão Retro -->
         <div id="retro-frame" class="tab-content active">
             <iframe src="RetroHub.html" title="Conteúdo Retro" id="iframe-retro"></iframe>
         </div>
 
+        <!-- Iframe da Sessão Mini-games -->
         <div id="minigames-frame" class="tab-content">
             <iframe src="Mini_games.html" title="Conteúdo Mini-games" id="iframe-minigames"></iframe>
         </div>
     </main>
 
     <script>
+        const body = document.body;
+
         function switchTab(element, frameId) {
             // Atualiza as abas visuais
             const tabs = document.querySelectorAll('.tab-item');
@@ -192,30 +182,44 @@
             contents.forEach(content => content.classList.remove('active'));
             document.getElementById(frameId).classList.add('active');
 
-            // Ao trocar de aba, mostramos o header novamente (se estiver na vertical)
-            document.body.classList.remove('header-hidden');
+            // Verifica a orientação após trocar de aba
+            checkOrientation();
         }
 
-        // LÓGICA DE SCROLL EXCLUSIVA MOBILE
-        let lastScrollTop = 0;
-        const body = document.body;
+        // LÓGICA DE DETECÇÃO DE ORIENTAÇÃO & SCROLL
+        function checkOrientation() {
+            const isMobile = window.matchMedia("(max-width: 1024px)").matches; // Captura celulares e tablets deitados
+            const isLandscape = window.matchMedia("(orientation: landscape)").matches;
 
-        // Escuta mensagens vindas dos iframes (RetroHub e Mini_games)
+            if (isMobile && isLandscape) {
+                // Força esconder o header e maximizar o frame no modo horizontal
+                body.classList.add('header-hidden');
+            } else {
+                // Se voltar para a vertical, remove a restrição automática
+                body.classList.remove('header-hidden');
+            }
+        }
+
+        // Executa ao carregar e sempre que mudar o tamanho ou rotação da tela
+        window.addEventListener('resize', checkOrientation);
+        window.addEventListener('orientationchange', checkOrientation);
+        document.addEventListener('DOMContentLoaded', checkOrientation);
+
+        // Escuta mensagens vindas dos iframes (Apenas para comportamento Portrait / Vertical)
         window.addEventListener('message', function(event) {
-            // Verifica se a mensagem contém dados de scroll
             if (event.data && event.data.type === 'iframeScroll') {
                 const scrollTop = event.data.scrollTop;
-                
-                if (window.innerWidth <= 768) { // Apenas Mobile
+                const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+                const isMobile = window.matchMedia("(max-width: 1024px)").matches;
+
+                // Só aplica a lógica de scroll dinâmico se NÃO estiver no modo landscape mobile
+                if (isMobile && !isLandscape) {
                     if (scrollTop > 60) {
-                        // Scroll para baixo: esconde header
                         body.classList.add('header-hidden');
                     } else {
-                        // Perto do topo: mostra header
                         body.classList.remove('header-hidden');
                     }
                 }
-                lastScrollTop = scrollTop;
             }
         });
     </script>
