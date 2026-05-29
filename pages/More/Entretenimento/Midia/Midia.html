@@ -352,7 +352,9 @@
             z-index: 200; /* Fica por cima de tudo, inclusive do header fixo */
             display: none;
             opacity: 0;
-            transition: opacity 0.4s ease;
+            transform: translateY(0);
+            transition: opacity 0.4s ease, transform 0.3s ease-out;
+            touch-action: none; /* Previne scroll padrão ao arrastar */
         }
 
         .fullscreen-modal.active {
@@ -360,39 +362,42 @@
             opacity: 1;
         }
 
+        /* Barra superior global para arrastar em todos os aparelhos (Handle) */
+        .modal-drag-handle {
+            width: 100%;
+            height: 45px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 215;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom, rgba(11, 9, 20, 0.95), rgba(11, 9, 20, 0.4));
+            border-bottom: 1px solid var(--glass-border);
+            cursor: grab;
+            user-select: none;
+        }
+
+        .modal-drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .modal-drag-handle::after {
+            content: '';
+            width: 50px;
+            height: 5px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.5);
+        }
+
         .fullscreen-modal iframe {
             width: 100%;
             height: 100%;
             border: none;
             background-color: #000;
-        }
-
-        /* Botão de Fechar com Visual de Vidro */
-        .modal-close-btn {
-            position: absolute;
-            top: 25px;
-            right: 25px;
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            background: rgba(11, 9, 20, 0.6);
-            backdrop-filter: blur(8px);
-            border: 1px solid var(--glass-border);
-            color: #fff;
-            font-size: 1.2rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            z-index: 210;
-            transition: all 0.3s ease;
-        }
-
-        .modal-close-btn:hover {
-            background: var(--primary-color);
-            border-color: var(--primary-color);
-            transform: scale(1.1);
-            box-shadow: 0 0 15px rgba(138, 43, 226, 0.6);
+            padding-top: 45px; /* Deixa o espaço exato para a barra superior de arrastar */
         }
 
         /* Responsividade Básica */
@@ -403,7 +408,6 @@
             .search-box { max-width: 100%; }
             .search-box:focus-within { max-width: 100%; }
             .container { padding-top: 130px; }
-            .modal-close-btn { top: 15px; right: 15px; width: 40px; height: 40px; }
         }
     </style>
 </head>
@@ -541,15 +545,15 @@
                         <div class="card-info"><div class="card-title">Noite Adentro</div><div class="card-tags">Terror • Sobrenatural</div></div>
                     </div>
                     <div class="card">
-                        <img src="https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=400&auto=format&fit=crop" alt="Filme 3">
+                        <img src="https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=400&auto=format&fit=crop" alt="A Linha de Frente">
                         <div class="card-info"><div class="card-title">A Linha de Frente</div><div class="card-tags">Guerra • Histórico</div></div>
                     </div>
                     <div class="card">
-                        <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=400&auto=format&fit=crop" alt="Filme 4">
+                        <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=400&auto=format&fit=crop" alt="Nebulosa">
                         <div class="card-info"><div class="card-title">Nebulosa</div><div class="card-tags">Espaço • Aventura</div></div>
                     </div>
                     <div class="card">
-                        <img src="https://images.unsplash.com/photo-1524712245354-2c4e5e7124c5?q=80&w=400&auto=format&fit=crop" alt="Filme 5">
+                        <img src="https://images.unsplash.com/photo-1524712245354-2c4e5e7124c5?q=80&w=400&auto=format&fit=crop" alt="Rastro de Pólvora">
                         <div class="card-info"><div class="card-title">Rastro de Pólvora</div><div class="card-tags">Ação • Policial</div></div>
                     </div>
                 </div>
@@ -560,7 +564,7 @@
     </main>
 
     <div class="fullscreen-modal" id="videoModal">
-        <button class="modal-close-btn" id="closeModalBtn" title="Fechar Janela"><i class="fa-solid fa-xmark"></i></button>
+        <div class="modal-drag-handle" id="modalDragHandle"></div>
         <iframe id="modalIframe" src="" allowfullscreen></iframe>
     </div>
 
@@ -580,28 +584,92 @@
         // --- SISTEMA DA JANELA MODAL (IFRAME) ---
         const videoModal = document.getElementById('videoModal');
         const modalIframe = document.getElementById('modalIframe');
-        const closeModalBtn = document.getElementById('closeModalBtn');
+        const modalDragHandle = document.getElementById('modalDragHandle');
         const cards = document.querySelectorAll('.card');
 
         // Adiciona evento de clique para cada item do carrossel abrir o modal
         cards.forEach(card => {
             card.addEventListener('click', () => {
-                // Altere 'player.html' abaixo para o arquivo ou link fixo que deseja renderizar no iframe
                 const targetUrl = './Midia/Modal.html';
-
-                // Injeta a URL fixa no iframe e exibe o modal em tela cheia
+                videoModal.style.transform = "translateY(0)";
+                videoModal.style.opacity = "1";
                 modalIframe.src = targetUrl;
                 videoModal.classList.add('active');
                 document.body.classList.add('modal-open');
             });
         });
 
-        // Função para fechar o modal
-        closeModalBtn.addEventListener('click', () => {
+        // Função para fechar o modal limpando os estados
+        function shutModal() {
             videoModal.classList.remove('active');
             document.body.classList.remove('modal-open');
-            modalIframe.src = ''; // Limpa o iframe para interromper carregamentos/áudios em segundo plano
-        });
+            videoModal.style.transform = "translateY(0)";
+            videoModal.style.opacity = "0";
+            modalIframe.src = ''; 
+        }
+
+        // --- SISTEMA UNIFICADO DE ARRASTAR PARA FECHAR (MOBILE E DESKTOP) ---
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+
+        // Trata unificadamente a captura da coordenada Y inicial do evento (Touch ou Mouse)
+        function getClientY(e) {
+            return e.touches ? e.touches[0].clientY : e.clientY;
+        }
+
+        function onDragStart(e) {
+            // Se for evento de mouse, previne comportamentos de seleção indesejados
+            if (!e.touches) e.preventDefault();
+            
+            startY = getClientY(e);
+            isDragging = true;
+            videoModal.style.transition = 'none'; // Move em tempo real sem atrasos
+        }
+
+        function onDragMove(e) {
+            if (!isDragging) return;
+            
+            currentY = getClientY(e);
+            const deltaY = currentY - startY;
+
+            // Bloqueia movimento para cima, aceita apenas arraste de cima para baixo
+            if (deltaY > 0) {
+                videoModal.style.transform = `translateY(${deltaY}px)`;
+                const percentage = Math.max(0, 1 - (deltaY / window.innerHeight));
+                videoModal.style.opacity = percentage;
+            }
+        }
+
+        function onDragEnd() {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            videoModal.style.transition = 'opacity 0.4s ease, transform 0.3s ease-out';
+            const deltaY = currentY - startY;
+
+            // Se arrastou mais de 20% da altura da tela, fecha o modal completamente
+            if (deltaY > window.innerHeight * 0.20) {
+                videoModal.style.transform = `translateY(100%)`;
+                setTimeout(shutModal, 300);
+            } else {
+                // Efeito elástico devolvendo à posição estável se o arraste foi curto
+                videoModal.style.transform = "translateY(0)";
+                videoModal.style.opacity = "1";
+            }
+            startY = 0;
+            currentY = 0;
+        }
+
+        // Eventos para Mobile (Toque na barra)
+        modalDragHandle.addEventListener('touchstart', onDragStart, { passive: true });
+        modalDragHandle.addEventListener('touchmove', onDragMove, { passive: true });
+        modalDragHandle.addEventListener('touchend', onDragEnd);
+
+        // Eventos para Desktop (Mouse na barra)
+        modalDragHandle.addEventListener('mousedown', onDragStart);
+        window.addEventListener('mousemove', onDragMove);
+        window.addEventListener('mouseup', onDragEnd);
 
 
         // --- ELEMENTOS DA BUSCA ---
@@ -616,7 +684,6 @@
             filterContent(searchTerm.toLowerCase().trim());
         });
 
-        // Alterna a visibilidade do botão 'X' de apagar termo
         function toggleClearButton(text) {
             if (text.length > 0) {
                 clearBtn.classList.add('visible');
@@ -625,12 +692,11 @@
             }
         }
 
-        // Evento de clique para limpar o input imediatamente
         clearBtn.addEventListener('click', () => {
             searchInput.value = '';
             toggleClearButton('');
             filterContent('');
-            searchInput.focus(); // Retorna o foco para digitação
+            searchInput.focus(); 
         });
 
         function filterContent(term) {
@@ -652,7 +718,6 @@
                     }
                 });
 
-                // Oculta a linha inteira se nenhum filme/série dela corresponder à busca
                 if (hasVisibleCard || term === '') {
                     row.classList.remove('hidden');
                 } else {
@@ -661,9 +726,7 @@
             });
         }
 
-        // --- SISTEMA DE BUSCA POR VOZ (VISUAL E AUDITIVO) ---
-        
-        // Função para emitir feedback auditivo (Bipe Sintetizado)
+        // --- SISTEMA DE BUSCA POR VOZ ---
         function playBeep(frequency, duration) {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -672,9 +735,7 @@
 
                 oscillator.type = 'sine';
                 oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); // Volume suave
-                
-                // Suaviza o encerramento do som para evitar estalos na caixa
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); 
                 gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
 
                 oscillator.connect(gainNode);
@@ -683,11 +744,10 @@
                 oscillator.start();
                 oscillator.stop(audioCtx.currentTime + duration);
             } catch (e) {
-                console.log("Feedback de áudio não suportado ou bloqueado pelo navegador.");
+                console.log("Feedback de áudio não suportado.");
             }
         }
 
-        // Verifica compatibilidade com a Web Speech API
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
         if (SpeechRecognition) {
@@ -697,7 +757,6 @@
             recognition.maxAlternatives = 1;
 
             voiceBtn.addEventListener('click', () => {
-                // Se já estiver ouvindo, para o reconhecimento
                 if (voiceBtn.classList.contains('listening')) {
                     recognition.stop();
                     return;
@@ -707,9 +766,9 @@
 
             recognition.onstart = () => {
                 voiceBtn.classList.add('listening');
-                clearBtn.classList.remove('visible'); // Oculta o X temporariamente enquanto ouve
+                clearBtn.classList.remove('visible'); 
                 searchInput.placeholder = "Ouvindo...";
-                playBeep(880, 0.1); // Bipe agudo de início
+                playBeep(880, 0.1); 
             };
 
             recognition.onresult = (event) => {
@@ -731,14 +790,12 @@
                     searchInput.placeholder = "Títulos, gente e gêneros...";
                 }
                 toggleClearButton(searchInput.value);
-                playBeep(440, 0.12); // Bipe mais grave de encerramento
+                playBeep(440, 0.12); 
             };
 
         } else {
-            // Oculta o botão caso o navegador não suporte reconhecimento de voz
             voiceBtn.style.display = 'none';
             clearBtn.style.right = '14px';
-            console.log("Reconhecimento de voz não suportado neste navegador.");
         }
     </script>
 </body>
