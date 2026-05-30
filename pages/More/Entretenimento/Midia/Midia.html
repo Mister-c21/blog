@@ -13,6 +13,7 @@
             --glass-border: rgba(255, 255, 255, 0.1);
             --text-color: #ffffff;
             --text-secondary: #b3b3b3;
+            --sidebar-width: 240px; /* Largura da nova sidebar */
         }
 
         * {
@@ -48,29 +49,6 @@
             background: linear-gradient(to bottom, rgba(11, 9, 20, 0.8), transparent);
             backdrop-filter: blur(10px); /* Efeito vidro */
             border-bottom: 1px solid var(--glass-border);
-        }
-
-        header nav {
-            flex: 1;
-            display: flex;
-            justify-content: flex-start;
-        }
-
-        nav ul {
-            display: flex;
-            list-style: none;
-            gap: 20px;
-        }
-
-        nav ul li a {
-            color: var(--text-color);
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: color 0.3s;
-        }
-
-        nav ul li a:hover {
-            color: var(--primary-color);
         }
 
         /* --- Barra de Busca Centralizada e Menor --- */
@@ -204,12 +182,77 @@
             display: none !important;
         }
 
+        /* --- NOVA SIDEBAR --- */
+        .sidebar {
+            position: fixed;
+            top: 80px; /* Alinhada abaixo do header fixo */
+            left: 0;
+            width: var(--sidebar-width);
+            height: calc(100vh - 80px);
+            background: rgba(11, 9, 20, 0.6);
+            backdrop-filter: blur(15px);
+            border-right: 1px solid var(--glass-border);
+            padding: 30px 20px;
+            z-index: 90;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .sidebar-menu li a {
+            color: var(--text-color);
+            text-decoration: none;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-menu li a i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            transition: color 0.3s ease;
+        }
+
+        .sidebar-menu li a:hover {
+            background: var(--glass-bg);
+            color: var(--primary-color);
+        }
+
+        .sidebar-menu li a:hover i {
+            color: var(--primary-color);
+        }
+
+        .sidebar-menu li.active a {
+            background: var(--glass-bg);
+            border: 1px solid rgba(138, 43, 226, 0.3);
+            color: var(--primary-color);
+        }
+
+        .sidebar-menu li.active a i {
+            color: var(--primary-color);
+        }
+
         /* --- Carrosséis de Conteúdo --- */
         .container {
             padding: 0 4%;
             position: relative;
             z-index: 10;
             padding-top: 180px; /* Mantido espaçamento de 180px */
+            margin-left: var(--sidebar-width); /* Empurra o conteúdo principal para não ficar sob a sidebar */
+            width: calc(100% - var(--sidebar-width));
         }
 
         .row {
@@ -401,10 +444,13 @@
         }
 
         /* Responsividade Básica */
+        @media (max-width: 992px) {
+            .sidebar { display: none; }
+            .container { margin-left: 0; width: 100%; }
+        }
+
         @media (max-width: 768px) {
             header { flex-direction: column; gap: 12px; padding: 15px; }
-            header nav { justify-content: center; }
-            nav ul { display: none; } /* Simplificação mobile */
             .search-box { max-width: 100%; }
             .search-box:focus-within { max-width: 100%; }
             .container { padding-top: 130px; }
@@ -414,14 +460,7 @@
 <body>
 
     <header>
-        <nav>
-            <ul>
-                <li><a href="#"><i class="fa-solid fa-house"></i> Início</a></li>
-                <li><a href="#"><i class="fa-solid fa-tv"></i> Séries</a></li>
-                <li><a href="#"><i class="fa-solid fa-film"></i> Filmes</a></li>
-                <li><a href="#"><i class="fa-solid fa-star"></i> Bombando</a></li>
-            </ul>
-        </nav>
+        <div class="header-spacer"></div>
         
         <div class="search-container">
             <div class="search-box">
@@ -434,6 +473,16 @@
 
         <div class="header-spacer"></div>
     </header>
+
+    <aside class="sidebar">
+        <ul class="sidebar-menu">
+            <li class="active"><a href="#"><i class="fa-solid fa-compass"></i> Descobrir</a></li>
+            <li><a href="#"><i class="fa-solid fa-clock-rotate-left"></i> Histórico</a></li>
+            <li><a href="#"><i class="fa-solid fa-bookmark"></i> Minha Lista</a></li>
+            <li><a href="#"><i class="fa-solid fa-thumbs-up"></i> Recomendados</a></li>
+            <li><a href="#"><i class="fa-solid fa-gear"></i> Configurações</a></li>
+        </ul>
+    </aside>
 
     <main class="container">
 
@@ -613,18 +662,16 @@
         let currentY = 0;
         let isDragging = false;
 
-        // Trata unificadamente a captura da coordenada Y inicial do evento (Touch ou Mouse)
         function getClientY(e) {
             return e.touches ? e.touches[0].clientY : e.clientY;
         }
 
         function onDragStart(e) {
-            // Se for evento de mouse, previne comportamentos de seleção indesejados
             if (!e.touches) e.preventDefault();
             
             startY = getClientY(e);
             isDragging = true;
-            videoModal.style.transition = 'none'; // Move em tempo real sem atrasos
+            videoModal.style.transition = 'none'; 
         }
 
         function onDragMove(e) {
@@ -633,7 +680,6 @@
             currentY = getClientY(e);
             const deltaY = currentY - startY;
 
-            // Bloqueia movimento para cima, aceita apenas arraste de cima para baixo
             if (deltaY > 0) {
                 videoModal.style.transform = `translateY(${deltaY}px)`;
                 const percentage = Math.max(0, 1 - (deltaY / window.innerHeight));
@@ -648,12 +694,10 @@
             videoModal.style.transition = 'opacity 0.4s ease, transform 0.3s ease-out';
             const deltaY = currentY - startY;
 
-            // Se arrastou mais de 20% da altura da tela, fecha o modal completamente
             if (deltaY > window.innerHeight * 0.20) {
                 videoModal.style.transform = `translateY(100%)`;
                 setTimeout(shutModal, 300);
             } else {
-                // Efeito elástico devolvendo à posição estável se o arraste foi curto
                 videoModal.style.transform = "translateY(0)";
                 videoModal.style.opacity = "1";
             }
@@ -661,12 +705,10 @@
             currentY = 0;
         }
 
-        // Eventos para Mobile (Toque na barra)
         modalDragHandle.addEventListener('touchstart', onDragStart, { passive: true });
         modalDragHandle.addEventListener('touchmove', onDragMove, { passive: true });
         modalDragHandle.addEventListener('touchend', onDragEnd);
 
-        // Eventos para Desktop (Mouse na barra)
         modalDragHandle.addEventListener('mousedown', onDragStart);
         window.addEventListener('mousemove', onDragMove);
         window.addEventListener('mouseup', onDragEnd);
