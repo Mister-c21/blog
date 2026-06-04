@@ -245,12 +245,9 @@
             </div>
         </section>
         
-        <div id="fullscreen-modal" class="absolute inset-0 bg-neutral-950/95 z-50 hidden flex flex-col sm:rounded-3xl overflow-hidden">
-            <div class="p-4 flex items-center justify-between border-b border-white/10 bg-white/5 h-[61px] flex-shrink-0 relative">
-                <span id="fullscreen-modal-title" class="font-semibold text-white/90 absolute left-1/2 -translate-x-1/2">Visualização</span>
-                <button id="btn-close-fullscreen" class="p-1.5 bg-white/10 rounded-full hover:bg-white/20 transition cursor-pointer ml-auto">
-                    <i data-lucide="x" class="w-5 h-5 text-white"></i>
-                </button>
+        <div id="fullscreen-modal" class="absolute inset-0 bg-neutral-950 z-50 hidden flex flex-col sm:rounded-3xl overflow-hidden transition-all duration-300 transform translate-y-0 origin-bottom">
+            <div id="swipe-trigger-area" class="w-full h-10 bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center cursor-grab active:cursor-grabbing flex-shrink-0 z-50 border-b border-white/5 select-none touch-none">
+                <div class="w-12 h-1.5 bg-white/30 rounded-full"></div>
             </div>
             <iframe id="fullscreen-iframe" class="w-full flex-1 border-none bg-transparent"></iframe>
         </div>
@@ -271,8 +268,7 @@
         const btnProfile = document.getElementById('btn-profile');
         const fullscreenModal = document.getElementById('fullscreen-modal');
         const fullscreenIframe = document.getElementById('fullscreen-iframe');
-        const fullscreenModalTitle = document.getElementById('fullscreen-modal-title');
-        const btnCloseFullscreen = document.getElementById('btn-close-fullscreen');
+        const swipeTriggerArea = document.getElementById('swipe-trigger-area');
         
         const modalEmoji = document.getElementById('modal-emoji');
 
@@ -326,22 +322,89 @@
             '👾', '🎨', '🍿', '🎧', '⚡', '🌌', '🍀', '🐾', '🍕', '🥤'
         ];
 
-        function abrirFullscreenIframe(titulo, caminhoArquivo) {
-            fullscreenModalTitle.textContent = titulo;
+        function abrirFullscreenIframe(caminhoArquivo) {
+            fullscreenModal.style.transform = "translateY(0)";
+            fullscreenModal.style.opacity = "1";
             fullscreenIframe.src = caminhoArquivo;
             fullscreenModal.classList.remove('hidden');
         }
 
-        btnMatch.addEventListener('click', () => abrirFullscreenIframe("Correspondência", "./Correspondencia/Index.html"));
+        btnMatch.addEventListener('click', () => abrirFullscreenIframe("./Correspondencia/Index.html"));
+        btnProfile.addEventListener('click', () => abrirFullscreenIframe("Profile/Index.html"));
+        btnPost.addEventListener('click', () => abrirFullscreenIframe("./Moments/Index.html"));
 
-        btnProfile.addEventListener('click', () => abrirFullscreenIframe("Perfil do Usuário", "Profile/Index.html"));
-        
-        btnPost.addEventListener('click', () => abrirFullscreenIframe("Novo Moment", "./Moments/Index.html"));
+        function fecharFullscreenIframe() {
+            fullscreenModal.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+            fullscreenModal.style.transform = 'translateY(100%)';
+            fullscreenModal.style.opacity = '0';
+            setTimeout(() => {
+                fullscreenModal.classList.add('hidden');
+                fullscreenIframe.src = 'about:blank';
+                fullscreenModal.style.transform = 'translateY(0)';
+            }, 300);
+        }
 
-        btnCloseFullscreen.addEventListener('click', () => {
-            fullscreenModal.classList.add('hidden');
-            fullscreenIframe.src = 'about:blank';
+        /* --- SISTEMA CORE DE SWIPE OTIMIZADO (MOBILE & DESKTOP) --- */
+        let startY = 0;
+        let currentY = 0;
+        let IsSwipingModal = false;
+
+        // Captura o toque no gatilho superior
+        swipeTriggerArea.addEventListener('touchstart', (e) => {
+            IsSwipingModal = true;
+            startY = e.touches[0].clientY;
+            fullscreenModal.style.transition = 'none';
+        }, { passive: true });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!IsSwipingModal) return;
+            currentY = e.touches[0].clientY - startY;
+            
+            if (currentY > 0) {
+                fullscreenModal.style.transform = `translateY(${currentY}px)`;
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', () => {
+            if (!IsSwipingModal) return;
+            IsSwipingModal = false;
+
+            if (currentY > 120) {
+                fecharFullscreenIframe();
+            } else {
+                fullscreenModal.style.transition = 'transform 0.2s ease';
+                fullscreenModal.style.transform = 'translateY(0)';
+            }
+            currentY = 0;
         });
+
+        // Suporte a Mouse no Desktop pela barra de gatilho
+        swipeTriggerArea.addEventListener('mousedown', (e) => {
+            IsSwipingModal = true;
+            startY = e.clientY;
+            fullscreenModal.style.transition = 'none';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!IsSwipingModal) return;
+            currentY = e.clientY - startY;
+            if (currentY > 0) {
+                fullscreenModal.style.transform = `translateY(${currentY}px)`;
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (!IsSwipingModal) return;
+            IsSwipingModal = false;
+            if (currentY > 120) {
+                fecharFullscreenIframe();
+            } else {
+                fullscreenModal.style.transition = 'transform 0.2s ease';
+                fullscreenModal.style.transform = 'translateY(0)';
+            }
+            currentY = 0;
+        });
+        /* ------------------------------------------------------ */
 
         btnReactions.addEventListener('click', (e) => {
             e.stopPropagation();
