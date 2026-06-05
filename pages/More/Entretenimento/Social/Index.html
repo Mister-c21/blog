@@ -38,6 +38,18 @@
             transform: translateY(-2px);
         }
 
+        .dropdown-menu {
+            position: absolute;
+            top: 65px;
+            right: 16px;
+            width: 170px;
+            z-index: 50;
+            border-radius: 1rem;
+            padding: 0.5rem;
+            display: none;
+        }
+        .dropdown-menu.active { display: block; }
+
         select option {
             background: #1e053a;
             color: #ffffff;
@@ -195,15 +207,22 @@
         <header class="p-4 border-b border-white/10 flex items-center justify-end relative bg-white/5 h-[61px] flex-shrink-0 z-10">
             <h1 class="text-xl font-bold tracking-wide text-white/95 absolute left-1/2 -translate-x-1/2">Moments</h1>
             <div class="flex items-center gap-2">
-                <button id="btn-match" class="p-2 bg-white/10 rounded-full cursor-pointer hover:bg-white/20 transition text-white/90">
-                    <i data-lucide="heart-handshake" class="w-5 h-5"></i>
-                </button>
-                <button id="btn-post" class="inline-flex md:hidden p-2 bg-white/10 rounded-full cursor-pointer hover:bg-white/20 transition text-white/90">
-                    <i data-lucide="plus" class="w-5 h-5"></i>
+                <button id="btn-more" class="p-2 bg-white/10 rounded-full cursor-pointer hover:bg-white/20 transition text-white/90">
+                    <i data-lucide="more-horizontal" class="w-5 h-5"></i>
                 </button>
                 <div id="btn-profile" class="p-2 bg-white/10 rounded-full cursor-pointer hover:bg-white/20 transition">
                     <i data-lucide="user" class="w-5 h-5 text-white"></i>
                 </div>
+            </div>
+            
+            <div id="dropdown-menu" class="dropdown-menu glass-panel border border-white/20 shadow-2xl">
+                <ul class="flex flex-col gap-1 text-sm">
+                    <li><button id="btn-menu-post" class="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition"><i data-lucide="plus" class="w-4 h-4"></i> Criar Post</button></li>
+                    <li><button id="btn-menu-chats" class="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition"><i data-lucide="message-circle" class="w-4 h-4"></i> Chats</button></li>
+                    <li><button id="btn-menu-comunidades" class="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition"><i data-lucide="users" class="w-4 h-4"></i> Comunidades</button></li>
+                    <li><button id="btn-menu-perguntas" class="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition"><i data-lucide="help-circle" class="w-4 h-4"></i> Perguntas</button></li>
+                    <li><button id="btn-menu-pets" class="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition"><i data-lucide="paw-print" class="w-4 h-4"></i> Pet</button></li>
+                </ul>
             </div>
         </header>
 
@@ -257,21 +276,56 @@
     <script>
         lucide.createIcons();
 
-        let usuarioLogado = false;
+        const btnMore = document.getElementById('btn-more');
+        const dropdownMenu = document.getElementById('dropdown-menu');
+        const btnMenuPerguntas = document.getElementById('btn-menu-perguntas');
+        const btnMenuPost = document.getElementById('btn-menu-post');
+        const btnMenuChats = document.getElementById('btn-menu-chats');
+        const btnMenuComunidades = document.getElementById('btn-menu-comunidades');
+        const btnMenuPets = document.getElementById('btn-menu-pets');
+        
+        btnMore.addEventListener('click', (e) => { e.stopPropagation(); dropdownMenu.classList.toggle('active'); });
+        document.addEventListener('click', () => { dropdownMenu.classList.remove('active'); });
+        
+        btnMenuPerguntas.addEventListener('click', (e) => {
+            e.stopPropagation();
+            abrirFullscreenIframe("./Correspondencia/Index.html");
+            dropdownMenu.classList.remove('active');
+        });
 
-        const btnMatch = document.getElementById('btn-match');
-        const btnPost = document.getElementById('btn-post');
+        btnMenuPost.addEventListener('click', (e) => {
+            e.stopPropagation();
+            abrirFullscreenIframe("./Moments/Index.html");
+            dropdownMenu.classList.remove('active');
+        });
+
+        btnMenuChats.addEventListener('click', (e) => {
+            e.stopPropagation();
+            abrirFullscreenIframe("./Chats/Index.html");
+            dropdownMenu.classList.remove('active');
+        });
+
+        btnMenuComunidades.addEventListener('click', (e) => {
+            e.stopPropagation();
+            abrirFullscreenIframe("./Comunidades/Index.html");
+            dropdownMenu.classList.remove('active');
+        });
+
+        btnMenuPets.addEventListener('click', (e) => {
+            e.stopPropagation();
+            abrirFullscreenIframe("./Pets/Index.html");
+            dropdownMenu.classList.remove('active');
+        });
+
+        let usuarioLogado = false;
         const btnReactions = document.getElementById('btn-reactions');
         const btnShare = document.getElementById('btn-share');
         const btnNativeEmoji = document.getElementById('btn-native-emoji');
-        
         const btnProfile = document.getElementById('btn-profile');
         const fullscreenModal = document.getElementById('fullscreen-modal');
         const fullscreenIframe = document.getElementById('fullscreen-iframe');
         const swipeTriggerArea = document.getElementById('swipe-trigger-area');
-        
         const modalEmoji = document.getElementById('modal-emoji');
-
         const authModal = document.getElementById('auth-modal');
         const authTitle = document.getElementById('auth-title');
         const authSubtitle = document.getElementById('auth-subtitle');
@@ -329,9 +383,7 @@
             fullscreenModal.classList.remove('hidden');
         }
 
-        btnMatch.addEventListener('click', () => abrirFullscreenIframe("./Correspondencia/Index.html"));
         btnProfile.addEventListener('click', () => abrirFullscreenIframe("Profile/Index.html"));
-        btnPost.addEventListener('click', () => abrirFullscreenIframe("./Moments/Index.html"));
 
         function fecharFullscreenIframe() {
             fullscreenModal.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
@@ -344,12 +396,10 @@
             }, 300);
         }
 
-        /* --- SISTEMA CORE DE SWIPE OTIMIZADO (MOBILE & DESKTOP) --- */
         let startY = 0;
         let currentY = 0;
         let IsSwipingModal = false;
 
-        // Captura o toque no gatilho superior
         swipeTriggerArea.addEventListener('touchstart', (e) => {
             IsSwipingModal = true;
             startY = e.touches[0].clientY;
@@ -359,26 +409,17 @@
         window.addEventListener('touchmove', (e) => {
             if (!IsSwipingModal) return;
             currentY = e.touches[0].clientY - startY;
-            
-            if (currentY > 0) {
-                fullscreenModal.style.transform = `translateY(${currentY}px)`;
-            }
+            if (currentY > 0) fullscreenModal.style.transform = `translateY(${currentY}px)`;
         }, { passive: false });
 
         window.addEventListener('touchend', () => {
             if (!IsSwipingModal) return;
             IsSwipingModal = false;
-
-            if (currentY > 120) {
-                fecharFullscreenIframe();
-            } else {
-                fullscreenModal.style.transition = 'transform 0.2s ease';
-                fullscreenModal.style.transform = 'translateY(0)';
-            }
+            if (currentY > 120) fecharFullscreenIframe();
+            else { fullscreenModal.style.transition = 'transform 0.2s ease'; fullscreenModal.style.transform = 'translateY(0)'; }
             currentY = 0;
         });
 
-        // Suporte a Mouse no Desktop pela barra de gatilho
         swipeTriggerArea.addEventListener('mousedown', (e) => {
             IsSwipingModal = true;
             startY = e.clientY;
@@ -388,120 +429,77 @@
         window.addEventListener('mousemove', (e) => {
             if (!IsSwipingModal) return;
             currentY = e.clientY - startY;
-            if (currentY > 0) {
-                fullscreenModal.style.transform = `translateY(${currentY}px)`;
-            }
+            if (currentY > 0) fullscreenModal.style.transform = `translateY(${currentY}px)`;
         });
 
         window.addEventListener('mouseup', () => {
             if (!IsSwipingModal) return;
             IsSwipingModal = false;
-            if (currentY > 120) {
-                fecharFullscreenIframe();
-            } else {
-                fullscreenModal.style.transition = 'transform 0.2s ease';
-                fullscreenModal.style.transform = 'translateY(0)';
-            }
+            if (currentY > 120) fecharFullscreenIframe();
+            else { fullscreenModal.style.transition = 'transform 0.2s ease'; fullscreenModal.style.transform = 'translateY(0)'; }
             currentY = 0;
         });
-        /* ------------------------------------------------------ */
 
         btnReactions.addEventListener('click', (e) => {
             e.stopPropagation();
-            
             const cardTopo = dadosMoments[indiceCardAtual];
             if (cardTopo && cardTopo.reaction) {
                 removerReacaoAtual(cardTopo);
                 fecharMenuEmoji();
                 return;
             }
-
-            if (modalEmoji.classList.contains('hidden')) {
-                modalEmoji.classList.remove('hidden');
-            } else {
-                fecharMenuEmoji();
-            }
+            if (modalEmoji.classList.contains('hidden')) modalEmoji.classList.remove('hidden');
+            else fecharMenuEmoji();
         });
 
         function fecharMenuEmoji() {
             modalEmoji.classList.add('hidden');
             modalEmoji.classList.remove('max-h-[280px]', 'w-[280px]', 'flex-col', 'overflow-y-auto', 'bottom-20', 'rounded-3xl', 'p-4');
             modalEmoji.classList.add('max-h-14', 'overflow-hidden', 'rounded-full', 'p-2', 'bottom-32', 'w-auto', 'px-4');
-            
             const wrapper = document.getElementById('emoji-container-wrapper');
-            if (wrapper) {
-                wrapper.classList.remove('flex-col-reverse', 'h-full', 'justify-between');
-                wrapper.classList.add('items-center');
-            }
-
+            if (wrapper) { wrapper.classList.remove('flex-col-reverse', 'h-full', 'justify-between'); wrapper.classList.add('items-center'); }
             const mainList = document.getElementById('emoji-main-list');
             if (mainList) {
                 mainList.classList.remove('grid', 'grid-cols-5', 'gap-4', 'overflow-y-auto', 'p-1', 'max-h-[200px]', 'w-full', 'justify-items-center');
                 mainList.classList.add('flex', 'items-center', 'gap-3');
-                mainList.innerHTML = `
-                    <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">❤️</button>
-                    <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">🔥</button>
-                    <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">😂</button>
-                    <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">😮</button>
-                    <button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">😢</button>
-                `;
+                mainList.innerHTML = `<button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">❤️</button><button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">🔥</button><button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">😂</button><button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">😮</button><button class="emoji-btn text-2xl hover:scale-125 transition duration-200 cursor-pointer">😢</button>`;
             }
-            
             const divider = document.getElementById('emoji-divider');
             if (divider) divider.classList.remove('hidden');
-            
             const nativeBtn = document.getElementById('btn-native-emoji');
-            if (nativeBtn) {
-                nativeBtn.className = 'w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition flex items-center justify-center cursor-pointer text-white flex-shrink-0';
-                nativeBtn.innerHTML = '<i data-lucide="plus" id="icon-plus-emoji" class="w-4 h-4"></i>';
-            }
+            if (nativeBtn) { nativeBtn.className = 'w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition flex items-center justify-center cursor-pointer text-white flex-shrink-0'; nativeBtn.innerHTML = '<i data-lucide="plus" id="icon-plus-emoji" class="w-4 h-4"></i>'; }
             lucide.createIcons();
             configurarCliquesEmojis();
         }
 
         btnNativeEmoji.addEventListener('click', (e) => {
             e.stopPropagation();
-            
-            if (modalEmoji.classList.contains('max-h-[280px]')) {
-                fecharMenuEmoji();
-                return;
-            }
-
+            if (modalEmoji.classList.contains('max-h-[280px]')) { fecharMenuEmoji(); return; }
             modalEmoji.classList.remove('max-h-14', 'overflow-hidden', 'rounded-full', 'p-2', 'bottom-32', 'w-auto', 'px-4');
             modalEmoji.classList.add('max-h-[280px]', 'w-[280px]', 'flex-col', 'overflow-y-auto', 'bottom-20', 'rounded-3xl', 'p-4');
-            
             const wrapper = document.getElementById('emoji-container-wrapper');
             wrapper.classList.remove('items-center');
             wrapper.classList.add('flex-col-reverse', 'h-full', 'justify-between');
-
             document.getElementById('emoji-divider').classList.add('hidden');
             document.getElementById('btn-native-emoji').className = 'w-full py-2 mt-2 rounded-xl bg-white/10 hover:bg-white/20 transition flex items-center justify-center cursor-pointer text-white flex-shrink-0 text-xs font-medium tracking-wide';
             document.getElementById('btn-native-emoji').innerHTML = '<i data-lucide="chevron-down" class="w-4 h-4 mr-1"></i> Fechar';
             lucide.createIcons();
-
             const mainList = document.getElementById('emoji-main-list');
             mainList.classList.remove('flex', 'items-center', 'gap-3');
             mainList.classList.add('grid', 'grid-cols-5', 'gap-4', 'overflow-y-auto', 'p-1', 'max-h-[200px]', 'w-full', 'justify-items-center');
-            
             let htmlBotoes = '';
-            listaEmojisEstendida.forEach(emoji => {
-                htmlBotoes += `<button class="emoji-btn text-2xl hover:scale-130 active:scale-90 transition duration-200 cursor-pointer">${emoji}</button>`;
-            });
+            listaEmojisEstendida.forEach(emoji => { htmlBotoes += `<button class="emoji-btn text-2xl hover:scale-130 active:scale-90 transition duration-200 cursor-pointer">${emoji}</button>`; });
             mainList.innerHTML = htmlBotoes;
-
             configurarCliquesEmojis();
         });
 
         function criarEfeitoParticulaReacao(elementoOrigem, emoji) {
             const numParticulas = 12;
             const retanguloBotao = elementoOrigem.getBoundingClientRect();
-            
             const containerMain = document.querySelector('main');
             const retanguloMain = containerMain.getBoundingClientRect();
-
             const origenX = (retanguloBotao.left + retanguloBotao.width / 2) - retanguloMain.left;
             const origemY = (retanguloBotao.top + retanguloBotao.height / 2) - retanguloMain.top;
-
             for (let i = 0; i < numParticulas; i++) {
                 const particula = document.createElement('span');
                 particula.classList.add('emoji-particle');
@@ -509,22 +507,14 @@
                 particula.style.left = `${origenX}px`;
                 particula.style.top = `${origemY}px`;
                 particula.style.fontSize = `${Math.random() * (22 - 14) + 14}px`;
-
                 const angulo = Math.random() * Math.PI * 2;
-                const distanciaDisvarsao = Math.random() * (130 - 60) + 60;
-                const direcaoX = Math.cos(angulo) * distanciaDisvarsao;
-                const direcaoY = Math.sin(angulo) * distanciaDisvarsao;
-
+                const direcaoX = Math.cos(angulo) * (Math.random() * 70 + 60);
+                const direcaoY = Math.sin(angulo) * (Math.random() * 70 + 60);
                 particula.style.setProperty('--x', `${direcaoX}px`);
                 particula.style.setProperty('--y', `${direcaoY}px`);
-
                 containerMain.appendChild(particula);
-
-                particula.addEventListener('animationend', () => {
-                    particula.remove();
-                });
+                particula.addEventListener('animationend', () => particula.remove());
             }
-
             btnReactions.innerHTML = emoji;
         }
 
@@ -539,14 +529,9 @@
                 button.addEventListener('click', (e) => {
                     const emojiSelecionado = button.textContent;
                     const cardData = dadosMoments[indiceCardAtual];
-
                     if (cardData) {
-                        if (cardData.reaction === emojiSelecionado) {
-                            removerReacaoAtual(cardData);
-                        } else {
-                            cardData.reaction = emojiSelecionado;
-                            criarEfeitoParticulaReacao(btnReactions, emojiSelecionado);
-                        }
+                        if (cardData.reaction === emojiSelecionado) removerReacaoAtual(cardData);
+                        else { cardData.reaction = emojiSelecionado; criarEfeitoParticulaReacao(btnReactions, emojiSelecionado); }
                     }
                     fecharMenuEmoji();
                 });
@@ -556,36 +541,17 @@
         configurarCliquesEmojis();
 
         btnShare.addEventListener('click', () => {
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Moment',
-                    text: 'Olha só esse Moment que encontrei!',
-                    url: window.location.href
-                }).catch(console.error);
-            } else {
-                alert("Link de compartilhamento copiado para a área de transferência! (Simulação)");
-            }
+            if (navigator.share) navigator.share({ title: 'Moment', text: 'Olha!', url: window.location.href }).catch(console.error);
+            else alert("Copiado!");
         });
 
         document.addEventListener('click', (e) => {
-            if (!modalEmoji.contains(e.target) && !btnReactions.contains(e.target)) {
-                fecharMenuEmoji();
-            }
+            if (!modalEmoji.contains(e.target) && !btnReactions.contains(e.target)) fecharMenuEmoji();
         });
 
         const dadosMoments = [
-            {
-                nome: "Aline Silva",
-                imagem: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80",
-                avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80",
-                reaction: null
-            },
-            {
-                nome: "Julia Costa",
-                imagem: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80",
-                avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80",
-                reaction: null
-            }
+            { nome: "Aline Silva", imagem: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80", reaction: null },
+            { nome: "Julia Costa", imagem: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80", reaction: null }
         ];
 
         const tinderContainer = document.getElementById('tinder-container');
@@ -595,52 +561,18 @@
 
         function atualizarIconeReacaoBotao() {
             const cardData = dadosMoments[indiceCardAtual];
-            if (cardData && cardData.reaction) {
-                btnReactions.innerHTML = cardData.reaction;
-            } else {
-                btnReactions.innerHTML = `<i data-lucide="smile" id="icon-reaction-default" class="w-7 h-7"></i>`;
-                lucide.createIcons();
-            }
+            if (cardData && cardData.reaction) btnReactions.innerHTML = cardData.reaction;
+            else { btnReactions.innerHTML = `<i data-lucide="smile" id="icon-reaction-default" class="w-7 h-7"></i>`; lucide.createIcons(); }
         }
 
         function inicializarDeckTinder() {
             tinderContainer.innerHTML = '';
             indiceCardAtual = dadosMoments.length - 1;
-            
             for (let i = dadosMoments.length - 1; i >= 0; i--) {
                 const item = dadosMoments[i];
                 const card = document.createElement('div');
                 card.className = 'tinder-card glass-card rounded-3xl overflow-hidden relative shadow-2xl flex flex-col justify-end p-6 border border-white/20';
-                
-                let mediaElement = '';
-                if (item.video) {
-                    mediaElement = `<video src="${item.video}" class="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" autoplay loop muted playsinline></video>`;
-                } else {
-                    mediaElement = `<img src="${item.imagem}" class="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" alt="Moments">`;
-                }
-
-                card.innerHTML = `
-                    ${mediaElement}
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10 pointer-events-none"></div>
-                    
-                    <div class="swipe-overlay swipe-overlay-like">
-                        <div class="swipe-badge border-emerald-500 text-emerald-400 bg-emerald-950/80">Like</div>
-                    </div>
-                    <div class="swipe-overlay swipe-overlay-dislike">
-                        <div class="swipe-badge border-red-500 text-red-400 bg-red-950/80">Nope</div>
-                    </div>
-
-                    <div class="relative z-20 space-y-3 pointer-events-none">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full border-2 border-[blueviolet] overflow-hidden bg-neutral-800">
-                                <img src="${item.avatar}" class="w-full h-full object-cover">
-                            </div>
-                            <div>
-                                <h2 class="font-bold text-base flex items-center gap-1.5">${item.nome} <i data-lucide="badge-check" class="w-4 h-4 text-[blueviolet]"></i></h2>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                card.innerHTML = `<img src="${item.imagem}" class="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"><div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10 pointer-events-none"></div><div class="swipe-overlay swipe-overlay-like"><div class="swipe-badge border-emerald-500 text-emerald-400 bg-emerald-950/80">Like</div></div><div class="swipe-overlay swipe-overlay-dislike"><div class="swipe-badge border-red-500 text-red-400 bg-red-950/80">Nope</div></div><div class="relative z-20 space-y-3 pointer-events-none"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full border-2 border-[blueviolet] overflow-hidden bg-neutral-800"><img src="${item.avatar}" class="w-full h-full object-cover"></div><div><h2 class="font-bold text-base flex items-center gap-1.5">${item.nome} <i data-lucide="badge-check" class="w-4 h-4 text-[blueviolet]"></i></h2></div></div></div>`;
                 tinderContainer.appendChild(card);
                 configurarArrastoCard(card);
             }
@@ -649,131 +581,63 @@
         }
 
         function criarExplosaoEmojisTinder(isLike) {
-            const emojiUsado = isLike ? '❤️' : '❌';
+            const emoji = isLike ? '❤️' : '❌';
             const containerMain = document.querySelector('main');
             const retanguloMain = containerMain.getBoundingClientRect();
-            
-            const centerX = retanguloMain.width / 2;
-            const centerY = retanguloMain.height / 2;
-
             for (let i = 0; i < 10; i++) {
                 const particula = document.createElement('span');
                 particula.classList.add('emoji-particle');
-                particula.textContent = emojiUsado;
-                particula.style.left = `${centerX}px`;
-                particula.style.top = `${centerY}px`;
-                particula.style.fontSize = `${Math.random() * (32 - 20) + 20}px`;
-
-                const anguloBase = isLike ? -Math.PI / 4 : -Math.PI * 3 / 4; 
-                const angulo = anguloBase + (Math.random() - 0.5) * 1.5;
-                const distanciaDisvarsao = Math.random() * (200 - 100) + 100;
-                
-                const direcaoX = Math.cos(angulo) * distanciaDisvarsao;
-                const direcaoY = Math.sin(angulo) * distanciaDisvarsao;
-
-                particula.style.setProperty('--x', `${direcaoX}px`);
-                particula.style.setProperty('--y', `${direcaoY}px`);
-
+                particula.textContent = emoji;
+                particula.style.left = `${retanguloMain.width/2}px`;
+                particula.style.top = `${retanguloMain.height/2}px`;
+                const angulo = (isLike ? -Math.PI/4 : -Math.PI*3/4) + (Math.random()-0.5)*1.5;
+                particula.style.setProperty('--x', `${Math.cos(angulo)*150}px`);
+                particula.style.setProperty('--y', `${Math.sin(angulo)*150}px`);
                 containerMain.appendChild(particula);
                 particula.addEventListener('animationend', () => particula.remove());
             }
+            btnReactions.innerHTML = emoji;
         }
 
         function configurarArrastoCard(card) {
-            let startX = 0;
-            let currentX = 0;
-            let isDragging = false;
-            
+            let startX, currentX, isDragging = false;
             const overlayLike = card.querySelector('.swipe-overlay-like');
             const overlayDislike = card.querySelector('.swipe-overlay-dislike');
-
-            card.addEventListener('mousedown', (e) => iniciarArrasto(e.clientX));
-            window.addEventListener('mousemove', (e) => moverArrasto(e.clientX));
-            window.addEventListener('mouseup', terminarArrasto);
-
-            card.addEventListener('touchstart', (e) => iniciarArrasto(e.touches[0].clientX));
-            card.addEventListener('touchmove', (e) => moverArrasto(e.touches[0].clientX));
-            card.addEventListener('touchend', terminarArrasto);
-
-            function iniciarArrasto(clientX) {
-                isDragging = true;
-                startX = clientX;
-                card.style.transition = 'none';
-                if(overlayLike) overlayLike.style.transition = 'none';
-                if(overlayDislike) overlayDislike.style.transition = 'none';
-            }
-
-            function moverArrasto(clientX) {
-                if (!isDragging) return;
-                currentX = clientX - startX;
-                let rotação = currentX / 10;
-                card.style.transform = `translateX(${currentX}px) rotate(${rotação}deg)`;
-
-                if (currentX > 0) {
-                    if(overlayLike) overlayLike.style.opacity = Math.min(currentX / 150, 1);
-                    if(overlayDislike) overlayDislike.style.opacity = 0;
-                } else {
-                    if(overlayDislike) overlayDislike.style.opacity = Math.min(Math.abs(currentX) / 150, 1);
-                    if(overlayLike) overlayLike.style.opacity = 0;
-                }
-            }
-
-            function terminarArrasto() {
-                if (!isDragging) return;
+            const iniciar = (x) => { isDragging = true; startX = x; card.style.transition = 'none'; };
+            const mover = (x) => {
+                if(!isDragging) return;
+                currentX = x - startX;
+                card.style.transform = `translateX(${currentX}px) rotate(${currentX/10}deg)`;
+                if(overlayLike) overlayLike.style.opacity = currentX > 0 ? Math.min(currentX/150, 1) : 0;
+                if(overlayDislike) overlayDislike.style.opacity = currentX < 0 ? Math.min(Math.abs(currentX)/150, 1) : 0;
+            };
+            const terminar = () => {
+                if(!isDragging) return;
                 isDragging = false;
-                
                 card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
-                if(overlayLike) overlayLike.style.transition = 'opacity 0.3s ease';
-                if(overlayDislike) overlayDislike.style.transition = 'opacity 0.3s ease';
-
-                if (currentX > 120) {
-                    animarSaidaCard(card, true);
-                } else if (currentX < -120) {
-                    animarSaidaCard(card, false);
-                } else {
-                    card.style.transform = 'none';
-                    if(overlayLike) overlayLike.style.opacity = 0;
-                    if(overlayDislike) overlayDislike.style.opacity = 0;
-                }
+                if(currentX > 120 || currentX < -120) animarSaidaCard(card, currentX > 0);
+                else { card.style.transform = 'none'; if(overlayLike) overlayLike.style.opacity = 0; if(overlayDislike) overlayDislike.style.opacity = 0; }
                 currentX = 0;
-            }
+            };
+            card.addEventListener('mousedown', (e) => iniciar(e.clientX));
+            window.addEventListener('mousemove', (e) => mover(e.clientX));
+            window.addEventListener('mouseup', terminar);
+            card.addEventListener('touchstart', (e) => iniciar(e.touches[0].clientX));
+            window.addEventListener('touchmove', (e) => mover(e.touches[0].clientX));
+            window.addEventListener('touchend', terminar);
         }
 
         function animarSaidaCard(card, isLike) {
-            const overlayLike = card.querySelector('.swipe-overlay-like');
-            const overlayDislike = card.querySelector('.swipe-overlay-dislike');
-            
-            if (isLike && overlayLike) overlayLike.style.opacity = 1;
-            if (!isLike && overlayDislike) overlayDislike.style.opacity = 1;
-
+            if(isLike) card.querySelector('.swipe-overlay-like').style.opacity = 1;
+            else card.querySelector('.swipe-overlay-dislike').style.opacity = 1;
             criarExplosaoEmojisTinder(isLike);
-
-            const direcaoX = isLike ? 500 : -500;
-            const rotacao = isLike ? 45 : -45;
-            card.style.transform = `translateX(${direcaoX}px) rotate(${rotacao}deg)`;
+            card.style.transform = `translateX(${isLike ? 500 : -500}px) rotate(${isLike ? 45 : -45}deg)`;
             card.style.opacity = '0';
-            
-            setTimeout(() => {
-                card.remove();
-                indiceCardAtual--;
-                
-                if (tinderContainer.children.length === 0) {
-                    inicializarDeckTinder();
-                } else {
-                    atualizarIconeReacaoBotao();
-                }
-            }, 300);
+            setTimeout(() => { card.remove(); indiceCardAtual--; if(tinderContainer.children.length === 0) inicializarDeckTinder(); else atualizarIconeReacaoBotao(); }, 300);
         }
 
-        btnLike.addEventListener('click', () => {
-            const topoCard = tinderContainer.lastElementChild;
-            if (topoCard) animarSaidaCard(topoCard, true);
-        });
-
-        btnDislike.addEventListener('click', () => {
-            const topoCard = tinderContainer.lastElementChild;
-            if (topoCard) animarSaidaCard(topoCard, false);
-        });
+        btnLike.addEventListener('click', () => { if(tinderContainer.lastElementChild) animarSaidaCard(tinderContainer.lastElementChild, true); });
+        btnDislike.addEventListener('click', () => { if(tinderContainer.lastElementChild) animarSaidaCard(tinderContainer.lastElementChild, false); });
 
         inicializarDeckTinder();
     </script>
