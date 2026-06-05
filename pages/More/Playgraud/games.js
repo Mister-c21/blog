@@ -68,4 +68,14 @@ export const consoles = {
             { title: "Mighty Morphin Power Rangers: The Fighting Edition", image: "https://i.ytimg.com/vi/jMPcDUWghHM/maxresdefault.jpg", url: "https://www.retrogames.cc/embed/23323-mighty-morphin-power-rangers-the-fighting-edition-usa.html"},
         ]
     },
+    "Aventuras do N64": { 
+        key: "N64", 
+        games: [
+            { title: "Powerpuff Girls, The - Chemical X-Traction (USA)", image: "https://upload.wikimedia.org/wikipedia/en/5/5d/The_Powerpuff_Girls_Chemical_X-traction.jpg", url: "https://www.retrogames.cc/embed/32846-powerpuff-girls-the-chemical-x-traction-usa.html" },
+            { title: "Power Rangers - Lightspeed Rescue (USA)", image: "https://assets-prd.ignimgs.com/2023/06/21/powerrescue-1687307292099.jpg", url: "https://www.retrogames.cc/embed/32843-power-rangers-lightspeed-rescue-usa.html" },
+            { title: "Transformers - Beast Wars Transmetals (USA)", image: "https://assets-prd.ignimgs.com/2024/04/02/beastwarsps-1712017656713.jpg", url: "https://www.retrogames.cc/embed/32659-transformers-beast-wars-transmetals-usa.html" },
+            { title: "Earthworm Jim 3D (USA)", image: "https://m.media-amazon.com/images/M/MV5BMjdkZTUyMmQtNTJjZC00MzYyLWI2NWEtY2NmMGE5ZTE4YjExXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg", url: "https://www.retrogames.cc/embed/32434-earthworm-jim-3d-usa.html" },
+            { title: "Castlevania - Legacy of Darkness (Europe) (En,Fr,De)", image: "https://assets-prd.ignimgs.com/2022/02/01/cvlegacyofdarkness-sq1-1643759178108.jpg", url: "https://www.retrogames.cc/embed/32504-castlevania-legacy-of-darkness-europe-en-fr-de.html" },
+        ]
+    },
 };
