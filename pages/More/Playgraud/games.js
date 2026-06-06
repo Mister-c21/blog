@@ -82,10 +82,12 @@ export const consoles = {
         key: "Playstation", 
         games: [
             { title: "Mega Man X4", image: "https://m.media-amazon.com/images/M/MV5BMGEwNTlhOGEtYzg0ZS00NDAxLWIxNDEtMDE1OGIyZTNhMjFhXkEyXkFqcGc@._V1_.jpg", url: "https://www.retrogames.cc/embed/40778-mega-man-x4.html" },
-            { title: "Power Rangers - Lightspeed Rescue (USA)", image: "https://assets-prd.ignimgs.com/2023/06/21/powerrescue-1687307292099.jpg", url: "https://www.retrogames.cc/embed/32843-power-rangers-lightspeed-rescue-usa.html" },
-            { title: "Transformers - Beast Wars Transmetals (USA)", image: "https://assets-prd.ignimgs.com/2024/04/02/beastwarsps-1712017656713.jpg", url: "https://www.retrogames.cc/embed/32659-transformers-beast-wars-transmetals-usa.html" },
-            { title: "Earthworm Jim 3D (USA)", image: "https://m.media-amazon.com/images/M/MV5BMjdkZTUyMmQtNTJjZC00MzYyLWI2NWEtY2NmMGE5ZTE4YjExXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg", url: "https://www.retrogames.cc/embed/32434-earthworm-jim-3d-usa.html" },
-            { title: "Castlevania - Legacy of Darkness (Europe) (En,Fr,De)", image: "https://assets-prd.ignimgs.com/2022/02/01/cvlegacyofdarkness-sq1-1643759178108.jpg", url: "https://www.retrogames.cc/embed/32504-castlevania-legacy-of-darkness-europe-en-fr-de.html" },
+            { title: "Mega Man X5", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRKBeArtjSm6Zj3biBtEWVTp-Rh0aeegxQTNwNdSHbUW4n9jCsfUPUTv-PD&s=10", url: "https://www.retrogames.cc/embed/40779-mega-man-x5.html" },
+            { title: "Mega Man X6", image: "https://assets-prd.ignimgs.com/2022/04/05/megmanx6-1649186869987.jpg", url: "https://www.retrogames.cc/embed/40780-mega-man-x6.html" },
+            { title: "Mega Man Legends", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR1Hy_Fz5JBSeZMrhbwOitpGiEa0hvCvNxxV3yAy_unMeg7k8jVW2WWqKsf&s=10", url: "https://www.retrogames.cc/embed/40783-mega-man-legends.html"" },
+            { title: "Mega Man Legends 2", image: "https://m.media-amazon.com/images/M/MV5BZmExYjI0MmQtOTYxZC00M2ZjLTlkNzQtODRjYzgxYWY2MTNlXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg", url: "https://www.retrogames.cc/embed/42739-mega-man-legends-2.html" },
+            { title: "Mega Man Legends 2", image: "https://m.media-amazon.com/images/M/MV5BZmExYjI0MmQtOTYxZC00M2ZjLTlkNzQtODRjYzgxYWY2MTNlXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg", url: "https://www.retrogames.cc/embed/42739-mega-man-legends-2.html" },
+            
         ]
     },
 };
