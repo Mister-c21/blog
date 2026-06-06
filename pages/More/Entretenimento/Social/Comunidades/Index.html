@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Comunidades</title>
+    <style>
+        :root {
+            --blueviolet-color: #8a2be2;
+            --ghost-color: #f8f8ff;
+            --glass: rgba(255, 255, 255, 0.2);
+        }
+
+        body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background-color: #e5e5e5; }
+
+        .communities-container {
+            display: flex; flex-direction: column; width: 100%; height: 100vh;
+            background: var(--glass); backdrop-filter: blur(15px);
+            border-left: 1px solid rgba(255, 255, 255, 0.3); border-right: 1px solid rgba(255, 255, 255, 0.3);
+            touch-action: pan-y;
+        }
+
+        .search-wrapper { padding: 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); flex-shrink: 0; position: relative; display: flex; align-items: center; }
+        .search-bar { width: 100%; padding: 10px 35px 10px 15px; border-radius: 50px; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.1); color: #333; box-sizing: border-box; transition: all 0.3s ease; }
+        .search-bar:focus { outline: none; background: rgba(255, 255, 255, 0.5); border-color: var(--blueviolet-color); }
+        #clearBtn { position: absolute; right: 25px; cursor: pointer; color: #888; font-weight: bold; display: none; }
+
+        .tabs-container { display: flex; border-bottom: 1px solid rgba(255, 255, 255, 0.2); }
+        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-weight: bold; color: #666; transition: 0.3s; }
+        .tab.active { color: var(--blueviolet-color); border-bottom: 2px solid var(--blueviolet-color); }
+
+        .content-section { flex-grow: 1; overflow-y: auto; }
+        .community-item { display: flex; align-items: center; padding: 15px; gap: 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; }
+        .avatar { width: 50px; height: 50px; border-radius: 50%; background: var(--blueviolet-color); color: var(--ghost-color); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .info h3 { margin: 0; font-size: 16px; color: #333; }
+
+        .chatModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--ghost-color); z-index: 1000; flex-direction: column; }
+        .chat-header { padding: 15px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px; background: #fff; }
+        .chat-messages { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg-bubble { background-color: var(--blueviolet-color); color: white; padding: 10px 16px; border-radius: 18px; max-width: 75%; align-self: flex-end; font-size: 14px; }
+        .chat-input { padding: 15px; background: #fff; border-top: 1px solid rgba(0,0,0,0.05); }
+        .chat-input input { width: 100%; padding: 12px 15px; border-radius: 25px; border: 1px solid #ddd; outline: none; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <div class="communities-container" id="swipeArea">
+        <div class="search-wrapper">
+            <input type="text" id="searchInput" class="search-bar" placeholder="Buscar..." onkeyup="handleSearch()">
+            <span id="clearBtn" onclick="clearSearch()">✕</span>
+        </div>
+
+        <div class="tabs-container">
+            <div class="tab active" id="tab0" onclick="selectTab('communitiesList', 0)">For You</div>
+            <div class="tab" id="tab1" onclick="selectTab('personagensSection', 1)">Personagens</div>
+            <div class="tab" id="tab2" onclick="selectTab('salvosSection', 2)">Salvos</div>
+        </div>
+
+        <div id="communitiesList" class="content-section">
+            <div class="community-item" onclick="openChat('chatComunidade')">
+                <div class="avatar">C</div>
+                <div class="info"><h3>Comunidade Tech</h3></div>
+            </div>
+        </div>
+
+        <div id="personagensSection" class="content-section" style="display: none;">
+            <div class="community-item" onclick="openChat('chatPersonagem')">
+                <div class="avatar">P</div>
+                <div class="info"><h3>Personagem Heroi</h3></div>
+            </div>
+        </div>
+
+        <div id="salvosSection" class="content-section" style="display: none;"></div>
+    </div>
+
+    <div id="chatComunidade" class="chatModal">
+        <div class="chat-header"><span onclick="openChat('chatComunidade')" style="cursor: pointer;">&lt;</span> Chat de Comunidade</div>
+        <div class="chat-messages"><div class="msg-bubble">Bem-vindo à comunidade!</div></div>
+        <div class="chat-input"><input type="text" placeholder="Mensagem..."></div>
+    </div>
+
+    <div id="chatPersonagem" class="chatModal">
+        <div class="chat-header"><span onclick="openChat('chatPersonagem')" style="cursor: pointer;">&lt;</span> Chat do Personagem</div>
+        <div class="chat-messages"><div class="msg-bubble">Olá, eu sou um personagem!</div></div>
+        <div class="chat-input"><input type="text" placeholder="Mensagem..."></div>
+    </div>
+
+    <script>
+        let touchStartX = 0;
+        let currentTabIndex = 0;
+        const tabs = ['communitiesList', 'personagensSection', 'salvosSection'];
+
+        const swipeArea = document.getElementById('swipeArea');
+        swipeArea.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX);
+        swipeArea.addEventListener('touchend', e => {
+            let diff = e.changedTouches[0].screenX - touchStartX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0 && currentTabIndex > 0) selectTab(tabs[--currentTabIndex], currentTabIndex);
+                else if (diff < 0 && currentTabIndex < 2) selectTab(tabs[++currentTabIndex], currentTabIndex);
+            }
+        });
+
+        function selectTab(sectionId, index) {
+            currentTabIndex = index;
+            document.querySelectorAll('.tab').forEach((t, i) => i === index ? t.classList.add('active') : t.classList.remove('active'));
+            document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
+            document.getElementById(sectionId).style.display = 'block';
+        }
+
+        function openChat(chatId) {
+            const modal = document.getElementById(chatId);
+            const isOpening = modal.style.display !== 'flex';
+            modal.style.display = isOpening ? 'flex' : 'none';
+            document.body.style.overflow = isOpening ? 'hidden' : 'auto';
+        }
+
+        function handleSearch() {
+            const input = document.getElementById('searchInput');
+            document.getElementById('clearBtn').style.display = input.value.length > 0 ? 'block' : 'none';
+            let filter = input.value.toLowerCase();
+            document.querySelectorAll('.community-item').forEach(item => item.style.display = item.innerText.toLowerCase().includes(filter) ? "flex" : "none");
+        }
+
+        function clearSearch() { document.getElementById('searchInput').value = ''; handleSearch(); }
+    </script>
+</body>
+</html>
