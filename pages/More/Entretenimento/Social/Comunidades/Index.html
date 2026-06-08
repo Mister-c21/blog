@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lista de Comunidades</title>
-    <!-- Importação do Font Awesome para os ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
@@ -13,13 +12,30 @@
             --glass: rgba(255, 255, 255, 0.2);
         }
 
-        body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background-color: #e5e5e5; }
+        /* Mudança crucial: html e body travados em 100% da tela sem scroll externo */
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            height: 100%; 
+            width: 100%;
+            font-family: sans-serif; 
+            background-color: #e5e5e5; 
+            overflow: hidden; 
+        }
 
+        /* Garante tamanho exato e correto tanto para mobile quanto desktop */
         .communities-container {
-            display: flex; flex-direction: column; width: 100%; height: 100vh;
-            background: var(--glass); backdrop-filter: blur(15px);
-            border-left: 1px solid rgba(255, 255, 255, 0.3); border-right: 1px solid rgba(255, 255, 255, 0.3);
+            display: flex; 
+            flex-direction: column; 
+            width: 100%; 
+            height: 100%; 
+            max-height: 100vh;
+            background: var(--glass); 
+            backdrop-filter: blur(15px);
+            border-left: 1px solid rgba(255, 255, 255, 0.3); 
+            border-right: 1px solid rgba(255, 255, 255, 0.3);
             touch-action: pan-y;
+            box-sizing: border-box;
         }
 
         .search-wrapper { padding: 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); flex-shrink: 0; position: relative; display: flex; align-items: center; }
@@ -27,7 +43,13 @@
         .search-bar:focus { outline: none; background: rgba(255, 255, 255, 0.5); border-color: var(--blueviolet-color); }
         #clearBtn { position: absolute; right: 25px; cursor: pointer; color: #888; font-weight: bold; display: none; }
 
-        .content-section { flex-grow: 1; overflow-y: auto; }
+        /* A lista de comunidades ocupa o espaço restante e controla seu próprio scroll */
+        .content-section { 
+            flex: 1; 
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch;
+        }
+        
         .community-item { display: flex; align-items: center; padding: 15px; gap: 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; }
         
         .avatar { 
@@ -50,14 +72,38 @@
 
         .info h3 { margin: 0; font-size: 16px; color: #333; }
 
-        .chatModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--ghost-color); z-index: 1000; flex-direction: column; }
-        .chat-header { padding: 15px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; gap: 12px; background: #fff; }
-        .chat-messages { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        /* Modal do chat configurada para não passar dos limites da tela física */
+        .chatModal { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            max-height: 100vh;
+            background: var(--ghost-color); 
+            z-index: 1000; 
+            flex-direction: column; 
+            overflow: hidden;
+        }
+        
+        .chat-header { padding: 15px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; gap: 12px; background: #fff; flex-shrink: 0; }
+        
+        /* Mensagens ocupam o espaço dinâmico que sobra */
+        .chat-messages { 
+            flex: 1; 
+            padding: 20px; 
+            overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            -webkit-overflow-scrolling: touch;
+        }
         
         .msg-bubble { background-color: var(--blueviolet-color); color: white; padding: 10px 16px; border-radius: 18px; max-width: 75%; align-self: flex-end; font-size: 14px; word-break: break-word; }
         .msg-bubble img { max-width: 100%; max-height: 150px; border-radius: 10px; display: block; margin-top: 5px; }
 
-        .chat-input { padding: 15px; background: #fff; border-top: 1px solid rgba(0,0,0,0.05); display: flex; flex-direction: column; position: relative; }
+        .chat-input { padding: 15px; background: #fff; border-top: 1px solid rgba(0,0,0,0.05); display: flex; flex-direction: column; position: relative; flex-shrink: 0; }
         .chat-input-wrapper { display: flex; align-items: center; width: 100%; gap: 10px; }
         .chat-input input { flex-grow: 1; padding: 12px 15px; border-radius: 25px; border: 1px solid #ddd; outline: none; box-sizing: border-box; }
         
@@ -65,12 +111,11 @@
         .insta-menu-btn:active { transform: scale(0.9); }
         .back-btn { cursor: pointer; font-size: 18px; color: var(--blueviolet-color); user-select: none; display: flex; align-items: center; }
 
-        /* Estilo do botão de enviar mensagem */
         .send-btn { cursor: pointer; font-size: 18px; color: var(--blueviolet-color); user-select: none; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; }
         .send-btn:active { transform: scale(0.9); }
 
-        .instagram-panel { display: none; flex-direction: column; height: 260px; background: #ffffff; border-top: 1px solid rgba(0,0,0,0.1); overflow: hidden; }
-        .panel-tabs { display: flex; border-bottom: 1px solid rgba(0,0,0,0.05); background: #fafafa; }
+        .instagram-panel { display: none; flex-direction: column; height: 260px; background: #ffffff; border-top: 1px solid rgba(0,0,0,0.1); overflow: hidden; flex-shrink: 0; }
+        .panel-tabs { display: flex; border-bottom: 1px solid rgba(0,0,0,0.05); background: #fafafa; flex-shrink: 0; }
         .panel-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; font-size: 13px; color: #666; transition: 0.2s; }
         .panel-tab.active { color: var(--blueviolet-color); border-bottom: 2px solid var(--blueviolet-color); }
         
@@ -146,7 +191,6 @@
         </div>
     </div>
 
-    <!-- Modais de Chat com Ícone de Avião de Papel para Enviar -->
     <div id="chatMiraculous" class="chatModal">
         <div class="chat-header">
             <span class="back-btn" onclick="closeChat('chatMiraculous')"><i class="fa-solid fa-chevron-left"></i></span>
@@ -509,7 +553,6 @@
             }
         }
 
-        /* Nova função para enviar mensagem ao clicar no avião de papel */
         function sendMessageFromClick(chatId) {
             const inputElement = document.querySelector(`#${chatId} .chat-input input`);
             const text = inputElement.value.trim();
@@ -537,6 +580,10 @@
         function toggleInstagramPanel(chatId) {
             const panel = document.querySelector(`#${chatId} .instagram-panel`);
             panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+            
+            // Força o scroll das mensagens a descer caso o painel abra por cima
+            const chatMessages = document.querySelector(`#${chatId} .chat-messages`);
+            setTimeout(() => { chatMessages.scrollTop = chatMessages.scrollHeight; }, 50);
         }
 
         function setupInstagramPanel(chatId) {
