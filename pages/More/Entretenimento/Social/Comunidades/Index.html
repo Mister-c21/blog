@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Lista de Comunidades</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -12,7 +12,6 @@
             --glass: rgba(255, 255, 255, 0.2);
         }
 
-        /* html e body travados na altura dinâmica real do dispositivo para evitar scrolls fantasmas */
         body, html { 
             margin: 0; 
             padding: 0; 
@@ -23,7 +22,6 @@
             overflow: hidden; 
         }
 
-        /* Container principal adaptável ao tamanho visível da tela */
         .communities-container {
             display: flex; 
             flex-direction: column; 
@@ -43,7 +41,6 @@
         .search-bar:focus { outline: none; background: rgba(255, 255, 255, 0.5); border-color: var(--blueviolet-color); }
         #clearBtn { position: absolute; right: 25px; cursor: pointer; color: #888; font-weight: bold; display: none; }
 
-        /* Lista consome o espaço restante e controla seu próprio scroll */
         .content-section { 
             flex: 1; 
             overflow-y: auto; 
@@ -72,24 +69,34 @@
 
         .info h3 { margin: 0; font-size: 16px; color: #333; }
 
-        /* Modais de chat travadas no tamanho real da tela física */
+        /* MODAL ATUALIZADO: Uso de bottom: 0 e env() para respeitar barras de navegação de navegadores mobile */
         .chatModal { 
             display: none; 
             position: fixed; 
-            top: 0; 
+            bottom: 0; 
             left: 0; 
+            right: 0;
+            top: 0;
             width: 100%; 
-            height: 100dvh; 
+            height: 100dvh;
             max-height: 100dvh;
             background: var(--ghost-color); 
             z-index: 1000; 
             flex-direction: column; 
             overflow: hidden;
+            box-sizing: border-box;
         }
         
-        .chat-header { padding: 15px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; gap: 12px; background: #fff; flex-shrink: 0; }
+        .chat-header { 
+            padding: 15px; 
+            border-bottom: 1px solid rgba(0,0,0,0.05); 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            background: #fff; 
+            flex-shrink: 0; 
+        }
         
-        /* Mensagens ocupam dinamicamente a área disponível no meio */
         .chat-messages { 
             flex: 1; 
             padding: 20px; 
@@ -103,9 +110,18 @@
         .msg-bubble { background-color: var(--blueviolet-color); color: white; padding: 10px 16px; border-radius: 18px; max-width: 75%; align-self: flex-end; font-size: 14px; word-break: break-word; }
         .msg-bubble img { max-width: 100%; max-height: 150px; border-radius: 10px; display: block; margin-top: 5px; }
 
-        .chat-input { padding: 15px; background: #fff; border-top: 1px solid rgba(0,0,0,0.05); display: flex; flex-direction: column; position: relative; flex-shrink: 0; }
+        /* INPUT ATUALIZADO: Padding inferior adaptável para Safe Area do navegador */
+        .chat-input { 
+            padding: 15px 15px calc(15px + env(safe-area-inset-bottom, 0px)) 15px; 
+            background: #fff; 
+            border-top: 1px solid rgba(0,0,0,0.05); 
+            display: flex; 
+            flex-direction: column; 
+            position: relative; 
+            flex-shrink: 0; 
+        }
         .chat-input-wrapper { display: flex; align-items: center; width: 100%; gap: 10px; }
-        .chat-input input { flex-grow: 1; padding: 12px 15px; border-radius: 25px; border: 1px solid #ddd; outline: none; box-sizing: border-box; }
+        .chat-input input { flex-grow: 1; padding: 12px 15px; border-radius: 25px; border: 1px solid #ddd; outline: none; box-sizing: border-box; font-size: 16px; /* Evita zoom automático no iOS/Android */ }
         
         .insta-menu-btn { cursor: pointer; font-size: 18px; color: var(--blueviolet-color); user-select: none; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; }
         .insta-menu-btn:active { transform: scale(0.9); }
@@ -114,7 +130,7 @@
         .send-btn { cursor: pointer; font-size: 18px; color: var(--blueviolet-color); user-select: none; transition: transform 0.2s; display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; }
         .send-btn:active { transform: scale(0.9); }
 
-        .instagram-panel { display: none; flex-direction: column; height: 260px; background: #ffffff; border-top: 1px solid rgba(0,0,0,0.1); overflow: hidden; flex-shrink: 0; }
+        .instagram-panel { display: none; flex-direction: column; height: 260px; background: #ffffff; border-top: 1px solid rgba(0,0,0,0.1); overflow: hidden; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
         .panel-tabs { display: flex; border-bottom: 1px solid rgba(0,0,0,0.05); background: #fafafa; flex-shrink: 0; }
         .panel-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; font-size: 13px; color: #666; transition: 0.2s; }
         .panel-tab.active { color: var(--blueviolet-color); border-bottom: 2px solid var(--blueviolet-color); }
@@ -167,26 +183,6 @@
             <div class="community-item" onclick="openChat('chatGeek')">
                 <div class="avatar" style="background-image: url('https://images.unsplash.com/photo-1581091215367-9b6c00b3035a?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx7fGVufDB8fHx8fA%3D%3D');"></div>
                 <div class="info"><h3>Geek</h3></div>
-            </div>
-            <div class="community-item" onclick="openChat('chatMarvel')">
-                <div class="avatar" style="background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Marvel_Logo.svg/1200px-Marvel_Logo.svg.png');"></div>
-                <div class="info"><h3>Marvel</h3></div>
-            </div>
-            <div class="community-item" onclick="openChat('chatDC')">
-                <div class="avatar" style="background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/DC_Comics_logo.svg/1200px-DC_Comics_logo.svg.png');"></div>
-                <div class="info"><h3>DC</h3></div>
-            </div>
-            <div class="community-item" onclick="openChat('chatGenshin')">
-                <div class="avatar" style="background-image: url('https://upload.wikimedia.org/wikipedia/pt/5/52/Genshin_Impact_logo.png');"></div>
-                <div class="info"><h3>Genshin Impact</h3></div>
-            </div>
-            <div class="community-item" onclick="openChat('chatFilmes')">
-                <div class="avatar" style="background-image: url('https://images.unsplash.com/photo-1518173946687-a4c8a3b1d98e?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx7fGVufDB8fHx8fA%3D%3D');"></div>
-                <div class="info"><h3>Filmes</h3></div>
-            </div>
-            <div class="community-item" onclick="openChat('chatSeries')">
-                <div class="avatar" style="background-image: url('https://images.unsplash.com/photo-1595111162607-4e3650225648?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx7fGVufDB8fHx8fA%3D%3D');"></div>
-                <div class="info"><h3>Séries</h3></div>
             </div>
         </div>
     </div>
@@ -269,266 +265,41 @@
         </div>
     </div>
 
-    <div id="chatTransformers" class="chatModal">
-        <div class="chat-header">
-            <span class="back-btn" onclick="closeChat('chatTransformers')"><i class="fa-solid fa-chevron-left"></i></span>
-            <div class="avatar-header" style="background-image: url('https://upload.wikimedia.org/wikipedia/pt/d/d7/Transformers_Capa_do_DVD_2007.jpg');"></div>
-            <div>Transformers</div>
-        </div>
-        <div class="chat-messages"><div class="msg-bubble">Autobots, rodar!</div></div>
-        <div class="chat-input">
-            <div class="chat-input-wrapper">
-                <span class="insta-menu-btn" onclick="toggleInstagramPanel('chatTransformers')"><i class="fa-solid fa-bars"></i></span>
-                <input type="text" placeholder="Mensagem..." onkeydown="checkEnter(event, 'chatTransformers')">
-                <span class="send-btn" onclick="sendMessageFromClick('chatTransformers')"><i class="fa-regular fa-paper-plane"></i></span>
-            </div>
-        </div>
-        <div class="instagram-panel">
-            <div class="panel-tabs">
-                <div class="panel-tab active" onclick="switchPanelTab('chatTransformers', 'emojis', this)">Emojis</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatTransformers', 'gifs', this)">GIFs</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatTransformers', 'stickers', this)">Stickers</div>
-            </div>
-            <div class="panel-content active dynamic-emojis"></div>
-            <div class="panel-content dynamic-gifs"></div>
-            <div class="panel-content dynamic-stickers"></div>
-        </div>
-    </div>
-
-    <div id="chatSonic" class="chatModal">
-        <div class="chat-header">
-            <span class="back-btn" onclick="closeChat('chatSonic')"><i class="fa-solid fa-chevron-left"></i></span>
-            <div class="avatar-header" style="background-image: url('https://upload.wikimedia.org/wikipedia/en/a/a2/Sonic_the_Hedgehog_1_genesis_cover.png');"></div>
-            <div>Sonic</div>
-        </div>
-        <div class="chat-messages"><div class="msg-bubble">Gotta go fast!</div></div>
-        <div class="chat-input">
-            <div class="chat-input-wrapper">
-                <span class="insta-menu-btn" onclick="toggleInstagramPanel('chatSonic')"><i class="fa-solid fa-bars"></i></span>
-                <input type="text" placeholder="Mensagem..." onkeydown="checkEnter(event, 'chatSonic')">
-                <span class="send-btn" onclick="sendMessageFromClick('chatSonic')"><i class="fa-regular fa-paper-plane"></i></span>
-            </div>
-        </div>
-        <div class="instagram-panel">
-            <div class="panel-tabs">
-                <div class="panel-tab active" onclick="switchPanelTab('chatSonic', 'emojis', this)">Emojis</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatSonic', 'gifs', this)">GIFs</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatSonic', 'stickers', this)">Stickers</div>
-            </div>
-            <div class="panel-content active dynamic-emojis"></div>
-            <div class="panel-content dynamic-gifs"></div>
-            <div class="panel-content dynamic-stickers"></div>
-        </div>
-    </div>
-
-    <div id="chatCosplay" class="chatModal">
-        <div class="chat-header">
-            <span class="back-btn" onclick="closeChat('chatCosplay')"><i class="fa-solid fa-chevron-left"></i></span>
-            <div class="avatar-header" style="background-image: url('https://images.unsplash.com/photo-1549492800-4f620e7f7811?q=80&w=1471&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx7fGVufDB8fHx8fA%3D%3D');"></div>
-            <div>Cosplay</div>
-        </div>
-        <div class="chat-messages"><div class="msg-bubble">Compartilhe fotos e dicas de seus cosplays.</div></div>
-        <div class="chat-input">
-            <div class="chat-input-wrapper">
-                <span class="insta-menu-btn" onclick="toggleInstagramPanel('chatCosplay')"><i class="fa-solid fa-bars"></i></span>
-                <input type="text" placeholder="Mensagem..." onkeydown="checkEnter(event, 'chatCosplay')">
-                <span class="send-btn" onclick="sendMessageFromClick('chatCosplay')"><i class="fa-regular fa-paper-plane"></i></span>
-            </div>
-        </div>
-        <div class="instagram-panel">
-            <div class="panel-tabs">
-                <div class="panel-tab active" onclick="switchPanelTab('chatCosplay', 'emojis', this)">Emojis</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatCosplay', 'gifs', this)">GIFs</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatCosplay', 'stickers', this)">Stickers</div>
-            </div>
-            <div class="panel-content active dynamic-emojis"></div>
-            <div class="panel-content dynamic-gifs"></div>
-            <div class="panel-content dynamic-stickers"></div>
-        </div>
-    </div>
-
-    <div id="chatGeek" class="chatModal">
-        <div class="chat-header">
-            <span class="back-btn" onclick="closeChat('chatGeek')"><i class="fa-solid fa-chevron-left"></i></span>
-            <div class="avatar-header" style="background-image: url('https://images.unsplash.com/photo-1581091215367-9b6c00b3035a?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx7fGVufDB8fHx8fA%3D%3D');"></div>
-            <div>Geek</div>
-        </div>
-        <div class="chat-messages"><div class="msg-bubble">Espaço da cultura Geek!</div></div>
-        <div class="chat-input">
-            <div class="chat-input-wrapper">
-                <span class="insta-menu-btn" onclick="toggleInstagramPanel('chatGeek')"><i class="fa-solid fa-bars"></i></span>
-                <input type="text" placeholder="Mensagem..." onkeydown="checkEnter(event, 'chatGeek')">
-                <span class="send-btn" onclick="sendMessageFromClick('chatGeek')"><i class="fa-regular fa-paper-plane"></i></span>
-            </div>
-        </div>
-        <div class="instagram-panel">
-            <div class="panel-tabs">
-                <div class="panel-tab active" onclick="switchPanelTab('chatGeek', 'emojis', this)">Emojis</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatGeek', 'gifs', this)">GIFs</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatGeek', 'stickers', this)">Stickers</div>
-            </div>
-            <div class="panel-content active dynamic-emojis"></div>
-            <div class="panel-content dynamic-gifs"></div>
-            <div class="panel-content dynamic-stickers"></div>
-        </div>
-    </div>
-
-    <div id="chatMarvel" class="chatModal">
-        <div class="chat-header">
-            <span class="back-btn" onclick="closeChat('chatMarvel')"><i class="fa-solid fa-chevron-left"></i></span>
-            <div class="avatar-header" style="background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Marvel_Logo.svg/1200px-Marvel_Logo.svg.png');"></div>
-            <div>Marvel</div>
-        </div>
-        <div class="chat-messages"><div class="msg-bubble">Avante, Vingadores!</div></div>
-        <div class="chat-input">
-            <div class="chat-input-wrapper">
-                <span class="insta-menu-btn" onclick="toggleInstagramPanel('chatMarvel')"><i class="fa-solid fa-bars"></i></span>
-                <input type="text" placeholder="Mensagem..." onkeydown="checkEnter(event, 'chatMarvel')">
-                <span class="send-btn" onclick="sendMessageFromClick('chatMarvel')"><i class="fa-regular fa-paper-plane"></i></span>
-            </div>
-        </div>
-        <div class="instagram-panel">
-            <div class="panel-tabs">
-                <div class="panel-tab active" onclick="switchPanelTab('chatMarvel', 'emojis', this)">Emojis</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatMarvel', 'gifs', this)">GIFs</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatMarvel', 'stickers', this)">Stickers</div>
-            </div>
-            <div class="panel-content active dynamic-emojis"></div>
-            <div class="panel-content dynamic-gifs"></div>
-            <div class="panel-content dynamic-stickers"></div>
-        </div>
-    </div>
-
-    <div id="chatDC" class="chatModal">
-        <div class="chat-header">
-            <span class="back-btn" onclick="closeChat('chatDC')"><i class="fa-solid fa-chevron-left"></i></span>
-            <div class="avatar-header" style="background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/DC_Comics_logo.svg/1200px-DC_Comics_logo.svg.png');"></div>
-            <div>DC</div>
-        </div>
-        <div class="chat-messages"><div class="msg-bubble">Liga da Justiça ativa.</div></div>
-        <div class="chat-input">
-            <div class="chat-input-wrapper">
-                <span class="insta-menu-btn" onclick="toggleInstagramPanel('chatDC')"><i class="fa-solid fa-bars"></i></span>
-                <input type="text" placeholder="Mensagem..." onkeydown="checkEnter(event, 'chatDC')">
-                <span class="send-btn" onclick="sendMessageFromClick('chatDC')"><i class="fa-regular fa-paper-plane"></i></span>
-            </div>
-        </div>
-        <div class="instagram-panel">
-            <div class="panel-tabs">
-                <div class="panel-tab active" onclick="switchPanelTab('chatDC', 'emojis', this)">Emojis</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatDC', 'gifs', this)">GIFs</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatDC', 'stickers', this)">Stickers</div>
-            </div>
-            <div class="panel-content active dynamic-emojis"></div>
-            <div class="panel-content dynamic-gifs"></div>
-            <div class="panel-content dynamic-stickers"></div>
-        </div>
-    </div>
-
-    <div id="chatGenshin" class="chatModal">
-        <div class="chat-header">
-            <span class="back-btn" onclick="closeChat('chatGenshin')"><i class="fa-solid fa-chevron-left"></i></span>
-            <div class="avatar-header" style="background-image: url('https://upload.wikimedia.org/wikipedia/pt/5/52/Genshin_Impact_logo.png');"></div>
-            <div>Genshin Impact</div>
-        </div>
-        <div class="chat-messages"><div class="msg-bubble">Que os Arcontes guiem seus passos em Teyvat.</div></div>
-        <div class="chat-input">
-            <div class="chat-input-wrapper">
-                <span class="insta-menu-btn" onclick="toggleInstagramPanel('chatGenshin')"><i class="fa-solid fa-bars"></i></span>
-                <input type="text" placeholder="Mensagem..." onkeydown="checkEnter(event, 'chatGenshin')">
-                <span class="send-btn" onclick="sendMessageFromClick('chatGenshin')"><i class="fa-regular fa-paper-plane"></i></span>
-            </div>
-        </div>
-        <div class="instagram-panel">
-            <div class="panel-tabs">
-                <div class="panel-tab active" onclick="switchPanelTab('chatGenshin', 'emojis', this)">Emojis</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatGenshin', 'gifs', this)">GIFs</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatGenshin', 'stickers', this)">Stickers</div>
-            </div>
-            <div class="panel-content active dynamic-emojis"></div>
-            <div class="panel-content dynamic-gifs"></div>
-            <div class="panel-content dynamic-stickers"></div>
-        </div>
-    </div>
-
-    <div id="chatFilmes" class="chatModal">
-        <div class="chat-header">
-            <span class="back-btn" onclick="closeChat('chatFilmes')"><i class="fa-solid fa-chevron-left"></i></span>
-            <div class="avatar-header" style="background-image: url('https://images.unsplash.com/photo-1518173946687-a4c8a3b1d98e?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx7fGVufDB8fHx8fA%3D%3D');"></div>
-            <div>Filmes</div>
-        </div>
-        <div class="chat-messages"><div class="msg-bubble">Luz, câmera, ação! Qual o filme da vez?</div></div>
-        <div class="chat-input">
-            <div class="chat-input-wrapper">
-                <span class="insta-menu-btn" onclick="toggleInstagramPanel('chatFilmes')"><i class="fa-solid fa-bars"></i></span>
-                <input type="text" placeholder="Mensagem..." onkeydown="checkEnter(event, 'chatFilmes')">
-                <span class="send-btn" onclick="sendMessageFromClick('chatFilmes')"><i class="fa-regular fa-paper-plane"></i></span>
-            </div>
-        </div>
-        <div class="instagram-panel">
-            <div class="panel-tabs">
-                <div class="panel-tab active" onclick="switchPanelTab('chatFilmes', 'emojis', this)">Emojis</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatFilmes', 'gifs', this)">GIFs</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatFilmes', 'stickers', this)">Stickers</div>
-            </div>
-            <div class="panel-content active dynamic-emojis"></div>
-            <div class="panel-content dynamic-gifs"></div>
-            <div class="panel-content dynamic-stickers"></div>
-        </div>
-    </div>
-
-    <div id="chatSeries" class="chatModal">
-        <div class="chat-header">
-            <span class="back-btn" onclick="closeChat('chatSeries')"><i class="fa-solid fa-chevron-left"></i></span>
-            <div class="avatar-header" style="background-image: url('https://images.unsplash.com/photo-1595111162607-4e3650225648?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx7fGVufDB8fHx8fA%3D%3D');"></div>
-            <div>Séries</div>
-        </div>
-        <div class="chat-messages"><div class="msg-bubble">Pronto para a próxima maratona?</div></div>
-        <div class="chat-input">
-            <div class="chat-input-wrapper">
-                <span class="insta-menu-btn" onclick="toggleInstagramPanel('chatSeries')"><i class="fa-solid fa-bars"></i></span>
-                <input type="text" placeholder="Mensagem..." onkeydown="checkEnter(event, 'chatSeries')">
-                <span class="send-btn" onclick="sendMessageFromClick('chatSeries')"><i class="fa-regular fa-paper-plane"></i></span>
-            </div>
-        </div>
-        <div class="instagram-panel">
-            <div class="panel-tabs">
-                <div class="panel-tab active" onclick="switchPanelTab('chatSeries', 'emojis', this)">Emojis</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatSeries', 'gifs', this)">GIFs</div>
-                <div class="panel-tab" onclick="switchPanelTab('chatSeries', 'stickers', this)">Stickers</div>
-            </div>
-            <div class="panel-content active dynamic-emojis"></div>
-            <div class="panel-content dynamic-gifs"></div>
-            <div class="panel-content dynamic-stickers"></div>
-        </div>
-    </div>
-
     <script>
         const mediaData = {
-            emojis: ['😀','😂','😍','😎','🔥','✨','💥','👍','🎉','❤️','👀','💀','💯','👽','🤖','🎮','🎬','🍿','📺','🦊','🐱'],
+            emojis: ['😀','😂','😍','😎','🔥','✨','💥','👍','🎉','❤️','👀','💀','💯','🎮','🎬','🍿','🦊','🐱'],
             gifs: [
                 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3BwZzZ6ZXF4YnI0cTZreWUzYzNidWhhYmdmZnd1M3Z0bW9pdG95eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/tX68UifYVPr9u/giphy.gif',
-                'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXNidnd5cm80eXNndmN4M3BtZnA4N3F5Znd2bXN6cm84Nnp3cjZzdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3NtY188QaxDdC/giphy.gif',
-                'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbmswZDN4eW8wZzYwYWxxdTJtNGo4bWRhc2t3dzlydW9xdXJ3eXB0byZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/cuQrGZwiIcHm0/giphy.gif'
+                'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXNidnd5cm80eXNndmN4M3BtZnA4N3F5Znd2bXN6cm84Nnp3cjZzdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3NtY188QaxDdC/giphy.gif'
             ],
             stickers: [
                 'https://api.dicebear.com/7.x/bottts/svg?seed=st1',
-                'https://api.dicebear.com/7.x/bottts/svg?seed=st2',
-                'https://api.dicebear.com/7.x/bottts/svg?seed=st3'
+                'https://api.dicebear.com/7.x/bottts/svg?seed=st2'
             ]
         };
 
         function openChat(chatId) {
             const modal = document.getElementById(chatId);
             modal.style.display = 'flex';
+            
+            // Corrige o comportamento visual do scroll de fundo no mobile
+            document.documentElement.style.overflow = 'hidden';
             document.body.style.overflow = 'hidden';
+            
             setupInstagramPanel(chatId);
+            
+            // Força a rolagem das mensagens para o fim ao abrir
+            const chatMessages = modal.querySelector('.chat-messages');
+            setTimeout(() => { chatMessages.scrollTop = chatMessages.scrollHeight; }, 30);
         }
 
         function closeChat(chatId) {
             const modal = document.getElementById(chatId);
             modal.style.display = 'none';
-            document.body.style.overflow = 'auto';
+            
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
+            
             const panel = modal.querySelector('.instagram-panel');
             if(panel) panel.style.display = 'none';
         }
