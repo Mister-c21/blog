@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravador de Áudio Pro</title>
+    <style>
+        :root {
+            --primary-color: #8a2be2; /* blueviolet */
+            --primary-hover: #9933ff;
+            --text-color: #f8f8ff; /* ghostwhite */
+            --bg-glass: rgba(255, 255, 255, 0.06);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --shadow-glass: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0c1b, #241442, #0f0c1b);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .recorder-container {
+            width: 100%;
+            max-width: 420px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            padding: 32px 24px;
+            box-shadow: 0 8px 32px 0 var(--shadow-glass);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden; /* Evita vazamentos estruturais */
+        }
+
+        /* Status e Timer */
+        .status-box {
+            text-align: center;
+            margin-bottom: 32px;
+            width: 100%;
+        }
+
+        .status-text {
+            font-size: 0.9rem;
+            color: rgba(248, 248, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .timer {
+            font-size: 3.5rem;
+            font-weight: 200;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -1px;
+        }
+
+        /* Botão de Gravação Principal */
+        .record-btn-box {
+            position: relative;
+            margin-bottom: 32px;
+        }
+
+        .main-btn {
+            width: 84px;
+            height: 84px;
+            border-radius: 50%;
+            border: none;
+            background: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.4);
+            z-index: 2;
+            position: relative;
+        }
+
+        .main-btn svg {
+            width: 32px;
+            height: 32px;
+            fill: currentColor;
+            transition: transform 0.2s;
+        }
+
+        /* Pulsação animada durante a gravação */
+        .main-btn.recording {
+            background: #ff4565;
+            box-shadow: 0 0 25px rgba(255, 69, 101, 0.5);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Área do Player de Áudio Gerado */
+        .preview-section {
+            width: 100%;
+            border-top: 1px solid var(--border-glass);
+            padding-top: 24px;
+            display: none; /* Oculto até que haja uma gravação */
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .preview-section.active {
+            display: flex;
+        }
+
+        audio {
+            width: 100%;
+            height: 40px;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        /* Customização simples do player nativo para combinar com o tema escuro */
+        audio::-webkit-media-controls-panel {
+            background-color: rgba(22, 13, 41, 0.9);
+        }
+        audio::-webkit-media-controls-current-time-display,
+        audio::-webkit-media-controls-time-remaining-display {
+            color: var(--text-color);
+        }
+
+        .discard-btn {
+            background: rgba(255, 69, 101, 0.15);
+            border: 1px solid rgba(255, 69, 101, 0.3);
+            color: #ff4565;
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .discard-btn:hover {
+            background: rgba(255, 69, 101, 0.25);
+        }
+
+        /* Animações */
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 69, 101, 0.4); }
+            70% { transform: scale(1.04); box-shadow: 0 0 0 14px rgba(255, 69, 101, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 69, 101, 0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 380px) {
+            .recorder-container { padding: 24px 16px; }
+            .timer { font-size: 3rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="recorder-container">
+        <div class="status-box">
+            <div class="status-text" id="status-label">Pronto para Gravar</div>
+            <div class="timer" id="timer-display">00:00</div>
+        </div>
+
+        <div class="record-btn-box">
+            <button class="main-btn" id="record-btn" onclick="toggleRecording()">
+                <svg viewBox="0 0 24 24" id="btn-icon">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div class="preview-section" id="preview-panel">
+            <audio id="audio-player" controls></audio>
+            <button class="discard-btn" onclick="discardRecording()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px;">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                Excluir Gravação
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Elementos mapeados em cache para evitar re-scans pesados no DOM
+        const recordBtn = document.getElementById('record-btn');
+        const btnIcon = document.getElementById('btn-icon');
+        const statusLabel = document.getElementById('status-label');
+        const timerDisplay = document.getElementById('timer-display');
+        const previewPanel = document.getElementById('preview-panel');
+        const audioPlayer = document.getElementById('audio-player');
+
+        // Vetores SVG para troca de estado limpa
+        const svgIcons = {
+            mic: `<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"></path>`,
+            stop: `<rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>`
+        };
+
+        // Estado interno do Hardware e Contagem
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let audioStream = null;
+        let isRecording = false;
+        let timerInterval = null;
+        let secondsElapsed = 0;
+        let currentAudioUrl = null;
+
+        async function toggleRecording() {
+            if (!isRecording) {
+                // Solicita acesso ao microfone de forma assíncrona
+                try {
+                    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioChunks = []; // Reseta os pedaços anteriores de áudio
+                    
+                    mediaRecorder = new MediaRecorder(audioStream);
+                    
+                    // Evento disparado enquanto o áudio é processado em tempo real
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            audioChunks.push(event.data);
+                        }
+                    };
+
+                    // Evento final ao encerrar o fluxo físico de gravação
+                    mediaRecorder.onstop = () => {
+                        // Cria um blob unificado do tipo audio/webm ou container equivalente do navegador
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        
+                        // Limpa cache de URL antiga se houver para evitar estouro de memória RAM
+                        if (currentAudioUrl) {
+                            URL.revokeObjectURL(currentAudioUrl);
+                        }
+                        
+                        currentAudioUrl = URL.createObjectURL(audioBlob);
+                        audioPlayer.src = currentAudioUrl;
+                        
+                        // Exibe o painel do player
+                        previewPanel.classList.add('active');
+                    };
+
+                    // Inicia a captura de dados do hardware
+                    mediaRecorder.start();
+                    
+                    // Ajustes de estado e interface
+                    isRecording = true;
+                    secondsElapsed = 0;
+                    updateTimerDisplay();
+                    timerInterval = setInterval(updateTimer, 1000);
+
+                    recordBtn.classList.add('recording');
+                    btnIcon.innerHTML = svgIcons.stop;
+                    statusLabel.innerText = "Gravando Áudio...";
+                    previewPanel.classList.remove('active'); // Oculta player antigo durante nova gravação
+
+                } catch (err) {
+                    statusLabel.innerText = "Erro: Sem permissão";
+                    statusLabel.style.color = "#ff4565";
+                }
+            } else {
+                // Interrompe gravação
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+                
+                // Desliga o microfone fisicamente (Garante privacidade e economiza bateria/processamento)
+                if (audioStream) {
+                    audioStream.getTracks().forEach(track => track.stop());
+                }
+
+                // Reseta timers e estados da interface
+                clearInterval(timerInterval);
+                isRecording = false;
+                
+                recordBtn.classList.remove('recording');
+                btnIcon.innerHTML = svgIcons.mic;
+                statusLabel.innerText = "Gravação Concluída";
+                statusLabel.style.color = "rgba(248, 248, 255, 0.5)";
+            }
+        }
+
+        function updateTimer() {
+            secondsElapsed++;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(secondsElapsed / 60);
+            const seconds = secondsElapsed % 60;
+            timerDisplay.innerText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function discardRecording() {
+            // Remove a URL da memória interna do navegador imediatamente (Garbage Collection)
+            if (currentAudioUrl) {
+                URL.revokeObjectURL(currentAudioUrl);
+                currentAudioUrl = null;
+            }
+            
+            audioPlayer.src = '';
+            previewPanel.classList.remove('active');
+            statusLabel.innerText = "Pronto para Gravar";
+            timerDisplay.innerText = "00:00";
+        }
+    </script>
+</body>
+</html>
