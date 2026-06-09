@@ -21,7 +21,14 @@
             --gx-text-glow: rgba(138, 43, 226, 0.8);
         }
 
-        body { background-color: var(--bg-color); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; padding-bottom: 180px; }
+        body { 
+            background-color: var(--bg-color); 
+            font-family: 'Segoe UI', sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            padding-bottom: 180px; 
+            overflow-x: hidden; /* Evita que a página toda deslize para as laterais */
+        }
 
         .view { display: none; }
         .view.active { display: block; }
@@ -45,6 +52,7 @@
         .brand-header {
             margin-bottom: 25px;
             text-align: center;
+            max-width: 100%;
         }
         .brand-logo {
             font-size: 2.2rem; /* Reduzido de 3.5rem para um tamanho elegante no mobile */
@@ -53,12 +61,13 @@
             letter-spacing: -1px;
             margin: 0;
             text-shadow: 0 4px 10px rgba(138, 43, 226, 0.15);
+            word-wrap: break-word;
         }
 
         .search-container { 
             display: flex; 
             align-items: center; 
-            padding: 10px 20px; 
+            padding: 10px 15px; 
             background: var(--glass-bg); 
             backdrop-filter: blur(15px); 
             border: 1px solid var(--glass-border); 
@@ -68,9 +77,101 @@
             width: 100%;
             max-width: 584px; /* Largura padrão idêntica à barra do Google */
             box-sizing: border-box;
+            overflow: hidden; /* Garante que os seletores não quebrem a borda arredondada */
         }
-        .search-input { flex-grow: 1; background: transparent; border: none; padding: 10px; color: var(--primary-color); outline: none; }
-        .mic-btn, .search-btn { cursor: pointer; color: var(--primary-color); margin-left: 10px; font-size: 1.2rem; padding: 5px; }
+        
+        /* Botão acionador do mini menu flutuante */
+        .search-engine-trigger {
+            background: transparent;
+            border: none;
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+            margin-right: 4px;
+            padding-right: 8px;
+            border-right: 1px solid var(--glass-border);
+            max-width: 110px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Overlay escurecido de fundo para o menu flutuante */
+        .engine-menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(3px);
+            z-index: 20000;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .engine-menu-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Mini menu flutuante - desliza de baixo para cima */
+        .engine-drawer-menu {
+            position: fixed;
+            bottom: -100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 360px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px 24px 24px 24px;
+            padding: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            z-index: 20001;
+            box-sizing: border-box;
+            transition: bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            margin-bottom: 20px; /* Margemzinha estilosa flutuante do fundo */
+        }
+        .engine-drawer-menu.active {
+            bottom: 0;
+        }
+        .engine-menu-option {
+            padding: 12px 16px;
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border-radius: 14px;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .engine-menu-option:hover {
+            background: rgba(138, 43, 226, 0.08);
+        }
+        .engine-menu-option.selected {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .search-input { 
+            flex-grow: 1; 
+            min-width: 50px; /* Garante flexibilidade para encolher no mobile sem vazar */
+            background: transparent; 
+            border: none; 
+            padding: 10px 5px; 
+            color: var(--primary-color); 
+            outline: none; 
+        }
+        .mic-btn, .search-btn { cursor: pointer; color: var(--primary-color); margin-left: 8px; font-size: 1.1rem; padding: 5px; flex-shrink: 0; }
 
         /* ==========================================================================
            CONTAINER DE CARDS FIDELIZADO AO SPEED DIAL DO OPERA GX
@@ -183,67 +284,70 @@
         }
 
         .lang-container { display: flex; gap: 8px; padding: 10px 20px; overflow-x: auto; background: white; border-bottom: 1px solid #eee; }
-        .lang-btn { background: #f0f0f0; border: none; padding: 6px 14px; border-radius: 15px; cursor: pointer; color: var(--primary-color); font-weight: bold; font-size: 0.75rem; transition: all 0.3s; }
+        .lang-btn { background: #f0f0f0; border: none; padding: 6px 14px; border-radius: 15px; cursor: pointer; color: var(--primary-color); font-weight: bold; font-size: 0.75rem; transition: all 0.3s; flex-shrink: 0; }
         .lang-btn.active { background: var(--primary-color); color: white; }
 
         .modal-full { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; overflow-y: auto; color: #202124; }
-        .modal-header { padding: 15px; display: flex; align-items: center; border-bottom: 1px solid #dfe1e5; background: white; position: sticky; top: 0; z-index: 10; }
+        .modal-header { padding: 15px; display: flex; align-items: center; border-bottom: 1px solid #dfe1e5; background: white; position: sticky; top: 0; z-index: 10; box-sizing: border-box; }
         
         .modal-tabbar { display: flex; gap: 25px; padding: 0 20px; background: white; overflow-x: auto; white-space: nowrap; border-bottom: 1px solid #eee; }
-        .tab-item-modal { padding: 15px 0; cursor: pointer; color: #70757a; font-size: 1rem; position: relative; transition: color 0.3s ease; }
+        .tab-item-modal { padding: 15px 0; cursor: pointer; color: #70757a; font-size: 1rem; position: relative; transition: color 0.3s ease; flex-shrink: 0; }
         .tab-item-modal:hover { color: var(--primary-color); }
         .tab-item-modal.active { color: #000; font-weight: 700; }
         .tab-item-modal.active::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 2px; background-color: var(--primary-color); }
 
-        .modal-content-body { padding: 20px; max-width: 700px; margin: 0 auto; }
-        .result-item { margin-bottom: 25px; padding: 15px; border-radius: 15px; background: #fdfdfd; border: 1px solid #eee; }
-        .result-title { color: #1a0dab; font-size: 20px; margin-bottom: 5px; cursor: pointer; display: block; font-weight: bold; text-decoration: underline; }
-        .result-snippet { line-height: 1.5; color: #4d5156; font-size: 14px; }
+        .modal-content-body { padding: 20px; max-width: 700px; margin: 0 auto; box-sizing: border-box; }
+        .result-item { margin-bottom: 25px; padding: 15px; border-radius: 15px; background: #fdfdfd; border: 1px solid #eee; box-sizing: border-box; word-wrap: break-word; }
+        .result-title { color: #1a0dab; font-size: 20px; margin-bottom: 5px; cursor: pointer; display: block; font-weight: bold; text-decoration: underline; word-wrap: break-word; }
+        .result-snippet { line-height: 1.5; color: #4d5156; font-size: 14px; word-wrap: break-word; }
 
         .web-search-list { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
-        .web-search-item { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 15px; text-decoration: none; color: var(--primary-color); font-weight: 600; transition: background 0.3s; }
+        .web-search-item { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 15px; text-decoration: none; color: var(--primary-color); font-weight: 600; transition: background 0.3s; box-sizing: border-box; }
         .web-search-item:hover { background: rgba(138, 43, 226, 0.1); }
-        .web-search-item i { font-size: 1.2rem; }
+        .web-search-item i { font-size: 1.2rem; flex-shrink: 0; }
+        .web-search-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 10px; }
 
-        .spotify-card { display: flex; align-items: center; padding: 10px; border-radius: 12px; transition: background 0.3s; margin-bottom: 8px; cursor: pointer; }
+        .spotify-card { display: flex; align-items: center; padding: 10px; border-radius: 12px; transition: background 0.3s; margin-bottom: 8px; cursor: pointer; box-sizing: border-box; max-width: 100%; overflow: hidden; }
         .spotify-card:hover { background: rgba(138, 43, 226, 0.05); }
-        .play-btn-round { background: var(--primary-color); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 14px; box-shadow: 0 4px 10px rgba(138, 43, 226, 0.3); }
-        .track-img { width: 50px; height: 50px; border-radius: 6px; margin-right: 15px; object-fit: cover; }
-        .track-info { flex: 1; }
-        .track-name { font-weight: 600; font-size: 15px; color: #121212; }
-        .track-artist { font-size: 13px; color: #6a6a6a; margin-top: 2px; }
-        .stream-icon { font-size: 1.2rem; color: var(--primary-color); padding: 10px; }
+        .play-btn-round { background: var(--primary-color); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 14px; box-shadow: 0 4px 10px rgba(138, 43, 226, 0.3); flex-shrink: 0; }
+        .track-img { width: 50px; height: 50px; border-radius: 6px; margin-right: 15px; object-fit: cover; flex-shrink: 0; }
+        .track-info { flex: 1; overflow: hidden; }
+        .track-name { font-weight: 600; font-size: 15px; color: #121212; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .track-artist { font-size: 13px; color: #6a6a6a; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .stream-icon { font-size: 1.2rem; color: var(--primary-color); padding: 10px; flex-shrink: 0; }
 
-        .player-bar { position: fixed; bottom: 100px; left: 5%; width: 90%; background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 20px; display: none; align-items: center; padding: 10px; z-index: 1500; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .player-bar { position: fixed; bottom: 100px; left: 5%; width: 90%; background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 20px; display: none; align-items: center; padding: 10px; z-index: 1500; box-shadow: 0 10px 30px rgba(0,0,0,0.1); box-sizing: border-box; }
         .player-bar.active { display: flex; }
-        .player-thumb { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; margin-right: 15px; }
-        .player-info { flex: 1; font-size: 0.9rem; overflow: hidden; }
+        .player-thumb { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; margin-right: 15px; flex-shrink: 0; }
+        .player-info { flex: 1; font-size: 0.9rem; overflow: hidden; margin-right: 10px; }
+        .player-info div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         
-        .progress-wrapper { position: relative; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .progress-wrapper { position: relative; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
         .progress-wrapper svg { transform: rotate(-90deg); position: absolute; width: 100%; height: 100%; }
         .progress-circle-bg { fill: none; stroke: rgba(0,0,0,0.1); stroke-width: 3; }
         .progress-circle-fill { fill: none; stroke: var(--primary-color); stroke-width: 3; stroke-dasharray: 125.6; stroke-dashoffset: 125.6; transition: stroke-dashoffset 0.1s linear; stroke-linecap: round; }
-        .player-controls { font-size: 1.2rem; color: var(--primary-color); z-index: 1; display: flex; align-items: center; gap: 15px; }
+        .player-controls { font-size: 1.2rem; color: var(--primary-color); z-index: 1; display: flex; align-items: center; gap: 15px; flex-shrink: 0; }
 
         .close-player { cursor: pointer; color: var(--primary-color); font-size: 1.2rem; padding: 5px; }
 
-        .edit-btn { background: var(--primary-color); color: white; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; }
+        .edit-btn { background: var(--primary-color); color: white; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; max-width: 100%; box-sizing: border-box; }
 
-        .list-container { display: flex; flex-direction: column; gap: 10px; }
-        .list-item { text-decoration: none; display: flex; align-items: center; padding: 18px 20px; background: var(--glass-bg); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border); cursor: pointer; color: var(--primary-color); }
-        .list-item i { margin-right: 15px; font-size: 1.2rem; }
+        .list-container { display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
+        .list-item { text-decoration: none; display: flex; align-items: center; padding: 18px 20px; background: var(--glass-bg); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid var(--glass-border); cursor: pointer; color: var(--primary-color); box-sizing: border-box; overflow: hidden; }
+        .list-item i { margin-right: 15px; font-size: 1.2rem; flex-shrink: 0; }
+        .list-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         .modal-iframe-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(15px); z-index: 10000; }
         .modal-iframe-content { width: 100%; height: 100%; background: rgba(255,255,255,0.05); position: relative; }
         .modal-iframe-content iframe { width: 100%; height: 100%; border: none; }
         .close-iframe-btn { position: absolute; top: 20px; right: 25px; font-size: 35px; color: var(--bg-color); background: transparent; border: none; cursor: pointer; z-index: 10001; }
 
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); backdrop-filter: blur(5px); z-index: 2000; align-items: center; justify-content: center; }
-        .modal { width: 85%; max-width: 350px; background: white; padding: 25px; border-radius: 25px; border: 1px solid var(--glass-border); text-align: center; color: var(--primary-color); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); backdrop-filter: blur(5px); z-index: 2000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
+        .modal { width: 100%; max-width: 350px; background: white; padding: 25px; border-radius: 25px; border: 1px solid var(--glass-border); text-align: center; color: var(--primary-color); box-shadow: 0 10px 30px rgba(0,0,0,0.2); box-sizing: border-box; }
         
         /* ==========================================================================
            TABBAR EVOLUTIVA (FECHAMENTO CENTRALIZADO + ÍCONE DE MAIS "+")
-           ========================================================================== */
+           ========================================================================= */
         .tabbar { 
             position: fixed; 
             bottom: 20px; 
@@ -325,6 +429,7 @@
             justify-content: center; 
             color: var(--primary-color); 
             font-size: 1.3rem; 
+            flex-shrink: 0;
         }
 
         .close-tabbar-btn {
@@ -342,6 +447,7 @@
             z-index: 1005;
             box-shadow: 0 4px 10px rgba(138, 43, 226, 0.2);
             transition: transform 0.2s ease;
+            flex-shrink: 0;
         }
         .close-tabbar-btn:active { transform: scale(0.9); }
 
@@ -375,6 +481,7 @@
             border-bottom: 1px solid #dfe1e5;
             background: white;
             z-index: 10;
+            box-sizing: border-box;
         }
         .recursos-modal-drag-handle {
             width: 40px;
@@ -401,6 +508,9 @@
             font-size: 1.2rem;
             color: var(--primary-color);
             text-transform: capitalize;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         
         /* Estilização otimizada para o Container do iframe */
@@ -443,8 +553,8 @@
             .tab-item-modal.active { color: var(--primary-color); }
             
             .modal-content-body { max-width: 1200px; margin: 0 auto; padding: 30px 10%; display: grid; grid-template-columns: 2fr 1fr; gap: 30px; align-items: start; }
-            .naver-main-col { display: flex; flex-direction: column; gap: 20px; }
-            .naver-section-card { background: white; border: 1px solid #e4e6eb; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+            .naver-main-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+            .naver-section-card { background: white; border: 1px solid #e4e6eb; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); box-sizing: border-box; word-wrap: break-word; }
             .naver-section-card h3 { margin-top: 0; margin-bottom: 18px; font-size: 1.15rem; font-weight: 700; color: #000; border-bottom: 1px solid #f1f3f5; padding-bottom: 10px; }
 
             .result-item { margin-bottom: 20px; padding: 0; background: transparent; border: none; border-radius: 0; }
@@ -454,7 +564,7 @@
             .result-item::before { content: "LoreSpace > WikiResult"; display: block; font-size: 0.78rem; color: #008000; opacity: 0.8; margin-bottom: 3px; }
             .result-snippet { color: #404040; font-size: 0.88rem; line-height: 1.6; }
 
-            .naver-sidebar { display: flex; flex-direction: column; gap: 20px; position: sticky; top: 90px; }
+            .naver-sidebar { display: flex; flex-direction: column; gap: 20px; position: sticky; top: 90px; min-width: 0; }
             .web-search-list { gap: 8px; margin-top: 0; }
             .web-search-item { border-radius: 6px; padding: 12px 15px; font-size: 0.9rem; }
         }
@@ -467,6 +577,9 @@
             <h1 class="brand-logo">LoreSpace</h1>
         </header>
         <div class="search-container">
+            <button id="search-engine-trigger" class="search-engine-trigger" onclick="openEngineMenu()">
+                <span id="current-engine-text">LoreSpace</span> <i class="fas fa-chevron-up" style="font-size: 0.7rem;"></i>
+            </button>
             <input type="text" id="main-search" placeholder="Buscar no LoreSpace..." class="search-input" onkeypress="handleSearch(event)">
             <i class="fas fa-microphone mic-btn" onclick="startVoiceSearch()"></i>
             <i class="fas fa-search search-btn" onclick="triggerSearch()"></i>
@@ -530,6 +643,17 @@
         </section>
     </div>
 
+    <div id="engine-menu-overlay" class="engine-menu-overlay" onclick="closeEngineMenu()"></div>
+    <div id="engine-drawer-menu" class="engine-drawer-menu">
+        <div class="engine-menu-option selected" data-value="lorespace" onclick="selectEngine('lorespace', 'LoreSpace')">LoreSpace <i class="fas fa-check"></i></div>
+        <div class="engine-menu-option" data-value="web" onclick="selectEngine('web', 'Web (Google)')">Web (Google) <i class="fas fa-check" style="display:none;"></i></div>
+        <div class="engine-menu-option" data-value="music" onclick="selectEngine('music', 'Música')">Música <i class="fas fa-check" style="display:none;"></i></div>
+        <div class="engine-menu-option" data-value="video" onclick="selectEngine('video', 'Vídeo')">Vídeo <i class="fas fa-check" style="display:none;"></i></div>
+        <div class="engine-menu-option" data-value="imagem" onclick="selectEngine('imagem', 'Imagem')">Imagem <i class="fas fa-check" style="display:none;"></i></div>
+        <div class="engine-menu-option" data-value="noticias" onclick="selectEngine('noticias', 'Notícias')">Notícias <i class="fas fa-check" style="display:none;"></i></div>
+        <div class="engine-menu-option" data-value="comunidade" onclick="selectEngine('comunidade', 'Comunidade')">Comunidade <i class="fas fa-check" style="display:none;"></i></div>
+    </div>
+
     <div id="recursos-modal" class="recursos-slide-modal">
         <div class="recursos-modal-header" id="recursos-modal-header">
             <div class="recursos-modal-drag-handle"></div>
@@ -576,9 +700,9 @@
                 <i class="fas fa-arrow-left" onclick="closeWikiPreview()" style="position: absolute; top: 20px; left: 20px; font-size: 1.5rem; color: white; cursor: pointer; z-index: 10; text-shadow: 0 0 5px rgba(0,0,0,0.5);"></i>
             </div>
             
-            <div style="padding: 20px; background: white; border-radius: 30px 30px 0 0; margin-top: -30px; min-height: 400px; box-shadow: 0 -5px 20px rgba(0,0,0,0.05);">
-                <h2 id="preview-title" style="margin: 0 0 20px 0; color: #333; text-align: center;">Título</h2>
-                <div id="preview-content" style="color: #444; line-height: 1.6; font-size: 1rem; margin-bottom: 20px;">Carregando...</div>
+            <div style="padding: 20px; background: white; border-radius: 30px 30px 0 0; margin-top: -30px; min-height: 400px; box-shadow: 0 -5px 20px rgba(0,0,0,0.05); box-sizing: border-box;">
+                <h2 id="preview-title" style="margin: 0 0 20px 0; color: #333; text-align: center; word-wrap: break-word;">Título</h2>
+                <div id="preview-content" style="color: #444; line-height: 1.6; font-size: 1rem; margin-bottom: 20px; word-wrap: break-word;">Carregando...</div>
                 <a id="preview-link" href="#" target="_blank" class="edit-btn" style="display:block; text-align:center; text-decoration:none;">Ler artigo completo</a>
             </div>
         </div>
@@ -639,6 +763,42 @@
     </nav>
 
     <script>
+        /* Variável de estado global para rastrear o motor ativo */
+        let activeSearchEngine = 'lorespace';
+
+        function openEngineMenu() {
+            document.getElementById('engine-menu-overlay').classList.add('active');
+            document.getElementById('engine-drawer-menu').classList.add('active');
+        }
+
+        function closeEngineMenu() {
+            document.getElementById('engine-menu-overlay').classList.remove('active');
+            document.getElementById('engine-drawer-menu').classList.remove('active');
+        }
+
+        function selectEngine(value, label) {
+            activeSearchEngine = value;
+            document.getElementById('current-engine-text').innerText = label;
+            
+            // Atualiza os ícones de check visuais dentro das opções do menu flutuante
+            document.querySelectorAll('.engine-menu-option').forEach(option => {
+                option.classList.remove('selected');
+                const checkIcon = option.querySelector('.fa-check');
+                if (checkIcon) checkIcon.style.display = 'none';
+            });
+            
+            const selectedOption = document.querySelector(`.engine-menu-option[data-value="${value}"]`);
+            if (selectedOption) {
+                selectedOption.classList.add('selected');
+                const checkIcon = selectedOption.querySelector('.fa-check');
+                if (checkIcon) checkIcon.style.display = 'block';
+            }
+            
+            // Muda o placeholder de forma contextualizada
+            document.getElementById('main-search').placeholder = `Buscar no ${label}...`;
+            closeEngineMenu();
+        }
+
         function expandTabbar(event) {
             const tabbar = document.getElementById('main-tabbar');
             if (!tabbar.classList.contains('expanded')) {
@@ -700,7 +860,42 @@
         
         function triggerSearch() {
             const term = document.getElementById('main-search').value;
-            if(term) openDetail(term);
+            const engine = activeSearchEngine; // Substituído para ler a variável global do menu flutuante
+            
+            if (!term) return;
+
+            let url = '';
+            const encodedTerm = encodeURIComponent(term);
+
+            switch(engine) {
+                case 'web':
+                    url = `https://www.google.com/search?q=${encodedTerm}`;
+                    window.open(url, '_blank');
+                    break;
+                case 'music':
+                    url = `https://music.youtube.com/search?q=${encodedTerm}`;
+                    window.open(url, '_blank');
+                    break;
+                case 'video':
+                    url = `https://www.youtube.com/results?search_query=${encodedTerm}`;
+                    window.open(url, '_blank');
+                    break;
+                case 'imagem':
+                    url = `https://br.pinterest.com/search/pins/?q=${encodedTerm}`;
+                    window.open(url, '_blank');
+                    break;
+                case 'noticias':
+                    url = `https://www.google.com/search?q=${encodedTerm}&tbm=nws`;
+                    window.open(url, '_blank');
+                    break;
+                case 'comunidade':
+                    url = `https://www.reddit.com/search/?q=${encodedTerm}`;
+                    window.open(url, '_blank');
+                    break;
+                default:
+                    openDetail(term);
+                    break;
+            }
         }
 
         function setLanguage(lang, element) {
@@ -916,7 +1111,6 @@
         let touchMoveY = 0;
         let isDragging = false;
 
-        // Modificado para carregar arquivos .html mapeados individualmente
         function openRecursoModal(recursoNome) {
             const title = document.getElementById('recursos-modal-title');
             
@@ -925,7 +1119,6 @@
             
             title.innerText = recursoNome;
 
-            // Dicionário mapeando cada recurso para o seu arquivo HTML específico
             const paginasRecursos = {
                 'ferramentas': './Recursos/Ferramentas/Index.html',
                 'shop': './Recursos/Shop/Index.html',
@@ -934,7 +1127,6 @@
                 'news': './Recursos/News/Index.html'
             };
 
-            // Define o arquivo correto baseado na string enviada ou fallback genérico
             const paginaAlvo = paginasRecursos[recursoNome.toLowerCase()] || '404.html';
             recursosIframe.src = paginaAlvo;
             
@@ -942,7 +1134,6 @@
             document.body.style.overflow = 'hidden'; 
         }
 
-        // Modificado para limpar o iframe ao fechar para poupar memória e resets de estado
         function closeRecursoModal() {
             recursosModal.style.transition = 'top 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
             recursosModal.style.top = '100%';
@@ -951,9 +1142,8 @@
             setTimeout(() => { recursosIframe.src = 'about:blank'; }, 400);
         }
 
-        // --- GESTOS HABILITADOS RESTRITAMENTE EM MOBILES/TABLETS ---
         modalHeader.addEventListener('touchstart', (e) => {
-            if (window.innerWidth >= 992) return; // Desativa lógica de arrasto no desktop
+            if (window.innerWidth >= 992) return; 
             touchStartY = e.touches[0].clientY;
             isDragging = true;
             recursosModal.style.transition = 'none';
@@ -989,4 +1179,4 @@
         });
     </script>
 </body>
-</html>
+            </html>
