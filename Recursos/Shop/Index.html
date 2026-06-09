@@ -14,11 +14,11 @@
         }
 
         body {
-            background-color: #f7f7fc; /* Fundo Ghost White da imagem */
+            background-color: #f7f7fc; /* Fundo Ghost White */
             height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow: hidden; /* Mantém a tela fixa, quem rola é o iframe */
+            overflow: hidden; 
             color: #1a1a1a;
         }
 
@@ -31,24 +31,21 @@
             padding: 14px 0;
             z-index: 1000;
             
-            /* Glassmorphism baseado no roxo da imagem */
+            /* Glassmorphism baseado no roxo */
             background: rgba(138, 43, 226, 0.08); 
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border-bottom: 1px solid rgba(138, 43, 226, 0.15);
             
-            /* Ativa rolagem horizontal contínua para as abas */
             overflow-x: auto;
             white-space: nowrap;
-            scrollbar-width: none; /* Oculta no Firefox */
+            scrollbar-width: none;
         }
 
-        /* Oculta barra de rolagem no Chrome/Safari/Edge */
         .top-tab-container::-webkit-scrollbar {
             display: none;
         }
 
-        /* Lista de abas */
         .tab-list {
             display: inline-flex;
             align-items: center;
@@ -59,11 +56,10 @@
             min-width: max-content;
         }
 
-        /* Item Individual (Estilo TikTok) */
         .tab-item {
             font-size: 16px;
             font-weight: 600;
-            color: rgba(138, 43, 226, 0.6); /* Roxo suavizado */
+            color: rgba(138, 43, 226, 0.6);
             cursor: pointer;
             transition: color 0.25s ease, transform 0.2s ease;
             position: relative;
@@ -71,31 +67,69 @@
             user-select: none;
         }
 
-        /* Aba Ativa (Branco Puro em destaque) */
         .tab-item.active {
-            color: #ffffff;
+            color: #8A2BE2;
             transform: scale(1.05);
         }
 
-        /* Linha Indicadora Inferior (Estilo TikTok) */
         .tab-indicator {
             position: absolute;
             bottom: -2px;
             height: 3px;
-            background-color: #ffffff;
+            background-color: #8A2BE2;
             border-radius: 2px;
             transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 6px rgba(138, 43, 226, 0.4);
         }
 
-        /* Iframe: Ocupa todo o espaço restante abaixo da barra */
-        .content-iframe {
+        /* ESTEIRA DE CONTEÚDO (Estilo React Navigation) */
+        .window-wrapper {
             flex: 1;
-            margin-top: 53px; /* Espaço para não cobrir a barra superior */
+            margin-top: 53px;
+            width: 100%;
+            height: calc(100% - 53px);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Container que armazena os iframes lado a lado */
+        .tabs-view-pager {
+            display: flex;
+            width: 200%; /* 100% para cada aba (2 abas = 200%) */
+            height: 100%;
+            will-change: transform;
+            /* Transição suave ativada apenas quando o usuário NÃO está arrastando */
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* Estado ativo durante o arrasto físico do dedo (remove o delay da transição) */
+        .tabs-view-pager.swiping {
+            transition: none;
+        }
+
+        /* Cada tela/sessão individual ocupando exatamente a largura do viewport */
+        .tab-page {
+            width: 50%; /* Metade do container de 200% = 100vw */
+            height: 100%;
+            position: relative;
+        }
+
+        .content-iframe {
             width: 100%;
             height: 100%;
-            border: none; /* Remove bordas padrão do iframe */
+            border: none;
             background-color: transparent;
+        }
+
+        /* Máscara invisível para capturar os gestos por cima do iframe sem bloqueios */
+        .swipe-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            display: none; /* Ativado via JS apenas no início do movimento lateral */
         }
     </style>
 </head>
@@ -103,43 +137,131 @@
 
     <nav class="top-tab-container">
         <ul class="tab-list">
-            <li class="tab-item active" data-file="padrao.html" onclick="moveIndicator(this)">Padrão</li>
-            <li class="tab-item" data-file="ebooks.html" onclick="moveIndicator(this)">E-books</li>
+            <li class="tab-item active" onclick="switchTab(0)">Padrão</li>
+            <li class="tab-item" onclick="switchTab(1)">E-books</li>
             <div class="tab-indicator" id="indicator"></div>
         </ul>
     </nav>
 
-    <iframe class="content-iframe" id="content-viewport" src=""></iframe>
+    <div class="window-wrapper" id="gesture-zone">
+        <div class="tabs-view-pager" id="view-pager">
+            
+            <div class="tab-page">
+                <div class="swipe-overlay"></div>
+                <iframe class="content-iframe" src="padrao.html"></iframe>
+            </div>
+
+            <div class="tab-page">
+                <div class="swipe-overlay"></div>
+                <iframe class="content-iframe" src="ebooks.html"></iframe>
+            </div>
+
+        </div>
+    </div>
 
     <script>
-        function moveIndicator(element) {
-            const items = document.querySelectorAll('.tab-item');
-            items.forEach(item => item.classList.remove('active'));
+        const pager = document.getElementById('view-pager');
+        const gestureZone = document.getElementById('gesture-zone');
+        const tabs = Array.from(document.querySelectorAll('.tab-item'));
+        const overlays = document.querySelectorAll('.swipe-overlay');
+        
+        let activeIndex = 0;
+        let startX = 0;
+        let currentX = 0;
+        let isSwiping = false;
+        let windowWidth = window.innerWidth;
 
-            element.classList.add('active');
+        // Atualiza a largura capturada caso o dispositivo mude de orientação
+        window.addEventListener('resize', () => {
+            windowWidth = window.innerWidth;
+            updateTabPosition(activeIndex, false);
+        });
 
-            const indicator = document.getElementById('indicator');
-            indicator.style.width = `${element.offsetWidth}px`;
-            indicator.style.left = `${element.offsetLeft}px`;
+        // Altera a aba ativa, move a linha e desloca a esteira de conteúdo
+        function switchTab(index) {
+            activeIndex = index;
             
-            element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            tabs.forEach((item, i) => {
+                item.classList.remove('active');
+                if(i === index) item.classList.add('active');
+            });
 
-            // Altera o 'src' do iframe para navegar para a ferramenta correspondente
-            const targetFile = element.getAttribute('data-file');
-            document.getElementById('content-viewport').src = targetFile;
+            const activeElement = tabs[index];
+            const indicator = document.getElementById('indicator');
+            indicator.style.width = `${activeElement.offsetWidth}px`;
+            indicator.style.left = `${activeElement.offsetLeft}px`;
+            activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+
+            updateTabPosition(index, true);
         }
 
-        // Carrega a ferramenta padrão assim que a estrutura do DOM estiver pronta
-        window.addEventListener('DOMContentLoaded', () => {
-            const activeTab = document.querySelector('.tab-item.active');
-            if (activeTab) {
-                const indicator = document.getElementById('indicator');
-                indicator.style.width = `${activeTab.offsetWidth}px`;
-                indicator.style.left = `${activeTab.offsetLeft}px`;
-                
-                // Define o link inicial do iframe (padrao.html)
-                document.getElementById('content-viewport').src = activeTab.getAttribute('data-file');
+        function updateTabPosition(index, animate) {
+            if (!animate) pager.classList.add('swiping');
+            // Move a esteira horizontalmente baseado na largura da tela
+            pager.style.transform = `translateX(-${index * (100 / tabs.length)}%)`;
+            if (!animate) setTimeout(() => pager.classList.remove('swiping'), 50);
+        }
+
+        // --- GESTOS NATIVOS (TOUCH CORRIDO) ---
+
+        gestureZone.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            isSwiping = true;
+        }, { passive: true });
+
+        gestureZone.addEventListener('touchmove', (e) => {
+            if (!isSwiping) return;
+            
+            currentX = e.touches[0].clientX;
+            const deltaX = currentX - startX;
+
+            // Evita arrastar para além dos limites das pontas (efeito elástico leve)
+            if ((activeIndex === 0 && deltaX > 0) || (activeIndex === tabs.length - 1 && deltaX < 0)) {
+                return; 
             }
+
+            // Ativa as máscaras temporariamente para que o mouse/dedo não seja "capturado" pelo iframe
+            overlays.forEach(overlay => overlay.style.display = 'block');
+            pager.classList.add('swiping');
+
+            // Calcula o deslocamento exato em pixels convertido para a porcentagem do container
+            const currentTransform = -(activeIndex * windowWidth) + deltaX;
+            const percentageMove = (currentTransform / (windowWidth * tabs.length)) * 100;
+            
+            pager.style.transform = `translateX(${percentageMove}%)`;
+        }, { passive: true });
+
+        gestureZone.addEventListener('touchend', (e) => {
+            if (!isSwiping) return;
+            isSwiping = false;
+            
+            pager.classList.remove('swiping');
+            overlays.forEach(overlay => overlay.style.display = 'none');
+
+            const finalDeltaX = currentX - startX;
+            const swipeThreshold = windowWidth * 0.25; // Exige 25% de arrasto da tela para computar a troca
+
+            // Se arrastou o suficiente para a direita e não é a primeira aba
+            if (finalDeltaX > swipeThreshold && activeIndex > 0) {
+                switchTab(activeIndex - 1);
+            } 
+            // Se arrastou o suficiente para a esquerda e não é a última aba
+            else if (finalDeltaX < -swipeThreshold && activeIndex < tabs.length - 1) {
+                switchTab(activeIndex + 1);
+            } 
+            // Se não arrastou o suficiente, devolve para a aba atual (efeito mola)
+            else {
+                switchTab(activeIndex);
+            }
+
+            // Reseta variáveis
+            startX = 0;
+            currentX = 0;
+        });
+
+        // Configuração inicial do indicador no carregamento
+        window.addEventListener('DOMContentLoaded', () => {
+            switchTab(0);
         });
     </script>
 </body>
