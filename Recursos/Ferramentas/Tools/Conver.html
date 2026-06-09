@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor de Unidades Pro</title>
+    <style>
+        :root {
+            --primary-color: #8a2be2; /* blueviolet */
+            --primary-hover: #9933ff;
+            --text-color: #f8f8ff; /* ghostwhite */
+            --bg-glass: rgba(255, 255, 255, 0.06);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --shadow-glass: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0c1b, #241442, #0f0c1b);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .converter-container {
+            width: 100%;
+            max-width: 420px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 8px 32px 0 var(--shadow-glass);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Evita vazamentos estruturais */
+        }
+
+        /* Abas Superiores */
+        .tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-glass);
+            padding-bottom: 10px;
+            overflow-x: auto; /* Permite rolagem horizontal se necessário */
+            scrollbar-width: none; /* Esconde a barra no Firefox */
+            flex-shrink: 0;
+        }
+
+        .tabs::-webkit-scrollbar {
+            display: none; /* Esconde a barra no Chrome/Safari */
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: rgba(248, 248, 255, 0.5);
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .tab-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            flex-shrink: 0;
+        }
+
+        .tab-btn.active {
+            color: var(--text-color);
+            background: rgba(138, 43, 226, 0.2);
+            box-shadow: inset 0 0 10px rgba(138, 43, 226, 0.3);
+        }
+
+        /* Seção de Inputs */
+        .converter-ui {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .converter-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-glass);
+            padding: 16px;
+            border-radius: 16px;
+            gap: 15px;
+            overflow: hidden;
+        }
+
+        .converter-row select {
+            background: #160d29;
+            color: var(--text-color);
+            border: 1px solid var(--border-glass);
+            padding: 8px 12px;
+            border-radius: 10px;
+            outline: none;
+            font-size: 0.9rem;
+            cursor: pointer;
+            flex-shrink: 0;
+            max-width: 150px;
+        }
+
+        .display-value {
+            font-size: 1.6rem;
+            font-weight: 300;
+            text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* Teclado Numérico Customizado */
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        button.key {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 1.1rem;
+            color: var(--text-color);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 500;
+        }
+
+        button.key:active {
+            transform: scale(0.96);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        button.key.action { color: #ff4565; }
+        button.key.negative { color: #3b82f6; }
+
+        @media (hover: hover) {
+            button.key:hover {
+                background: rgba(255, 255, 255, 0.08);
+                border-color: rgba(255, 255, 255, 0.2);
+            }
+        }
+
+        @media (max-width: 380px) {
+            .converter-container { padding: 16px; }
+            button.key { padding: 12px; font-size: 1rem; }
+            .display-value { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="converter-container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchCategory('weight', event)">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="6" r="3"></circle>
+                    <path d="M3 12h18l-3 9H6l-3-9z"></path>
+                </svg>
+                Peso
+            </button>
+            <button class="tab-btn" onclick="switchCategory('temperature', event)">
+                <svg viewBox="0 0 24 24">
+                    <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
+                </svg>
+                Temperatura
+            </button>
+            <button class="tab-btn" onclick="switchCategory('data', event)">
+                <svg viewBox="0 0 24 24">
+                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                    <line x1="6" y1="6" x2="6.01" y2="6" stroke-width="3" stroke-linecap="round"></line>
+                    <line x1="6" y1="18" x2="6.01" y2="18" stroke-width="3" stroke-linecap="round"></line>
+                </svg>
+                Dados
+            </button>
+            <button class="tab-btn" onclick="switchCategory('finance', event)">
+                <svg viewBox="0 0 24 24">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+                Financeiro
+            </button>
+        </div>
+
+        <div class="converter-ui">
+            <div class="converter-row">
+                <select id="unit-from" onchange="performConversion()"></select>
+                <div class="display-value" id="val-from">0</div>
+            </div>
+            <div class="converter-row" style="border-color: rgba(138, 43, 226, 0.3);">
+                <select id="unit-to" onchange="performConversion()"></select>
+                <div class="display-value" id="val-to" style="color: var(--primary-color); font-weight: 500;">0</div>
+            </div>
+        </div>
+
+        <div class="keypad">
+            <button class="key action" onclick="clearAll()">C</button>
+            <button class="key negative" id="neg-btn" onclick="toggleSign()" style="visibility: hidden;">±</button>
+            <button class="key action" onclick="backspace()">⌫</button>
+            <button class="key" onclick="pressNum('7')">7</button>
+
+            <button class="key" onclick="pressNum('8')">8</button>
+            <button class="key" onclick="pressNum('9')">9</button>
+            <button class="key" onclick="pressNum('4')">4</button>
+            <button class="key" onclick="pressNum('5')">5</button>
+
+            <button class="key" onclick="pressNum('6')">6</button>
+            <button class="key" onclick="pressNum('1')">1</button>
+            <button class="key" onclick="pressNum('2')">2</button>
+            <button class="key" onclick="pressNum('3')">3</button>
+
+            <button class="key" onclick="pressNum('0')" style="grid-column: span 2;">0</button>
+            <button class="key" onclick="pressDecimal()">.</button>
+        </div>
+    </div>
+
+    <script>
+        // Elementos do DOM em cache para evitar vazamentos de memória e re-scans lentos
+        const unitFromSelect = document.getElementById('unit-from');
+        const unitToSelect = document.getElementById('unit-to');
+        const valFromDisplay = document.getElementById('val-from');
+        const valToDisplay = document.getElementById('val-to');
+        const negBtn = document.getElementById('neg-btn');
+
+        // Estado Global Controlado
+        let currentInput = '0';
+        let currentCategory = 'weight';
+
+        // Definição das tabelas e lógicas de conversão estáveis
+        const conversionRules = {
+            weight: {
+                units: { 'Kilograma (kg)': 1, 'Gramas (g)': 1000, 'Libras (lb)': 2.20462, 'Onças (oz)': 35.274 },
+                convert: (val, from, to) => (val / conversionRules.weight.units[from]) * conversionRules.weight.units[to]
+            },
+            data: {
+                units: { 'Megabytes (MB)': 1, 'Kilobytes (KB)': 1024, 'Gigabytes (GB)': 0.0009765625, 'Bytes (B)': 1048576 },
+                convert: (val, from, to) => (val / conversionRules.data.units[from]) * conversionRules.data.units[to]
+            },
+            temperature: {
+                units: { 'Celsius (°C)': 'C', 'Fahrenheit (°F)': 'F', 'Kelvin (K)': 'K' },
+                convert: (val, from, to) => {
+                    const uFrom = conversionRules.temperature.units[from];
+                    const uTo = conversionRules.temperature.units[to];
+                    if (uFrom === uTo) return val;
+
+                    let celsius;
+                    if (uFrom === 'C') celsius = val;
+                    else if (uFrom === 'F') celsius = (val - 32) * 5 / 9;
+                    else if (uFrom === 'K') celsius = val - 273.15;
+
+                    if (uTo === 'C') return celsius;
+                    if (uTo === 'F') return (celsius * 9 / 5) + 32;
+                    if (uTo === 'K') return celsius + 273.15;
+                }
+            },
+            finance: {
+                // Taxas de câmbio baseadas e normalizadas tendo o Real (BRL) como referência 1:1
+                units: { 'Real (BRL)': 1, 'Dólar (USD)': 0.17, 'Euro (EUR)': 0.16 },
+                convert: (val, from, to) => (val / conversionRules.finance.units[from]) * conversionRules.finance.units[to]
+            }
+        };
+
+        function init() {
+            setupUnits();
+        }
+
+        // Alternância de abas sem acúmulo de listeners na pilha
+        function switchCategory(category, event) {
+            currentCategory = category;
+            currentInput = '0';
+
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            const targetButton = event.target.closest('.tab-btn');
+            if (targetButton) targetButton.classList.add('active');
+
+            // Habilita ou desabilita o botão de sinal negativo (apenas temperatura aceita valores negativos)
+            negBtn.style.visibility = (category === 'temperature') ? 'visible' : 'hidden';
+
+            setupUnits();
+        }
+
+        // Carrega opções nos selects limpando os nós anteriores
+        function setupUnits() {
+            unitFromSelect.innerHTML = '';
+            unitToSelect.innerHTML = '';
+
+            const activeUnits = Object.keys(conversionRules[currentCategory].units);
+
+            activeUnits.forEach(unit => {
+                const opt1 = document.createElement('option');
+                opt1.value = opt1.text = unit;
+                unitFromSelect.add(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = opt2.text = unit;
+                unitToSelect.add(opt2);
+            });
+
+            if (unitToSelect.options.length > 1) {
+                unitToSelect.selectedIndex = 1;
+            }
+
+            updateUI();
+        }
+
+        function pressNum(num) {
+            if (currentInput === '0') {
+                currentInput = num;
+            } else if (currentInput === '-0') {
+                currentInput = '-' + num;
+            } else {
+                currentInput += num;
+            }
+            updateUI();
+        }
+
+        function pressDecimal() {
+            if (!currentInput.includes('.')) {
+                currentInput += '.';
+            }
+            updateUI();
+        }
+
+        function toggleSign() {
+            if (currentCategory !== 'temperature') return;
+            if (currentInput.startsWith('-')) {
+                currentInput = currentInput.substring(1);
+            } else {
+                currentInput = '-' + currentInput;
+            }
+            updateUI();
+        }
+
+        function clearAll() {
+            currentInput = '0';
+            updateUI();
+        }
+
+        function backspace() {
+            currentInput = currentInput.slice(0, -1);
+            if (currentInput === '' || currentInput === '-') {
+                currentInput = '0';
+            }
+            updateUI();
+        }
+
+        // Processamento matemático isolado para prevenir estouros na tela
+        function performConversion() {
+            const numValue = parseFloat(currentInput) || 0;
+            const fromUnit = unitFromSelect.value;
+            const toUnit = unitToSelect.value;
+
+            if (!fromUnit || !toUnit) return;
+
+            const result = conversionRules[currentCategory].convert(numValue, fromUnit, toUnit);
+            
+            // Trunca casas decimais longas para evitar que o texto vaze da caixa
+            if (Number.isInteger(result)) {
+                valToDisplay.innerText = result;
+            } else {
+                valToDisplay.innerText = Number(result.toFixed(5)).toString();
+            }
+        }
+
+        function updateUI() {
+            valFromDisplay.innerText = currentInput;
+            performConversion();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
