@@ -414,16 +414,20 @@
             }
 
             tracks.forEach(track => {
-                const coverUrl = track.artworkUrl100;
+                // Garante HTTPS na url da imagem da capa externa
+                const coverUrl = track.artworkUrl100.replace('http://', 'https://');
+                // Garante HTTPS no streaming da prévia do áudio
+                const previewUrl = track.previewUrl ? track.previewUrl.replace('http://', 'https://') : '';
+                const viewUrl = track.trackViewUrl ? track.trackViewUrl.replace('http://', 'https://') : '#';
                 
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'ranking-item';
-                itemDiv.setAttribute('data-url', track.trackViewUrl);
-                itemDiv.setAttribute('data-preview', track.previewUrl);
+                itemDiv.setAttribute('data-url', viewUrl);
+                itemDiv.setAttribute('data-preview', previewUrl);
                 itemDiv.setAttribute('data-title', track.trackName);
                 itemDiv.setAttribute('data-author', track.artistName);
 
-                if (globalAudio.src === track.previewUrl && !globalAudio.paused) {
+                if (globalAudio.src === previewUrl && !globalAudio.paused) {
                     itemDiv.classList.add('playing');
                 }
 
@@ -449,37 +453,32 @@
 
         // --- Integração Dinâmica com Sistema de Cache (LocalStorage) ---
         async function fetchiTunesMusics(genre) {
-            // Chave identificadora única para o cache desse termo
             const cacheKey = `itunes_cache_${genre}`;
-            
-            // Tenta obter os dados já salvos no cache local
             const cachedData = localStorage.getItem(cacheKey);
             
             if (cachedData) {
                 try {
                     const parsedTracks = JSON.parse(cachedData);
                     renderMusicList(parsedTracks);
-                    return; // Retorna imediatamente sem tocar na API externa
+                    return;
                 } catch (e) {
                     console.warn("Erro ao ler cache antigo, buscando dados novos...", e);
                 }
             }
 
-            // Se não houver cache, exibe o loading e busca na API normalmente
             try {
                 rankingList.innerHTML = '<div class="loading-text">Buscando faixas...</div>';
                 
+                // Requisição sempre feita com o protocolo nativo HTTPS
                 const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(genre)}&media=music&limit=21`);
                 const data = await response.json();
                 
-                // Salva o array de resultados transformado em string JSON no cache
                 localStorage.setItem(cacheKey, JSON.stringify(data.results));
-                
                 renderMusicList(data.results);
 
             } catch (error) {
                 console.error('Erro ao carregar dados da API do iTunes:', error);
-                rankingList.innerHTML = '<div class="loading-text">Erro ao carregar músicas.</div>';
+                rankingList.innerHTML = '<div class="loading-text">Erro ao carregar músicas. Verifique a conexão.</div>';
             }
         }
 
@@ -495,6 +494,7 @@
 
                 const searchQuery = encodeURIComponent(`${title} ${author}`);
 
+                // Correção do link do Spotify e padronização com HTTPS obrigatório
                 linkSpotify.href = `https://open.spotify.com/search/${searchQuery}`;
                 linkYoutube.href = `https://music.youtube.com/search?q=${searchQuery}`;
                 linkAmazon.href = `https://music.amazon.com/search/${searchQuery}`;
@@ -512,6 +512,11 @@
                 const isCurrentlyPlaying = item.classList.contains('playing');
                 const previewUrl = item.getAttribute('data-preview');
                 const allItems = document.querySelectorAll('.ranking-item');
+
+                if (!previewUrl) {
+                    alert('Prévia de áudio indisponível para esta faixa.');
+                    return;
+                }
 
                 if (isCurrentlyPlaying) {
                     globalAudio.pause();
@@ -561,7 +566,6 @@
             lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
         });
 
-        // Inicializa o aplicativo carregando a primeira aba de hits globais
         fetchiTunesMusics('hits');
     </script>
 
