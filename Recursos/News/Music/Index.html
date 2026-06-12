@@ -367,12 +367,14 @@
     </div>
 
     <script>
-        // --- Gerenciador Global de Áudio Tratado contra CORS ---
+        // --- Memória Cache Global de Fallback para Iframes ---
+        window.sessionMemoryCache = {};
+
+        // --- Gerenciador Global de Áudio Tolerante ---
         const globalAudio = new Audio();
         globalAudio.loop = true;
-        globalAudio.crossOrigin = "anonymous"; // Evita bloqueio cruzado de CDN em domínios próprios
 
-        // --- Elementos do Menu Flutuante ---
+        // --- Elementos do Menu ---
         const backdrop = document.getElementById('menuBackdrop');
         const streamingSheet = document.getElementById('streamingSheet');
         const sheetMusicTitle = document.getElementById('sheetMusicTitle');
@@ -386,7 +388,7 @@
         const rankingList = document.getElementById('rankingList');
         const invisibleElement = document.getElementById('invisibleElement');
 
-        // --- Comportamento das Tags / Filtros Dinâmicos ---
+        // --- Comportamento das Tags ---
         const tags = document.querySelectorAll('.tag');
         tags.forEach(tag => {
             tag.addEventListener('click', () => {
@@ -405,7 +407,7 @@
             });
         });
 
-        // --- Renderizador Puro da Lista de Músicas ---
+        // --- Renderizador Fluido de Músicas ---
         function renderMusicList(tracks) {
             rankingList.innerHTML = '';
 
@@ -428,7 +430,7 @@
 
                 itemDiv.innerHTML = `
                     <div class="image-container">
-                        <img class="music-thumb" src="${track.artworkUrl100}" alt="Capa" crossorigin="anonymous">
+                        <img class="music-thumb" src="${track.artworkUrl100}" alt="Capa">
                         <div class="play-overlay-btn">
                             <span class="material-symbols-outlined">${itemDiv.classList.contains('playing') ? 'pause' : 'play_arrow'}</span>
                         </div>
@@ -446,60 +448,64 @@
             rankingList.appendChild(invisibleElement);
         }
 
-        // --- Arquitetura de Dados Limpa + Tratamento Completo da API ---
+        // --- Arquitetura Híbrida de Cache anti-Iframe ---
         async function fetchiTunesMusics(genre) {
-            const cacheKey = `itunes_cache_${genre.replace(/\s+/g, '_')}`;
-            const cachedData = localStorage.getItem(cacheKey);
+            const cleanKey = genre.replace(/\s+/g, '_');
+            const cacheKey = `itunes_cache_${cleanKey}`;
             
-            if (cachedData) {
-                try {
-                    const parsedTracks = JSON.parse(cachedData);
-                    renderMusicList(parsedTracks);
-                    return;
-                } catch (e) {
-                    localStorage.removeItem(cacheKey);
-                }
+            // 1. Tenta buscar da memória RAM local (Imbatível dentro de iframes)
+            if (window.sessionMemoryCache[cacheKey]) {
+                renderMusicList(window.sessionMemoryCache[cacheKey]);
+                return;
             }
 
+            // 2. Tenta buscar do LocalStorage (com tratamento contra bloqueio de segurança do iframe)
+            try {
+                const cachedData = localStorage.getItem(cacheKey);
+                if (cachedData) {
+                    const parsedTracks = JSON.parse(cachedData);
+                    window.sessionMemoryCache[cacheKey] = parsedTracks; // Salva na RAM para o próximo clique
+                    renderMusicList(parsedTracks);
+                    return;
+                }
+            } catch (storageError) {
+                // Se o iframe bloquear o LocalStorage, o código ignora silenciosamente e usa a memória RAM
+                console.warn("Ambiente Iframe restringiu o LocalStorage. Usando fallback de memória RAM.");
+            }
+
+            // 3. Requisição Limpa e Isolada para a API
             try {
                 rankingList.innerHTML = '<div class="loading-text">Buscando faixas...</div>';
                 
-                // Forçando cabeçalhos limpos via URL interpretada pelo iTunes API Gateway
-                const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(genre)}&media=music&limit=21`, {
-                    method: 'GET',
-                    mode: 'cors'
-                });
-                
-                if (!response.ok) throw new Error('Falha de resposta da API');
+                const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(genre)}&media=music&limit=21`);
+                if (!response.ok) throw new Error('Erro na requisição');
                 const data = await response.json();
                 
-                // TRATAMENTO DOS DADOS: Mapeia apenas as chaves estritamente necessárias salvando espaço vital no cache
                 const optimizedTracks = data.results.map(track => ({
-                    trackName: track.trackName || 'Faixa sem título',
+                    trackName: track.trackName || 'Faixa Sem Título',
                     artistName: track.artistName || 'Artista Desconhecido',
                     artworkUrl100: (track.artworkUrl100 || '').replace('http://', 'https://'),
                     previewUrl: (track.previewUrl || '').replace('http://', 'https://'),
                     trackViewUrl: (track.trackViewUrl || '').replace('http://', 'https://')
                 }));
 
-                // Gravação segura no LocalStorage de produção
+                // Grava na memória RAM imediatamente
+                window.sessionMemoryCache[cacheKey] = optimizedTracks;
+
+                // Tenta gravar no LocalStorage se permitido pelo iframe
                 try {
                     localStorage.setItem(cacheKey, JSON.stringify(optimizedTracks));
-                } catch (domException) {
-                    // Se o armazenamento local estiver lotado, limpa caches velhos e tenta reescrever
-                    localStorage.clear();
-                    localStorage.setItem(cacheKey, JSON.stringify(optimizedTracks));
-                }
+                } catch (e) {}
                 
                 renderMusicList(optimizedTracks);
 
             } catch (error) {
-                console.error('Erro crítico na arquitetura iTunes/CORS:', error);
-                rankingList.innerHTML = '<div class="loading-text">Erro ao carregar dados. Tente novamente mais tarde.</div>';
+                console.error('Erro de barramento no Iframe:', error);
+                rankingList.innerHTML = '<div class="loading-text">Erro ao carregar conteúdo dentro deste container.</div>';
             }
         }
 
-        // --- Interação e Redirecionamento Dinâmico ---
+        // --- Eventos e Redirecionamentos ---
         function setupItemEvents(item) {
             item.addEventListener('click', () => {
                 const title = item.getAttribute('data-title');
@@ -511,7 +517,6 @@
 
                 const searchQuery = encodeURIComponent(`${title} ${author}`);
 
-                // Links de redirecionamento higienizados via HTTPS para evitar quebra em domínios próprios
                 linkSpotify.href = `https://open.spotify.com/search/${searchQuery}`;
                 linkYoutube.href = `https://music.youtube.com/search?q=${searchQuery}`;
                 linkAmazon.href = `https://music.amazon.com/search/${searchQuery}`;
@@ -551,7 +556,7 @@
                     }
                     
                     globalAudio.play().catch(err => {
-                        console.warn("Reprodução bloqueada por políticas de CORS da Apple ou interação com a página:", err);
+                        console.warn("O Iframe bloqueou o autoplay de áudio.", err);
                         item.classList.remove('playing');
                         iconSpan.textContent = 'play_arrow';
                     });
@@ -566,7 +571,7 @@
             streamingSheet.classList.remove('active');
         }
 
-        // --- Lógica de Scroll Reverso ---
+        // --- Lógica do Scroll ---
         const subFilters = document.getElementById('subFilters');
         let lastScrollTop = 0;
 
@@ -584,7 +589,7 @@
             lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
         });
 
-        // Inicialização limpa do app
+        // Inicializa o app com segurança
         fetchiTunesMusics('hits');
     </script>
 
