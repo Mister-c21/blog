@@ -6,12 +6,14 @@
     <title>Cronômetro de Precisão Pro</title>
     <style>
         :root {
-            --primary-color: #8a2be2; /* blueviolet */
-            --primary-hover: #9933ff;
-            --text-color: #f8f8ff; /* ghostwhite */
-            --bg-glass: rgba(255, 255, 255, 0.06);
-            --border-glass: rgba(255, 255, 255, 0.1);
-            --shadow-glass: rgba(0, 0, 0, 0.3);
+            --primary-color: #ffffff; 
+            --primary-hover: #e6e6e6;
+            --text-color: #1d1d1f; /* Tom escuro para leitura no fundo claro */
+            --bg-glass: rgba(255, 255, 255, 0.4); /* Vidro claro adaptado */
+            --border-glass: rgba(0, 0, 0, 0.08);
+            --shadow-glass: rgba(0, 0, 0, 0.05);
+            --detail-violet: #8a2be2; /* Violeta para identidade e foco */
+            --detail-violet-hover: #9933ff;
         }
 
         * {
@@ -24,7 +26,7 @@
 
         body {
             min-height: 100vh;
-            background: linear-gradient(135deg, #0f0c1b, #241442, #0f0c1b);
+            background: linear-gradient(135deg, #ffffff, #f5f5f7, #ffffff); /* Fundo limpo e branco */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -45,7 +47,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            overflow: hidden; /* Evita vazamentos de elementos */
+            overflow: hidden;
         }
 
         /* Display do Cronômetro */
@@ -53,7 +55,7 @@
             display: flex;
             justify-content: center;
             align-items: baseline;
-            font-variant-numeric: tabular-nums; /* Evita movimentação dos números */
+            font-variant-numeric: tabular-nums;
             padding: 20px 0;
             margin-bottom: 24px;
             width: 100%;
@@ -68,9 +70,9 @@
         .time-ms {
             font-size: 1.6rem;
             font-weight: 400;
-            color: var(--primary-color);
+            color: var(--detail-violet); /* Destaque dos milissegundos em violeta */
             margin-left: 6px;
-            width: 45px; /* Tamanho fixo para conter a oscilação dos milissegundos */
+            width: 45px;
             text-align: left;
         }
 
@@ -86,7 +88,7 @@
         .control-btn {
             flex: 1;
             max-width: 120px;
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(0, 0, 0, 0.02);
             border: 1px solid var(--border-glass);
             border-radius: 16px;
             padding: 14px;
@@ -110,28 +112,35 @@
             stroke-width: 2;
         }
 
-        .control-btn:active {
+        .control-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .control-btn:active:not(:disabled) {
             transform: scale(0.95);
         }
 
         /* Estados Específicos dos Botões */
         .control-btn.start {
-            background: var(--primary-color);
+            background: var(--detail-violet); /* Botão de início em violeta */
             border-color: transparent;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(138, 43, 226, 0.2);
         }
-        .control-btn.start:hover { background: var(--primary-hover); }
+        .control-btn.start:hover { background: var(--detail-violet-hover); }
 
         .control-btn.stop {
-            background: rgba(255, 69, 101, 0.2);
-            border-color: rgba(255, 69, 101, 0.3);
+            background: rgba(255, 69, 101, 0.1);
+            border-color: rgba(255, 69, 101, 0.2);
             color: #ff4565;
         }
-        .control-btn.stop:hover { background: rgba(255, 69, 101, 0.3); }
+        .control-btn.stop:hover { background: rgba(255, 69, 101, 0.15); }
 
         @media (hover: hover) {
-            .control-btn:not(.start):not(.stop):hover {
-                background: rgba(255, 255, 255, 0.08);
-                border-color: rgba(255, 255, 255, 0.2);
+            .control-btn:not(.start):not(.stop):not(:disabled):hover {
+                background: rgba(0, 0, 0, 0.04);
+                border-color: rgba(0, 0, 0, 0.1);
             }
         }
 
@@ -140,7 +149,7 @@
             width: 100%;
             border-top: 1px solid var(--border-glass);
             padding-top: 20px;
-            display: none; /* Só aparece quando houver voltas */
+            display: none;
             flex-direction: column;
         }
 
@@ -166,7 +175,7 @@
         }
 
         .lap-item {
-            background: rgba(0, 0, 0, 0.15);
+            background: rgba(0, 0, 0, 0.02);
             border: 1px solid var(--border-glass);
             border-radius: 10px;
             padding: 10px 16px;
@@ -178,7 +187,7 @@
         }
 
         .lap-number {
-            color: rgba(248, 248, 255, 0.4);
+            color: rgba(0, 0, 0, 0.4);
             font-weight: 600;
         }
 
@@ -218,7 +227,6 @@
     </div>
 
     <script>
-        // Cache estrutural do DOM para evitar leaks e buscas repetitivas na árvore do navegador
         const displayMain = document.getElementById('display-main');
         const displayMs = document.getElementById('display-ms');
         const btnStartStop = document.getElementById('btn-start-stop');
@@ -230,14 +238,12 @@
         const lapsPanel = document.getElementById('laps-panel');
         const htmlLapsList = document.getElementById('html-laps-list');
 
-        // Estado Interno Controlado
         let timerInterval = null;
         let isRunning = false;
         let startTime = 0;
         let elapsedTime = 0;
         let laps = [];
 
-        // Estrutura de ícones SVG para troca dinâmica sem acúmulo de nós na árvore
         const icons = {
             play: `<polygon points="5 3 19 12 5 21 5 3"></polygon>`,
             pause: `<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>`,
@@ -245,17 +251,13 @@
             lap: `<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>`
         };
 
-        // Ação Principal: Iniciar / Pausar
         function handlePrimaryAction() {
             if (!isRunning) {
-                // Iniciar
                 isRunning = true;
                 startTime = Date.now() - elapsedTime;
                 
-                // Uso de intervalo de alta precisão (10ms)
                 timerInterval = setInterval(updateTime, 10);
                 
-                // Ajustes de Interface
                 btnStartStop.className = "control-btn stop";
                 labelPrimary.innerText = "Pausar";
                 iconPrimary.innerHTML = icons.pause;
@@ -264,10 +266,8 @@
                 labelSecondary.innerText = "Volta";
                 iconSecondary.innerHTML = icons.lap;
             } else {
-                // Pausar
                 isRunning = false;
                 
-                // Mata o processo imediatamente eliminando o risco de vazamento de memória em segundo plano
                 clearInterval(timerInterval);
                 timerInterval = null;
                 
@@ -280,14 +280,11 @@
             }
         }
 
-        // Ação Secundária: Marcar Volta / Resetar Tudo
         function handleSecondaryAction() {
             if (isRunning) {
-                // Modo Marcador de Volta (Lap)
-                laps.unshift(elapsedTime); // Insere a última volta no topo da lista
+                laps.unshift(elapsedTime);
                 renderLaps();
             } else {
-                // Modo Reset Completo
                 isRunning = false;
                 clearInterval(timerInterval);
                 timerInterval = null;
@@ -295,7 +292,6 @@
                 elapsedTime = 0;
                 laps = [];
                 
-                // Reseta Displays e UI
                 displayMain.innerText = "00:00:00";
                 displayMs.innerText = ".00";
                 
@@ -307,11 +303,10 @@
                 labelSecondary.innerText = "Reset";
                 iconSecondary.innerHTML = icons.reset;
                 
-                renderLaps(); // Limpa a seção de voltas da tela
+                renderLaps();
             }
         }
 
-        // Engine de cálculo temporal
         function updateTime() {
             elapsedTime = Date.now() - startTime;
             
@@ -321,7 +316,6 @@
             const minutes = Math.floor(totalSeconds / 60) % 60;
             const hours = Math.floor(totalSeconds / 3600);
 
-            // Formatação com preenchimento de zeros para tamanho estático
             const formattedMain = 
                 `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
             
@@ -329,9 +323,7 @@
             displayMs.innerText = `.${String(ms).padStart(2, '0')}`;
         }
 
-        // Renderizador das voltas coletadas
         function renderLaps() {
-            // Desvincula referências antigas para o coletor de lixo (Garbage Collector) limpar a memória do navegador
             htmlLapsList.innerHTML = '';
 
             if (laps.length === 0) {
