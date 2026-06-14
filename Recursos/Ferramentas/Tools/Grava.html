@@ -6,12 +6,14 @@
     <title>Gravador de Áudio Pro</title>
     <style>
         :root {
-            --primary-color: #8a2be2; /* blueviolet */
-            --primary-hover: #9933ff;
-            --text-color: #f8f8ff; /* ghostwhite */
-            --bg-glass: rgba(255, 255, 255, 0.06);
-            --border-glass: rgba(255, 255, 255, 0.1);
-            --shadow-glass: rgba(0, 0, 0, 0.3);
+            --primary-color: #ffffff; 
+            --primary-hover: #e6e6e6;
+            --text-color: #1d1d1f; /* Escuro para legibilidade no fundo claro */
+            --bg-glass: rgba(255, 255, 255, 0.4); /* Vidro claro adaptado */
+            --border-glass: rgba(0, 0, 0, 0.08);
+            --shadow-glass: rgba(0, 0, 0, 0.05);
+            --detail-violet: #8a2be2; /* Violeta para detalhes e botões */
+            --detail-violet-hover: #9933ff;
         }
 
         * {
@@ -24,7 +26,7 @@
 
         body {
             min-height: 100vh;
-            background: linear-gradient(135deg, #0f0c1b, #241442, #0f0c1b);
+            background: linear-gradient(135deg, #ffffff, #f5f5f7, #ffffff); /* Fundo e body brancos */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -45,7 +47,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            overflow: hidden; /* Evita vazamentos estruturais */
+            overflow: hidden;
         }
 
         /* Status e Timer */
@@ -57,7 +59,7 @@
 
         .status-text {
             font-size: 0.9rem;
-            color: rgba(248, 248, 255, 0.5);
+            color: rgba(0, 0, 0, 0.5);
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-bottom: 8px;
@@ -81,14 +83,14 @@
             height: 84px;
             border-radius: 50%;
             border: none;
-            background: var(--primary-color);
+            background: var(--detail-violet); /* Botão em violeta */
             color: white;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 0 20px rgba(138, 43, 226, 0.4);
+            box-shadow: 0 4px 20px rgba(138, 43, 226, 0.3);
             z-index: 2;
             position: relative;
         }
@@ -112,7 +114,7 @@
             width: 100%;
             border-top: 1px solid var(--border-glass);
             padding-top: 24px;
-            display: none; /* Oculto até que haja uma gravação */
+            display: none;
             flex-direction: column;
             align-items: center;
             gap: 16px;
@@ -130,9 +132,9 @@
             outline: none;
         }
 
-        /* Customização simples do player nativo para combinar com o tema escuro */
+        /* Adaptação simples do painel de áudio para harmonizar com o fundo claro */
         audio::-webkit-media-controls-panel {
-            background-color: rgba(22, 13, 41, 0.9);
+            background-color: rgba(0, 0, 0, 0.04);
         }
         audio::-webkit-media-controls-current-time-display,
         audio::-webkit-media-controls-time-remaining-display {
@@ -140,8 +142,8 @@
         }
 
         .discard-btn {
-            background: rgba(255, 69, 101, 0.15);
-            border: 1px solid rgba(255, 69, 101, 0.3);
+            background: rgba(255, 69, 101, 0.1);
+            border: 1px solid rgba(255, 69, 101, 0.2);
             color: #ff4565;
             padding: 10px 16px;
             border-radius: 12px;
@@ -155,7 +157,7 @@
         }
 
         .discard-btn:hover {
-            background: rgba(255, 69, 101, 0.25);
+            background: rgba(255, 69, 101, 0.18);
         }
 
         /* Animações */
@@ -206,7 +208,6 @@
     </div>
 
     <script>
-        // Elementos mapeados em cache para evitar re-scans pesados no DOM
         const recordBtn = document.getElementById('record-btn');
         const btnIcon = document.getElementById('btn-icon');
         const statusLabel = document.getElementById('status-label');
@@ -214,13 +215,11 @@
         const previewPanel = document.getElementById('preview-panel');
         const audioPlayer = document.getElementById('audio-player');
 
-        // Vetores SVG para troca de estado limpa
         const svgIcons = {
             mic: `<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"></path>`,
             stop: `<rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>`
         };
 
-        // Estado interno do Hardware e Contagem
         let mediaRecorder = null;
         let audioChunks = [];
         let audioStream = null;
@@ -231,26 +230,21 @@
 
         async function toggleRecording() {
             if (!isRecording) {
-                // Solicita acesso ao microfone de forma assíncrona
                 try {
                     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    audioChunks = []; // Reseta os pedaços anteriores de áudio
+                    audioChunks = [];
                     
                     mediaRecorder = new MediaRecorder(audioStream);
                     
-                    // Evento disparado enquanto o áudio é processado em tempo real
                     mediaRecorder.ondataavailable = (event) => {
                         if (event.data.size > 0) {
                             audioChunks.push(event.data);
                         }
                     };
 
-                    // Evento final ao encerrar o fluxo físico de gravação
                     mediaRecorder.onstop = () => {
-                        // Cria um blob unificado do tipo audio/webm ou container equivalente do navegador
                         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                         
-                        // Limpa cache de URL antiga se houver para evitar estouro de memória RAM
                         if (currentAudioUrl) {
                             URL.revokeObjectURL(currentAudioUrl);
                         }
@@ -258,14 +252,11 @@
                         currentAudioUrl = URL.createObjectURL(audioBlob);
                         audioPlayer.src = currentAudioUrl;
                         
-                        // Exibe o painel do player
                         previewPanel.classList.add('active');
                     };
 
-                    // Inicia a captura de dados do hardware
                     mediaRecorder.start();
                     
-                    // Ajustes de estado e interface
                     isRecording = true;
                     secondsElapsed = 0;
                     updateTimerDisplay();
@@ -274,31 +265,28 @@
                     recordBtn.classList.add('recording');
                     btnIcon.innerHTML = svgIcons.stop;
                     statusLabel.innerText = "Gravando Áudio...";
-                    previewPanel.classList.remove('active'); // Oculta player antigo durante nova gravação
+                    previewPanel.classList.remove('active');
 
                 } catch (err) {
                     statusLabel.innerText = "Erro: Sem permissão";
                     statusLabel.style.color = "#ff4565";
                 }
             } else {
-                // Interrompe gravação
                 if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                     mediaRecorder.stop();
                 }
                 
-                // Desliga o microfone fisicamente (Garante privacidade e economiza bateria/processamento)
                 if (audioStream) {
                     audioStream.getTracks().forEach(track => track.stop());
                 }
 
-                // Reseta timers e estados da interface
                 clearInterval(timerInterval);
                 isRecording = false;
                 
                 recordBtn.classList.remove('recording');
                 btnIcon.innerHTML = svgIcons.mic;
                 statusLabel.innerText = "Gravação Concluída";
-                statusLabel.style.color = "rgba(248, 248, 255, 0.5)";
+                statusLabel.style.color = "rgba(0, 0, 0, 0.5)";
             }
         }
 
@@ -314,7 +302,6 @@
         }
 
         function discardRecording() {
-            // Remove a URL da memória interna do navegador imediatamente (Garbage Collection)
             if (currentAudioUrl) {
                 URL.revokeObjectURL(currentAudioUrl);
                 currentAudioUrl = null;
