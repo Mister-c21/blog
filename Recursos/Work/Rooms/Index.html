@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feed / Orion</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --blueviolet: #8a2be2;
+            --blueviolet-hover: #7323bd;
+            --ghost-white: #f8f8ff;
+            --bg-light: #ffffff;
+            --glass-bg: rgba(138, 43, 226, 0.04);
+            --glass-border: rgba(138, 43, 226, 0.12);
+            --glass-card: rgba(0, 0, 0, 0.02);
+            --text-main: #1a1a24;
+            --text-muted: #757585;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background: radial-gradient(circle at top right, #f3ebfa, var(--bg-light));
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- LAYOUT BASE (CSS GRID) --- */
+        .container {
+            display: grid;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* --- FEED PRINCIPAL --- */
+        main {
+            border-left: 1px solid var(--glass-border);
+            border-right: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            min-height: 100vh;
+            min-width: 0;
+        }
+
+        /* --- CARROSSEL DE TEMAS --- */
+        .themes-container {
+            display: flex;
+            gap: 15px;
+            padding: 20px;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(138, 43, 226, 0.01);
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .themes-container::-webkit-scrollbar {
+            display: none;
+        }
+        .themes-container {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .theme-card {
+            flex: 0 0 140px;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            
+            clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+            
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, filter 0.25s ease;
+        }
+
+        .theme-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 2px var(--blueviolet), 0 8px 16px rgba(138, 43, 226, 0.2);
+            filter: brightness(1.05);
+        }
+
+        .theme-card:focus {
+            outline: none;
+            transform: scale(1.05);
+            box-shadow: 0 0 0 3px var(--blueviolet), 0 0 15px rgba(138, 43, 226, 0.4);
+        }
+
+        .themes-container .theme-card.active {
+            transform: scale(1.02);
+            box-shadow: 0 0 0 3px var(--blueviolet), 0 6px 12px rgba(138, 43, 226, 0.3);
+            filter: brightness(1.05);
+        }
+
+        /* URLs das imagens dos cards da lista horizontal */
+        .card-youtube { 
+            background-image: url('https://www.mktesportivo.com/wp-content/uploads/2025/03/youtube-apostas-esportivas.jpg'); 
+        }
+        .card-streaming { 
+            background-image: url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3U7dSrG0MBdwN1J0za3ZBzxSS1ietx1Fr2P-IJVT4tuEDqAAwNpH1t2E&s=10'); 
+        }
+        .card-drive { 
+            background-image: url('https://t.ctcdn.com.br/SroN0IRPSRPfSsqc0kV8XHwGzQU=/768x432/smart/i599066.jpeg'); 
+        }
+        .card-dispositivo { 
+            background-image: url('https://images.icon-icons.com/1451/PNG/512/videofolder_99361.png'); 
+        }
+
+        /* Imagens originais dos Seres do Feed */
+        .theme-capa-1 { background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=60'); }
+        .theme-capa-2 { background-image: url('https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=400&auto=format&fit=crop&q=60'); }
+        .theme-capa-3 { background-image: url('https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?w=400&auto=format&fit=crop&q=60'); }
+        .theme-capa-4 { background-image: url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=400&auto=format&fit=crop&q=60'); }
+
+        /* BARRA DE BUSCA */
+        .feed-search-container {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(138, 43, 226, 0.01);
+        }
+
+        .search-bar {
+            background: rgba(0, 0, 0, 0.03);
+            border: 1px solid var(--glass-border);
+            padding: 10px 20px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+
+        .search-bar:focus-within {
+            border-color: var(--blueviolet);
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.15);
+            background: var(--bg-light);
+        }
+
+        .search-bar input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-main);
+            width: 100%;
+            font-size: 0.95rem;
+        }
+
+        .search-bar input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* CARROSSEL DE BOTÕES CIRCULARES DE TEMAS */
+        .tags-container {
+            display: flex;
+            gap: 10px;
+            padding: 12px 20px;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.2);
+            width: 100%;
+        }
+
+        .tags-container::-webkit-scrollbar {
+            display: none;
+        }
+        .tags-container {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .tag-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            color: var(--text-main);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            user-select: none;
+            transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.1s;
+        }
+
+        .tag-button i {
+            color: var(--blueviolet);
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .tag-button:hover {
+            background: rgba(138, 43, 226, 0.08);
+            border-color: var(--blueviolet);
+        }
+
+        .tag-button:active {
+            transform: scale(0.97);
+        }
+
+        .tag-button.active {
+            background: var(--blueviolet);
+            border-color: var(--blueviolet);
+            color: var(--ghost-white);
+        }
+
+        .tag-button.active i {
+            color: var(--ghost-white);
+        }
+
+        /* CONTAINER DE CÍRCULOS HORIZONTAIS */
+        .circles-container {
+            display: flex;
+            gap: 15px;
+            padding: 12px 20px;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.1);
+            width: 100%;
+        }
+
+        .circles-container::-webkit-scrollbar {
+            display: none;
+        }
+        .circles-container {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .circle-item {
+            flex: 0 0 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid var(--glass-border);
+            cursor: pointer;
+            /* AJUSTE: Propriedades para estilizar o comportamento das imagens inseridas via URL */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .circle-item:hover {
+            transform: scale(1.08);
+            border-color: var(--blueviolet);
+            box-shadow: 0 4px 8px rgba(138, 43, 226, 0.15);
+        }
+
+        /* Tweets */
+        .tweet {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+            border-bottom: 1px solid var(--glass-border);
+            background: var(--glass-card);
+            transition: background 0.2s;
+        }
+
+        .tweet:hover {
+            background: rgba(138, 43, 226, 0.02);
+        }
+
+        .tweet-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .tweet-header {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0;
+            margin-bottom: 5px;
+            overflow: hidden;
+        }
+
+        .display-name {
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Media Queries */
+        @media (min-width: 1001px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 1000px) {
+            .container { grid-template-columns: 1fr; padding: 0; }
+            main { border-left: none; border-right: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <main>
+            <div class="themes-container">
+                <div class="theme-card card-youtube active" tabindex="0"></div>
+                <div class="theme-card card-streaming" tabindex="0"></div>
+                <div class="theme-card card-drive" tabindex="0"></div>
+                <div class="theme-card card-dispositivo" tabindex="0"></div>
+            </div>
+
+            <div class="feed-search-container">
+                <div class="search-bar">
+                    <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
+                    <input type="text" placeholder="Buscar seres no banco de dados...">
+                </div>
+            </div>
+
+            <div class="tags-container">
+                <button class="tag-button active"><i class="fa-solid fa-border-all"></i>All</button>
+                <button class="tag-button"><i class="fa-solid fa-music"></i>Músicas</button>
+                <button class="tag-button"><i class="fa-solid fa-tv"></i>Canais</button>
+                <button class="tag-button"><i class="fa-solid fa-burst"></i>Ação</button>
+                <button class="tag-button"><i class="fa-solid fa-compass"></i>Aventura</button>
+                <button class="tag-button"><i class="fa-solid fa-flask"></i>Ficção</button>
+                <button class="tag-button"><i class="fa-solid fa-child"></i>Infantil</button>
+                <button class="tag-button"><i class="fa-solid fa-face-laugh-beam"></i>Comédia</button>
+            </div>
+
+            <div class="circles-container">
+                <div class="circle-item" style="background-image: url('SUA_URL_DO_CIRCULO_1_AQUI');" tabindex="0"></div>
+                <div class="circle-item" style="background-image: url('SUA_URL_DO_CIRCULO_2_AQUI');" tabindex="0"></div>
+                <div class="circle-item" style="background-image: url('SUA_URL_DO_CIRCULO_3_AQUI');" tabindex="0"></div>
+                <div class="circle-item" style="background-image: url('SUA_URL_DO_CIRCULO_4_AQUI');" tabindex="0"></div>
+                <div class="circle-item" style="background-image: url('SUA_URL_DO_CIRCULO_5_AQUI');" tabindex="0"></div>
+                <div class="circle-item" style="background-image: url('SUA_URL_DO_CIRCULO_6_AQUI');" tabindex="0"></div>
+                <div class="circle-item" style="background-image: url('SUA_URL_DO_CIRCULO_7_AQUI');" tabindex="0"></div>
+            </div>
+
+            <div class="feed">
+                <div class="tweet">
+                    <div class="theme-card theme-capa-1" style="flex: 0 0 60px; height: 90px; cursor: default; box-shadow: none; clip-path: none;"></div>
+                    <div class="tweet-content">
+                        <div class="tweet-header" style="width: 100%; margin-bottom: 0;">
+                            <span class="display-name">Ancião de Andromeda</span>
+                            <span style="font-size: 0.75rem; background: rgba(138, 43, 226, 0.15); color: var(--blueviolet); padding: 3px 10px; border-radius: 12px; font-weight: bold; border: 1px solid var(--glass-border); margin-top: 6px;">CÓSMICO</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tweet">
+                    <div class="theme-card theme-capa-2" style="flex: 0 0 60px; height: 90px; cursor: default; box-shadow: none; clip-path: none;"></div>
+                    <div class="tweet-content">
+                        <div class="tweet-header" style="width: 100%; margin-bottom: 0;">
+                            <span class="display-name">Sílfide Lunar</span>
+                            <span style="font-size: 0.75rem; background: rgba(138, 43, 226, 0.15); color: var(--blueviolet); padding: 3px 10px; border-radius: 12px; font-weight: bold; border: 1px solid var(--glass-border); margin-top: 6px;">ETÉREO</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Seleção dos botões circulares (Tags)
+        const tagButtons = document.querySelectorAll('.tag-button');
+        tagButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tagButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+            });
+        });
+
+        // Seleção dos cards da lista horizontal (Capas)
+        const themeCards = document.querySelectorAll('.themes-container .theme-card');
+        themeCards.forEach(card => {
+            card.addEventListener('click', () => {
+                themeCards.forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+            });
+        });
+    </script>
+
+</body>
+</html>
