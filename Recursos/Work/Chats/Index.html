@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Opções de Chat - Orion</title>
+  <style>
+    /* ==========================================================================
+       VARIÁVEIS DE COR E IDENTIDADE VISUAL ORIGINAIS
+       ========================================================================== */
+    :root {
+      --chat-color-blueviolet: #8a2be2;
+      --chat-color-ghost: #f8f8ff;
+      --chat-color-glass-bg: rgba(255, 255, 255, 0.08);
+      --chat-color-glass-border: rgba(255, 255, 255, 0.15);
+      --chat-color-glass-hover: rgba(138, 43, 226, 0.2);
+    }
+
+    /* Reset global para Tela Cheia */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0f0c1b;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* Contêiner Raiz (Mantido Escuro) */
+    .chat-wrapper {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      box-sizing: border-box;
+      background: linear-gradient(135deg, #0f0c1b, #201a30);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+    }
+
+    /* Lista de opções principal (Mantida) */
+    .chat-options-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    /* Botão Estilo Vidro Semitransparente (Mantido) */
+    .chat-option-btn {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      width: 100%;
+      padding: 18px 24px;
+      background: var(--chat-color-glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--chat-color-glass-border);
+      border-radius: 16px;
+      color: var(--chat-color-ghost);
+      font-size: 1.05rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      box-sizing: border-box;
+      transition: all 0.3s ease;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Ícones em Blueviolet (Mantido) */
+    .chat-option-icon {
+      width: 24px;
+      height: 24px;
+      color: var(--chat-color-blueviolet);
+      flex-shrink: 0;
+    }
+
+    @media (hover: hover) {
+      .chat-option-btn:hover {
+        background: var(--chat-color-glass-hover);
+        border-color: var(--chat-color-blueviolet);
+        transform: translateY(-2px);
+      }
+    }
+
+    /* ==========================================================================
+       MODAIS EM TELA CHEIA (ESTILO WHATSAPP COM HARDWARE ATIVO)
+       ========================================================================= */
+    .chat-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: var(--chat-color-ghost);
+      box-sizing: border-box;
+      padding: 40px 24px;
+      
+      /* Estado Inicial: Oculto */
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .chat-modal.is-active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Vídeo: Stream Real da Câmera em background */
+    #video-modal {
+      background: #111;
+    }
+
+    .wa-video-feed {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+    }
+
+    /* Áudio: Fundo escuro isolado */
+    #audio-modal {
+      background: #0f0c1b;
+    }
+
+    /* Elementos Superiores do Modal */
+    .wa-header {
+      text-align: center;
+      margin-top: 20px;
+      z-index: 2;
+    }
+
+    .wa-name {
+      font-size: 1.65rem;
+      font-weight: 600;
+      margin: 0 0 8px 0;
+      letter-spacing: 0.5px;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    }
+
+    .wa-status {
+      font-size: 0.95rem;
+      color: var(--chat-color-blueviolet);
+      font-weight: 500;
+      margin: 0;
+    }
+
+    /* Avatar do Áudio Pulsante */
+    .wa-avatar-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-grow: 1;
+      z-index: 2;
+    }
+
+    .wa-avatar {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: var(--chat-color-glass-bg);
+      border: 2px solid var(--chat-color-glass-border);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: var(--chat-color-blueviolet);
+      box-shadow: 0 0 0 0 rgba(138, 43, 226, 0.4);
+      animation: wa-pulse 2s infinite;
+    }
+
+    .wa-avatar svg {
+      width: 60px;
+      height: 60px;
+    }
+
+    /* Barra de Ações Inferior em Vidro Semitransparente */
+    .wa-actions-bar {
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border: 1px solid var(--chat-color-glass-border);
+      border-radius: 28px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      box-sizing: border-box;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      z-index: 2;
+    }
+
+    .wa-btn-circle {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--chat-color-ghost);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .wa-btn-circle:active {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .wa-btn-circle svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .wa-btn-hangup {
+      background: #ff3b30;
+      color: white;
+      transform: rotate(135deg);
+    }
+
+    @keyframes wa-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(138, 43, 226, 0.4); }
+      70% { box-shadow: 0 0 0 20px rgba(138, 43, 226, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(138, 43, 226, 0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="chat-wrapper">
+    
+    <ul class="chat-options-list">
+      <li class="chat-option-item">
+        <button class="chat-option-btn" onclick="startCall('video')">
+          <svg class="chat-option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 7a2 2 0 0 0-2.45-1.45L16 7V5a2 2 0 0 0-2-2H2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2l4.55 1.45A2 2 0 0 0 23 17V7z"/>
+          </svg>
+          <span>Chamada de Vídeo</span>
+        </button>
+      </li>
+      
+      <li class="chat-option-item">
+        <button class="chat-option-btn" onclick="startCall('audio')">
+          <svg class="chat-option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+          <span>Chamada de Áudio</span>
+        </button>
+      </li>
+    </ul>
+
+    <div id="video-modal" class="chat-modal">
+      <video id="webcam-preview" class="wa-video-feed" autoplay playsinline muted></video>
+
+      <div class="wa-header">
+        <h2 class="wa-name">Orion</h2>
+        <p class="wa-status" id="video-status">Iniciando câmera...</p>
+      </div>
+
+      <div class="wa-actions-bar">
+        <button class="wa-btn-circle" aria-label="Mutar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+        </button>
+        <button class="wa-btn-circle wa-btn-hangup" onclick="stopCall('video-modal')" aria-label="Desligar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div id="audio-modal" class="chat-modal">
+      <div class="wa-header">
+        <h2 class="wa-name">Orion</h2>
+        <p class="wa-status" id="audio-status">Conectando microfone...</p>
+      </div>
+
+      <div class="wa-avatar-container">
+        <div class="wa-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="wa-actions-bar">
+        <button class="wa-btn-circle" aria-label="Alto-falante">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        </button>
+        <button class="wa-btn-circle wa-btn-hangup" onclick="stopCall('audio-modal')" aria-label="Desligar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let mediaStreamInstance = null;
+
+    async function startCall(type) {
+      const modalId = type === 'video' ? 'video-modal' : 'audio-modal';
+      const modal = document.getElementById(modalId);
+      
+      if (modal) modal.classList.add('is-active');
+
+      const mediaConstraints = {
+        video: type === 'video' ? { facingMode: "user" } : false,
+        audio: true
+      };
+
+      try {
+        mediaStreamInstance = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+        
+        if (type === 'video') {
+          const videoElement = document.getElementById('webcam-preview');
+          videoElement.srcObject = mediaStreamInstance;
+          document.getElementById('video-status').innerText = "Chamada de vídeo em andamento";
+        } else {
+          document.getElementById('audio-status').innerText = "Chamada de voz ativa";
+        }
+      } catch (err) {
+        console.error("Erro de hardware:", err);
+        if (type === 'video') {
+          document.getElementById('video-status').innerText = "Permissão da câmera recusada";
+        } else {
+          document.getElementById('audio-status').innerText = "Permissão do microfone recusada";
+        }
+      }
+    }
+
+    function stopCall(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) modal.classList.remove('is-active');
+
+      if (mediaStreamInstance) {
+        mediaStreamInstance.getTracks().forEach(track => track.stop());
+        mediaStreamInstance = null;
+      }
+
+      document.getElementById('video-status').innerText = "Iniciando câmera...";
+      document.getElementById('audio-status').innerText = "Conectando microfone...";
+      
+      const videoElement = document.getElementById('webcam-preview');
+      if (videoElement) videoElement.srcObject = null;
+    }
+  </script>
+
+</body>
+</html>
