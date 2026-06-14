@@ -6,12 +6,14 @@
     <title>Conversor de Unidades Pro</title>
     <style>
         :root {
-            --primary-color: #8a2be2; /* blueviolet */
-            --primary-hover: #9933ff;
-            --text-color: #f8f8ff; /* ghostwhite */
-            --bg-glass: rgba(255, 255, 255, 0.06);
-            --border-glass: rgba(255, 255, 255, 0.1);
-            --shadow-glass: rgba(0, 0, 0, 0.3);
+            --primary-color: #ffffff; 
+            --primary-hover: #e6e6e6;
+            --text-color: #1d1d1f; /* Escuro para legibilidade no fundo branco */
+            --bg-glass: rgba(255, 255, 255, 0.4); /* Vidro claro adaptado */
+            --border-glass: rgba(0, 0, 0, 0.08);
+            --shadow-glass: rgba(0, 0, 0, 0.05);
+            --detail-violet: #8a2be2; /* Violeta para detalhes */
+            --detail-violet-hover: #9933ff;
         }
 
         * {
@@ -24,7 +26,7 @@
 
         body {
             min-height: 100vh;
-            background: linear-gradient(135deg, #0f0c1b, #241442, #0f0c1b);
+            background: linear-gradient(135deg, #ffffff, #f5f5f7, #ffffff); /* Fundo e body brancos */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -44,7 +46,7 @@
             box-shadow: 0 8px 32px 0 var(--shadow-glass);
             display: flex;
             flex-direction: column;
-            overflow: hidden; /* Evita vazamentos estruturais */
+            overflow: hidden;
         }
 
         /* Abas Superiores */
@@ -54,20 +56,20 @@
             margin-bottom: 24px;
             border-bottom: 1px solid var(--border-glass);
             padding-bottom: 10px;
-            overflow-x: auto; /* Permite rolagem horizontal se necessário */
-            scrollbar-width: none; /* Esconde a barra no Firefox */
+            overflow-x: auto;
+            scrollbar-width: none;
             flex-shrink: 0;
         }
 
         .tabs::-webkit-scrollbar {
-            display: none; /* Esconde a barra no Chrome/Safari */
+            display: none;
         }
 
         .tab-btn {
             flex: 1;
             background: none;
             border: none;
-            color: rgba(248, 248, 255, 0.5);
+            color: rgba(0, 0, 0, 0.4);
             padding: 10px 12px;
             cursor: pointer;
             font-size: 0.85rem;
@@ -91,9 +93,9 @@
         }
 
         .tab-btn.active {
-            color: var(--text-color);
-            background: rgba(138, 43, 226, 0.2);
-            box-shadow: inset 0 0 10px rgba(138, 43, 226, 0.3);
+            color: var(--detail-violet);
+            background: rgba(138, 43, 226, 0.1); /* Detalhe em violeta */
+            box-shadow: inset 0 0 10px rgba(138, 43, 226, 0.15);
         }
 
         /* Seção de Inputs */
@@ -108,7 +110,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(0, 0, 0, 0.02);
             border: 1px solid var(--border-glass);
             padding: 16px;
             border-radius: 16px;
@@ -117,7 +119,7 @@
         }
 
         .converter-row select {
-            background: #160d29;
+            background: #ffffff;
             color: var(--text-color);
             border: 1px solid var(--border-glass);
             padding: 8px 12px;
@@ -149,7 +151,7 @@
         }
 
         button.key {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(0, 0, 0, 0.02);
             border: 1px solid var(--border-glass);
             border-radius: 12px;
             padding: 16px;
@@ -165,7 +167,7 @@
 
         button.key:active {
             transform: scale(0.96);
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.05);
         }
 
         button.key.action { color: #ff4565; }
@@ -173,8 +175,8 @@
 
         @media (hover: hover) {
             button.key:hover {
-                background: rgba(255, 255, 255, 0.08);
-                border-color: rgba(255, 255, 255, 0.2);
+                background: rgba(0, 0, 0, 0.04);
+                border-color: rgba(0, 0, 0, 0.1);
             }
         }
 
@@ -227,7 +229,7 @@
             </div>
             <div class="converter-row" style="border-color: rgba(138, 43, 226, 0.3);">
                 <select id="unit-to" onchange="performConversion()"></select>
-                <div class="display-value" id="val-to" style="color: var(--primary-color); font-weight: 500;">0</div>
+                <div class="display-value" id="val-to" style="color: var(--detail-violet); font-weight: 500;">0</div>
             </div>
         </div>
 
@@ -253,18 +255,15 @@
     </div>
 
     <script>
-        // Elementos do DOM em cache para evitar vazamentos de memória e re-scans lentos
         const unitFromSelect = document.getElementById('unit-from');
         const unitToSelect = document.getElementById('unit-to');
         const valFromDisplay = document.getElementById('val-from');
         const valToDisplay = document.getElementById('val-to');
         const negBtn = document.getElementById('neg-btn');
 
-        // Estado Global Controlado
         let currentInput = '0';
         let currentCategory = 'weight';
 
-        // Definição das tabelas e lógicas de conversão estáveis
         const conversionRules = {
             weight: {
                 units: { 'Kilograma (kg)': 1, 'Gramas (g)': 1000, 'Libras (lb)': 2.20462, 'Onças (oz)': 35.274 },
@@ -292,7 +291,6 @@
                 }
             },
             finance: {
-                // Taxas de câmbio baseadas e normalizadas tendo o Real (BRL) como referência 1:1
                 units: { 'Real (BRL)': 1, 'Dólar (USD)': 0.17, 'Euro (EUR)': 0.16 },
                 convert: (val, from, to) => (val / conversionRules.finance.units[from]) * conversionRules.finance.units[to]
             }
@@ -302,7 +300,6 @@
             setupUnits();
         }
 
-        // Alternância de abas sem acúmulo de listeners na pilha
         function switchCategory(category, event) {
             currentCategory = category;
             currentInput = '0';
@@ -311,13 +308,11 @@
             const targetButton = event.target.closest('.tab-btn');
             if (targetButton) targetButton.classList.add('active');
 
-            // Habilita ou desabilita o botão de sinal negativo (apenas temperatura aceita valores negativos)
             negBtn.style.visibility = (category === 'temperature') ? 'visible' : 'hidden';
 
             setupUnits();
         }
 
-        // Carrega opções nos selects limpando os nós anteriores
         function setupUnits() {
             unitFromSelect.innerHTML = '';
             unitToSelect.innerHTML = '';
@@ -382,7 +377,6 @@
             updateUI();
         }
 
-        // Processamento matemático isolado para prevenir estouros na tela
         function performConversion() {
             const numValue = parseFloat(currentInput) || 0;
             const fromUnit = unitFromSelect.value;
@@ -392,7 +386,6 @@
 
             const result = conversionRules[currentCategory].convert(numValue, fromUnit, toUnit);
             
-            // Trunca casas decimais longas para evitar que o texto vaze da caixa
             if (Number.isInteger(result)) {
                 valToDisplay.innerText = result;
             } else {
