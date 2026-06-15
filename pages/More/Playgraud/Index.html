@@ -12,6 +12,7 @@
             --glass-bg: rgba(255, 255, 255, 0.7);
             --glass-border: rgba(138, 43, 226, 0.2);
             --header-height: 105px;
+            --header-pet-height: 50px; /* Nova altura reduzida para o modo Pet */
         }
 
         body {
@@ -38,12 +39,27 @@
             will-change: transform;
         }
 
+        /* --- Customização para o Modo Pet --- */
         .header-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 0 20px;
             margin-bottom: 10px;
+            max-height: 60px; /* Evita quebras na transição */
+            opacity: 1;
+            transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+            overflow: hidden;
+        }
+
+        /* Quando o header estiver em modo pet, esconde o topo */
+        header.pet-mode-active .header-top {
+            max-height: 0;
+            opacity: 0;
+            margin-bottom: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            pointer-events: none; /* Desativa cliques enquanto invisível */
         }
 
         .page-title {
@@ -117,8 +133,14 @@
             height: calc(100vh - var(--header-height));
             width: 100%;
             position: relative;
-            transition: margin-top 0.4s cubic-bezier(0.4, 0, 0.2, 1), height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: margin-top 0.3s ease, height 0.3s ease;
             will-change: margin-top, height;
+        }
+
+        /* Reajusta o tamanho do container principal no modo pet */
+        #content-container.pet-layout {
+            margin-top: var(--header-pet-height);
+            height: calc(100vh - var(--header-pet-height));
         }
 
         .tab-content {
@@ -166,7 +188,6 @@
             flex-direction: column;
         }
 
-        /* --- LAYOUT HEADER MODAL --- */
         .modal-header {
             display: flex;
             justify-content: space-between;
@@ -212,7 +233,6 @@
             flex-wrap: wrap;
         }
 
-        /* ESTILO INTERNO DAS TOPTABBARS DO MODAL (ESTILO TIKTOK) */
         .modal-tab-bar {
             display: flex;
             gap: 24px;
@@ -457,6 +477,8 @@
 
     <script>
         const modal = document.getElementById('missions-fullscreen-modal');
+        const mainHeader = document.getElementById('main-header');
+        const contentContainer = document.getElementById('content-container');
 
         function toggleMissionsModal(open) {
             if (open) {
@@ -471,6 +493,15 @@
             el.classList.add('active');
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById(id).classList.add('active');
+
+            // Verifica se a aba clicada é a do Pet
+            if (id === 'pet-frame') {
+                mainHeader.classList.add('pet-mode-active');
+                contentContainer.classList.add('pet-layout');
+            } else {
+                mainHeader.classList.remove('pet-mode-active');
+                contentContainer.classList.remove('pet-layout');
+            }
         }
 
         function switchModalTab(el) {
