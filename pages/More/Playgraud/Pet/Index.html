@@ -1,1 +1,935 @@
-ghs
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meu Pet Virtual</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #0f0c1b;
+            --blueviolet-color: #8a2be2;
+            --blueviolet-glow: #9400d3;
+            --ghost-color: #f8f8ff;
+            --glass-bg: rgba(138, 43, 226, 0.15);
+            --glass-border: rgba(248, 248, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: var(--ghost-color);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-color), #251149);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Container Principal Expandido para Toda a Tela */
+        .pet-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: none;
+            width: 100vw;
+            height: 100vh;
+            padding: 30px 30px 95px 30px;
+            box-shadow: none;
+            text-align: center;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .top-section {
+            width: 100%;
+            z-index: 10;
+        }
+
+        /* Topo com Nível e Moedas estilo Pou */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            background: rgba(248, 248, 255, 0.05);
+            padding: 12px 20px;
+            border-radius: 50px;
+            border: 1px solid rgba(248, 248, 255, 0.1);
+        }
+
+        .level-badge {
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .coins-badge {
+            font-weight: bold;
+            font-size: 1rem;
+            color: #ffd700;
+            text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+        }
+
+        .coins-badge i {
+            color: #ffd700;
+            margin-right: 5px;
+        }
+
+        .status-text {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+            min-height: 24px;
+            font-weight: 500;
+        }
+
+        /* Indicadores de Status Superiores */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .status-bubble {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-bubble i {
+            font-size: 1.1rem;
+        }
+
+        .mini-bar-bg {
+            background: rgba(248, 248, 255, 0.1);
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .mini-bar-fill {
+            height: 100%;
+            width: 100%;
+            background: var(--blueviolet-color);
+            box-shadow: 0 0 5px var(--blueviolet-glow);
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+
+        /* Área centralizada para o Pet */
+        .center-section {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+
+        /* O Formato Físico do Pou */
+        .pet-stage {
+            position: relative;
+            width: 260px;
+            height: 260px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-bottom;
+        }
+
+        .pou-body {
+            position: absolute;
+            bottom: 10px;
+            width: 210px;
+            height: 185px;
+            background: var(--blueviolet-color);
+            border-radius: 50% 50% 42% 42% / 60% 60% 40% 40%;
+            box-shadow: inset -15px -15px 0px rgba(0,0,0,0.15), 0 12px 25px rgba(0,0,0,0.4);
+            border: 3px solid rgba(248, 248, 255, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.1s ease, background-color 0.3s ease, border-radius 0.3s ease;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .pou-body:active {
+            cursor: grabbing;
+        }
+
+        /* Olhos do Pou */
+        .pou-eyes {
+            position: absolute;
+            top: 45px;
+            display: flex;
+            gap: 28px;
+            pointer-events: none;
+        }
+
+        .eye {
+            width: 40px;
+            height: 45px;
+            background: var(--ghost-color);
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 5px rgba(0,0,0,0.2);
+        }
+
+        .pupil {
+            width: 20px;
+            height: 20px;
+            background: #111;
+            border-radius: 50%;
+            position: absolute;
+            top: 12px;
+            left: 10px;
+            transition: transform 0.05deg linear;
+        }
+
+        .pupil::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 6px;
+            height: 6px;
+            background: #fff;
+            border-radius: 50%;
+        }
+
+        /* Boca */
+        .pou-mouth {
+            position: absolute;
+            top: 110px;
+            width: 38px;
+            height: 15px;
+            border-bottom: 4px solid #111;
+            border-radius: 0 0 50% 50%;
+            transition: all 0.2s ease;
+            pointer-events: none;
+        }
+
+        /* Modificadores de Expressão */
+        .pou-body.sad .pou-mouth {
+            border-bottom: none;
+            border-top: 4px solid #111;
+            border-radius: 50% 50% 0 0;
+            top: 118px;
+        }
+
+        .pou-body.sleeping .eye {
+            height: 8px;
+            top: 20px;
+            background: #111;
+        }
+        .pou-body.sleeping .pupil { display: none; }
+        .pou-body.sleeping .pou-mouth {
+            width: 16px;
+            height: 16px;
+            border: 3px solid #111;
+            border-radius: 50%;
+            top: 110px;
+        }
+
+        /* Customização de Roupas Dinâmicas */
+        .accessory {
+            position: absolute;
+            z-index: 10;
+            display: none;
+            pointer-events: none;
+        }
+
+        .accessory.active {
+            display: block;
+        }
+
+        #acc-chapeu {
+            font-size: 60px;
+            top: 10px;
+            color: #00ffff;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        #acc-oculos {
+            font-size: 46px;
+            top: 72px;
+            color: #ff007f;
+            opacity: 0.9;
+        }
+
+        #acc-laco {
+            font-size: 38px;
+            bottom: 12px;
+            color: #ffd700;
+        }
+
+        /* --- BOTÕES INTERATIVOS FLUTUANTES (FAB) --- */
+        .floating-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .tab-content {
+            display: none;
+            position: absolute;
+            bottom: 100px;
+            left: 5vw;
+            width: 90vw;
+            pointer-events: auto;
+        }
+
+        .tab-content.active-panel {
+            display: block;
+        }
+
+        .grid-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            position: relative;
+        }
+
+        /* Botões Flutuantes Redondos */
+        .btn-fab {
+            background: rgba(138, 43, 226, 0.25);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            width: 65px;
+            height: 65px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .btn-fab i {
+            font-size: 1.6rem;
+            transition: transform 0.2s ease;
+        }
+
+        .btn-fab::after {
+            content: attr(data-label);
+            position: absolute;
+            top: -28px;
+            background: rgba(15, 12, 27, 0.8);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            opacity: 0;
+            transform: translateY(5px);
+            transition: all 0.2s ease;
+            pointer-events: none;
+            border: 1px solid rgba(248, 248, 255, 0.1);
+        }
+
+        .btn-fab:hover::after {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .btn-fab:hover, .btn-fab.active-trigger {
+            background: var(--blueviolet-color);
+            box-shadow: 0 0 15px var(--blueviolet-glow);
+            transform: scale(1.08) translateY(-3px);
+        }
+
+        .btn-fab:active {
+            transform: scale(0.95);
+        }
+
+        .btn-fab.active-item {
+            background: rgba(138, 43, 226, 0.65);
+            border-color: var(--ghost-color);
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.5), 0 0 12px var(--blueviolet-glow);
+        }
+
+        /* --- SISTEMA DE SUBMODAL FLUTUANTE --- */
+        .submodal-balloon {
+            position: absolute;
+            bottom: 85px; /* Alinhado perfeitamente acima do botão pai */
+            left: 50%;
+            transform: translateX(-50%) scale(0.8);
+            background: rgba(15, 12, 27, 0.9);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 10px;
+            display: flex;
+            gap: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+            z-index: 50;
+        }
+
+        .submodal-balloon.open {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) scale(1);
+        }
+
+        /* Pequena seta indicativa na base do submodal */
+        .submodal-balloon::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%) rotate(45deg);
+            width: 12px;
+            height: 12px;
+            background: rgba(15, 12, 27, 0.9);
+            border-right: 1px solid var(--glass-border);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        /* Botões internos minúsculos do submodal */
+        .btn-sub-item {
+            background: rgba(248, 248, 255, 0.08);
+            border: 1px solid rgba(248, 248, 255, 0.1);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .btn-sub-item i {
+            font-size: 1.1rem;
+        }
+
+        .btn-sub-item:hover {
+            background: var(--blueviolet-color);
+            box-shadow: 0 0 8px var(--blueviolet-glow);
+            transform: scale(1.05);
+        }
+
+        .btn-sub-item::after {
+            content: attr(data-sublabel);
+            position: absolute;
+            top: -26px;
+            background: rgba(15, 12, 27, 0.9);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+            border: 1px solid rgba(248, 248, 255, 0.1);
+        }
+
+        .btn-sub-item:hover::after {
+            opacity: 1;
+        }
+
+        /* --- BOTTOM TABBAR NATIVA --- */
+        .bottom-tabbar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 75px;
+            background: rgba(15, 12, 27, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 100;
+            padding: 0 10px;
+        }
+
+        .tab-item {
+            flex: 1;
+            height: 100%;
+            background: none;
+            border: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0.5;
+        }
+
+        .tab-item i {
+            font-size: 1.4rem;
+        }
+
+        .tab-item span {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .tab-item.active-tab {
+            opacity: 1;
+            color: var(--blueviolet-color);
+        }
+
+        .tab-item.active-tab i, .tab-item.active-tab span {
+            color: var(--ghost-color);
+            text-shadow: 0 0 10px var(--blueviolet-glow);
+        }
+
+        /* Efeitos Noturnos / Luz Apagada */
+        .dark-room {
+            background: rgba(5, 3, 15, 0.85) !important;
+        }
+
+        /* Animações */
+        .jump { animation: jump 0.4s ease; }
+        @keyframes jump {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-25px) scale(1.05, 0.95); }
+        }
+
+        .eat { animation: eat 0.3s ease; }
+        @keyframes eat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1, 0.9); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="pet-container" id="game-stage">
+        
+        <div class="top-section">
+            <div class="top-bar">
+                <div class="level-badge" id="level-txt"><i class="fa-solid fa-star"></i> Nv. 1</div>
+                <div class="coins-badge"><i class="fa-solid fa-coins"></i><span id="coins-txt">10</span></div>
+            </div>
+
+            <p class="status-text" id="pet-status">Pet feliz e alimentado! Deslize nele para fazer carinho.</p>
+
+            <div class="status-grid">
+                <div class="status-bubble">
+                    <span><i class="fa-solid fa-utensils"></i></span>
+                    <div class="mini-bar-bg"><div id="bar-fome" class="mini-bar-fill"></div></div>
+                </div>
+                <div class="status-bubble">
+                    <span><i class="fa-solid fa-face-smile"></i></span>
+                    <div class="mini-bar-bg"><div id="bar-felicidade" class="mini-bar-fill"></div></div>
+                </div>
+                <div class="status-bubble">
+                    <span><i class="fa-solid fa-battery-three-quarters"></i></span>
+                    <div class="mini-bar-bg"><div id="bar-energia" class="mini-bar-fill"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="center-section">
+            <div class="pet-stage">
+                <div id="acc-chapeu" class="accessory"><i class="fa-solid fa-graduation-cap"></i></div>
+                <div id="acc-oculos" class="accessory"><i class="fa-solid fa-glasses"></i></div>
+                <div id="acc-laco" class="accessory"><i class="fa-solid fa-ribbon"></i></div>
+                
+                <div id="pet" class="pou-body">
+                    <div class="pou-eyes">
+                        <div class="eye"><div class="pupil" id="pupil-l"></div></div>
+                        <div class="eye"><div class="pupil" id="pupil-r"></div></div>
+                    </div>
+                    <div class="pou-mouth"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="floating-layer">
+            
+            <div id="panel-home" class="tab-content active-panel">
+                <div class="grid-buttons">
+                    
+                    <div style="position: relative; margin: 0 auto;">
+                        <div id="modal-alimentar" class="submodal-balloon">
+                            <button class="btn-sub-item" data-sublabel="Biscoito" onclick="alimentarItem('biscoito', 15)"><i class="fa-solid fa-cookie"></i></button>
+                            <button class="btn-sub-item" data-sublabel="Fruta" onclick="alimentarItem('fruta', 20)"><i class="fa-solid fa-apple-whole"></i></button>
+                            <button class="btn-sub-item" data-sublabel="Burger" onclick="alimentarItem('burger', 35)"><i class="fa-solid fa-hamburger"></i></button>
+                        </div>
+                        <button class="btn-fab" id="trigger-alimentar" data-label="Alimentar" onclick="toggleSubmodal('modal-alimentar', this, event)">
+                            <i class="fa-solid fa-cookie-bite"></i>
+                        </button>
+                    </div>
+
+                    <div style="position: relative; margin: 0 auto;">
+                        <div id="modal-brincar" class="submodal-balloon">
+                            <button class="btn-sub-item" data-sublabel="Bola" onclick="brincarItem('bola', 15)"><i class="fa-solid fa-volleyball"></i></button>
+                            <button class="btn-sub-item" data-sublabel="Console" onclick="brincarItem('console', 30)"><i class="fa-solid fa-gamepad"></i></button>
+                        </div>
+                        <button class="btn-fab" id="trigger-brincar" data-label="Brincar" onclick="toggleSubmodal('modal-brincar', this, event)">
+                            <i class="fa-solid fa-icons"></i>
+                        </button>
+                    </div>
+
+                    <div style="position: relative; margin: 0 auto;">
+                        <button class="btn-fab" id="btn-luz" data-label="Luz" onclick="toggleLuz()">
+                            <i class="fa-solid fa-lightbulb"></i>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+            <div id="panel-armario" class="tab-content">
+                <div class="grid-buttons">
+                    <button class="btn-fab" id="btn-arm-chapeu" data-label="Chapéu" onclick="vestirArmario('chapeu', this)">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </button>
+                    <button class="btn-fab" id="btn-arm-oculos" data-label="Óculos" onclick="vestirArmario('oculos', this)">
+                        <i class="fa-solid fa-glasses"></i>
+                    </button>
+                    <button class="btn-fab" id="btn-arm-laco" data-label="Gravata" onclick="vestirArmario('laco', this)">
+                        <i class="fa-solid fa-ribbon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="panel-loja" class="tab-content">
+                <div class="grid-buttons">
+                    <button class="btn-fab" id="btn-shop-chapeu" data-label="Aba (5$)" onclick="comprarLoja('chapeu', 5, this)">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </button>
+                    <button class="btn-fab" id="btn-shop-oculos" data-label="Óculos (10$)" onclick="comprarLoja('oculos', 10, this)">
+                        <i class="fa-solid fa-glasses"></i>
+                    </button>
+                    <button class="btn-fab" id="btn-shop-laco" data-label="Laço (15$)" onclick="comprarLoja('laco', 15, this)">
+                        <i class="fa-solid fa-ribbon"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="bottom-tabbar">
+            <button class="tab-item" id="tab-armario" onclick="mudarAba('armario')">
+                <i class="fa-solid fa-door-closed"></i>
+                <span>Armário</span>
+            </button>
+            <button class="tab-item active-tab" id="tab-home" onclick="mudarAba('home')">
+                <i class="fa-solid fa-house"></i>
+                <span>Home</span>
+            </button>
+            <button class="tab-item" id="tab-loja" onclick="mudarAba('loja')">
+                <i class="fa-solid fa-basket-shopping"></i>
+                <span>Loja</span>
+            </button>
+        </div>
+        
+    </div>
+
+    <script>
+        // Dados do Jogo
+        let pet = {
+            fome: 80,
+            felicidade: 70,
+            energia: 90,
+            nivel: 1,
+            moedas: 25,
+            itensComprados: []
+        };
+
+        let luzApagada = false;
+
+        // Loop de simulação estável
+        setInterval(() => {
+            if (luzApagada) {
+                alterarStatus('energia', 4);
+                alterarStatus('fome', -1);
+            } else {
+                alterarStatus('fome', -2);
+                alterarStatus('felicidade', -1);
+                alterarStatus('energia', -1);
+            }
+            atualizarHumor();
+        }, 7000);
+
+        function alterarStatus(atributo, valor) {
+            pet[atributo] = Math.min(100, Math.max(0, pet[atributo] + valor));
+            const fill = document.getElementById(`bar-${atributo}`);
+            if (fill) {
+                fill.style.width = pet[atributo] + '%';
+                if (pet[atributo] < 30) {
+                    fill.style.backgroundColor = '#ff3333';
+                } else {
+                    fill.style.backgroundColor = 'var(--blueviolet-color)';
+                }
+            }
+        }
+
+        // Sistema para Chamar/Alternar os Submodais Flutuantes
+        function toggleSubmodal(modalId, triggerBtn, event) {
+            event.stopPropagation(); // Evita que o clique feche imediatamente o modal
+            
+            if (luzApagada) return;
+
+            const modalAlvo = document.getElementById(modalId);
+            const estaAberto = modalAlvo.classList.contains('open');
+
+            fecharTodosSubmodais();
+
+            if (!estaAberto) {
+                modalAlvo.classList.add('open');
+                triggerBtn.classList.add('active-trigger');
+            }
+        }
+
+        function fecharTodosSubmodais() {
+            document.querySelectorAll('.submodal-balloon').forEach(m => m.classList.remove('open'));
+            document.querySelectorAll('.btn-fab').forEach(b => b.classList.remove('active-trigger'));
+        }
+
+        // Fecha janelas ao clicar fora em qualquer parte vazia da tela
+        window.addEventListener('click', () => {
+            fecharTodosSubmodais();
+        });
+
+        // Controle Geral de Abas (Tabbar)
+        function mudarAba(abaAlvo) {
+            fecharTodosSubmodais();
+            document.querySelectorAll('.tab-content').forEach(p => p.classList.remove('active-panel'));
+            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active-tab'));
+
+            document.getElementById(`panel-${abaAlvo}`).classList.add('active-panel');
+            document.getElementById(`tab-${abaAlvo}`).classList.add('active-tab');
+        }
+
+        // Sub-ações específicas de Alimentação
+        function alimentarItem(tipo, valorFome) {
+            if (luzApagada) return;
+            if (pet.fome >= 100) {
+                document.getElementById('pet-status').innerText = "Eu já estou cheio!";
+                return;
+            }
+            alterarStatus('fome', valorFome);
+            ganharMoedas(2);
+            animarPet('eat');
+            document.getElementById('pet-status').innerText = `Nhac! Adorei esse ${tipo}!`;
+            atualizarHumor();
+        }
+
+        // Sub-ações específicas de Brincadeira
+        function brincarItem(tipo, valorFelicidade) {
+            if (luzApagada) return;
+            if (pet.energia < 20) {
+                document.getElementById('pet-status').innerText = "Estou cansado demais para jogar.";
+                return;
+            }
+            alterarStatus('felicidade', valorFelicidade);
+            alterarStatus('energia', -15);
+            ganharMoedas(5);
+            animarPet('jump');
+            document.getElementById('pet-status').innerText = `Jogar com ${tipo} é super legal!`;
+            atualizarHumor();
+        }
+
+        function toggleLuz() {
+            fecharTodosSubmodais();
+            luzApagada = !luzApagada;
+            const container = document.getElementById('game-stage');
+            const btn = document.getElementById('btn-luz');
+            const petBody = document.getElementById('pet');
+
+            if (luzApagada) {
+                container.classList.add('dark-room');
+                petBody.classList.add('sleeping');
+                btn.innerHTML = '<i class="fa-solid fa-lightbulb"></i>';
+                btn.setAttribute('data-label', 'Acender Luz');
+                document.getElementById('pet-status').innerText = "Zzz... O pet está dormindo.";
+                resetOlhos();
+            } else {
+                container.classList.remove('dark-room');
+                petBody.classList.remove('sleeping');
+                btn.innerHTML = '<i class="fa-solid fa-lightbulb"></i>';
+                btn.setAttribute('data-label', 'Apagar Luz');
+                document.getElementById('pet-status').innerText = "Bom dia! Hora de acordar.";
+            }
+            atualizarHumor();
+        }
+
+        function ganharMoedas(qtd) {
+            pet.moedas += qtd;
+            document.getElementById('coins-txt').innerText = pet.moedas;
+            
+            if (pet.moedas % 40 === 0) {
+                pet.nivel++;
+                document.getElementById('level-txt').innerHTML = `<i class="fa-solid fa-star"></i> Nv. ${pet.nivel}`;
+                document.getElementById('pet-status').innerText = "Subi de nível! 🎉";
+            }
+        }
+
+        // Loja
+        function comprarLoja(item, preco, botao) {
+            if (pet.itensComprados.includes(item)) {
+                document.getElementById('pet-status').innerText = "Você já possui este item! Vá ao Armário.";
+                return;
+            }
+
+            if (pet.moedas >= preco) {
+                pet.moedas -= preco;
+                document.getElementById('coins-txt').innerText = pet.moedas;
+                pet.itensComprados.push(item);
+                
+                botao.setAttribute('data-label', 'Adquirido');
+                botao.style.opacity = '0.5';
+                
+                document.getElementById(`acc-${item}`).classList.add('active');
+                document.getElementById(`btn-arm-${item}`).classList.add('active-item');
+                
+                document.getElementById('pet-status').innerText = "Item comprado! Ele está no seu Armário.";
+            } else {
+                document.getElementById('pet-status').innerText = "Moedas insuficientes!";
+            }
+        }
+
+        // Armário
+        function vestirArmario(item, botao) {
+            if (!pet.itensComprados.includes(item)) {
+                document.getElementById('pet-status').innerText = "Você precisa comprar este item na Loja primeiro!";
+                return;
+            }
+            
+            const acc = document.getElementById(`acc-${item}`);
+            acc.classList.toggle('active');
+            botao.classList.toggle('active-item');
+        }
+
+        function atualizarHumor() {
+            if (luzApagada) return;
+            const petBody = document.getElementById('pet');
+            
+            if (pet.fome < 40 || pet.felicidade < 40) {
+                petBody.classList.add('sad');
+                if(pet.fome < 40) {
+                    document.getElementById('pet-status').innerText = "Estou com muita fome...";
+                } else {
+                    document.getElementById('pet-status').innerText = "Estou meio entediado.";
+                }
+            } else {
+                petBody.classList.remove('sad');
+            }
+        }
+
+        function animarPet(classe) {
+            const petBody = document.getElementById('pet');
+            petBody.classList.add(classe);
+            setTimeout(() => petBody.classList.remove(classe), 400);
+        }
+
+        // --- MOVIMENTAÇÃO DE FAZER CARINHO (MOUSE & TOUCH) ---
+        const petElement = document.getElementById('pet');
+        let acariciando = false;
+        let rastroMovimento = 0;
+        let ultimaX = 0, ultimaY = 0;
+
+        function iniciarCarinho(e) {
+            if (luzApagada) return;
+            acariciando = true;
+            rastroMovimento = 0;
+            const coord = e.touches ? e.touches[0] : e;
+            ultimaX = coord.clientX;
+            ultimaY = coord.clientY;
+            moverOlhos(ultimaX, ultimaY);
+        }
+
+        function moverCarinho(e) {
+            if (!acariciando || luzApagada) return;
+            
+            const coord = e.touches ? e.touches[0] : e;
+            const atualX = coord.clientX;
+            const atualY = coord.clientY;
+
+            let distancia = Math.sqrt(Math.pow(atualX - ultimaX, 2) + Math.pow(atualY - ultimaY, 2));
+            rastroMovimento += distancia;
+
+            moverOlhos(atualX, atualY);
+
+            ultimaX = atualX;
+            ultimaY = atualY;
+
+            if (rastroMovimento > 250) {
+                alterarStatus('felicidade', 4);
+                ganharMoedas(1);
+                document.getElementById('pet-status').innerText = "Hehehe! Que carinho gostoso! 🥰";
+                animarPet('eat');
+                rastroMovimento = 0;
+            }
+        }
+
+        function finalizarCarinho() {
+            if (!acariciando) return;
+            acariciando = false;
+            resetOlhos();
+            atualizarHumor();
+        }
+
+        function moverOlhos(clientX, clientY) {
+            const pupilas = document.querySelectorAll('.pupil');
+            pupilas.forEach(pupila => {
+                const olho = pupila.parentElement;
+                const areaOlho = olho.getBoundingClientRect();
+                const olhoX = areaOlho.left + areaOlho.width / 2;
+                const olhoY = areaOlho.top + areaOlho.height / 2;
+                const radianos = Math.atan2(clientY - olhoY, clientX - olhoX);
+                const distMax = 6;
+                const moverX = Math.cos(radianos) * distMax;
+                const moverY = Math.sin(radianos) * distMax;
+                pupila.style.transform = `translate(${moverX}px, ${moverY}px)`;
+            });
+        }
+
+        function resetOlhos() {
+            const pupilas = document.querySelectorAll('.pupil');
+            pupilas.forEach(p => p.style.transform = 'translate(0px, 0px)');
+        }
+
+        petElement.addEventListener('mousedown', iniciarCarinho);
+        window.addEventListener('mousemove', moverCarinho);
+        window.addEventListener('mouseup', finalizarCarinho);
+
+        petElement.addEventListener('touchstart', iniciarCarinho);
+        window.addEventListener('touchmove', moverCarinho);
+        window.addEventListener('touchend', finalizarCarinho);
+
+        alterarStatus('fome', 0);
+        alterarStatus('felicidade', 0);
+        alterarStatus('energia', 0);
+    </script>
+</body>
+</html>
