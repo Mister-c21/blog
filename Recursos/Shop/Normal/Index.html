@@ -99,7 +99,7 @@
         <div class="glass-card rounded-xl p-3 flex items-center justify-between shadow-sm">
             <div class="relative flex items-center gap-2 bg-white/50 border border-white/60 rounded-lg px-3 py-1.5 text-xs text-slate-600 font-medium">
                 <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-slate-400"></i>
-                <select class="bg-transparent pr-4 outline-none appearance-none cursor-pointer font-medium text-slate-700">
+                <select id="price-filter" class="bg-transparent pr-4 outline-none appearance-none cursor-pointer font-medium text-slate-700">
                     <option value="todos">Todos os preços</option>
                     <option value="ate-20">Até R$ 20,00</option>
                     <option value="mais-20">Acima de R$ 20,00</option>
@@ -407,20 +407,34 @@
         let selectedCategory = 'todos';
 
         const searchInput = document.getElementById('search-input');
+        const priceFilter = document.getElementById('price-filter');
         const productCards = document.querySelectorAll('.product-card');
 
         function applyFilters() {
             const searchTerm = searchInput.value.toLowerCase().trim();
+            const selectedPriceRange = priceFilter.value;
 
             productCards.forEach(card => {
                 const title = card.querySelector('.product-title').textContent.toLowerCase();
                 const source = card.querySelector('.product-source').textContent.toLowerCase();
                 const cardCategory = card.getAttribute('data-category');
+                
+                // Extrai o valor numérico do preço do card (ex: "R$ 35,62" vira 35.62)
+                const priceText = card.querySelector('.product-price').textContent;
+                const priceValue = parseFloat(priceText.replace('R$', '').replace('.', '').replace(',', '.').trim());
 
                 const matchesSearch = title.includes(searchTerm) || source.includes(searchTerm);
                 const matchesCategory = (selectedCategory === 'todos' || cardCategory === selectedCategory);
+                
+                // Validação da faixa de preço
+                let matchesPrice = true;
+                if (selectedPriceRange === 'ate-20') {
+                    matchesPrice = priceValue <= 20;
+                } else if (selectedPriceRange === 'mais-20') {
+                    matchesPrice = priceValue > 20;
+                }
 
-                if (matchesSearch && matchesCategory) {
+                if (matchesSearch && matchesCategory && matchesPrice) {
                     card.classList.remove('hidden');
                 } else {
                     card.classList.add('hidden');
@@ -429,6 +443,7 @@
         }
 
         searchInput.addEventListener('input', applyFilters);
+        priceFilter.addEventListener('change', applyFilters);
 
         const tabs = document.querySelectorAll('.tab-btn');
         tabs.forEach(tab => {
