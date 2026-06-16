@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leitor de Mangá - Feed Vertical</title>
+    <style>
+        /* Estilização focada em leitura de quadrinhos/mangás */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0b0b0b;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: #ffffff;
+            overflow-y: auto;
+        }
+
+        /* Container do feed vertical */
+        .manga-feed {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 800px; /* Largura padrão ideal para leitura de Manhwa */
+            margin: 0 auto;
+            padding-bottom: 50px;
+        }
+
+        /* Imagens das páginas do capítulo */
+        .manga-page {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+        }
+
+        /* Mensagens de status e carregamento */
+        .status-container {
+            text-align: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: #b3b3b3;
+            width: 90%;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border-left-color: #7b2cbf;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="status" class="status-container">
+        <div class="spinner"></div>
+        Conectando à página e extraindo o capítulo...
+    </div>
+
+    <div id="feed" class="manga-feed"></div>
+
+    <script>
+        // URL enviada que serve como alvo de extração
+        const urlAlvo = 'https://leituramanga.net/manga/who-made-me-a-princess/chapter/1'; 
+
+        // Ponte pública (AllOrigins) para contornar o bloqueio de segurança do navegador (CORS)
+        const urlPonte = `https://api.allorigins.win/get?url=${encodeURIComponent(urlAlvo)}`;
+
+        const feedContainer = document.getElementById('feed');
+        const statusElement = document.getElementById('status');
+
+        // Faz a requisição dos dados da página através da ponte
+        fetch(urlPonte)
+            .then(response => {
+                if (response.ok) return response.json();
+                throw new Error('Falha na ponte de comunicação ao ler a página.');
+            })
+            .then(data => {
+                // Instancia o interpretador DOM nativo do navegador para ler o HTML do site
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data.contents, 'text/html');
+                
+                // Seleciona todas as imagens encontradas na estrutura da página
+                const todasImagens = doc.querySelectorAll('img');
+                
+                const urlBase = new URL(urlAlvo);
+                let paginasCarregadas = 0;
+
+                todasImagens.forEach(img => {
+                    let srcOriginal = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src');
+                    
+                    // Filtros para capturar apenas as imagens do capítulo e descartar lixo (anúncios, logos, avatares)
+                    if (!srcOriginal) return;
+                    if (srcOriginal.startsWith('data:image')) return;
+                    if (srcOriginal.includes('logo') || srcOriginal.includes('avatar') || srcOriginal.includes('banner')) return;
+
+                    // Corrige o caminho da imagem caso o site use links relativos (ex: /uploads/... -> https://site.com/uploads/...)
+                    if (!srcOriginal.startsWith('http://') && !srcOriginal.startsWith('https://')) {
+                        srcOriginal = new URL(srcOriginal, urlBase.origin).href;
+                    }
+
+                    // Cria o elemento de imagem otimizado para o feed vertical
+                    const novaPagina = document.createElement('img');
+                    novaPagina.src = srcOriginal;
+                    novaPagina.className = 'manga-page';
+                    novaPagina.alt = `Página ${paginasCarregadas + 1}`;
+                    novaPagina.loading = 'lazy'; // O navegador só carrega a imagem quando ela estiver perto de aparecer na tela
+
+                    // Se falhar ao carregar uma imagem quebrada ou bloqueada por CDN, ela se remove para não quebrar a leitura
+                    novaPagina.onerror = function() {
+                        this.remove();
+                    };
+
+                    feedContainer.appendChild(novaPagina);
+                    paginasCarregadas++;
+                });
+
+                // Remove a mensagem de carregamento se encontrou o conteúdo
+                if (paginasCarregadas > 0) {
+                    statusElement.style.display = 'none';
+                } else {
+                    statusElement.innerHTML = "O conteúdo das imagens não pôde ser extraído. O site pode estar utilizando uma proteção interna avançada contra scrapers no momento.";
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                statusElement.innerHTML = `<span style="color: #ff4d4d;">Erro de rede do navegador ao tentar processar o capítulo.</span>`;
+            });
+    </script>
+
+</body>
+</html>
