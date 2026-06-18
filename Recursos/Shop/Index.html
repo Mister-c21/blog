@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TikTok Style Top Tab Bar</title>
     <style>
-        /* Configurações baseadas no seu app */
         * {
             margin: 0;
             padding: 0;
@@ -14,7 +13,7 @@
         }
 
         body {
-            background-color: #f7f7fc; /* Fundo Ghost White */
+            background-color: #f7f7fc;
             height: 100vh;
             display: flex;
             flex-direction: column;
@@ -22,7 +21,6 @@
             color: #1a1a1a;
         }
 
-        /* Container da Tab Bar com efeito Vidro Semitransparente */
         .top-tab-container {
             position: fixed;
             top: 0;
@@ -30,13 +28,10 @@
             width: 100%;
             padding: 14px 0;
             z-index: 1000;
-            
-            /* Glassmorphism baseado no roxo */
             background: rgba(138, 43, 226, 0.08); 
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border-bottom: 1px solid rgba(138, 43, 226, 0.15);
-            
             overflow-x: auto;
             white-space: nowrap;
             scrollbar-width: none;
@@ -82,7 +77,6 @@
             box-shadow: 0 0 6px rgba(138, 43, 226, 0.4);
         }
 
-        /* ESTEIRA DE CONTEÚDO (Estilo React Navigation) */
         .window-wrapper {
             flex: 1;
             margin-top: 53px;
@@ -92,24 +86,20 @@
             position: relative;
         }
 
-        /* Container que armazena os iframes lado a lado */
         .tabs-view-pager {
             display: flex;
-            width: 300%; /* 100% para cada aba (3 abas = 300%) */
+            width: 400%; /* Ajustado para 400% (4 abas) */
             height: 100%;
             will-change: transform;
-            /* Transição suave ativada apenas quando o usuário NÃO está arrastando */
             transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
-        /* Estado ativo durante o arrasto físico do dedo (remove o delay da transição) */
         .tabs-view-pager.swiping {
             transition: none;
         }
 
-        /* Cada tela/sessão individual ocupando exatamente a largura do viewport */
         .tab-page {
-            width: 33.333%; /* Um terço do container de 300% = 100vw */
+            width: 25%; /* Ajustado para 25% (1/4 da largura do container) */
             height: 100%;
             position: relative;
         }
@@ -121,7 +111,6 @@
             background-color: transparent;
         }
 
-        /* Máscara invisível para capturar os gestos por cima do iframe sem bloqueios */
         .swipe-overlay {
             position: absolute;
             top: 0;
@@ -129,7 +118,7 @@
             width: 100%;
             height: 100%;
             z-index: 10;
-            display: none; /* Ativado via JS apenas no início do movimento lateral */
+            display: none;
         }
     </style>
 </head>
@@ -140,36 +129,23 @@
             <li class="tab-item active" onclick="switchTab(0)">Padrão</li>
             <li class="tab-item" onclick="switchTab(1)">E-books</li>
             <li class="tab-item" onclick="switchTab(2)">Cursos</li>
-            <div class="tab-indicator" id="indicator"></div>
+            <li class="tab-item" onclick="switchTab(3)">Serviços</li> <div class="tab-indicator" id="indicator"></div>
         </ul>
     </nav>
 
     <div class="window-wrapper" id="gesture-zone">
         <div class="tabs-view-pager" id="view-pager">
             
-            <div class="tab-page">
-                <div class="swipe-overlay"></div>
-                <iframe class="content-iframe" src="./Normal/Index.html"></iframe>
-            </div>
-
-            <div class="tab-page">
-                <div class="swipe-overlay"></div>
-                <iframe class="content-iframe" src="./Ebooks/Index.html"></iframe>
-            </div>
-
-            <div class="tab-page">
-                <div class="swipe-overlay"></div>
-                <iframe class="content-iframe" src="./Cursos/Index.html"></iframe>
-            </div>
-
-        </div>
+            <div class="tab-page"><div class="swipe-overlay"></div><iframe class="content-iframe" src="./Normal/Index.html"></iframe></div>
+            <div class="tab-page"><div class="swipe-overlay"></div><iframe class="content-iframe" src="./Ebooks/Index.html"></iframe></div>
+            <div class="tab-page"><div class="swipe-overlay"></div><iframe class="content-iframe" src="./Cursos/Index.html"></iframe></div>
+            <div class="tab-page"><div class="swipe-overlay"></div><iframe class="content-iframe" src="./Servicos/Index.html"></iframe></div> </div>
     </div>
 
     <script>
         const pager = document.getElementById('view-pager');
         const gestureZone = document.getElementById('gesture-zone');
         const tabs = Array.from(document.querySelectorAll('.tab-item'));
-        const overlays = document.querySelectorAll('.swipe-overlay');
         
         let activeIndex = 0;
         let startX = 0;
@@ -177,38 +153,30 @@
         let isSwiping = false;
         let windowWidth = window.innerWidth;
 
-        // Atualiza a largura capturada caso o dispositivo mude de orientação
         window.addEventListener('resize', () => {
             windowWidth = window.innerWidth;
             updateTabPosition(activeIndex, false);
         });
 
-        // Altera a aba ativa, move a linha e desloca a esteira de conteúdo
         function switchTab(index) {
             activeIndex = index;
-            
             tabs.forEach((item, i) => {
                 item.classList.remove('active');
                 if(i === index) item.classList.add('active');
             });
-
             const activeElement = tabs[index];
             const indicator = document.getElementById('indicator');
             indicator.style.width = `${activeElement.offsetWidth}px`;
             indicator.style.left = `${activeElement.offsetLeft}px`;
             activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-
             updateTabPosition(index, true);
         }
 
         function updateTabPosition(index, animate) {
             if (!animate) pager.classList.add('swiping');
-            // Move a esteira horizontalmente baseado na largura da tela
             pager.style.transform = `translateX(-${index * (100 / tabs.length)}%)`;
             if (!animate) setTimeout(() => pager.classList.remove('swiping'), 50);
         }
-
-        // --- GESTOS NATIVOS (TOUCH CORRIDO) ---
 
         gestureZone.addEventListener('touchstart', (e) => {
             startX = e.touches[0].clientX;
@@ -217,59 +185,30 @@
 
         gestureZone.addEventListener('touchmove', (e) => {
             if (!isSwiping) return;
-            
             currentX = e.touches[0].clientX;
             const deltaX = currentX - startX;
-
-            // Evita arrastar para além dos limites das pontas (efeito elástico leve)
-            if ((activeIndex === 0 && deltaX > 0) || (activeIndex === tabs.length - 1 && deltaX < 0)) {
-                return; 
-            }
-
-            // Ativa as máscaras temporariamente para que o mouse/dedo não seja "capturado" pelo iframe
-            // Re-seleciona dinamicamente caso overlays novos tenham sido inseridos
+            if ((activeIndex === 0 && deltaX > 0) || (activeIndex === tabs.length - 1 && deltaX < 0)) return; 
             document.querySelectorAll('.swipe-overlay').forEach(overlay => overlay.style.display = 'block');
             pager.classList.add('swiping');
-
-            // Calcula o deslocamento exato em pixels convertido para a porcentagem do container
             const currentTransform = -(activeIndex * windowWidth) + deltaX;
             const percentageMove = (currentTransform / (windowWidth * tabs.length)) * 100;
-            
             pager.style.transform = `translateX(${percentageMove}%)`;
         }, { passive: true });
 
         gestureZone.addEventListener('touchend', (e) => {
             if (!isSwiping) return;
             isSwiping = false;
-            
             pager.classList.remove('swiping');
             document.querySelectorAll('.swipe-overlay').forEach(overlay => overlay.style.display = 'none');
-
             const finalDeltaX = currentX - startX;
-            const swipeThreshold = windowWidth * 0.25; // Exige 25% de arrasto da tela para computar a troca
-
-            // Se arrastou o suficiente para a direita e não é a primeira aba
-            if (finalDeltaX > swipeThreshold && activeIndex > 0) {
-                switchTab(activeIndex - 1);
-            } 
-            // Se arrastou o suficiente para a esquerda e não é a última aba
-            else if (finalDeltaX < -swipeThreshold && activeIndex < tabs.length - 1) {
-                switchTab(activeIndex + 1);
-            } 
-            // Se não arrastou o suficiente, devolve para a aba atual (efeito mola)
-            else {
-                switchTab(activeIndex);
-            }
-
-            // Reseta variáveis
-            startX = 0;
-            currentX = 0;
+            const swipeThreshold = windowWidth * 0.25;
+            if (finalDeltaX > swipeThreshold && activeIndex > 0) switchTab(activeIndex - 1);
+            else if (finalDeltaX < -swipeThreshold && activeIndex < tabs.length - 1) switchTab(activeIndex + 1);
+            else switchTab(activeIndex);
+            startX = 0; currentX = 0;
         });
 
-        // Configuração inicial do indicador no carregamento
-        window.addEventListener('DOMContentLoaded', () => {
-            switchTab(0);
-        });
+        window.addEventListener('DOMContentLoaded', () => switchTab(0));
     </script>
 </body>
 </html>
