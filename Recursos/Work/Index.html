@@ -3,9 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TikTok Style Top Tab Bar - Work</title>
+    <title>Feed / Orion</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Configurações baseadas no seu app */
+        :root {
+            --blueviolet: #8a2be2;
+            --blueviolet-hover: #7323bd;
+            --ghost-white: #f8f8ff;
+            --bg-light: #ffffff;
+            --glass-bg: rgba(138, 43, 226, 0.04);
+            --glass-border: rgba(138, 43, 226, 0.12);
+            --glass-card: rgba(0, 0, 0, 0.02);
+            --text-main: #1a1a24;
+            --text-muted: #757585;
+            --danger-color: #ff4d4d;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,257 +27,627 @@
         }
 
         body {
-            background-color: #f7f7fc; /* Fundo Ghost White da imagem */
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden; /* Mantém a tela fixa, quem rola é o iframe */
-            color: #1a1a1a;
+            background: radial-gradient(circle at top right, #f3ebfa, var(--bg-light));
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        /* Container da Tab Bar com efeito Vidro Semitransparente */
-        .top-tab-container {
+        /* --- LAYOUT BASE (CSS GRID) --- */
+        .container {
+            display: grid;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* --- FEED PRINCIPAL --- */
+        main {
+            border-left: 1px solid var(--glass-border);
+            border-right: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            min-height: 100vh;
+            min-width: 0;
+        }
+
+        /* --- CARROSSEL DE TEMAS --- */
+        .themes-container {
+            display: flex;
+            gap: 15px;
+            padding: 20px;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(138, 43, 226, 0.01);
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .themes-container::-webkit-scrollbar {
+            display: none;
+        }
+        .themes-container {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .theme-card {
+            flex: 0 0 140px;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            
+            clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+            
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, filter 0.25s ease;
+        }
+
+        .theme-card i.card-icon {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.5rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+        }
+
+        .theme-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 2px var(--blueviolet), 0 8px 16px rgba(138, 43, 226, 0.2);
+            filter: brightness(1.05);
+        }
+
+        .theme-card:focus {
+            outline: none;
+            transform: scale(1.05);
+            box-shadow: 0 0 0 3px var(--blueviolet), 0 0 15px rgba(138, 43, 226, 0.4);
+        }
+
+        .themes-container .theme-card.active {
+            transform: scale(1.02);
+            box-shadow: 0 0 0 3px var(--blueviolet), 0 6px 12px rgba(138, 43, 226, 0.3);
+            filter: brightness(1.05);
+        }
+
+        /* URLs das imagens dos cards da lista horizontal */
+        .card-salvos {
+            background-image: linear-gradient(rgba(138, 43, 226, 0.3), rgba(138, 43, 226, 0.3)), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=60');
+        }
+        .card-youtube { 
+            background-image: url('https://www.mktesportivo.com/wp-content/uploads/2025/03/youtube-apostas-esportivas.jpg'); 
+        }
+        .card-web {
+            background-image: linear-gradient(135deg, #a146e9, var(--blueviolet));
+        }
+        .card-drive { 
+            background-image: url('https://t.ctcdn.com.br/SroN0IRPSRPfSsqc0kV8XHwGzQU=/768x432/smart/i599066.jpeg'); 
+        }
+        .card-dispositivo { 
+            background-image: url('https://images.icon-icons.com/1451/PNG/512/videofolder_99361.png'); 
+        }
+
+        /* BARRA DE BUSCA */
+        .feed-search-container {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(138, 43, 226, 0.01);
+        }
+
+        .search-bar {
+            background: rgba(0, 0, 0, 0.03);
+            border: 1px solid var(--glass-border);
+            padding: 10px 20px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+            position: relative;
+        }
+
+        .search-bar:focus-within {
+            border-color: var(--blueviolet);
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.15);
+            background: var(--bg-light);
+        }
+
+        .search-bar input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-main);
+            width: 100%;
+            font-size: 0.95rem;
+            padding-right: 25px;
+        }
+
+        .search-bar input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* BOTÃO DE LIMPAR BUSCA */
+        .clear-search-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.95rem;
+            display: none; /* Exibido apenas dinamicamente via JS */
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            right: 15px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .clear-search-btn:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--text-main);
+        }
+
+        /* CARROSSEL DE BOTÕES DE TEMAS (TOPTABBAR) */
+        .tags-container {
+            display: flex;
+            gap: 10px;
+            padding: 12px 20px;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.2);
+            width: 100%;
+        }
+
+        .tags-container::-webkit-scrollbar {
+            display: none;
+        }
+        .tags-container {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .tag-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            color: var(--text-main);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            user-select: none;
+            transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.1s;
+        }
+
+        .tag-button i {
+            color: var(--blueviolet);
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .tag-button:hover {
+            background: rgba(138, 43, 226, 0.08);
+            border-color: var(--blueviolet);
+        }
+
+        .tag-button:active {
+            transform: scale(0.97);
+        }
+
+        .tag-button.active {
+            background: var(--blueviolet);
+            border-color: var(--blueviolet);
+            color: var(--ghost-white);
+        }
+
+        .tag-button.active i {
+            color: var(--ghost-white);
+        }
+
+        /* Tweets */
+        .tweet {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+            border-bottom: 1px solid var(--glass-border);
+            background: var(--glass-card);
+            transition: opacity 0.3s ease, transform 0.3s ease, padding 0.3s ease, height 0.3s ease;
+        }
+
+        .tweet:hover {
+            background: rgba(138, 43, 226, 0.02);
+        }
+
+        .tweet-content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .tweet-header {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0;
+            overflow: hidden;
+        }
+
+        .display-name {
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* BOTÕES DE AÇÃO */
+        .save-item-btn, .delete-saved-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s, color 0.2s, transform 0.1s;
+        }
+
+        .save-item-btn:hover {
+            background: rgba(138, 43, 226, 0.08);
+            color: var(--blueviolet);
+        }
+
+        .save-item-btn.saved {
+            color: var(--blueviolet);
+        }
+
+        .delete-saved-btn:hover {
+            background: rgba(255, 77, 77, 0.1);
+            color: var(--danger-color);
+        }
+
+        .save-item-btn:active, .delete-saved-btn:active {
+            transform: scale(0.92);
+        }
+
+        .tweet.removing {
+            opacity: 0;
+            transform: translateX(30px);
+            padding-top: 0;
+            padding-bottom: 0;
+            height: 0;
+            overflow: hidden;
+            border: none;
+        }
+
+        /* MENSAGEM DE LISTA VAZIA */
+        .empty-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* --- MODAL TELA CHEIA (VIDRO SEMITRANSPARENTE) --- */
+        .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            padding: 14px 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(248, 248, 255, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             z-index: 1000;
-            
-            /* Glassmorphism baseado no roxo da imagem */
-            background: rgba(138, 43, 226, 0.08); 
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-bottom: 1px solid rgba(138, 43, 226, 0.15);
-            
-            /* Ativa rolagem horizontal contínua para as abas de ferramentas */
-            overflow-x: auto;
-            white-space: nowrap;
-            scrollbar-width: none; /* Oculta no Firefox */
-        }
-
-        /* Oculta barra de rolagem no Chrome/Safari/Edge */
-        .top-tab-container::-webkit-scrollbar {
-            display: none;
-        }
-
-        /* Lista de abas */
-        .tab-list {
-            display: inline-flex;
-            align-items: center;
-            gap: 28px;
-            padding: 0 24px;
-            position: relative;
-            list-style: none;
-            min-width: max-content;
-        }
-
-        /* Item Individual (Estilo TikTok) */
-        .tab-item {
-            font-size: 16px;
-            font-weight: 600;
-            color: rgba(138, 43, 226, 0.6); /* Roxo suavizado */
-            cursor: pointer;
-            transition: color 0.25s ease, transform 0.2s ease;
-            position: relative;
-            padding: 6px 4px;
-            user-select: none;
-        }
-
-        /* Aba Ativa (Branco Puro em destaque) */
-        .tab-item.active {
-            color: #ffffff;
-            transform: scale(1.05);
-        }
-
-        /* Linha Indicadora Inferior (Estilo TikTok) */
-        .tab-indicator {
-            position: absolute;
-            bottom: -2px;
-            height: 3px;
-            background-color: #ffffff;
-            border-radius: 2px;
-            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
-        }
-
-        /* --- ESTEIRA DE CONTEÚDO (ESTILO REACT NAVIGATION) --- */
-        .window-wrapper {
-            flex: 1;
-            margin-top: 53px; /* Espaço para não cobrir a barra superior */
-            width: 100%;
-            height: calc(100% - 53px);
-            overflow: hidden;
-            position: relative;
-        }
-
-        /* Container que agrupa todas as telas horizontais (2 abas = 200%) */
-        .tabs-view-pager {
             display: flex;
-            width: 200%; 
-            height: 100%;
-            will-change: transform;
-            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
         }
 
-        /* Desativa as transições durante o arrasto manual do dedo */
-        .tabs-view-pager.swiping {
-            transition: none;
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
         }
 
-        /* Cada container interno individual ocupando exatamente 1 largura de tela */
-        .tab-page {
-            width: calc(100% / 2); /* Divisão perfeita para as 2 abas */
-            height: 100%;
-            position: relative;
-        }
-
-        .content-iframe {
+        .modal-content {
             width: 100%;
+            max-width: 800px;
             height: 100%;
-            border: none;
-            background-color: transparent;
+            background: rgba(255, 255, 255, 0.5);
+            border-left: 1px solid var(--glass-border);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
         }
 
-        /* Película invisível para capturar o swipe por cima do iframe sem travar */
-        .swipe-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-            display: none;
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-title i {
+            color: var(--blueviolet);
+        }
+
+        .close-modal {
+            background: rgba(138, 43, 226, 0.1);
+            border: 1px solid var(--glass-border);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            color: var(--blueviolet);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .close-modal:hover {
+            background: var(--blueviolet);
+            color: var(--ghost-white);
+        }
+
+        .close-modal:active {
+            transform: scale(0.95);
+        }
+
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+
+        body.modal-open {
+            overflow: hidden;
+        }
+
+        @media (max-width: 1000px) {
+            .container { padding: 0; }
+            main, .modal-content { border-left: none; border-right: none; }
         }
     </style>
 </head>
 <body>
 
-    <nav class="top-tab-container">
-        <ul class="tab-list">
-            <li class="tab-item active" onclick="switchTab(0)">Fórum</li>
-            <li class="tab-item" onclick="switchTab(1)">sala</li>
-            <div class="tab-indicator" id="indicator"></div>
-        </ul>
-    </nav>
-
-    <div class="window-wrapper" id="gesture-zone">
-        <div class="tabs-view-pager" id="view-pager">
-            
-            <div class="tab-page">
-                <div class="swipe-overlay"></div>
-                <iframe class="content-iframe" src="./Forum/Index.html"></iframe>
+    <div class="container">
+        <main>
+            <div class="themes-container">
+                <div class="theme-card card-salvos" id="open-salvos" tabindex="0"><i class="fa-solid fa-bookmark card-icon"></i></div>
+                <div class="theme-card card-youtube active" tabindex="0"></div>
+                <div class="theme-card card-web" tabindex="0"><i class="fa-solid fa-earth-americas card-icon"></i></div>
+                <div class="theme-card card-drive" tabindex="0"></div>
+                <div class="theme-card card-dispositivo" tabindex="0"></div>
             </div>
 
-            <div class="tab-page">
-                <div class="swipe-overlay"></div>
-                <iframe class="content-iframe" src="./Rooms/Index.html"></iframe>
+            <div class="feed-search-container">
+                <div class="search-bar">
+                    <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
+                    <input type="text" id="feed-search" placeholder="Buscar seres no banco de dados...">
+                    <!-- Botão de apagar adicionado dentro do container da barra -->
+                    <button class="clear-search-btn" id="clear-search" title="Limpar busca">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
             </div>
 
+            <div class="tags-container">
+                <button class="tag-button active" data-tag="all"><i class="fa-solid fa-border-all"></i>All</button>
+                <button class="tag-button" data-tag="tv"><i class="fa-solid fa-tv"></i>TV</button>
+                <button class="tag-button" data-tag="filmes"><i class="fa-solid fa-film"></i>Filmes</button>
+                <button class="tag-button" data-tag="ação"><i class="fa-solid fa-burst"></i>Ação</button>
+                <button class="tag-button" data-tag="aventura"><i class="fa-solid fa-compass"></i>Aventura</button>
+                <button class="tag-button" data-tag="ficção"><i class="fa-solid fa-flask"></i>Ficção</button>
+            </div>
+
+            <div class="feed">
+                <div class="tweet" data-id="ser-01" data-tags="ficção tv">
+                    <div class="theme-card" style="flex: 0 0 60px; height: 90px; cursor: default; box-shadow: none; clip-path: none; background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=60');"></div>
+                    <div class="tweet-content">
+                        <div class="tweet-header">
+                            <span class="display-name">Ancião de Andromeda</span>
+                            <span style="font-size: 0.75rem; background: rgba(138, 43, 226, 0.15); color: var(--blueviolet); padding: 3px 10px; border-radius: 12px; font-weight: bold; border: 1px solid var(--glass-border); margin-top: 6px;">CÓSMICO</span>
+                        </div>
+                        <button class="save-item-btn" title="Salvar item">
+                            <i class="fa-regular fa-bookmark"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="tweet" data-id="ser-02" data-tags="aventura ficção filmes">
+                    <div class="theme-card" style="flex: 0 0 60px; height: 90px; cursor: default; box-shadow: none; clip-path: none; background-image: url('https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=400&auto=format&fit=crop&q=60');"></div>
+                    <div class="tweet-content">
+                        <div class="tweet-header">
+                            <span class="display-name">Sílfide Lunar</span>
+                            <span style="font-size: 0.75rem; background: rgba(138, 43, 226, 0.15); color: var(--blueviolet); padding: 3px 10px; border-radius: 12px; font-weight: bold; border: 1px solid var(--glass-border); margin-top: 6px;">ETÉREO</span>
+                        </div>
+                        <button class="save-item-btn" title="Salvar item">
+                            <i class="fa-regular fa-bookmark"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL DE SALVOS -->
+    <div class="modal-overlay" id="salvos-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fa-solid fa-bookmark"></i>
+                    <span>Itens Salvos</span>
+                </div>
+                <button class="close-modal" id="close-salvos"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" id="modal-saved-container">
+                <div class="empty-message">Nenhum item salvo no momento.</div>
+            </div>
         </div>
     </div>
 
     <script>
-        const pager = document.getElementById('view-pager');
-        const gestureZone = document.getElementById('gesture-zone');
-        const tabs = Array.from(document.querySelectorAll('.tab-item'));
-        const overlays = document.querySelectorAll('.swipe-overlay');
+        const tagButtons = document.querySelectorAll('.tag-button');
+        const tweets = document.querySelectorAll('.feed .tweet');
+        const searchInput = document.getElementById('feed-search');
+        const clearSearchBtn = document.getElementById('clear-search');
         
-        let activeIndex = 0;
-        let startX = 0;
-        let currentX = 0;
-        let isSwiping = false;
-        let windowWidth = window.innerWidth;
+        const openSalvosBtn = document.getElementById('open-salvos');
+        const closeSalvosBtn = document.getElementById('close-salvos');
+        const salvosModal = document.getElementById('salvos-modal');
+        const savedContainer = document.getElementById('modal-saved-container');
 
-        // Recalcula dimensões caso mude a orientação do telemóvel
-        window.addEventListener('resize', () => {
-            windowWidth = window.innerWidth;
-            updateTabPosition(activeIndex, false);
-        });
+        let savedItemsIds = [];
 
-        // Altera o estado visual dos botões, indicador e faz o scroll do slide
-        function switchTab(index) {
-            activeIndex = index;
-            
-            tabs.forEach((item, i) => {
-                item.classList.remove('active');
-                if(i === index) item.classList.add('active');
+        function renderModalSalvos() {
+            savedContainer.innerHTML = '';
+
+            if (savedItemsIds.length === 0) {
+                savedContainer.innerHTML = '<div class="empty-message">Nenhum item salvo no momento.</div>';
+                return;
+            }
+
+            tweets.forEach(tweet => {
+                const id = tweet.getAttribute('data-id');
+                if (savedItemsIds.includes(id)) {
+                    const clone = tweet.cloneNode(true);
+                    
+                    const actionBtn = clone.querySelector('.save-item-btn');
+                    actionBtn.className = 'delete-saved-btn';
+                    actionBtn.setAttribute('title', 'Excluir da lista de salvos');
+                    actionBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+
+                    actionBtn.addEventListener('click', () => {
+                        clone.classList.add('removing');
+                        setTimeout(() => {
+                            const originalBtn = tweet.querySelector('.save-item-btn');
+                            originalBtn.classList.remove('saved');
+                            originalBtn.querySelector('i').className = 'fa-regular fa-bookmark';
+                            
+                            savedItemsIds = savedItemsIds.filter(itemId => itemId !== id);
+                            renderModalSalvos();
+                        }, 300);
+                    });
+
+                    savedContainer.appendChild(clone);
+                }
             });
-
-            const activeElement = tabs[index];
-            const indicator = document.getElementById('indicator');
-            indicator.style.width = `${activeElement.offsetWidth}px`;
-            indicator.style.left = `${activeElement.offsetLeft}px`;
-            
-            // Centraliza o item de menu do topo de forma suave caso passe da tela
-            activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-
-            updateTabPosition(index, true);
         }
 
-        function updateTabPosition(index, animate) {
-            if (!animate) pager.classList.add('swiping');
-            // Deslocamento fracionado baseado em partes dinâmicas (tabs.length)
-            pager.style.transform = `translateX(-${index * (100 / tabs.length)}%)`;
-            if (!animate) setTimeout(() => pager.classList.remove('swiping'), 50);
-        }
-
-        // --- SISTEMA DE CAPTURA DE GESTOS HORIZONTAIS ---
-
-        gestureZone.addEventListener('touchstart', (e) => {
-            startX = e.touches[0].clientX;
-            isSwiping = true;
-        }, { passive: true });
-
-        gestureZone.addEventListener('touchmove', (e) => {
-            if (!isSwiping) return;
-            
-            currentX = e.touches[0].clientX;
-            const deltaX = currentX - startX;
-
-            // Bloqueia arrasto elástico para fora das bordas limites (primeira e última tela)
-            if ((activeIndex === 0 && deltaX > 0) || (activeIndex === tabs.length - 1 && deltaX < 0)) {
-                return; 
-            }
-
-            // Exibe as películas sobre os iframes para impedir travamento do toque
-            overlays.forEach(overlay => overlay.style.display = 'block');
-            pager.classList.add('swiping');
-
-            // Calcula a transição progressiva milimétrica
-            const currentTransform = -(activeIndex * windowWidth) + deltaX;
-            const percentageMove = (currentTransform / (windowWidth * tabs.length)) * 100;
-            
-            pager.style.transform = `translateX(${percentageMove}%)`;
-        }, { passive: true });
-
-        gestureZone.addEventListener('touchend', (e) => {
-            if (!isSwiping) return;
-            isSwiping = false;
-            
-            pager.classList.remove('swiping');
-            overlays.forEach(overlay => overlay.style.display = 'none');
-
-            const finalDeltaX = currentX - startX;
-            const swipeThreshold = windowWidth * 0.22; // Sensibilidade de 22% da tela para validar transição
-
-            if (finalDeltaX > swipeThreshold && activeIndex > 0) {
-                switchTab(activeIndex - 1);
-            } 
-            else if (finalDeltaX < -swipeThreshold && activeIndex < tabs.length - 1) {
-                switchTab(activeIndex + 1);
-            } 
-            else {
-                switchTab(activeIndex);
-            }
-
-            startX = 0;
-            currentX = 0;
+        const saveButtons = document.querySelectorAll('.save-item-btn');
+        saveButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tweet = btn.closest('.tweet');
+                const id = tweet.getAttribute('data-id');
+                btn.classList.toggle('saved');
+                const icon = btn.querySelector('i');
+                
+                if(btn.classList.contains('saved')) {
+                    icon.className = 'fa-solid fa-bookmark';
+                    if (!savedItemsIds.includes(id)) savedItemsIds.push(id);
+                } else {
+                    icon.className = 'fa-regular fa-bookmark';
+                    savedItemsIds = savedItemsIds.filter(itemId => itemId !== id);
+                }
+                renderModalSalvos();
+            });
         });
 
-        // Inicialização automática na primeira aba
-        window.addEventListener('DOMContentLoaded', () => {
-            switchTab(0);
+        openSalvosBtn.addEventListener('click', () => {
+            renderModalSalvos();
+            salvosModal.classList.add('active');
+            document.body.classList.add('modal-open');
+        });
+
+        closeSalvosBtn.addEventListener('click', () => {
+            salvosModal.classList.remove('active');
+            document.body.classList.remove('modal-open');
+        });
+
+        // Altera a visibilidade do botão de limpar e aplica os filtros do feed
+        function aplicarFiltros() {
+            const activeTagButton = document.querySelector('.tag-button.active');
+            const selectedTag = activeTagButton ? activeTagButton.getAttribute('data-tag') : 'all';
+            const searchTerm = searchInput.value.toLowerCase().trim();
+
+            // Gerencia exibição do botão de limpar com base na presença de texto
+            if (searchInput.value.length > 0) {
+                clearSearchBtn.style.display = 'flex';
+            } else {
+                clearSearchBtn.style.display = 'none';
+            }
+
+            tweets.forEach(tweet => {
+                const tweetTags = tweet.getAttribute('data-tags') || '';
+                const displayName = tweet.querySelector('.display-name').textContent.toLowerCase();
+                
+                const matchesTag = (selectedTag === 'all' || tweetTags.split(' ').includes(selectedTag));
+                const matchesSearch = displayName.includes(searchTerm);
+
+                if (matchesTag && matchesSearch) {
+                    tweet.style.display = 'flex';
+                } else {
+                    tweet.style.display = 'none';
+                }
+            });
+        }
+
+        // Evento exclusivo do botão de limpar campo
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            aplicarFiltros();
+            searchInput.focus();
+        });
+
+        tagButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tagButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                aplicarFiltros();
+            });
+        });
+
+        searchInput.addEventListener('input', aplicarFiltros);
+
+        const themeCards = document.querySelectorAll('.themes-container .theme-card:not(#open-salvos)');
+        themeCards.forEach(card => {
+            card.addEventListener('click', () => {
+                themeCards.forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+            });
         });
     </script>
 </body>
