@@ -1,6 +1,6 @@
 // games.js
 export const consoles = {
-    "Populares no GBA": { 
+    "GBA": { 
         key: "GBA", 
         games: [
             { title: "Sonic Advance", image: "https://static.wikia.nocookie.net/sonic-the-hedgehog/images/c/c8/Sonic_Advance_-_North-american_cover.jpg/revision/latest?cb=20140422212552&path-prefix=pt", url: "https://www.retrogames.cc/embed/28783-sonic-advance-j-independent.html" },
@@ -32,7 +32,7 @@ export const consoles = {
             { title: "Kirby: Nightmare in Dreamland", image: "https://static.wikia.nocookie.net/kirby/images/f/f8/KNiD_Boxart.jpg/revision/latest?cb=20080719011713&path-prefix=en", url: "https://www.retrogames.cc/embed/26683-kirby-nightmare-in-dreamland-u-mode7.html"},
         ]
     },
-    "Ação no Nintendo DS": { 
+    "Nintendo DS": { 
         key: "NDS", 
         games: [
             { title: "Ben 10: Protector of Earth", image: "https://jffvideogames.com/cdn/shop/products/ben_10_protector_of_earth.jpg?v=1615579773", url: "https://www.retrogames.cc/embed/36951-ben-10-protector-of-earth-europe-en-fr-de-es-it.html" },
@@ -50,7 +50,7 @@ export const consoles = {
             { title: "Metroid Prime: Hunters", image: "https://upload.wikimedia.org/wikipedia/pt/d/da/Metroid_Prime_Hunters_cover.png", url: "https://www.retrogames.cc/embed/35570-metroid-prime-hunters-europe-en-fr-de-es-it.html"},
         ]
     },
-    "Clássicos do SNES": { 
+    "SNES": { 
         key: "SNES", 
         games: [
             { title: "Mega Man X", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSMGXgwmCZXv9V65PlsE5nqXz1eEtH1ItF9rsbydxg9Rw5yMg1gwqr-vY3R&s=10", url: "https://www.retrogames.cc/embed/18705-megaman-x-usa-rev-a.html" },
@@ -68,7 +68,7 @@ export const consoles = {
             { title: "Mighty Morphin Power Rangers: The Fighting Edition", image: "https://i.ytimg.com/vi/jMPcDUWghHM/maxresdefault.jpg", url: "https://www.retrogames.cc/embed/23323-mighty-morphin-power-rangers-the-fighting-edition-usa.html"},
         ]
     },
-    "Aventuras do N64": { 
+    "Nintendo 64": { 
         key: "N64", 
         games: [
             { title: "Powerpuff Girls, The - Chemical X-Traction (USA)", image: "https://upload.wikimedia.org/wikipedia/en/5/5d/The_Powerpuff_Girls_Chemical_X-traction.jpg", url: "https://www.retrogames.cc/embed/32846-powerpuff-girls-the-chemical-x-traction-usa.html" },
@@ -78,7 +78,7 @@ export const consoles = {
             { title: "Castlevania - Legacy of Darkness (Europe) (En,Fr,De)", image: "https://assets-prd.ignimgs.com/2022/02/01/cvlegacyofdarkness-sq1-1643759178108.jpg", url: "https://www.retrogames.cc/embed/32504-castlevania-legacy-of-darkness-europe-en-fr-de.html" },
         ]
     },
-     "Nostalgia do playstation": { 
+     "playstation": { 
         key: "Playstation", 
         games: [
             { title: "Mega Man X4", image: "https://m.media-amazon.com/images/M/MV5BMGEwNTlhOGEtYzg0ZS00NDAxLWIxNDEtMDE1OGIyZTNhMjFhXkEyXkFqcGc@._V1_.jpg", url: "https://www.retrogames.cc/embed/40778-mega-man-x4.html" },
