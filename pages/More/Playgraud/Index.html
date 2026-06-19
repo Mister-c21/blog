@@ -40,7 +40,7 @@
         .category { font-size: 0.8rem; color: var(--text-dim); }
 
         .modal-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 3000; display: none; overflow-y: auto; }
-        .modal-header { position: sticky; top: 0; background: var(--bg); padding: 15px; display: flex; align-items: center; z-index: 10; cursor: pointer; position: relative; }
+        .modal-header { position: sticky; top: 0; background: var(--bg); padding: 15px; display: flex; align-items: center; z-index: 10; cursor: pointer; }
         
         .dropdown { position: absolute; top: 50px; right: 15px; background: white; border: 1px solid var(--glass-border); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: none; z-index: 20; min-width: 160px; }
         .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 12px; cursor: pointer; font-size: 0.9rem; color: var(--text); }
@@ -54,7 +54,6 @@
         .btn-play { flex: 1; padding: 15px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; background: var(--primary); color: white; }
         
         #engineSub { display: none; font-size: 0.85rem; padding-left: 25px; border-top: 1px solid var(--glass-border); }
-        
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
     </style>
 </head>
@@ -116,6 +115,24 @@
         let activeGameTitle = "";
         let recognition;
 
+        // --- Lógica de Inicialização por Parâmetro ---
+        function checkUrlParam() {
+            const params = new URLSearchParams(window.location.search);
+            const gameTitle = params.get('game');
+            if (gameTitle) {
+                const decodedTitle = decodeURIComponent(gameTitle);
+                for (const platform in consoles) {
+                    const foundGame = consoles[platform].games.find(g => g.title === decodedTitle);
+                    if (foundGame) {
+                        currentPlatform = platform;
+                        render();
+                        openModal(foundGame);
+                        break;
+                    }
+                }
+            }
+        }
+
         window.startVoiceSearch = () => {
             const overlay = document.getElementById('voiceOverlay');
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -164,7 +181,18 @@
 
         window.toggleDropdown = () => document.getElementById('actionDropdown').style.display = (document.getElementById('actionDropdown').style.display === 'block') ? 'none' : 'block';
         window.toggleEngineSub = () => document.getElementById('engineSub').style.display = (document.getElementById('engineSub').style.display === 'block') ? 'none' : 'block';
-        window.shareGame = async () => { if (navigator.share) await navigator.share({ title: activeGameTitle, url: window.location.href }); };
+        
+        window.shareGame = async () => { 
+            const url = new URL(window.location.href);
+            url.searchParams.set('game', encodeURIComponent(activeGameTitle));
+            if (navigator.share) {
+                await navigator.share({ title: activeGameTitle, url: url.toString() });
+            } else {
+                navigator.clipboard.writeText(url.toString());
+                alert("Link copiado!");
+            }
+        };
+
         window.searchEngine = (e) => window.open((e === 'google' ? "https://google.com/search?q=" : "https://bing.com/search?q=") + encodeURIComponent(activeGameTitle), '_blank');
 
         function render() {
@@ -208,9 +236,14 @@
             document.getElementById('gameModal').style.display = 'none'; 
             document.getElementById('gameEmbed').style.display = 'none';
             document.getElementById('modalDetails').style.display = 'block';
+            // Limpa o parâmetro da URL ao fechar
+            window.history.replaceState({}, '', window.location.pathname);
         };
 
-        window.addEventListener('load', render);
+        window.addEventListener('load', () => {
+            render();
+            checkUrlParam();
+        });
     </script>
 </body>
 </html>
