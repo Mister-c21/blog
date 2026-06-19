@@ -113,9 +113,9 @@
         import { consoles } from './games.js';
         let currentPlatform = Object.keys(consoles)[0];
         let activeGameTitle = "";
+        let activeGameImg = "";
         let recognition;
 
-        // --- Lógica de Inicialização por Parâmetro ---
         function checkUrlParam() {
             const params = new URLSearchParams(window.location.search);
             const gameTitle = params.get('game');
@@ -185,11 +185,27 @@
         window.shareGame = async () => { 
             const url = new URL(window.location.href);
             url.searchParams.set('game', encodeURIComponent(activeGameTitle));
+            const mensagem = `Venha jogar "${activeGameTitle}" comigo!`;
+            
             if (navigator.share) {
-                await navigator.share({ title: activeGameTitle, url: url.toString() });
+                try {
+                    let file = null;
+                    const response = await fetch(activeGameImg);
+                    const blob = await response.blob();
+                    file = new File([blob], 'capa_jogo.png', { type: blob.type });
+
+                    await navigator.share({
+                        title: 'retroHub',
+                        text: mensagem,
+                        url: url.toString(),
+                        files: [file]
+                    });
+                } catch (err) {
+                    await navigator.share({ title: 'retroHub', text: mensagem, url: url.toString() });
+                }
             } else {
-                navigator.clipboard.writeText(url.toString());
-                alert("Link copiado!");
+                navigator.clipboard.writeText(`${mensagem} \n\n${url.toString()}`);
+                alert("Link e convite copiados!");
             }
         };
 
@@ -210,6 +226,7 @@
 
         window.openModal = (g) => {
             activeGameTitle = g.title;
+            activeGameImg = g.image;
             document.getElementById('modalImg').src = g.image;
             document.getElementById('modalTitle').innerText = g.title;
             document.getElementById('modalCategory').innerText = currentPlatform;
@@ -236,7 +253,6 @@
             document.getElementById('gameModal').style.display = 'none'; 
             document.getElementById('gameEmbed').style.display = 'none';
             document.getElementById('modalDetails').style.display = 'block';
-            // Limpa o parâmetro da URL ao fechar
             window.history.replaceState({}, '', window.location.pathname);
         };
 
