@@ -3,760 +3,192 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamFlix</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Loja de Mídias - Orion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        :root {
-            --bg-color: #0b0914; /* Tom "ghost" escuro de fundo */
-            --primary-color: #8a2be2; /* Blueviolet */
-            --glass-bg: rgba(138, 43, 226, 0.15); /* Vidro semitransparente violeta */
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --text-color: #ffffff;
-            --text-secondary: #b3b3b3;
+        :root { 
+            --primary-color: #8a2be2; 
+            --glass-bg: rgba(255, 255, 255, 0.2);
         }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f8f8ff; padding: 20px; }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            overflow-x: hidden;
-            padding-bottom: 50px; /* Garante um espaçamento confortável no fim da página */
-        }
-
-        /* Bloqueio de scroll quando o modal estiver ativo */
-        body.modal-open {
-            overflow: hidden;
-        }
-
-        /* --- Header / Navbar --- */
-        header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            padding: 20px 4%;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            z-index: 100;
-            background: linear-gradient(to bottom, rgba(11, 9, 20, 0.8), transparent);
-            backdrop-filter: blur(10px); /* Efeito vidro */
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        /* --- Barra de Busca Centralizada e Menor --- */
-        .search-container {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .search-box {
-            position: relative;
-            width: 100%;
-            max-width: 280px; /* Tamanho reduzido */
-            transition: max-width 0.3s ease;
-        }
-
-        .search-box input {
-            width: 100%;
-            padding: 8px 60px 8px 38px; /* Ajustado padding direito para abrigar o 'X' e o microfone */
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            color: var(--text-color);
-            font-size: 0.85rem;
-            outline: none;
-            backdrop-filter: blur(5px);
-            transition: all 0.3s ease;
-        }
-
-        .search-box .fa-magnifying-glass {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            transition: color 0.3s ease;
-        }
-
-        /* Botão para apagar termo (X) */
-        .clear-btn {
-            position: absolute;
-            right: 36px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: color 0.2s ease, opacity 0.2s ease;
-            background: none;
-            border: none;
-            outline: none;
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .clear-btn.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .clear-btn:hover {
-            color: #ff3333;
-        }
-
-        /* Botão do Microfone */
-        .voice-btn {
-            position: absolute;
-            right: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: color 0.3s ease;
-            background: none;
-            border: none;
-            outline: none;
-        }
-
-        .voice-btn:hover {
-            color: var(--primary-color);
-        }
-
-        /* Feedback Visual - Gravando */
-        .voice-btn.listening {
-            color: #ff3333;
-            animation: pulse 1s infinite alternate;
-        }
-
-        @keyframes pulse {
-            from { transform: translateY(-50%) scale(1); opacity: 1; }
-            to { transform: translateY(-50%) scale(1.2); opacity: 0.6; }
-        }
-
-        /* Elemento fantasma para equilibrar o flexbox do header */
-        .header-spacer {
-            flex: 1;
-            display: flex;
-            justify-content: flex-end;
-            pointer-events: none;
-        }
-
-        /* Efeito Hover */
-        .search-box:hover input {
-            background: rgba(138, 43, 226, 0.1);
-            border-color: rgba(138, 43, 226, 0.5);
-        }
-
-        /* Efeito Focus */
-        .search-box input:focus {
-            background: rgba(138, 43, 226, 0.2);
-            border-color: var(--primary-color);
-            box-shadow: 0 0 12px rgba(138, 43, 226, 0.5);
-        }
-
-        .search-box:focus-within {
-            max-width: 320px; /* Expande sutilmente ao focar */
-        }
-
-        .search-box input:focus + .fa-magnifying-glass {
-            color: var(--primary-color);
-        }
-
-        /* Estilo para ocultar linhas vazias e cartões filtrados */
-        .card.hidden {
-            display: none !important;
-        }
-        .row.hidden {
-            display: none !important;
-        }
-
-        /* --- Carrosséis de Conteúdo --- */
-        .container {
-            padding: 0 4%;
-            position: relative;
-            z-index: 10;
-            padding-top: 140px; /* Ajustado sutilmente já que não há sidebar */
-            width: 100%;
-        }
-
-        .row {
-            margin-bottom: 40px;
-        }
-
-        .row-title {
-            font-size: 1.4rem;
-            font-weight: 600;
-            margin-bottom: 15px;
-            color: #f5f5f7;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .row-posters-wrapper {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
-        .row-posters {
-            display: flex;
-            overflow-x: auto;
-            overflow-y: hidden;
-            padding: 15px 0;
-            gap: 15px;
-            scroll-behavior: smooth;
-        }
-
-        /* Esconder a barra de rolagem padrão */
-        .row-posters::-webkit-scrollbar {
-            display: none;
-        }
-        .row-posters {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-
-        .card {
-            position: relative;
-            flex: 0 0 auto;
-            width: 240px;
-            height: 140px;
-            border-radius: 8px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: transform 0.4s ease, box-shadow 0.4s ease;
+        .glass-effect {
             background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(138, 43, 226, 0.3);
         }
 
-        .card img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: opacity 0.3s;
-        }
+        .modal-bg { background: rgba(248, 248, 255, 0.95); backdrop-filter: blur(15px); }
 
-        /* Efeito Hover estilo Netflix com Vidro */
-        .card:hover {
-            transform: scale(1.08);
-            z-index: 2;
-            box-shadow: 0 10px 20px rgba(138, 43, 226, 0.4);
-            border-color: var(--primary-color);
-        }
-
-        .card-info {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            padding: 10px;
-            background: rgba(11, 9, 24, 0.85);
-            backdrop-filter: blur(5px);
-            opacity: 0;
-            transition: opacity 0.3s ease;
+        .gx-mods-carousel {
             display: flex;
-            flex-direction: column;
-            gap: 5px;
+            gap: 16px;
+            overflow-x: auto;
+            padding: 5px;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
         }
+        .gx-mods-carousel::-webkit-scrollbar { display: none; }
 
-        .card:hover .card-info {
-            opacity: 1;
-        }
-
-        .card-title {
-            font-size: 0.85rem;
-            font-weight: bold;
-        }
-
-        .card-tags {
-            font-size: 0.7rem;
-            color: var(--primary-color);
-            font-weight: 500;
-        }
-
-        /* Botões de navegação dos carrosséis */
-        .nav-btn {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(11, 9, 20, 0.6);
-            backdrop-filter: blur(8px);
-            border: 1px solid var(--glass-border);
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        .gx-mod-card {
+            flex: 0 0 180px;
+            height: 110px;
+            position: relative;
             cursor: pointer;
-            z-index: 5;
-            opacity: 0;
-            transition: opacity 0.3s, background 0.3s;
+            overflow: hidden; 
+            transition: transform 0.2s ease, filter 0.2s ease;
+            clip-path: polygon(15px 0%, 100% 0%, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0% 100%, 0% 15px);
         }
-
-        .row-posters-wrapper:hover .nav-btn {
-            opacity: 1;
-        }
-
-        .nav-btn:hover {
-            background: var(--primary-color);
-            border-color: var(--primary-color);
-        }
-
-        .nav-left { left: -20px; }
-        .nav-right { right: -20px; }
-
-        /* --- MODAL DE IFRAME EM TELA CHEIA --- */
-        .fullscreen-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--bg-color);
-            z-index: 200; /* Fica por cima de tudo, inclusive do header fixo */
-            display: none;
-            opacity: 0;
-            transform: translateY(0);
-            transition: opacity 0.4s ease, transform 0.3s ease-out;
-            touch-action: none; /* Previne scroll padrão ao arrastar */
-        }
-
-        .fullscreen-modal.active {
-            display: block;
-            opacity: 1;
-        }
-
-        /* Barra superior global para arrastar em todos os aparelhos (Handle) */
-        .modal-drag-handle {
-            width: 100%;
-            height: 45px;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 215;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: linear-gradient(to bottom, rgba(11, 9, 20, 0.95), rgba(11, 9, 20, 0.4));
-            border-bottom: 1px solid var(--glass-border);
-            cursor: grab;
-            user-select: none;
-        }
-
-        .modal-drag-handle:active {
-            cursor: grabbing;
-        }
-
-        .modal-drag-handle::after {
+        
+        .gx-mod-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        
+        .gx-mod-card::after {
             content: '';
-            width: 50px;
-            height: 5px;
-            background-color: rgba(255, 255, 255, 0.3);
-            border-radius: 3px;
-            box-shadow: 0 0 10px rgba(138, 43, 226, 0.5);
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(138, 43, 226, 0.15);
+            pointer-events: none;
         }
+        
+        .gx-mod-card:hover { transform: scale(1.03); filter: brightness(1.1); }
 
-        .fullscreen-modal iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background-color: #000;
-            padding-top: 45px; /* Deixa o espaço exato para a barra superior de arrastar */
-        }
+        .tab-active { color: var(--primary-color) !important; border-bottom: 2px solid var(--primary-color); }
 
-        @media (max-width: 768px) {
-            header { flex-direction: column; gap: 12px; padding: 15px; }
-            .search-box { max-width: 100%; }
-            .search-box:focus-within { max-width: 100%; }
-            .container { padding-top: 130px; }
+        #playerModal {
+            background: rgba(248, 248, 255, 0.95);
+            backdrop-filter: blur(15px);
         }
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="header-spacer"></div>
-        
-        <div class="search-container">
-            <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Títulos, gente e gêneros...">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <button class="clear-btn" id="clearBtn" title="Apagar termo"><i class="fa-solid fa-xmark"></i></button>
-                <button class="voice-btn" id="voiceBtn" title="Buscar por voz"><i class="fa-solid fa-microphone"></i></button>
+    <main class="max-w-3xl w-full mx-auto py-8">
+        <div class="mb-8 flex items-center gap-4">
+            <a href="#" class="text-[var(--primary-color)] hover:opacity-70 transition-all text-xl">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div class="relative flex items-center flex-grow group">
+                <input type="text" placeholder="Buscar filmes, séries ou cartoons..." 
+                    class="w-full py-3.5 pl-6 pr-12 rounded-full glass-effect text-slate-800 placeholder-slate-500 border border-purple-300/30 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/50 focus:border-[var(--primary-color)] transition-all shadow-lg shadow-purple-500/10">
+                <i class="fas fa-search absolute right-5 text-[var(--primary-color)] transition-transform group-hover:scale-110"></i>
             </div>
+            <i class="fas fa-bars text-[var(--primary-color)] text-2xl cursor-pointer hover:opacity-80 transition" onclick="toggleModal(true)"></i>
         </div>
 
-        <div class="header-spacer"></div>
-    </header>
-
-    <main class="container">
-
-        <div class="row">
-            <h2 class="row-title"><i class="fa-solid fa-masks-theater"></i> Dramas</h2>
-            <div class="row-posters-wrapper">
-                <button class="nav-btn nav-left" onclick="scrollRow(this, -1)"><i class="fa-solid fa-chevron-left"></i></button>
-                <div class="row-posters">
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?q=80&w=400&auto=format&fit=crop" alt="Drama 1">
-                        <div class="card-info"><div class="card-title">Luzes do Outono</div><div class="card-tags">Melodrama • Intrigante</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=400&auto=format&fit=crop" alt="Drama 2">
-                        <div class="card-info"><div class="card-title">O Último Monólogo</div><div class="card-tags">Drama • Emocionante</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1478720143033-6a972678da30?q=80&w=400&auto=format&fit=crop" alt="Drama 3">
-                        <div class="card-info"><div class="card-title">Cicatrizes de Vidro</div><div class="card-tags">Profundo • Realista</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=400&auto=format&fit=crop" alt="Drama 4">
-                        <div class="card-info"><div class="card-title">Cinzas do Passado</div><div class="card-tags">Épico • Tocante</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1505686994434-e3cc5abf1330?q=80&w=400&auto=format&fit=crop" alt="Drama 5">
-                        <div class="card-info"><div class="card-title">Silêncio Envolvente</div><div class="card-tags">Mistério • Drama</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1492446845049-9c50cc313f00?q=80&w=400&auto=format&fit=crop" alt="Drama 6">
-                        <div class="card-info"><div class="card-title">Horizontes</div><div class="card-tags">Romance • Drama</div></div>
-                    </div>
+        <div class="flex flex-col gap-8">
+            <section>
+                <div class="flex items-center justify-between w-full mb-3 px-1">
+                    <h2 class="text-lg font-bold text-slate-800">Filmes</h2>
                 </div>
-                <button class="nav-btn nav-right" onclick="scrollRow(this, 1)"><i class="fa-solid fa-chevron-right"></i></button>
-            </div>
-        </div>
-
-        <div class="row">
-            <h2 class="row-title"><i class="fa-solid fa-clapperboard"></i> Séries</h2>
-            <div class="row-posters-wrapper">
-                <button class="nav-btn nav-left" onclick="scrollRow(this, -1)"><i class="fa-solid fa-chevron-left"></i></button>
-                <div class="row-posters">
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1535016120720-40c646be5580?q=80&w=400&auto=format&fit=crop" alt="Série 1">
-                        <div class="card-info"><div class="card-title">Cortex: Conexões</div><div class="card-tags">Ficção Científica • Suspense</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=400&auto=format&fit=crop" alt="Série 2">
-                        <div class="card-info"><div class="card-title">Neon Pulse</div><div class="card-tags">Cyberpunk • Ação</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1510511459019-5dda7724fd87?q=80&w=400&auto=format&fit=crop" alt="Série 3">
-                        <div class="card-info"><div class="card-title">Algoritmo Obscuro</div><div class="card-tags">Tecnologia • Thriller</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1568832359672-e36cf5d74f54?q=80&w=400&auto=format&fit=crop" alt="Série 4">
-                        <div class="card-info"><div class="card-title">Império de Sombras</div><div class="card-tags">Policial • Político</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1513106580091-1d82408b8cd6?q=80&w=400&auto=format&fit=crop" alt="Série 5">
-                        <div class="card-info"><div class="card-title">Crônicas Urbanas</div><div class="card-tags">Sitcom • Comédia</div></div>
-                    </div>
+                <div class="gx-mods-carousel">
+                    <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600" alt="Filme"></div>
+                    <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=600" alt="Filme"></div>
                 </div>
-                <button class="nav-btn nav-right" onclick="scrollRow(this, 1)"><i class="fa-solid fa-chevron-right"></i></button>
-            </div>
-        </div>
-
-        <div class="row">
-            <h2 class="row-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Animes</h2>
-            <div class="row-posters-wrapper">
-                <button class="nav-btn nav-left" onclick="scrollRow(this, -1)"><i class="fa-solid fa-chevron-left"></i></button>
-                <div class="row-posters">
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=400&auto=format&fit=crop" alt="Anime 1">
-                        <div class="card-info"><div class="card-title">Shinigami No Kage</div><div class="card-tags">Shounen • Fantasia</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=400&auto=format&fit=crop" alt="Anime 2">
-                        <div class="card-info"><div class="card-title">Tokyo Overdrive</div><div class="card-tags">Mecha • Sci-Fi</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=400&auto=format&fit=crop" alt="Anime 3">
-                        <div class="card-info"><div class="card-title">Espíritos do Vento</div><div class="card-tags">Slice of Life • Lúdico</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop" alt="Anime 4">
-                        <div class="card-info"><div class="card-title">Cyber Samurai</div><div class="card-tags">Ação • Sangrento</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=400&auto=format&fit=crop" alt="Anime 5">
-                        <div class="card-info"><div class="card-title">Reino Reverso</div><div class="card-tags">Isekai • Magia</div></div>
-                    </div>
+            </section>
+            <section>
+                <div class="flex items-center justify-between w-full mb-3 px-1">
+                    <h2 class="text-lg font-bold text-slate-800">Séries</h2>
                 </div>
-                <button class="nav-btn nav-right" onclick="scrollRow(this, 1)"><i class="fa-solid fa-chevron-right"></i></button>
-            </div>
-        </div>
-
-        <div class="row">
-            <h2 class="row-title"><i class="fa-solid fa-film"></i> Filmes</h2>
-            <div class="row-posters-wrapper">
-                <button class="nav-btn nav-left" onclick="scrollRow(this, -1)"><i class="fa-solid fa-chevron-left"></i></button>
-                <div class="row-posters">
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=400&auto=format&fit=crop" alt="Filme 1">
-                        <div class="card-info"><div class="card-title">Paradoxo Temporal</div><div class="card-tags">Ficção • Blockbuster</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=400&auto=format&fit=crop" alt="Filme 2">
-                        <div class="card-info"><div class="card-title">Noite Adentro</div><div class="card-tags">Terror • Sobrenatural</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=400&auto=format&fit=crop" alt="A Linha de Frente">
-                        <div class="card-info"><div class="card-title">A Linha de Frente</div><div class="card-tags">Guerra • Histórico</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=400&auto=format&fit=crop" alt="Nebulosa">
-                        <div class="card-info"><div class="card-title">Nebulosa</div><div class="card-tags">Espaço • Aventura</div></div>
-                    </div>
-                    <div class="card">
-                        <img src="https://images.unsplash.com/photo-1524712245354-2c4e5e7124c5?q=80&w=400&auto=format&fit=crop" alt="Rastro de Pólvora">
-                        <div class="card-info"><div class="card-title">Rastro de Pólvora</div><div class="card-tags">Ação • Policial</div></div>
-                    </div>
+                <div class="gx-mods-carousel">
+                    <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600" alt="Série"></div>
+                    <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1542382257-8091763a8634?q=80&w=600" alt="Série"></div>
                 </div>
-                <button class="nav-btn nav-right" onclick="scrollRow(this, 1)"><i class="fa-solid fa-chevron-right"></i></button>
-            </div>
+            </section>
+            <section>
+                <div class="flex items-center justify-between w-full mb-3 px-1">
+                    <h2 class="text-lg font-bold text-slate-800">Cartoons</h2>
+                </div>
+                <div class="gx-mods-carousel">
+                    <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=600" alt="Cartoon"></div>
+                    <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1618336753974-a84e09d1e740?q=80&w=600" alt="Cartoon"></div>
+                </div>
+            </section>
+            <section>
+                <div class="flex items-center justify-between w-full mb-3 px-1">
+                    <h2 class="text-lg font-bold text-slate-800">Documentários</h2>
+                </div>
+                <div class="gx-mods-carousel">
+                    <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=80&w=600" alt="Documentário"></div>
+                    <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600" alt="Documentário"></div>
+                </div>
+            </section>
+            <section>
+                <div class="flex items-center justify-between w-full mb-3 px-1">
+                    <h2 class="text-lg font-bold text-slate-800">Animes</h2>
+                </div>
+                <div class="gx-mods-carousel">
+                    <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=600" alt="Anime"></div>
+                    <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=600" alt="Anime"></div>
+                </div>
+            </section>
         </div>
-
     </main>
 
-    <div class="fullscreen-modal" id="videoModal">
-        <div class="modal-drag-handle" id="modalDragHandle"></div>
-        <iframe id="modalIframe" src="" allowfullscreen></iframe>
+    <div id="modalMenu" class="fixed inset-0 z-50 hidden flex flex-col p-8 modal-bg">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-2xl font-bold text-[var(--primary-color)]">Mais Títulos</h2>
+            <i class="fas fa-times text-2xl text-[var(--primary-color)] cursor-pointer" onclick="toggleModal(false)"></i>
+        </div>
+        <div class="relative flex items-center mb-6 group">
+            <input type="text" placeholder="Filtrar por nome..." class="w-full py-3 pl-5 pr-12 rounded-full glass-effect text-slate-800 placeholder-slate-500 border border-purple-300/30 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/50 focus:border-[var(--primary-color)] transition-all">
+            <i class="fas fa-search absolute right-5 text-[var(--primary-color)] transition-transform group-hover:scale-110"></i>
+        </div>
+        <div class="flex gap-6 overflow-x-auto mb-6 pb-2 text-slate-500 font-medium whitespace-nowrap">
+            <span class="tab-item tab-active pb-1 cursor-pointer" onclick="selectTab(this, 'tab-filmes')">Filmes</span>
+            <span class="tab-item pb-1 cursor-pointer" onclick="selectTab(this, 'tab-series')">Séries</span>
+            <span class="tab-item pb-1 cursor-pointer" onclick="selectTab(this, 'tab-cartoons')">Cartoons</span>
+            <span class="tab-item pb-1 cursor-pointer" onclick="selectTab(this, 'tab-documentarios')">Documentários</span>
+            <span class="tab-item pb-1 cursor-pointer" onclick="selectTab(this, 'tab-animes')">Animes</span>
+        </div>
+        <div id="modal-content-area" class="flex-grow overflow-y-auto">
+            <div id="tab-filmes" class="tab-content grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600" alt="Filmes"></div>
+            </div>
+            <div id="tab-series" class="tab-content hidden grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600" alt="Séries"></div>
+            </div>
+            <div id="tab-cartoons" class="tab-content hidden grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=600" alt="Cartoons"></div>
+            </div>
+            <div id="tab-documentarios" class="tab-content hidden grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=80&w=600" alt="Documentários"></div>
+            </div>
+            <div id="tab-animes" class="tab-content hidden grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div class="gx-mod-card" onclick="openPlayer('url-do-seu-arquivo.html')"><img src="https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=600" alt="Animes"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="playerModal" class="fixed inset-0 z-[100] hidden">
+        <i class="fas fa-times absolute top-8 right-8 text-3xl text-[var(--primary-color)] cursor-pointer z-[101]" onclick="closePlayer()"></i>
+        <iframe id="playerIframe" src="" class="w-full h-full border-none" allowfullscreen></iframe>
     </div>
 
     <script>
-        // Lógica de Rolagem Horizontal dos Carrosséis
-        function scrollRow(button, direction) {
-            const wrapper = button.parentElement;
-            const rowPosters = wrapper.querySelector('.row-posters');
-            const scrollAmount = 260 * 3; 
-            
-            rowPosters.scrollBy({
-                left: direction * scrollAmount,
-                behavior: 'smooth'
-            });
+        function toggleModal(show) {
+            document.getElementById('modalMenu').classList.toggle('hidden', !show);
         }
 
-        // --- SISTEMA DA JANELA MODAL (IFRAME) ---
-        const videoModal = document.getElementById('videoModal');
-        const modalIframe = document.getElementById('modalIframe');
-        const modalDragHandle = document.getElementById('modalDragHandle');
-        const cards = document.querySelectorAll('.card');
-
-        // Adiciona evento de clique para cada item do carrossel abrir o modal
-        cards.forEach(card => {
-            card.addEventListener('click', () => {
-                const targetUrl = './Midia/Modal.html';
-                videoModal.style.transform = "translateY(0)";
-                videoModal.style.opacity = "1";
-                modalIframe.src = targetUrl;
-                videoModal.classList.add('active');
-                document.body.classList.add('modal-open');
-            });
-        });
-
-        // Função para fechar o modal limpando os estados
-        function shutModal() {
-            videoModal.classList.remove('active');
-            document.body.classList.remove('modal-open');
-            videoModal.style.transform = "translateY(0)";
-            videoModal.style.opacity = "0";
-            modalIframe.src = ''; 
+        function openPlayer(url) {
+            const modal = document.getElementById('playerModal');
+            const iframe = document.getElementById('playerIframe');
+            iframe.src = url;
+            modal.classList.remove('hidden');
         }
 
-        // --- SISTEMA UNIFICADO DE ARRASTAR PARA FECHAR (MOBILE E DESKTOP) ---
-        let startY = 0;
-        let currentY = 0;
-        let isDragging = false;
-
-        function getClientY(e) {
-            return e.touches ? e.touches[0].clientY : e.clientY;
+        function closePlayer() {
+            const modal = document.getElementById('playerModal');
+            const iframe = document.getElementById('playerIframe');
+            iframe.src = "";
+            modal.classList.add('hidden');
         }
 
-        function onDragStart(e) {
-            if (!e.touches) e.preventDefault();
-            
-            startY = getClientY(e);
-            isDragging = true;
-            videoModal.style.transition = 'none'; 
-        }
-
-        function onDragMove(e) {
-            if (!isDragging) return;
-            
-            currentY = getClientY(e);
-            const deltaY = currentY - startY;
-
-            if (deltaY > 0) {
-                videoModal.style.transform = `translateY(${deltaY}px)`;
-                const percentage = Math.max(0, 1 - (deltaY / window.innerHeight));
-                videoModal.style.opacity = percentage;
-            }
-        }
-
-        function onDragEnd() {
-            if (!isDragging) return;
-            isDragging = false;
-            
-            videoModal.style.transition = 'opacity 0.4s ease, transform 0.3s ease-out';
-            const deltaY = currentY - startY;
-
-            if (deltaY > window.innerHeight * 0.20) {
-                videoModal.style.transform = `translateY(100%)`;
-                setTimeout(shutModal, 300);
-            } else {
-                videoModal.style.transform = "translateY(0)";
-                videoModal.style.opacity = "1";
-            }
-            startY = 0;
-            currentY = 0;
-        }
-
-        modalDragHandle.addEventListener('touchstart', onDragStart, { passive: true });
-        modalDragHandle.addEventListener('touchmove', onDragMove, { passive: true });
-        modalDragHandle.addEventListener('touchend', onDragEnd);
-
-        modalDragHandle.addEventListener('mousedown', onDragStart);
-        window.addEventListener('mousemove', onDragMove);
-        window.addEventListener('mouseup', onDragEnd);
-
-
-        // --- ELEMENTOS DA BUSCA ---
-        const searchInput = document.getElementById('searchInput');
-        const clearBtn = document.getElementById('clearBtn');
-        const voiceBtn = document.getElementById('voiceBtn');
-
-        // --- SISTEMA DE FILTRO EM TEMPO REAL ---
-        searchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value;
-            toggleClearButton(searchTerm);
-            filterContent(searchTerm.toLowerCase().trim());
-        });
-
-        function toggleClearButton(text) {
-            if (text.length > 0) {
-                clearBtn.classList.add('visible');
-            } else {
-                clearBtn.classList.remove('visible');
-            }
-        }
-
-        clearBtn.addEventListener('click', () => {
-            searchInput.value = '';
-            toggleClearButton('');
-            filterContent('');
-            searchInput.focus(); 
-        });
-
-        function filterContent(term) {
-            const rows = document.querySelectorAll('.row');
-
-            rows.forEach(row => {
-                const innerCards = row.querySelectorAll('.card');
-                let hasVisibleCard = false;
-
-                innerCards.forEach(card => {
-                    const title = card.querySelector('.card-title').textContent.toLowerCase();
-                    const tags = card.querySelector('.card-tags').textContent.toLowerCase();
-                    
-                    if (title.includes(term) || tags.includes(term)) {
-                        card.classList.remove('hidden');
-                        hasVisibleCard = true;
-                    } else {
-                        card.classList.add('hidden');
-                    }
-                });
-
-                if (hasVisibleCard || term === '') {
-                    row.classList.remove('hidden');
-                } else {
-                    row.classList.add('hidden');
-                }
-            });
-        }
-
-        // --- SISTEMA DE BUSCA POR VOZ ---
-        function playBeep(frequency, duration) {
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-
-                oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); 
-                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
-
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                
-                oscillator.start();
-                oscillator.stop(audioCtx.currentTime + duration);
-            } catch (e) {
-                console.log("Feedback de áudio não suportado.");
-            }
-        }
-
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-        if (SpeechRecognition) {
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'pt-BR';
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-
-            voiceBtn.addEventListener('click', () => {
-                if (voiceBtn.classList.contains('listening')) {
-                    recognition.stop();
-                    return;
-                }
-                recognition.start();
-            });
-
-            recognition.onstart = () => {
-                voiceBtn.classList.add('listening');
-                clearBtn.classList.remove('visible'); 
-                searchInput.placeholder = "Ouvindo...";
-                playBeep(880, 0.1); 
-            };
-
-            recognition.onresult = (event) => {
-                const voiceResult = event.results[0][0].transcript;
-                searchInput.value = voiceResult;
-                toggleClearButton(voiceResult);
-                filterContent(voiceResult.toLowerCase().trim());
-            };
-
-            recognition.onerror = () => {
-                searchInput.placeholder = "Títulos, gente e gêneros...";
-                voiceBtn.classList.remove('listening');
-                toggleClearButton(searchInput.value);
-            };
-
-            recognition.onend = () => {
-                voiceBtn.classList.remove('listening');
-                if (searchInput.placeholder === "Ouvindo...") {
-                    searchInput.placeholder = "Títulos, gente e gêneros...";
-                }
-                toggleClearButton(searchInput.value);
-                playBeep(440, 0.12); 
-            };
-
-        } else {
-            voiceBtn.style.display = 'none';
-            clearBtn.style.right = '14px';
+        function selectTab(element, targetId) {
+            document.querySelectorAll('.tab-item').forEach(tab => tab.classList.remove('tab-active'));
+            element.classList.add('tab-active');
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+            document.getElementById(targetId).classList.remove('hidden');
         }
     </script>
 </body>
