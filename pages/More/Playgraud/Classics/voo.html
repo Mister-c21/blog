@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flappy Bird - Dificuldade Progressiva</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
+        body { background: #000; overflow: hidden; font-family: Arial, sans-serif; }
+        
+        #container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        canvas { display: block; max-width: 100%; max-height: 100%; background: #000; }
+        
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            text-shadow: 2px 2px 6px rgba(0,0,0,0.8);
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        #level {
+            position: absolute;
+            top: 65px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffeb3b;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            z-index: 10;
+        }
+        
+        #start-screen, #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 40px 50px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 100;
+            width: 85%;
+            max-width: 340px;
+        }
+        
+        button {
+            margin-top: 20px;
+            padding: 15px 40px;
+            font-size: 20px;
+            background: #ffcc00;
+            color: #000;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="score">Pontos: 0</div>
+        <div id="level">Nível 1</div>
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <!-- Tela inicial -->
+    <div id="start-screen">
+        <h1>🐦 Flappy Bird</h1>
+        <p><strong>Dificuldade aumenta com o tempo!</strong></p>
+        <button onclick="startGame()">COMEÇAR O JOGO</button>
+    </div>
+
+    <!-- Game Over -->
+    <div id="game-over">
+        <h2>Game Over</h2>
+        <p id="final-score" style="font-size: 26px; margin: 10px 0;">Pontos: 0</p>
+        <p id="final-level" style="margin: 8px 0; color: #ffeb3b;">Nível 1</p>
+        <button onclick="restartGame()">JOGAR NOVAMENTE</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let WIDTH = 360;
+        let HEIGHT = 640;
+        
+        let birdY = HEIGHT / 2;
+        let birdVelocity = 0;
+        const BASE_GRAVITY = 0.55;
+        let gravity = BASE_GRAVITY;
+        const JUMP = -11.8;
+        let birdRadius = 15;
+        
+        let pipes = [];
+        let frame = 0;
+        let score = 0;
+        let level = 1;
+        let gameRunning = false;
+        let gameOver = false;
+        
+        let PIPE_WIDTH = 70;
+        let PIPE_GAP = 165;      // Gap inicial
+        let PIPE_SPEED = 2.2;    // Velocidade inicial
+        
+        const MIN_GAP = 115;     // Gap mínimo (fica mais difícil)
+        const MAX_SPEED = 4.2;   // Velocidade máxima
+        
+        function resizeCanvas() {
+            const maxW = window.innerWidth;
+            const maxH = window.innerHeight;
+            const ratio = 9 / 16;
+            
+            let newW = maxW;
+            let newH = maxW / ratio;
+            
+            if (newH > maxH) {
+                newH = maxH;
+                newW = newH * ratio;
+            }
+            
+            canvas.width = WIDTH;
+            canvas.height = HEIGHT;
+            canvas.style.width = newW + 'px';
+            canvas.style.height = newH + 'px';
+        }
+        
+        function updateDifficulty() {
+            level = Math.floor(score / 8) + 1; // A cada 8 pontos sobe 1 nível
+            
+            // Aumenta velocidade
+            PIPE_SPEED = Math.min(2.2 + (level - 1) * 0.18, MAX_SPEED);
+            
+            // Diminui o vão entre os canos
+            PIPE_GAP = Math.max(165 - (level - 1) * 7, MIN_GAP);
+            
+            // Aumenta levemente a gravidade
+            gravity = BASE_GRAVITY + (level - 1) * 0.028;
+            
+            document.getElementById('level').textContent = `Nível ${level}`;
+        }
+        
+        function flap() {
+            if (gameRunning && !gameOver) {
+                birdVelocity = JUMP;
+            }
+        }
+        
+        document.addEventListener('keydown', e => { if (e.key === ' ') flap(); });
+        canvas.addEventListener('click', flap);
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); flap(); });
+        
+        function createPipe() {
+            const minHeight = 90;
+            const maxHeight = HEIGHT - PIPE_GAP - 130;
+            const topHeight = Math.floor(Math.random() * (maxHeight - minHeight) + minHeight);
+            
+            pipes.push({
+                x: WIDTH,
+                topHeight: topHeight,
+                passed: false
+            });
+        }
+        
+        function drawBird() {
+            const angle = Math.min(Math.max(birdVelocity * 3.5, -35), 70) * Math.PI / 180;
+            ctx.save();
+            ctx.translate(90, birdY);
+            ctx.rotate(angle);
+            
+            ctx.fillStyle = '#ffeb3b';
+            ctx.beginPath();
+            ctx.arc(0, 0, birdRadius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#fbc02d';
+            ctx.beginPath();
+            ctx.ellipse(-5, 7, 13, 8, 0.5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(9, -6, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(11, -6, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#ff5722';
+            ctx.beginPath();
+            ctx.moveTo(16, 0);
+            ctx.lineTo(27, -3);
+            ctx.lineTo(16, 7);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        function drawPipes() {
+            ctx.fillStyle = '#4caf50';
+            for (let pipe of pipes) {
+                ctx.fillRect(pipe.x, 0, PIPE_WIDTH, pipe.topHeight);
+                ctx.fillStyle = '#388e3c';
+                ctx.fillRect(pipe.x - 5, pipe.topHeight - 35, PIPE_WIDTH + 10, 35);
+                ctx.fillStyle = '#4caf50';
+                
+                const bottomY = pipe.topHeight + PIPE_GAP;
+                ctx.fillRect(pipe.x, bottomY, PIPE_WIDTH, HEIGHT - bottomY);
+                ctx.fillStyle = '#388e3c';
+                ctx.fillRect(pipe.x - 5, bottomY, PIPE_WIDTH + 10, 35);
+                ctx.fillStyle = '#4caf50';
+            }
+        }
+        
+        function drawBackground() {
+            const grad = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+            grad.addColorStop(0, '#81d4fa');
+            grad.addColorStop(1, '#e0f7fa');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+            
+            ctx.fillStyle = '#8bc34a';
+            ctx.fillRect(0, HEIGHT - 60, WIDTH, 60);
+            ctx.fillStyle = '#689f38';
+            ctx.fillRect(0, HEIGHT - 60, WIDTH, 25);
+        }
+        
+        function update() {
+            if (!gameRunning || gameOver) return;
+            
+            birdVelocity += gravity;
+            birdY += birdVelocity;
+            
+            if (birdY - birdRadius < 0 || birdY + birdRadius > HEIGHT - 60) {
+                endGame();
+                return;
+            }
+            
+            for (let i = 0; i < pipes.length; i++) {
+                const pipe = pipes[i];
+                pipe.x -= PIPE_SPEED;
+                
+                if (!pipe.passed && pipe.x + PIPE_WIDTH < 90) {
+                    pipe.passed = true;
+                    score++;
+                    document.getElementById('score').textContent = `Pontos: ${score}`;
+                    updateDifficulty();
+                }
+                
+                if (pipe.x + PIPE_WIDTH < 0) {
+                    pipes.splice(i, 1);
+                    i--;
+                    continue;
+                }
+                
+                // Colisão
+                if (90 + birdRadius > pipe.x && 90 - birdRadius < pipe.x + PIPE_WIDTH) {
+                    if (birdY - birdRadius < pipe.topHeight || 
+                        birdY + birdRadius > pipe.topHeight + PIPE_GAP) {
+                        endGame();
+                    }
+                }
+            }
+            
+            frame++;
+            // Canos aparecem mais rápido conforme o nível
+            const spawnRate = Math.max(68, 95 - level * 3);
+            if (frame % spawnRate === 0) createPipe();
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+            drawBackground();
+            drawPipes();
+            drawBird();
+        }
+        
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            resetGame();
+            gameRunning = true;
+        }
+        
+        function endGame() {
+            gameRunning = false;
+            gameOver = true;
+            document.getElementById('final-score').innerHTML = `Pontos: <strong>${score}</strong>`;
+            document.getElementById('final-level').textContent = `Nível ${level}`;
+            document.getElementById('game-over').style.display = 'block';
+        }
+        
+        function resetGame() {
+            birdY = HEIGHT / 2;
+            birdVelocity = 0;
+            pipes = [];
+            score = 0;
+            level = 1;
+            gravity = BASE_GRAVITY;
+            PIPE_SPEED = 2.2;
+            PIPE_GAP = 165;
+            frame = 0;
+            gameOver = false;
+            
+            document.getElementById('score').textContent = `Pontos: 0`;
+            document.getElementById('level').textContent = `Nível 1`;
+            document.getElementById('game-over').style.display = 'none';
+            
+            createPipe();
+        }
+        
+        function restartGame() {
+            resetGame();
+            gameRunning = true;
+        }
+        
+        window.onload = () => {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            document.getElementById('start-screen').style.display = 'block';
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
