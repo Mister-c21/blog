@@ -3,97 +3,215 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interface Responsiva</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>LoreSpace - Entreterimento</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        blueviolet: { 500: '#8A2BE2', 600: '#7B26CD' },
+                        ghost: '#F8F9FA'
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     <style>
-        :root {
-            --bg-color: #f8f8ff;
-            --primary-color: #8a2be2;
-            --text-color: #2c1a4d;
-            --glass-bg: rgba(138, 43, 226, 0.15);
-            --glass-border: rgba(138, 43, 226, 0.25);
-            --glass-blur: blur(12px);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-color); display: flex; height: 100vh; overflow: hidden; }
-
-        /* --- Desktop: Botão sempre escondido --- */
-        .menu-btn {
-            display: none !important;
-        }
-
-        .sidebar {
-            width: 260px; height: 100vh; position: fixed; top: 0; left: 0;
-            background: var(--glass-bg); backdrop-filter: var(--glass-blur);
-            border-right: 1px solid var(--glass-border); padding: 30px 20px;
-            display: flex; flex-direction: column; transition: transform 0.3s ease; z-index: 150;
-        }
-
-        .sidebar-menu { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-        .sidebar-menu a {
-            display: flex; align-items: center; gap: 15px; padding: 12px 15px;
-            color: var(--text-color); text-decoration: none; font-weight: 500; border-radius: 8px;
-        }
-        .sidebar-menu a i { color: var(--primary-color); }
-        .sidebar-menu a:hover, .sidebar-menu a.active { background: rgba(138, 43, 226, 0.2); color: var(--primary-color); }
-
-        .main-content { flex: 1; margin-left: 260px; height: 100vh; overflow: hidden; }
-        iframe { width: 100%; height: 100%; border: none; }
-
-        /* --- Mobile --- */
-        @media (max-width: 768px) {
-            .menu-btn { display: block !important; position: fixed; top: 15px; left: 15px; z-index: 200; background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--primary-color); padding: 10px 14px; border-radius: 8px; cursor: pointer; }
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.active { transform: translateX(0); }
-            .sidebar.active ~ .menu-btn { display: none !important; } /* Esconde o botão ao abrir */
-            .main-content { margin-left: 0; }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .hero-bg { background-size: cover; background-position: center; transition: opacity 1s ease-in-out; position: absolute; inset: 0; }
+        #hero-section { transition: all 0.5s ease-in-out; }
+        .card { transition: all 0.3s ease; position: relative; overflow: hidden; cursor: pointer; }
+        .card:hover { transform: scale(1.05); z-index: 10; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .pinterest-grid { column-count: 2; column-gap: 16px; }
+        @media (min-width: 640px) { .pinterest-grid { column-count: 3; } }
+        @media (min-width: 1024px) { .pinterest-grid { column-count: 4; } }
+        @media (min-width: 1280px) { .pinterest-grid { column-count: 5; } }
+        .pinterest-card { break-inside: avoid; margin-bottom: 16px; display: inline-block; width: 100%; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .fab-option { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); opacity: 0; transform: translateX(-20px); pointer-events: none; }
+        .fab-active .fab-option { opacity: 1; transform: translateX(0); pointer-events: auto; }
+        #play-btn { transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .fab-active #play-btn { transform: scale(0.7); }
     </style>
 </head>
-<body>
+<body class="bg-zinc-950 text-white">
 
-    <button class="menu-btn" id="openMenu"><i class="fa-solid fa-bars"></i></button>
+    <div id="iframe-modal" class="hidden fixed inset-0 z-[200] bg-zinc-950">
+        <button onclick="document.getElementById('iframe-modal').classList.add('hidden'); document.getElementById('main-iframe').src=''" class="absolute top-4 right-4 z-[201] text-white bg-black/50 p-3 rounded-full hover:bg-black"><i class="fa-solid fa-xmark text-2xl"></i></button>
+        <iframe id="main-iframe" class="w-full h-full border-none" src=""></iframe>
+    </div>
 
-    <nav class="sidebar" id="sidebar">
-        <ul class="sidebar-menu">
-            <!-- Adicionado target="_top" para forçar a saída de frames se necessário -->
-            <li><a href="../../../../index.html" class="menu-item" target="_top"><i class="fa-solid fa-house"></i> Início</a></li>
-            <li><a href="./Social/Index.html" class="menu-item active"><i class="fa-solid fa-music"></i> Música</a></li>
-            <li><a href="./Audiobook/Index.html" class="menu-item"><i class="fa-solid fa-book"></i> Audiobook</a></li>
-        </ul>
-    </nav>
+    <div id="audio-preview-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div class="glass w-full max-w-md rounded-3xl p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Prévias</h2>
+                <button onclick="stopAllAudio(); document.getElementById('audio-preview-modal').classList.add('hidden')" class="text-zinc-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="audio-list" class="space-y-3 max-h-96 overflow-y-auto"></div>
+        </div>
+    </div>
 
-    <main class="main-content">
-        <iframe id="contentFrame" src="./Social/Index.html"></iframe>
+    <header class="fixed top-0 left-0 right-0 z-50 glass border-b border-zinc-800">
+        <div class="max-w-screen-2xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
+            <a href="../../../../index.html" class="text-xl text-zinc-400 hover:text-blueviolet-500 transition"><i class="fa-solid fa-arrow-left"></i></a>
+            <span class="text-2xl font-bold tracking-tighter text-ghost">Entretenimento</span>
+            <div class="w-6"></div>
+        </div>
+    </header>
+
+    <section id="hero-section" class="h-screen relative overflow-hidden">
+        <div id="hero-banners"></div>
+        <div class="absolute bottom-16 left-0 right-0 z-10">
+            <div class="max-w-screen-2xl mx-auto px-6 md:px-8">
+                <div id="hero-title" class="mb-4 text-4xl font-bold transition-opacity duration-500"></div>
+                <div id="fab-container" class="flex items-center gap-4">
+                    <button id="play-btn" class="bg-blueviolet-500/50 text-white w-20 h-20 rounded-full flex items-center justify-center hover:bg-blueviolet-600 hover:bg-opacity-100 focus:outline-none focus:ring-4 focus:ring-blueviolet-300 transition-all shadow-[0_0_15px_rgba(138,43,226,0.5)] z-20">
+                        <i id="play-icon" class="fa-solid fa-play text-3xl ml-1"></i>
+                    </button>
+                    <div id="fab-menu" class="flex gap-4"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <main class="max-w-screen-2xl mx-auto px-4 md:px-8 pt-24 pb-20">
+        <nav id="topTabBar" class="flex gap-8 mb-8 overflow-x-auto hide-scrollbar border-b border-zinc-800 pb-2">
+            <button data-tab="streem" class="tab-btn font-bold text-blueviolet-500 border-b-2 border-blueviolet-500 pb-2 transition">Streem</button>
+            <button data-tab="musicas" class="tab-btn font-medium text-zinc-500 hover:text-white transition pb-2">Músicas</button>
+            <button data-tab="social" class="tab-btn font-medium text-zinc-500 hover:text-white transition pb-2">Social</button>
+        </nav>
+        <div id="feed-container" class="pinterest-grid"></div>
     </main>
 
     <script>
-        const sidebar = document.getElementById('sidebar');
-        const openMenuBtn = document.getElementById('openMenu');
-        const frame = document.getElementById('contentFrame');
-        const menuItems = document.querySelectorAll('.menu-item');
+        const data = {
+            streem: {
+                banners: [{ url: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQeHf2mbETCCISmqQ4dnqk27gFHS9UGX92lE0qVlKjGmm_HT9edGOtNIKE&s=10', title: 'Lançamentos' }, { url: 'https://media.filmelier.com/noticias/br/2022/01/image-2.png', title: 'Em Alta' }],
+                cards: [{ url: "https://patiohype.com.br/wp-content/uploads/2020/09/s%C3%A9ries-da-Netflix3-1024x686.jpg", title: "Seres" }, { url: "https://static.crunchyroll.com/cr-acquisition/assets/img/start/hero/us-global/background-desktop.jpg", title: "Animes" }, { url: "https://images.squarespace-cdn.com/content/v1/5b213adb1137a642a79927c3/1534694767516-JUZND8IRO81RX679W5J7/great+films.jpg?format=1000w", title: "Filmes" }, { url: "https://i.pinimg.com/736x/23/29/4c/23294c4e4bf92e54cad510e1ba1e0554.jpg", title: "Cartoons" }, { url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQzkXn1QgFhH4dudhls1LngD2p0xoBwCLE4WBcbFWB08UPksRG5CdrFO5U&s=10", title: "Dramas" }, { url: "https://www.camara.leg.br/midias/image/2022/07/img20190812140144008-768x497.jpg", title: "TV" }],
+                fab: [{ icon: "fa-brands fa-youtube", color: "bg-red-600", baseUrl: "https://www.youtube.com/results?search_query=" }, { icon: "fa-solid fa-n", color: "bg-red-700", baseUrl: "https://www.netflix.com/search?q=" }]
+            },
+            musicas: {
+                banners: [{ url: 'https://www.rollingstone.com/wp-content/uploads/2021/09/RS_500_Great_Songs_1800x1200.jpg?w=1581&h=1054&crop=1', title: 'Top Hits' }, { url: 'https://pyxis.nymag.com/v1/imgs/3a3/b1f/2141226b8ab1ae07afe4b541ee0d2b0825-11-yic-pop-essay.rsocial.w1200.jpg', title: 'Novidades' }],
+                cards: [{ url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFHcAtjoZJowf5T9ucExjbFyscmEAoVeTvz7WptPuExhL0vuZ-UxVHhu2H&s=10", title: "Jazz" }, { url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ8LOeUXR4cPxVTbHgLcS95aaihis2Ji05H_gamy_vLx8YeuW1hszsuLqg&s=10", title: "Rock" }, { url: "https://thebackstage-deezer.com/wp-content/uploads/2023/11/musica-eletronica.jpg", title: "Eletrônica" }, { url: "https://cdn-images.dzcdn.net/images/cover/399a6d91be08838e9b198f556631b8b2/0x1900-000000-80-0-0.jpg", title: "Hip Hop" }, { url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS_1juj_YceFLLfuTlf2FWtPRNoVYjRkgEXZVFXZYuRE9FR47ovSndBD3w&s=10", title: "Clássica" }, { url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS1QdPSHs2lWSufmI_K7UvHjLkbp9-yPPZr399rjrqonepRHu_L_5vMvq8&s=10", title: "Indie" }, { url: "https://tiermaker.com/images/templates/80s-cartoon-theme-songs-updated-version-30-1511261/15112611649713908.jpg", title: "Theme Songs" }, { url: "https://d1csarkz8obe9u.cloudfront.net/posterpreviews/pop-music-album-cover-design-template-%281%29-f3b873e61465d4524bb99bf02a56c649_screen.jpg?ts=1706311822", title: "Covers" }],
+                fab: [{ icon: "fa-brands fa-youtube", color: "bg-red-600", baseUrl: "https://music.youtube.com/search?q=" }, { icon: "fa-solid fa-music", color: "bg-purple-600", type: "preview" }, { icon: "fa-brands fa-spotify", color: "bg-green-600", baseUrl: "https://open.spotify.com/search/" }]
+            },
+            social: { banners: [], cards: [{ url: "https://www.meupositivo.com.br/doseujeito/wp-content/uploads/2022/08/Como-abrir-uma-guia-anonima.jpg", title: "Ngl" }, { url: "https://miro.medium.com/v2/1*UpdEdoPIiptjMotC8auXJA.jpeg", title: "Comunidades" }, { url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTNdgU0KY4Y4m9vxeyP0Nw4SPB6MziLH-9qmyRckJyQqo2XHoRpPMRwxx9z&s=10", title: "Feed" }, { url: "https://img.magnific.com/vetores-gratis/trendy-3d-chat-bubble-symbol-template-for-speech-and-dialog_1017-62417.jpg?semt=ais_hybrid&w=740&q=80", title: "Chat" }], fab: [] }
+        };
 
-        function toggleMenu() {
-            sidebar.classList.toggle('active');
+        function openContent(category, title) {
+            const iframe = document.getElementById('main-iframe');
+            let url = '';
+            if (category === 'streem') url = 'streem.html';
+            else if (category === 'musicas') url = 'musicas.html';
+            else url = `${title.toLowerCase().replace(/\s/g, '')}.html`;
+            iframe.src = url;
+            document.getElementById('iframe-modal').classList.remove('hidden');
         }
 
-        openMenuBtn.addEventListener('click', toggleMenu);
+        function stopAllAudio() {
+            const allAudios = document.querySelectorAll('audio');
+            const allButtons = document.querySelectorAll('.audio-trigger');
+            allAudios.forEach(audio => { audio.pause(); audio.currentTime = 0; });
+            allButtons.forEach(btn => btn.querySelector('i').className = 'fa-solid fa-play');
+        }
 
-        menuItems.forEach(item => {
-            item.addEventListener('click', function(e) {
-                // Modificado para detectar o caminho correto do link de Início
-                if (this.getAttribute('href').includes('index.html')) {
-                    return; // Permite o comportamento padrão de navegação da página
-                }
-                
-                e.preventDefault(); // Impede a navegação normal apenas para os outros links
-                frame.src = this.getAttribute('href');
-                menuItems.forEach(i => i.classList.remove('active'));
-                this.classList.add('active');
-                if (window.innerWidth <= 768) toggleMenu();
+        function toggleAudio(btn, audioId) {
+            const currentAudio = document.getElementById(audioId);
+            const allAudios = document.querySelectorAll('audio');
+            const allButtons = document.querySelectorAll('.audio-trigger');
+            allAudios.forEach((audio, index) => {
+                if (audio.id !== audioId) { audio.pause(); audio.currentTime = 0; allButtons[index].querySelector('i').className = 'fa-solid fa-play'; }
+            });
+            if (currentAudio.paused) { currentAudio.play(); btn.querySelector('i').className = 'fa-solid fa-pause'; }
+            else { currentAudio.pause(); btn.querySelector('i').className = 'fa-solid fa-play'; }
+        }
+
+        async function fetchPreviews(query) {
+            const list = document.getElementById('audio-list');
+            list.innerHTML = 'Carregando...';
+            document.getElementById('audio-preview-modal').classList.remove('hidden');
+            try {
+                const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&limit=10`);
+                const json = await res.json();
+                list.innerHTML = json.results.map((track, i) => `
+                    <div class="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition">
+                        <img src="${track.artworkUrl60}" class="w-10 h-10 rounded">
+                        <div class="flex-1 text-sm truncate">
+                            <p class="font-bold">${track.trackName}</p>
+                            <p class="text-zinc-400 text-xs">${track.artistName}</p>
+                        </div>
+                        <button onclick="toggleAudio(this, 'audio-${i}')" class="audio-trigger w-10 h-10 rounded-full bg-blueviolet-500 flex items-center justify-center">
+                            <i class="fa-solid fa-play"></i>
+                        </button>
+                        <audio id="audio-${i}" class="hidden" loop src="${track.previewUrl}"></audio>
+                    </div>
+                `).join('');
+            } catch (e) { list.innerHTML = 'Erro ao carregar prévias.'; }
+        }
+
+        const fabContainer = document.getElementById('fab-container');
+        const playBtn = document.getElementById('play-btn');
+        const playIcon = document.getElementById('play-icon');
+        const fabMenu = document.getElementById('fab-menu');
+        const heroTitle = document.getElementById('hero-title');
+        let currentIdx = 0;
+        let autoPlay;
+
+        playBtn.addEventListener('click', () => {
+            fabContainer.classList.toggle('fab-active');
+            playIcon.classList.toggle('fa-play');
+            playIcon.classList.toggle('fa-xmark');
+        });
+
+        function updateUI(type) {
+            clearInterval(autoPlay);
+            fabContainer.classList.remove('fab-active');
+            playIcon.className = 'fa-solid fa-play text-3xl ml-1';
+            const heroBanners = document.getElementById('hero-banners');
+            const heroSection = document.getElementById('hero-section');
+            const refreshFab = () => {
+                const activeTitle = heroTitle.textContent;
+                fabMenu.innerHTML = data[type].fab.map(item => {
+                    if (item.type === "preview") {
+                        return `<button onclick="fetchPreviews('${activeTitle}')" class="${item.color} w-14 h-14 rounded-full flex items-center justify-center fab-option hover:scale-110 hover:shadow-lg hover:shadow-white/20 focus:outline-none focus:ring-2 focus:ring-white transition-all"><i class="${item.icon} text-xl"></i></button>`;
+                    }
+                    return `<a href="${item.baseUrl}${encodeURIComponent(activeTitle)}" target="_blank" class="${item.color} w-14 h-14 rounded-full flex items-center justify-center fab-option hover:scale-110 hover:shadow-lg hover:shadow-white/20 focus:outline-none focus:ring-2 focus:ring-white transition-all"><i class="${item.icon} text-xl"></i></a>`;
+                }).join('');
+            };
+            if (data[type].banners.length > 0) {
+                heroSection.style.height = '100vh'; heroSection.style.visibility = 'visible';
+                heroBanners.innerHTML = data[type].banners.map((b, i) => `<div class="hero-bg" style="opacity: ${i === 0 ? '1' : '0'}; background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)), url('${b.url}');"></div>`).join('');
+                heroTitle.textContent = data[type].banners[0].title;
+                currentIdx = 0;
+                refreshFab();
+                autoPlay = setInterval(() => {
+                    const banners = document.querySelectorAll('.hero-bg');
+                    banners[currentIdx].style.opacity = '0';
+                    currentIdx = (currentIdx + 1) % banners.length;
+                    banners[currentIdx].style.opacity = '1';
+                    heroTitle.textContent = data[type].banners[currentIdx].title;
+                    refreshFab();
+                }, 5000);
+            } else { heroSection.style.height = '0'; heroSection.style.visibility = 'hidden'; fabMenu.innerHTML = ''; }
+            
+            document.getElementById('feed-container').innerHTML = data[type].cards.map(item => `
+                <div onclick="openContent('${type}', '${item.title}')" class="pinterest-card card group">
+                    <img src="${item.url}" class="w-full rounded-2xl border border-transparent group-hover:border-blueviolet-500/50 transition-all duration-300">
+                    <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent rounded-b-2xl"><p class="font-bold text-sm">${item.title}</p></div>
+                </div>`).join('');
+        }
+        document.querySelectorAll('.tab-btn').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('font-bold', 'text-blueviolet-500', 'border-b-2'));
+                e.target.classList.add('font-bold', 'text-blueviolet-500', 'border-b-2');
+                updateUI(e.target.getAttribute('data-tab'));
             });
         });
+        updateUI('streem');
     </script>
 </body>
 </html>
