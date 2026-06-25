@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quebra-Cabeça & Galeria</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --blueviolet-color: #8a2be2;
+            --ghost-color: #f8f8f8;
+            --glass-bg: rgba(138, 43, 226, 0.4);
+        }
+
+        * { box-sizing: border-box; }
+        
+        body {
+            background-color: var(--ghost-color);
+            margin: 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+
+        #background-blur {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-size: cover;
+            background-position: center;
+            filter: blur(20px) brightness(0.6);
+            z-index: -1;
+            transition: background-image 0.5s ease;
+        }
+
+        .btn-back {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--glass-bg);
+            border: 2px solid var(--blueviolet-color);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .search-bar {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px 20px;
+            margin: 0 auto 20px auto;
+            border-radius: 25px;
+            border: 2px solid var(--blueviolet-color);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            color: white;
+            outline: none;
+            display: block;
+            transition: 0.3s;
+        }
+
+        .search-bar:hover, .search-bar:focus {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #fff;
+        }
+
+        .top-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            padding: 10px;
+        }
+
+        .tab-item {
+            color: var(--ghost-color);
+            font-weight: bold;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding-bottom: 5px;
+            transition: 0.3s;
+            opacity: 0.7;
+        }
+
+        .tab-item:hover, .tab-item.active {
+            opacity: 1;
+            border-bottom: 2px solid var(--blueviolet-color);
+        }
+
+        .pinterest-grid {
+            column-gap: 15px;
+            column-count: 3;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .pin {
+            background: var(--glass-bg);
+            border-radius: 15px;
+            margin-bottom: 15px;
+            break-inside: avoid;
+            height: 200px;
+            background-size: cover;
+            background-position: center;
+            cursor: pointer;
+            border: 2px solid var(--blueviolet-color);
+            transition: transform 0.3s, border-color 0.3s, opacity 0.3s;
+        }
+
+        .pin:hover {
+            transform: scale(1.05);
+            border-color: #fff;
+            opacity: 0.9;
+        }
+
+        .btn-option {
+            padding: 15px 30px;
+            background: var(--glass-bg);
+            border: 2px solid var(--blueviolet-color);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            width: 100%;
+            max-width: 400px;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 auto 10px auto;
+        }
+
+        .btn-option:hover { background: var(--blueviolet-color); }
+
+        #puzzle-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2px;
+            width: 80vmin;
+            height: 80vmin;
+            background: var(--glass-bg);
+            padding: 5px;
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+
+        .tile {
+            background-size: 400% 400%;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="background-blur"></div>
+    <input type="file" id="file-input" accept="image/*" style="display: none;">
+
+    <button class="btn-back" onclick="document.getElementById('modal').style.display='flex'">
+        <i class="fa-solid fa-arrow-left"></i>
+    </button>
+
+    <div class="modal-overlay" id="modal">
+        <h1 style="color:white; text-align:center;">Selecione um Anime</h1>
+        
+        <input type="text" class="search-bar" id="search-input" placeholder="Pesquisar..." oninput="filterImages()">
+
+        <div class="top-tabs">
+            <div class="tab-item active" id="tab-MAL" onclick="switchTab(this, 'MAL')">MAL</div>
+            <div class="tab-item" id="tab-Web" onclick="switchTab(this, 'Web')">Web</div>
+            <div class="tab-item" id="tab-You" onclick="switchTab(this, 'You')">You</div>
+        </div>
+
+        <div class="pinterest-grid" id="list"></div>
+    </div>
+
+    <div id="puzzle-board"></div>
+
+    <script src="data.js"></script>
+
+    <script>
+        const list = document.getElementById('list');
+        const bg = document.getElementById('background-blur');
+        const board = document.getElementById('puzzle-board');
+        const fileInput = document.getElementById('file-input');
+        const searchInput = document.getElementById('search-input');
+        let currentImg = '';
+        let pieces = []; 
+        let allItems = []; 
+
+        function switchTab(el, type) {
+            document.querySelector('.tab-item.active').classList.remove('active');
+            el.classList.add('active');
+            list.innerHTML = '';
+            list.style.columnCount = (type === 'You') ? '1' : '3';
+            allItems = [];
+
+            searchInput.style.display = (type === 'You') ? 'none' : 'block';
+
+            if (type === 'You') {
+                list.innerHTML = `
+                    <button class="btn-option" onclick="document.getElementById('file-input').click()">
+                        <i class="fa-solid fa-folder-open"></i> Local
+                    </button>
+                `;
+            } else if (type === 'Web') {
+                allItems = webImages;
+                renderItems(allItems);
+            } else {
+                loadAnimeImages();
+            }
+        }
+
+        function renderItems(items) {
+            list.innerHTML = '';
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'pin';
+                card.style.backgroundImage = `url(${item.url})`;
+                card.onclick = () => {
+                    currentImg = item.url;
+                    bg.style.backgroundImage = `url(${item.url})`;
+                    document.getElementById('modal').style.display = 'none';
+                    initGame();
+                };
+                list.appendChild(card);
+            });
+        }
+
+        function filterImages() {
+            const query = searchInput.value.toLowerCase();
+            const filtered = allItems.filter(item => item.title.toLowerCase().includes(query));
+            renderItems(filtered);
+        }
+
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    currentImg = event.target.result;
+                    bg.style.backgroundImage = `url(${currentImg})`;
+                    document.getElementById('modal').style.display = 'none';
+                    initGame();
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        async function loadAnimeImages() {
+            try {
+                const res = await fetch('https://api.jikan.moe/v4/top/anime?limit=8');
+                const data = await res.json();
+                allItems = data.data.map(a => ({ title: a.title, url: a.images.jpg.large_image_url }));
+                renderItems(allItems);
+            } catch (err) { console.error(err); }
+        }
+
+        function initGame() {
+            pieces = [...Array(15).keys(), null].sort(() => Math.random() - 0.5);
+            renderBoard();
+        }
+
+        function renderBoard() {
+            board.innerHTML = '';
+            pieces.forEach((p, i) => {
+                const tile = document.createElement('div');
+                tile.className = 'tile' + (p === null ? ' empty' : '');
+                if (p !== null) {
+                    tile.style.backgroundImage = `url(${currentImg})`;
+                    tile.style.backgroundPosition = `${(p % 4) * 33.33}% ${Math.floor(p / 4) * 33.33}%`;
+                }
+                tile.onclick = () => move(i);
+                board.appendChild(tile);
+            });
+        }
+
+        function move(idx) {
+            const emptyIdx = pieces.indexOf(null);
+            const row = Math.floor(idx / 4);
+            const col = idx % 4;
+            const emptyRow = Math.floor(emptyIdx / 4);
+            const emptyCol = emptyIdx % 4;
+            const isAdjacent = (Math.abs(row - emptyRow) + Math.abs(col - emptyCol)) === 1;
+
+            if (isAdjacent) {
+                [pieces[idx], pieces[emptyIdx]] = [pieces[emptyIdx], pieces[idx]];
+                renderBoard();
+            }
+        }
+
+        loadAnimeImages();
+    </script>
+</body>
+</html>
