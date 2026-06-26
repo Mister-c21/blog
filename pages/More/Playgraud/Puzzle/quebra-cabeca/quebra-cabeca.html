@@ -16,8 +16,8 @@
         #background-blur { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-size: cover; background-position: center; filter: blur(20px) brightness(0.6); z-index: -1; transition: background-image 0.5s ease; }
         .btn-back { position: absolute; top: 20px; left: 20px; background: var(--glass-bg); border: 2px solid var(--blueviolet-color); color: white; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; z-index: 10; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); display: flex; flex-direction: column; padding: 20px; z-index: 1000; overflow-y: auto; }
+        #web-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--ghost-color); padding: 20px; border-radius: 15px; border: 2px solid var(--blueviolet-color); z-index: 2000; width: 90%; max-width: 400px; text-align: center; }
         .search-bar { width: 100%; max-width: 400px; padding: 12px 20px; margin: 0 auto 20px auto; border-radius: 25px; border: 2px solid var(--blueviolet-color); background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(5px); color: white; outline: none; display: block; transition: 0.3s; }
-        .search-bar:hover, .search-bar:focus { background: rgba(255, 255, 255, 0.2); border-color: #fff; }
         .top-tabs { display: flex; justify-content: center; gap: 30px; margin-bottom: 20px; padding: 10px; }
         .tab-item { color: var(--ghost-color); font-weight: bold; font-size: 1.2rem; cursor: pointer; padding-bottom: 5px; transition: 0.3s; opacity: 0.7; }
         .tab-item:hover, .tab-item.active { opacity: 1; border-bottom: 2px solid var(--blueviolet-color); }
@@ -33,8 +33,17 @@
 <body>
 
     <div id="background-blur"></div>
+    <audio id="bg-music" loop></audio>
     <input type="file" id="file-input" accept="image/*" style="display: none;">
     <button class="btn-back" onclick="document.getElementById('modal').style.display='flex'"><i class="fa-solid fa-arrow-left"></i></button>
+
+    <div id="web-modal">
+        <h3 id="modal-title" style="color: var(--blueviolet-color);">Configurar Jogo</h3>
+        <input type="text" id="url-input" class="search-bar" style="color: black; border-color: var(--blueviolet-color);" placeholder="URL da Imagem">
+        <input type="text" id="music-input" class="search-bar" style="color: black; border-color: var(--blueviolet-color);" placeholder="Nome da música">
+        <button class="btn-option" style="color: black;" onclick="applyCustomConfig()">Iniciar</button>
+        <button class="btn-option" style="background: transparent; color: gray;" onclick="document.getElementById('web-modal').style.display='none'">Cancelar</button>
+    </div>
 
     <div class="modal-overlay" id="modal">
         <h1 style="color:white; text-align:center;">Selecione um Tema</h1>
@@ -49,7 +58,7 @@
     <div id="puzzle-board"></div>
 
     <script>
-        const list = document.getElementById('list'), bg = document.getElementById('background-blur'), board = document.getElementById('puzzle-board'), fileInput = document.getElementById('file-input'), searchInput = document.getElementById('search-input');
+        const list = document.getElementById('list'), bg = document.getElementById('background-blur'), board = document.getElementById('puzzle-board'), fileInput = document.getElementById('file-input'), searchInput = document.getElementById('search-input'), audio = document.getElementById('bg-music'), webModal = document.getElementById('web-modal');
         let currentImg = '', pieces = [], allItems = [];
 
         function switchTab(el, type) {
@@ -58,38 +67,62 @@
             list.innerHTML = '';
             searchInput.style.display = (type === 'You') ? 'none' : 'block';
             if (type === 'You') {
-                list.innerHTML = `<button class="btn-option" onclick="document.getElementById('file-input').click()"><i class="fa-solid fa-folder-open"></i> Local</button>`;
+                list.innerHTML = `
+                    <button class="btn-option" onclick="prepareLocal()"><i class="fa-solid fa-folder-open"></i> Local</button>
+                    <button class="btn-option" onclick="prepareWeb()"><i class="fa-solid fa-globe"></i> Web</button>
+                `;
             } else { loadAnimeImages(); }
+        }
+
+        function prepareLocal() { fileInput.click(); }
+        function prepareWeb() { 
+            document.getElementById('url-input').style.display = 'block'; 
+            webModal.style.display = 'block'; 
+        }
+
+        fileInput.onchange = (e) => {
+            const reader = new FileReader();
+            reader.onload = (event) => { currentImg = event.target.result; document.getElementById('url-input').style.display = 'none'; webModal.style.display = 'block'; };
+            reader.readAsDataURL(e.target.files[0]);
+        };
+
+        async function applyCustomConfig() {
+            const musicName = document.getElementById('music-input').value;
+            if (currentImg) {
+                bg.style.backgroundImage = `url(${currentImg})`;
+                document.getElementById('modal').style.display = 'none';
+                webModal.style.display = 'none';
+                if(musicName) playTheme(musicName);
+                initGame();
+            }
+        }
+
+        async function playTheme(term) {
+            const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=1`);
+            const data = await res.json();
+            if (data.results.length > 0) {
+                audio.src = data.results[0].previewUrl;
+                audio.play();
+            }
         }
 
         async function handleSearch(e) {
             const query = searchInput.value.toLowerCase();
-            // Filtro local primeiro
             const filtered = allItems.filter(i => i.title.toLowerCase().includes(query));
             renderItems(filtered);
-
-            // Se apertar Enter, busca na API externa
             if (e.key === 'Enter' && query.length > 2) {
                 const res = await fetch(`https://api.jikan.moe/v4/anime?q=${query}`);
                 const data = await res.json();
                 allItems = data.data.map(a => ({ title: a.title, url: a.images.jpg.large_image_url }));
-                localStorage.setItem('cachedImages', JSON.stringify(allItems));
                 renderItems(allItems);
             }
         }
 
         async function loadAnimeImages() {
-            const cached = localStorage.getItem('cachedImages');
-            if (cached) {
-                allItems = JSON.parse(cached);
-                renderItems(allItems);
-            } else {
-                const res = await fetch('https://api.jikan.moe/v4/top/anime?limit=12');
-                const data = await res.json();
-                allItems = data.data.map(a => ({ title: a.title, url: a.images.jpg.large_image_url }));
-                localStorage.setItem('cachedImages', JSON.stringify(allItems));
-                renderItems(allItems);
-            }
+            const res = await fetch('https://api.jikan.moe/v4/top/anime?limit=12');
+            const data = await res.json();
+            allItems = data.data.map(a => ({ title: a.title, url: a.images.jpg.large_image_url }));
+            renderItems(allItems);
         }
 
         function renderItems(items) {
@@ -98,16 +131,16 @@
                 const card = document.createElement('div');
                 card.className = 'pin';
                 card.style.backgroundImage = `url(${item.url})`;
-                card.onclick = () => { currentImg = item.url; bg.style.backgroundImage = `url(${item.url})`; document.getElementById('modal').style.display = 'none'; initGame(); };
+                card.onclick = () => { 
+                    currentImg = item.url; 
+                    bg.style.backgroundImage = `url(${item.url})`; 
+                    document.getElementById('modal').style.display = 'none'; 
+                    playTheme(item.title);
+                    initGame(); 
+                };
                 list.appendChild(card);
             });
         }
-
-        fileInput.onchange = (e) => {
-            const reader = new FileReader();
-            reader.onload = (event) => { currentImg = event.target.result; bg.style.backgroundImage = `url(${currentImg})`; document.getElementById('modal').style.display = 'none'; initGame(); };
-            reader.readAsDataURL(e.target.files[0]);
-        };
 
         function initGame() { pieces = [...Array(15).keys(), null].sort(() => Math.random() - 0.5); renderBoard(); }
         function renderBoard() {
