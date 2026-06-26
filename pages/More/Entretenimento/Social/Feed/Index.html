@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --blueviolet: #8a2be2;
+            --ghost: #f8f9fa;
+            --glass: rgba(255, 255, 255, 0.6);
+            --transition: all 0.3s ease;
+        }
+
+        body { background-color: var(--ghost); font-family: sans-serif; margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
+
+        header { background: var(--glass); backdrop-filter: blur(15px); padding: 1rem 2rem; border-bottom: 1px solid rgba(138, 43, 226, 0.2); position: sticky; top: 0; z-index: 100; }
+
+        .tabs-scroll {
+            display: flex; gap: 20px; padding: 10px 20px; background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(5px); overflow-x: auto; white-space: nowrap; border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .tab-item { cursor: pointer; color: #555; font-weight: 600; padding: 5px 10px; border-bottom: 2px solid transparent; transition: var(--transition); }
+        .tab-item.active { color: var(--blueviolet); border-bottom-color: var(--blueviolet); }
+
+        .container { display: flex; flex: 1; padding: 20px; gap: 20px; }
+
+        nav { width: 260px; background: var(--glass); backdrop-filter: blur(10px); padding: 20px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.5); height: fit-content; }
+        nav ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 15px; }
+        nav li { padding: 12px; cursor: pointer; color: var(--blueviolet); font-weight: 500; display: flex; align-items: center; gap: 10px; transition: var(--transition); border-radius: 8px; }
+        nav li.active { background: var(--blueviolet); color: white; }
+
+        main { flex: 1; }
+        .feed-grid { column-count: 3; column-gap: 20px; }
+        .card { 
+            background: var(--glass); border-radius: 20px; margin-bottom: 20px; break-inside: avoid; 
+            padding: 0; overflow: hidden; transition: var(--transition); cursor: pointer;
+        }
+        .card:hover { transform: scale(1.02); }
+
+        .h-200 { height: 200px; }
+        .h-300 { height: 300px; }
+        .h-400 { height: 400px; }
+        .art-placeholder { width: 100%; height: 100%; background: linear-gradient(135deg, #e0d0ff, #d1d1d1); }
+
+        /* Modal Fullscreen Ajustado */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: white; z-index: 1000; overflow-y: auto;
+        }
+        .modal {
+            width: 100%; min-height: 100vh; display: flex; flex-direction: row; padding: 40px; box-sizing: border-box; gap: 40px;
+        }
+        .modal-img { flex: 1; background: #ddd; border-radius: 20px; min-height: 50vh; }
+        .modal-info { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+        
+        .related-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 15px; margin-top: 10px; }
+        .related-item { height: 100px; background: #e0d0ff; border-radius: 12px; cursor: pointer; }
+
+        @media (max-width: 768px) {
+            .feed-grid { column-count: 2; }
+            
+            /* Ajuste para modal ocupar tela inteira no mobile */
+            .modal-overlay { width: 100vw; height: 100vh; }
+            .modal { flex-direction: column; padding: 20px; min-height: 100vh; }
+            .modal-img { min-height: 30vh; flex: none; }
+            
+            nav { position: fixed; bottom: 0; left: 0; width: 100%; border-radius: 20px 20px 0 0; padding: 15px 0; z-index: 99; }
+            nav ul { flex-direction: row; justify-content: space-around; }
+            nav li span { display: none; } 
+            nav li { padding: 10px; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1 style="margin: 0; font-size: 1.5rem; color: var(--blueviolet);">DevGallery</h1>
+    </header>
+
+    <div class="tabs-scroll">
+        <div class="tab-item active" onclick="setTabActive(this)">Para Você</div>
+        <div class="tab-item" onclick="setTabActive(this)">Seguindo</div>
+        <div class="tab-item" onclick="setTabActive(this)">Digital Art</div>
+        <div class="tab-item" onclick="setTabActive(this)">Fotografia</div>
+    </div>
+
+    <div class="container">
+        <nav>
+            <ul>
+                <li class="active" onclick="setActive(this)"><i data-lucide="home"></i> <span>Home</span></li>
+                <li onclick="setActive(this)"><i data-lucide="search"></i> <span>Pesquisar</span></li>
+                <li onclick="setActive(this)"><i data-lucide="plus-circle"></i> <span>Postar</span></li>
+            </ul>
+        </nav>
+
+        <main>
+            <div class="feed-grid">
+                <div class="card h-300" onclick="openModal()"><div class="art-placeholder"></div></div>
+                <div class="card h-400" onclick="openModal()"><div class="art-placeholder"></div></div>
+                <div class="card h-200" onclick="openModal()"><div class="art-placeholder"></div></div>
+                <div class="card h-300" onclick="openModal()"><div class="art-placeholder"></div></div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <div class="modal-img"></div>
+            <div class="modal-info">
+                <h2 style="color: var(--blueviolet); margin: 0;">Título da Obra</h2>
+                <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                    <span style="background: #eee; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;">#Arte</span>
+                </div>
+                <p>Descrição técnica que se ajusta ao espaço disponível na tela.</p>
+                
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <button title="Download" style="background: none; border: 1px solid #ccc; padding: 10px; border-radius: 50%; cursor: pointer;"><i data-lucide="download"></i></button>
+                    <button title="Impulsionar" style="background: none; border: 1px solid #ccc; padding: 10px; border-radius: 50%; cursor: pointer;"><i data-lucide="trending-up"></i></button>
+                    <button title="Rebaixar" style="background: none; border: 1px solid #ccc; padding: 10px; border-radius: 50%; cursor: pointer;"><i data-lucide="thumbs-down"></i></button>
+                    <button onclick="closeModal()" title="Fechar" style="background: #efefef; border: none; padding: 10px; border-radius: 50%; cursor: pointer; margin-left: 20px;"><i data-lucide="x"></i></button>
+                </div>
+
+                <hr style="width: 100%; border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+                <h3 style="font-size: 1rem; margin: 0;">Posts Semelhantes</h3>
+                <div class="related-grid">
+                    <div class="related-item"></div>
+                    <div class="related-item"></div>
+                    <div class="related-item"></div>
+                    <div class="related-item"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        function setActive(el) { document.querySelectorAll('nav li').forEach(li => li.classList.remove('active')); el.classList.add('active'); }
+        function setTabActive(el) { document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active')); el.classList.add('active'); }
+        function openModal() { document.getElementById('modal').style.display = 'block'; }
+        function closeModal() { document.getElementById('modal').style.display = 'none'; }
+    </script>
+</body>
+</html>
