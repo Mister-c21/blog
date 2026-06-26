@@ -36,13 +36,26 @@
         .fab-active .fab-option { opacity: 1; transform: translateX(0); pointer-events: auto; }
         #play-btn { transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .fab-active #play-btn { transform: scale(0.7); }
+        
+        /* Novos estilos do Modal Slide */
+        #iframe-modal {
+            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            transform: translateY(100%);
+        }
+        #iframe-modal.active { transform: translateY(0); }
+        #modal-drag-handle { cursor: grab; }
     </style>
 </head>
 <body class="bg-zinc-950 text-white">
 
-    <div id="iframe-modal" class="hidden fixed inset-0 z-[200] bg-zinc-950">
-        <button onclick="document.getElementById('iframe-modal').classList.add('hidden'); document.getElementById('main-iframe').src=''" class="absolute top-4 right-4 z-[201] text-white bg-black/50 p-3 rounded-full hover:bg-black"><i class="fa-solid fa-xmark"></i></button>
-        <iframe id="main-iframe" class="w-full h-full border-none" src=""></iframe>
+    <div id="iframe-modal" class="fixed inset-0 z-[200] bg-zinc-950">
+        <div id="modal-drag-handle" class="h-16 flex items-center px-4 border-b border-zinc-800">
+            <div class="w-10 h-1 bg-zinc-600 rounded-full mx-auto md:hidden"></div>
+            <button onclick="closeIframeModal()" class="hidden md:block text-white p-2 hover:bg-zinc-800 rounded-full ml-auto">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <iframe id="main-iframe" class="w-full h-[calc(100vh-4rem)] border-none" src=""></iframe>
     </div>
 
     <div id="audio-preview-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -118,6 +131,10 @@
             social: { banners: [], cards: [{ url: "https://www.meupositivo.com.br/doseujeito/wp-content/uploads/2022/08/Como-abrir-uma-guia-anonima.jpg", title: "Ngl" }, { url: "https://miro.medium.com/v2/1*UpdEdoPIiptjMotC8auXJA.jpeg", title: "Comunidades" }, { url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTNdgU0KY4Y4m9vxeyP0Nw4SPB6MziLH-9qmyRckJyQqo2XHoRpPMRwxx9z&s=10", title: "Feed" }, { url: "https://img.magnific.com/vetores-gratis/trendy-3d-chat-bubble-symbol-template-for-speech-and-dialog_1017-62417.jpg?semt=ais_hybrid&w=740&q=80", title: "Chat" }], fab: [] }
         };
 
+        const iframeModal = document.getElementById('iframe-modal');
+        const handle = document.getElementById('modal-drag-handle');
+        let touchStartY = 0;
+
         function openContent(category, title) {
             const iframe = document.getElementById('main-iframe');
             let url = '';
@@ -125,8 +142,18 @@
             else if (category === 'musicas') url = 'musicas.html';
             else url = `${title.toLowerCase().replace(/\s/g, '')}.html`;
             iframe.src = url;
-            document.getElementById('iframe-modal').classList.remove('hidden');
+            iframeModal.classList.add('active');
         }
+
+        function closeIframeModal() {
+            iframeModal.classList.remove('active');
+            document.getElementById('main-iframe').src = '';
+        }
+
+        handle.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
+        handle.addEventListener('touchend', (e) => {
+            if (e.changedTouches[0].clientY - touchStartY > 100) closeIframeModal();
+        }, { passive: true });
 
         function stopAllAudio() {
             const allAudios = document.querySelectorAll('audio');
