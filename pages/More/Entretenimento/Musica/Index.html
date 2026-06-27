@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<style>
+  :root {
+    --blueviolet-color: #8a2be2;
+    --ghost: #f8f8ff;
+    --glass: rgba(255, 255, 255, 0.7);
+  }
+
+  body { 
+    background-image: url('https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2070'); 
+    background-size: cover; 
+    background-position: center; 
+    background-attachment: fixed; 
+    font-family: sans-serif; 
+    margin: 0; 
+    padding: 20px; 
+  }
+
+  .track-list { max-width: 500px; margin: auto; }
+
+  .search-container { margin-bottom: 15px; position: relative; display: flex; align-items: center; }
+  .search-bar { 
+    width: 100%; padding: 12px 75px 12px 20px; border: 1px solid rgba(255, 255, 255, 0.3); 
+    border-radius: 50px; background: var(--glass); backdrop-filter: blur(15px); 
+    outline: none; font-size: 1em; color: #333; box-sizing: border-box; transition: all 0.3s ease; 
+  }
+  .search-bar:hover { box-shadow: 0 0 10px rgba(138, 43, 226, 0.2); }
+  .search-bar:focus { box-shadow: 0 0 15px rgba(138, 43, 226, 0.4); border-color: var(--blueviolet-color); }
+
+  .track-item { 
+    display: flex; align-items: center; padding: 10px; margin-bottom: 12px; 
+    background-size: cover; background-position: center; position: relative; overflow: hidden;
+    border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.3); 
+    transition: all 0.3s ease; cursor: pointer; 
+  }
+  .track-item::before {
+    content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: var(--glass); backdrop-filter: blur(10px); z-index: 1;
+  }
+  .track-item > * { position: relative; z-index: 2; }
+  .track-item:hover { transform: scale(1.02); box-shadow: 0 5px 15px rgba(138, 43, 226, 0.2); border-color: var(--blueviolet-color); }
+
+  .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--ghost); z-index: 1000; justify-content: center; align-items: center; }
+  .modal-content { width: 100%; height: 100%; display: flex; flex-direction: column; }
+  .close-btn { position: absolute; top: 20px; left: 20px; font-size: 2em; cursor: pointer; color: var(--blueviolet-color); z-index: 1001; }
+  .search-controls { position: absolute; right: 15px; display: flex; gap: 10px; }
+  .btn-icon { background: none; border: none; color: #a0a0a0; cursor: pointer; font-size: 1.1em; transition: color 0.3s; }
+  .btn-icon:hover { color: var(--blueviolet-color); }
+  .tabs-container { display: flex; gap: 20px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; align-items: baseline; }
+  .tabs-container::-webkit-scrollbar { display: none; }
+  .tab { display: flex; align-items: center; gap: 8px; font-size: 1em; font-weight: 600; color: #a0a0a0; white-space: nowrap; cursor: pointer; transition: all 0.2s ease; }
+  .tab.active { color: var(--blueviolet-color); font-size: 1.2em; border-bottom: 2px solid var(--blueviolet-color); }
+  .thumbnail { width: 120px; height: 68px; border-radius: 8px; background-color: #cccccc; margin-right: 15px; background-size: cover; background-position: center; flex-shrink: 0; }
+  .info h4 { margin: 0; font-size: 0.95em; color: #333; }
+  .info p { margin: 4px 0 0; font-size: 0.75em; color: #555; }
+  @keyframes pulse { 0% { transform: scale(1); color: var(--blueviolet-color); } 50% { transform: scale(1.2); color: red; } 100% { transform: scale(1); color: var(--blueviolet-color); } }
+  .recording { animation: pulse 1.5s infinite; }
+</style>
+</head>
+<body>
+
+<div class="track-list" id="trackList">
+  <div class="search-container">
+    <input type="text" id="searchInput" class="search-bar" placeholder="Buscar música..." oninput="handleSearch()">
+    <div class="search-controls">
+      <button class="btn-icon" onclick="toggleVoice(this)"><i class="fa-solid fa-microphone" id="micIcon"></i></button>
+      <button class="btn-icon" id="clearBtn" onclick="clearSearch()" style="display:none;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+
+  <div class="tabs-container">
+    <div class="tab active" onclick="updateView('All', this)">All</div>
+    <div class="tab" onclick="updateView('Nacionais', this)"><i class="fa-solid fa-flag"></i> Nacionais</div>
+    <div class="tab" onclick="updateView('Internacionais', this)"><i class="fa-solid fa-globe"></i> Internacionais</div>
+    <div class="tab" onclick="updateView('Salvas', this)"><i class="fa-solid fa-bookmark"></i> Salvas</div>
+  </div>
+  
+  <div id="resultsContainer"></div>
+</div>
+
+<div class="modal" id="embedModal">
+  <i class="fa-solid fa-chevron-left close-btn" onclick="closeModal()"></i>
+  <div class="modal-content">
+    <iframe id="modalIframe" width="100%" height="100%" src="" frameborder="0"></iframe>
+  </div>
+</div>
+
+<script>
+  // ATUALIZAÇÃO: Captura parâmetros
+  const urlParams = new URLSearchParams(window.location.search);
+  const tema = urlParams.get('tema');
+  const capa = urlParams.get('capa');
+
+  // ATUALIZAÇÃO: Aplica fundo dinâmico
+  if(capa) document.body.style.backgroundImage = `url('${decodeURIComponent(capa)}')`;
+
+  const tracks = [
+    { title: "SE EU FICAR PÁ NEM ME TESTA", artist: "MCs Jhowzinho & Kadinho", id: "CArP6wOhPHQ", category: "Nacionais" },
+    { title: "So What", artist: "Miles Davis", id: "zqNTltOGh5c", category: "Internacionais" },
+    { title: "Take Five", artist: "Dave Brubeck", id: "PHdq0-d63sg", category: "Internacionais" },
+    { title: "Do I Wanna Know?", artist: "Arctic Monkeys", id: "bpOSxM0rNPM", category: "Internacionais" },
+    { title: "Space Song", artist: "Beach House", id: "RBumgq5SNxA", category: "Internacionais" },
+    { title: "Bohemian Rhapsody", artist: "Queen", id: "fJ9rUzIMcZQ", category: "Internacionais" },
+    { title: "Smells Like Teen Spirit", artist: "Nirvana", id: "hTWKbfoikeg", category: "Internacionais" },
+    { title: "Lose Yourself", artist: "Eminem", id: "xFYQQPAZsA0", category: "Internacionais" },
+    { title: "Alright", artist: "Kendrick Lamar", id: "Z-48u_uWMHY", category: "Internacionais" },
+    { title: "Game of Thrones Theme", artist: "Ramin Djawadi", id: "s7L2PVdrb_8", category: "Internacionais" },
+    { title: "Star Wars Main Theme", artist: "John Williams", id: "_D0ZQPqeJkk", category: "Internacionais" },
+    { title: "Hallelujah (Cover)", artist: "Pentatonix", id: "LRP8d7hhpoQ", category: "Internacionais" },
+    { title: "Fast Car (Cover)", artist: "Luke Combs", id: "0W0M1pXpB7g", category: "Internacionais" },
+    { title: "Clair de Lune", artist: "Claude Debussy", id: "CvFH_6DNRCY", category: "Internacionais" },
+    { title: "Sinfonia Nº 5", artist: "Beethoven", id: "4Mc0VEi-w50", category: "Internacionais" },
+    { title: "Strobe", artist: "deadmau5", id: "tKi9MPne0hM", category: "Internacionais" },
+    { title: "Levels", artist: "Avicii", id: "uBWrnQ35P5c", category: "Internacionais" }
+  ];
+
+  // ATUALIZAÇÃO: Categoria inicial vinda da URL
+  let currentCategory = tema || 'All';
+
+  function updateView(category, element) {
+    if(element) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        element.classList.add('active');
+    }
+    currentCategory = category || currentCategory;
+    renderTracks();
+  }
+
+  function handleSearch() {
+    toggleClearBtn();
+    renderTracks();
+  }
+
+  function renderTracks() {
+    const container = document.getElementById('resultsContainer');
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    container.innerHTML = '';
+
+    let filtered = tracks;
+
+    if (currentCategory === 'Salvas') {
+      const savedIds = JSON.parse(localStorage.getItem('savedTracks') || '[]');
+      filtered = filtered.filter(t => savedIds.includes(t.id));
+    } else if (currentCategory !== 'All') {
+      filtered = filtered.filter(t => t.category === currentCategory);
+    }
+
+    filtered = filtered.filter(t => 
+      t.title.toLowerCase().includes(searchTerm) || 
+      t.artist.toLowerCase().includes(searchTerm)
+    );
+
+    filtered.forEach(track => {
+      const item = document.createElement('div');
+      item.className = 'track-item';
+      item.onclick = () => openModal('https://www.youtube.com/embed/' + track.id);
+      item.innerHTML = `
+        <div class="thumbnail" style="background-image: url('https://img.youtube.com/vi/${track.id}/mqdefault.jpg');"></div>
+        <div class="info"><h4>${track.title}</h4><p>${track.artist}</p></div>
+      `;
+      container.appendChild(item);
+    });
+  }
+
+  function openModal(url) { 
+    document.getElementById('modalIframe').src = url;
+    document.getElementById('embedModal').style.display = 'flex'; 
+  }
+  
+  function closeModal() { 
+    document.getElementById('embedModal').style.display = 'none'; 
+    document.getElementById('modalIframe').src = ''; 
+  }
+  
+  function toggleVoice(b) { document.getElementById('micIcon').classList.toggle('recording'); }
+  function toggleClearBtn() { const i = document.getElementById('searchInput'); document.getElementById('clearBtn').style.display = i.value.length > 0 ? 'block' : 'none'; }
+  function clearSearch() { const i = document.getElementById('searchInput'); i.value = ''; toggleClearBtn(); renderTracks(); }
+
+  renderTracks();
+</script>
+
+</body>
+</html>
