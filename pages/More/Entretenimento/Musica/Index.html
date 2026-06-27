@@ -74,9 +74,9 @@
 
   <div class="tabs-container">
     <div class="tab active" onclick="updateView('All', this)">All</div>
-    <div class="tab" onclick="updateView('Nacionais', this)"><i class="fa-solid fa-flag"></i> Nacionais</div>
-    <div class="tab" onclick="updateView('Internacionais', this)"><i class="fa-solid fa-globe"></i> Internacionais</div>
-    <div class="tab" onclick="updateView('Salvas', this)"><i class="fa-solid fa-bookmark"></i> Salvas</div>
+    <div class="tab" onclick="updateView('Nacionais', this)">Nacionais</div>
+    <div class="tab" onclick="updateView('Internacionais', this)">Internacionais</div>
+    <div class="tab" onclick="updateView('Salvas', this)">Salvas</div>
   </div>
   
   <div id="resultsContainer"></div>
@@ -90,35 +90,24 @@
 </div>
 
 <script>
-  // ATUALIZAÇÃO: Captura parâmetros
+  // Captura de parâmetros
   const urlParams = new URLSearchParams(window.location.search);
   const tema = urlParams.get('tema');
   const capa = urlParams.get('capa');
 
-  // ATUALIZAÇÃO: Aplica fundo dinâmico
+  // Aplicação de fundo
   if(capa) document.body.style.backgroundImage = `url('${decodeURIComponent(capa)}')`;
 
-  const tracks = [
-    { title: "SE EU FICAR PÁ NEM ME TESTA", artist: "MCs Jhowzinho & Kadinho", id: "CArP6wOhPHQ", category: "Nacionais" },
-    { title: "So What", artist: "Miles Davis", id: "zqNTltOGh5c", category: "Internacionais" },
-    { title: "Take Five", artist: "Dave Brubeck", id: "PHdq0-d63sg", category: "Internacionais" },
-    { title: "Do I Wanna Know?", artist: "Arctic Monkeys", id: "bpOSxM0rNPM", category: "Internacionais" },
-    { title: "Space Song", artist: "Beach House", id: "RBumgq5SNxA", category: "Internacionais" },
-    { title: "Bohemian Rhapsody", artist: "Queen", id: "fJ9rUzIMcZQ", category: "Internacionais" },
-    { title: "Smells Like Teen Spirit", artist: "Nirvana", id: "hTWKbfoikeg", category: "Internacionais" },
-    { title: "Lose Yourself", artist: "Eminem", id: "xFYQQPAZsA0", category: "Internacionais" },
-    { title: "Alright", artist: "Kendrick Lamar", id: "Z-48u_uWMHY", category: "Internacionais" },
-    { title: "Game of Thrones Theme", artist: "Ramin Djawadi", id: "s7L2PVdrb_8", category: "Internacionais" },
-    { title: "Star Wars Main Theme", artist: "John Williams", id: "_D0ZQPqeJkk", category: "Internacionais" },
-    { title: "Hallelujah (Cover)", artist: "Pentatonix", id: "LRP8d7hhpoQ", category: "Internacionais" },
-    { title: "Fast Car (Cover)", artist: "Luke Combs", id: "0W0M1pXpB7g", category: "Internacionais" },
-    { title: "Clair de Lune", artist: "Claude Debussy", id: "CvFH_6DNRCY", category: "Internacionais" },
-    { title: "Sinfonia Nº 5", artist: "Beethoven", id: "4Mc0VEi-w50", category: "Internacionais" },
-    { title: "Strobe", artist: "deadmau5", id: "tKi9MPne0hM", category: "Internacionais" },
-    { title: "Levels", artist: "Avicii", id: "uBWrnQ35P5c", category: "Internacionais" }
-  ];
+  const tracksData = {
+    "Jazz": [ { title: "So What", artist: "Miles Davis", id: "zqNTltOGh5c" }, { title: "Take Five", artist: "Dave Brubeck", id: "PHdq0-d63sg" } ],
+    "Rock": [ { title: "Do I Wanna Know?", artist: "Arctic Monkeys", id: "bpOSxM0rNPM" }, { title: "Smells Like Teen Spirit", artist: "Nirvana", id: "hTWKbfoikeg" } ],
+    "Eletronica": [ { title: "Strobe", artist: "deadmau5", id: "tKi9MPne0hM" }, { title: "Levels", artist: "Avicii", id: "uBWrnQ35P5c" } ],
+    "Classica": [ { title: "Clair de Lune", artist: "Claude Debussy", id: "CvFH_6DNRCY" }, { title: "Sinfonia Nº 5", artist: "Beethoven", id: "4Mc0VEi-w50" } ],
+    "Hip Hop": [ { title: "Alright", artist: "Kendrick Lamar", id: "Z-48u_uWMHY" }, { title: "Lose Yourself", artist: "Eminem", id: "xFYQQPAZsA0" } ],
+    "Theme Songs": [ { title: "Game of Thrones Theme", artist: "Ramin Djawadi", id: "s7L2PVdrb_8" }, { title: "Star Wars Main Theme", artist: "John Williams", id: "_D0ZQPqeJkk" } ],
+    "Covers": [ { title: "Hallelujah (Cover)", artist: "Pentatonix", id: "LRP8d7hhpoQ" }, { title: "Fast Car (Cover)", artist: "Luke Combs", id: "0W0M1pXpB7g" } ]
+  };
 
-  // ATUALIZAÇÃO: Categoria inicial vinda da URL
   let currentCategory = tema || 'All';
 
   function updateView(category, element) {
@@ -126,12 +115,7 @@
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         element.classList.add('active');
     }
-    currentCategory = category || currentCategory;
-    renderTracks();
-  }
-
-  function handleSearch() {
-    toggleClearBtn();
+    currentCategory = category;
     renderTracks();
   }
 
@@ -140,13 +124,15 @@
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     container.innerHTML = '';
 
-    let filtered = tracks;
+    let filtered = [];
 
     if (currentCategory === 'Salvas') {
       const savedIds = JSON.parse(localStorage.getItem('savedTracks') || '[]');
-      filtered = filtered.filter(t => savedIds.includes(t.id));
-    } else if (currentCategory !== 'All') {
-      filtered = filtered.filter(t => t.category === currentCategory);
+      Object.values(tracksData).forEach(arr => filtered.push(...arr.filter(t => savedIds.includes(t.id))));
+    } else if (currentCategory === 'All') {
+      Object.values(tracksData).forEach(arr => filtered.push(...arr));
+    } else if (tracksData[currentCategory]) {
+      filtered = tracksData[currentCategory];
     }
 
     filtered = filtered.filter(t => 
@@ -176,9 +162,10 @@
     document.getElementById('modalIframe').src = ''; 
   }
   
-  function toggleVoice(b) { document.getElementById('micIcon').classList.toggle('recording'); }
+  function handleSearch() { toggleClearBtn(); renderTracks(); }
   function toggleClearBtn() { const i = document.getElementById('searchInput'); document.getElementById('clearBtn').style.display = i.value.length > 0 ? 'block' : 'none'; }
   function clearSearch() { const i = document.getElementById('searchInput'); i.value = ''; toggleClearBtn(); renderTracks(); }
+  function toggleVoice(b) { document.getElementById('micIcon').classList.toggle('recording'); }
 
   renderTracks();
 </script>
