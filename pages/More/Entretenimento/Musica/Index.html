@@ -9,6 +9,7 @@
     --ghost: #f8f8ff;
     --glass: rgba(255, 255, 255, 0.7);
   }
+
   body { 
     background-image: url('https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2070'); 
     background-size: cover; 
@@ -18,13 +19,18 @@
     margin: 0; 
     padding: 20px; 
   }
+
   .track-list { max-width: 500px; margin: auto; }
+
   .search-container { margin-bottom: 15px; position: relative; display: flex; align-items: center; }
   .search-bar { 
     width: 100%; padding: 12px 75px 12px 20px; border: 1px solid rgba(255, 255, 255, 0.3); 
     border-radius: 50px; background: var(--glass); backdrop-filter: blur(15px); 
     outline: none; font-size: 1em; color: #333; box-sizing: border-box; transition: all 0.3s ease; 
   }
+  .search-bar:hover { box-shadow: 0 0 10px rgba(138, 43, 226, 0.2); }
+  .search-bar:focus { box-shadow: 0 0 15px rgba(138, 43, 226, 0.4); border-color: var(--blueviolet-color); }
+
   .track-item { 
     display: flex; align-items: center; padding: 10px; margin-bottom: 12px; 
     background-size: cover; background-position: center; position: relative; overflow: hidden;
@@ -36,14 +42,19 @@
     background: var(--glass); backdrop-filter: blur(10px); z-index: 1;
   }
   .track-item > * { position: relative; z-index: 2; }
+  .track-item:hover { transform: scale(1.02); box-shadow: 0 5px 15px rgba(138, 43, 226, 0.2); border-color: var(--blueviolet-color); }
+
   .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--ghost); z-index: 1000; justify-content: center; align-items: center; }
   .modal-content { width: 100%; height: 100%; display: flex; flex-direction: column; }
   .close-btn { position: absolute; top: 20px; left: 20px; font-size: 2em; cursor: pointer; color: var(--blueviolet-color); z-index: 1001; }
   .search-controls { position: absolute; right: 15px; display: flex; gap: 10px; }
   .btn-icon { background: none; border: none; color: #a0a0a0; cursor: pointer; font-size: 1.1em; transition: color 0.3s; }
+  .btn-icon:hover { color: var(--blueviolet-color); }
   .thumbnail { width: 120px; height: 68px; border-radius: 8px; background-color: #cccccc; margin-right: 15px; background-size: cover; background-position: center; flex-shrink: 0; }
   .info h4 { margin: 0; font-size: 0.95em; color: #333; }
   .info p { margin: 4px 0 0; font-size: 0.75em; color: #555; }
+  @keyframes pulse { 0% { transform: scale(1); color: var(--blueviolet-color); } 50% { transform: scale(1.2); color: red; } 100% { transform: scale(1); color: var(--blueviolet-color); } }
+  .recording { animation: pulse 1.5s infinite; }
 </style>
 </head>
 <body>
@@ -52,10 +63,11 @@
   <div class="search-container">
     <input type="text" id="searchInput" class="search-bar" placeholder="Buscar música..." oninput="handleSearch()">
     <div class="search-controls">
-      <button class="btn-icon" onclick="toggleVoice(this)"><i class="fa-solid fa-microphone"></i></button>
+      <button class="btn-icon" onclick="toggleVoice(this)"><i class="fa-solid fa-microphone" id="micIcon"></i></button>
       <button class="btn-icon" id="clearBtn" onclick="clearSearch()" style="display:none;"><i class="fa-solid fa-xmark"></i></button>
     </div>
   </div>
+  
   <div id="resultsContainer"></div>
 </div>
 
@@ -70,31 +82,51 @@
   const urlParams = new URLSearchParams(window.location.search);
   const tema = urlParams.get('tema');
   const capa = urlParams.get('capa');
+
   if(capa) document.body.style.backgroundImage = `url('${decodeURIComponent(capa)}')`;
 
   const tracksData = {
-    "Jazz": [ { title: "So What", artist: "Miles Davis", id: "zqNTltOGh5c" } ],
-    "Rock": [ { title: "Do I Wanna Know?", artist: "Arctic Monkeys", id: "bpOSxM0rNPM" } ]
+    "Jazz": [ { title: "So What", artist: "Miles Davis", id: "zqNTltOGh5c" }, { title: "Take Five", artist: "Dave Brubeck", id: "PHdq0-d63sg" } ],
+    "Rock": [ { title: "Do I Wanna Know?", artist: "Arctic Monkeys", id: "bpOSxM0rNPM" }, { title: "Smells Like Teen Spirit", artist: "Nirvana", id: "hTWKbfoikeg" } ],
+    "Eletronica": [ { title: "Strobe", artist: "deadmau5", id: "tKi9MPne0hM" }, { title: "Levels", artist: "Avicii", id: "uBWrnQ35P5c" } ],
+    "Classica": [ { title: "Clair de Lune", artist: "Claude Debussy", id: "CvFH_6DNRCY" }, { title: "Sinfonia Nº 5", artist: "Beethoven", id: "4Mc0VEi-w50" } ],
+    "Hip Hop": [ { title: "Alright", artist: "Kendrick Lamar", id: "Z-48u_uWMHY" }, { title: "Lose Yourself", artist: "Eminem", id: "xFYQQPAZsA0" } ],
+    "Theme Songs": [ { title: "Game of Thrones Theme", artist: "Ramin Djawadi", id: "s7L2PVdrb_8" }, { title: "Star Wars Main Theme", artist: "John Williams", id: "_D0ZQPqeJkk" } ],
+    "Covers": [ { title: "Hallelujah (Cover)", artist: "Pentatonix", id: "LRP8d7hhpoQ" }, { title: "Fast Car (Cover)", artist: "Luke Combs", id: "0W0M1pXpB7g" } ]
   };
 
+  // Se nenhum tema for passado, define um padrão.
   let currentCategory = tema || 'Jazz'; 
 
   function renderTracks() {
     const container = document.getElementById('resultsContainer');
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     container.innerHTML = '';
-    const filtered = tracksData[currentCategory] || [];
+
+    let filtered = [];
+    if (tracksData[currentCategory]) {
+      filtered = tracksData[currentCategory];
+    }
+
+    filtered = filtered.filter(t => 
+      t.title.toLowerCase().includes(searchTerm) || 
+      t.artist.toLowerCase().includes(searchTerm)
+    );
+
     filtered.forEach(track => {
       const item = document.createElement('div');
       item.className = 'track-item';
-      // A chamada permanece a mesma
       item.onclick = () => openModal('https://www.youtube.com/embed/' + track.id);
-      item.innerHTML = `<div class="thumbnail" style="background-image: url('https://img.youtube.com/vi/${track.id}/mqdefault.jpg');"></div><div class="info"><h4>${track.title}</h4><p>${track.artist}</p></div>`;
+      item.innerHTML = `
+        <div class="thumbnail" style="background-image: url('https://img.youtube.com/vi/${track.id}/mqdefault.jpg');"></div>
+        <div class="info"><h4>${track.title}</h4><p>${track.artist}</p></div>
+      `;
       container.appendChild(item);
     });
   }
 
   function openModal(url) { 
-    document.getElementById('modalIframe').src = url; // Aceita qualquer URL (Youtube ou HTML)
+    document.getElementById('modalIframe').src = url;
     document.getElementById('embedModal').style.display = 'flex'; 
   }
   
@@ -102,8 +134,14 @@
     document.getElementById('embedModal').style.display = 'none'; 
     document.getElementById('modalIframe').src = ''; 
   }
+  
+  function handleSearch() { toggleClearBtn(); renderTracks(); }
+  function toggleClearBtn() { const i = document.getElementById('searchInput'); document.getElementById('clearBtn').style.display = i.value.length > 0 ? 'block' : 'none'; }
+  function clearSearch() { const i = document.getElementById('searchInput'); i.value = ''; toggleClearBtn(); renderTracks(); }
+  function toggleVoice(b) { document.getElementById('micIcon').classList.toggle('recording'); }
 
   renderTracks();
 </script>
+
 </body>
 </html>
