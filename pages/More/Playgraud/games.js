@@ -3,7 +3,7 @@ export const consoles = {
     "GBA": { 
         key: "GBA", 
         games: [
-            { title: "Sonic Advance", image: "https://static.wikia.nocookie.net/sonic-the-hedgehog/images/c/c8/Sonic_Advance_-_North-american_cover.jpg/revision/latest?cb=20140422212552&path-prefix=pt", url: "https://www.retrogames.cc/embed/28783-sonic-advance-j-independent.html", video :"Sh_xAvrMnuU", soundtrack: "1ARg5okHveExrGPYKTGVsu" },
+            { title: "Sonic Advance", image: "https://static.wikia.nocookie.net/sonic-the-hedgehog/images/c/c8/Sonic_Advance_-_North-american_cover.jpg/revision/latest?cb=20140422212552&path-prefix=pt", url: "https://www.retrogames.cc/embed/28783-sonic-advance-j-independent.html", video :"Sh_xAvrMnuU", soundtrack: "6ZY3qb4dTyObxkVhFUFtNB" },
             { title: "Sonic Advance 2", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRq8Zuafu5APhI-2R8mxcn4vgFx1O1UMBf2er4udPmo6Nrl_BWq2hGY4Fie&s=10", url: "https://www.retrogames.cc/embed/28169-sonic-advance-2-j-eurasia.html" },
             { title: "Sonic Advance 3", image: "https://static.wikia.nocookie.net/sonic-the-hedgehog/images/4/49/Capa4.jpg/revision/latest?cb=20140422214257&path-prefix=pt", url: "https://www.retrogames.cc/embed/19452-sonic-advance-3-e-trashman.html" },
             { title: "Sonic Battle", image: "https://upload.wikimedia.org/wikipedia/en/8/88/Sonic_Battle_Coverart.png", url: "https://www.retrogames.cc/embed/26763-sonic-battle-j-eurasia.html" },
