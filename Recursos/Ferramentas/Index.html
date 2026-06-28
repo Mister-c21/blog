@@ -4,134 +4,86 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ferramentas</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 
-        body {
-            background-color: #f7f7fc;
-            height: 100vh;
+        body { background-color: #f7f7fc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; color: #1a1a1a; }
+
+        .header { height: 50px; background: rgba(138, 43, 226, 0.1); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid rgba(138, 43, 226, 0.15); }
+        .header h1 { font-size: 18px; color: #8a2be2; flex: 1; text-align: center; }
+        .header a { text-decoration: none; color: #8a2be2; font-size: 24px; width: 24px; display: flex; align-items: center; }
+
+        /* MODAL APRIMORADO */
+        #iframe-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(247, 247, 252, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(138, 43, 226, 0.2);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(100%);
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            color: #1a1a1a;
-        }
-
-        .header {
-            height: 50px;
-            background: rgba(138, 43, 226, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            border-bottom: 1px solid rgba(138, 43, 226, 0.15);
-        }
-
-        .header h1 { font-size: 18px; color: #8a2be2; }
-        .header a { text-decoration: none; color: #8a2be2; font-size: 24px; }
-
-        .top-tab-container {
-            width: 100%;
-            padding: 14px 0;
-            background: rgba(138, 43, 226, 0.08); 
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-bottom: 1px solid rgba(138, 43, 226, 0.15);
-            overflow-x: auto;
-            white-space: nowrap;
-            scrollbar-width: none;
-            z-index: 1000;
-        }
-
-        .top-tab-container::-webkit-scrollbar { display: none; }
-
-        .tab-list {
-            display: inline-flex;
-            align-items: center;
-            gap: 28px;
-            padding: 0 24px;
-            position: relative;
-            list-style: none;
-            min-width: max-content;
-        }
-
-        .tab-item {
-            font-size: 16px;
-            font-weight: 600;
-            color: rgba(138, 43, 226, 0.6);
-            cursor: pointer;
-            transition: color 0.25s ease, transform 0.2s ease;
-            position: relative;
-            padding: 6px 4px;
-            user-select: none;
-        }
-
-        .tab-item.active {
-            color: #8a2be2;
-            transform: scale(1.05);
-        }
-
-        .tab-indicator {
-            position: absolute;
-            bottom: -2px;
-            height: 3px;
-            background-color: #8a2be2;
-            border-radius: 2px;
-            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            box-shadow: 0 0 6px rgba(138, 43, 226, 0.4);
-        }
-
-        /* Ocupa todo o espaço restante abaixo do nav */
-        .window-wrapper {
-            flex: 1;
-            width: 100%;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .tabs-view-pager {
-            display: flex;
-            width: 700%; 
-            height: 100%;
+            border-radius: 24px 24px 0 0;
+            box-shadow: 0 -10px 30px rgba(138, 43, 226, 0.1);
+            pointer-events: none;
             will-change: transform;
-            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        
+        #iframe-modal.active { transform: translateY(0); pointer-events: auto; }
+
+        #modal-drag-handle {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            touch-action: none;
         }
 
-        .tabs-view-pager.swiping { transition: none; }
+        .drag-pill { width: 48px; height: 6px; background: rgba(138, 43, 226, 0.3); border-radius: 9999px; }
 
-        .tab-page {
-            width: calc(100% / 7);
-            height: 100%;
-            position: relative;
+        #modal-close-btn {
+            position: absolute; right: 16px; top: 8px; color: #8a2be2; font-size: 24px; padding: 4px; display: none; background: none; border: none; cursor: pointer;
         }
 
-        .content-iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background-color: transparent;
-        }
+        @media (min-width: 768px) { #modal-close-btn { display: block; } .drag-pill { display: none; } }
 
-        .swipe-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-            display: none;
-        }
+        #iframe-modal iframe { width: 100%; flex: 1; border: none; }
+
+        /* UI PADRÃO */
+        .top-tab-container { width: 100%; padding: 14px 0; background: rgba(138, 43, 226, 0.08); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(138, 43, 226, 0.15); overflow-x: auto; white-space: nowrap; scrollbar-width: none; z-index: 1000; }
+        .tab-list { display: inline-flex; align-items: center; gap: 28px; padding: 0 24px; list-style: none; }
+        .tab-item { font-size: 16px; font-weight: 600; color: rgba(138, 43, 226, 0.6); cursor: pointer; transition: color 0.25s ease, transform 0.2s ease; position: relative; padding: 6px 4px; }
+        .tab-item.active { color: #8a2be2; transform: scale(1.05); }
+        .tab-indicator { position: absolute; bottom: -2px; height: 3px; background-color: #8a2be2; border-radius: 2px; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
+
+        #more-menu { position: fixed; top: 105px; right: 20px; width: 150px; background: rgba(247, 247, 252, 0.9); backdrop-filter: blur(16px); border: 1px solid rgba(138, 43, 226, 0.2); border-radius: 12px; display: none; flex-direction: column; padding: 8px 0; z-index: 2000; box-shadow: 0 4px 12px rgba(138, 43, 226, 0.2); }
+        #more-menu div { padding: 10px 16px; color: #8a2be2; cursor: pointer; font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+
+        .window-wrapper { flex: 1; width: 100%; overflow: hidden; position: relative; }
+        .tabs-view-pager { display: flex; width: 700%; height: 100%; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
+        .tab-page { width: calc(100% / 7); height: 100%; }
+        .content-iframe { width: 100%; height: 100%; border: none; }
     </style>
 </head>
 <body>
 
+    <div id="iframe-modal">
+        <div id="modal-drag-handle">
+            <div class="drag-pill"></div>
+            <button id="modal-close-btn" onclick="closeIframeModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <iframe id="main-iframe" src=""></iframe>
+    </div>
+
     <header class="header">
+        <a href="../../index.html"><i class="fas fa-arrow-left"></i></a>
         <h1>Ferramentas</h1>
-        <a href="../../index.html">⌂</a>
+        <div style="width: 24px;"></div>
     </header>
 
     <nav class="top-tab-container">
@@ -143,89 +95,90 @@
             <li class="tab-item" onclick="switchTab(4)">Cronômetro</li>
             <li class="tab-item" onclick="switchTab(5)">Clima</li>
             <li class="tab-item" onclick="switchTab(6)">Gravador</li>
+            <li class="tab-item" id="more-btn" onclick="toggleMenu()" style="color: #8a2be2;">+ Mais</li>
             <div class="tab-indicator" id="indicator"></div>
         </ul>
     </nav>
 
+    <div id="more-menu">
+        <div onclick="openIframeModal('./Tools/Criacao.html')"><i class="fas fa-pencil-alt"></i> Criação</div>
+        <div onclick="openIframeModal('./Tools/Arte.html')"><i class="fas fa-palette"></i> Arte</div>
+        <div onclick="openIframeModal('./Tools/IA.html')"><i class="fas fa-brain"></i> IA</div>
+    </div>
+
     <div class="window-wrapper" id="gesture-zone">
         <div class="tabs-view-pager" id="view-pager">
-            <div class="tab-page"><div class="swipe-overlay"></div><iframe class="content-iframe" src="./Tools/Math.html"></iframe></div>
-            <div class="tab-page"><div class="swipe-overlay"></div><iframe class="content-iframe" src="./Tools/Calendar.html"></iframe></div>
-            <div class="tab-page"><div class="swipe-overlay"></div><iframe class="content-iframe" src="./Tools/Conver.html"></iframe></div>
-            <div class="tab-page"><div class="swipe-overlay"></div><iframe class="content-iframe" src="./Tools/Notes.html"></iframe></div>
-            <div class="tab-page"><div class="swipe-overlay"></div><iframe class="content-iframe" src="./Tools/Crono.html"></iframe></div>
-            <div class="tab-page"><div class="swipe-overlay"></div><iframe class="content-iframe" src="./Tools/Clima.html"></iframe></div>
-            <div class="tab-page"><div class="swipe-overlay"></div><iframe class="content-iframe" src="./Tools/Grava.html"></iframe></div>
+            <div class="tab-page"><iframe class="content-iframe" src="./Tools/Math.html"></iframe></div>
+            <div class="tab-page"><iframe class="content-iframe" src="./Tools/Calendar.html"></iframe></div>
+            <div class="tab-page"><iframe class="content-iframe" src="./Tools/Conver.html"></iframe></div>
+            <div class="tab-page"><iframe class="content-iframe" src="./Tools/Notes.html"></iframe></div>
+            <div class="tab-page"><iframe class="content-iframe" src="./Tools/Crono.html"></iframe></div>
+            <div class="tab-page"><iframe class="content-iframe" src="./Tools/Clima.html"></iframe></div>
+            <div class="tab-page"><iframe class="content-iframe" src="./Tools/Grava.html"></iframe></div>
         </div>
     </div>
 
     <script>
+        const iframeModal = document.getElementById('iframe-modal');
+        const handle = document.getElementById('modal-drag-handle');
+        const mainIframe = document.getElementById('main-iframe');
+        const menu = document.getElementById('more-menu');
         const pager = document.getElementById('view-pager');
-        const gestureZone = document.getElementById('gesture-zone');
-        const tabs = Array.from(document.querySelectorAll('.tab-item'));
-        const overlays = document.querySelectorAll('.swipe-overlay');
+        const tabs = Array.from(document.querySelectorAll('.tab-item:not(#more-btn)'));
+        let touchStartY = 0, isDragging = false;
+
+        function openIframeModal(url) {
+            mainIframe.src = url;
+            iframeModal.classList.add('active');
+            iframeModal.style.transform = 'translateY(0)';
+            menu.style.display = 'none';
+        }
+
+        function closeIframeModal() {
+            iframeModal.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+            iframeModal.style.transform = 'translateY(100%)'; 
+            setTimeout(() => { 
+                mainIframe.src = ''; 
+                iframeModal.classList.remove('active');
+            }, 400);
+        }
+
+        handle.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+            isDragging = true;
+            iframeModal.style.transition = 'none';
+        }, { passive: true });
+
+        handle.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const diff = e.touches[0].clientY - touchStartY;
+            if (diff > 0) iframeModal.style.transform = `translateY(${diff}px)`;
+        }, { passive: true });
+
+        handle.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            const diff = e.changedTouches[0].clientY - touchStartY;
+            
+            if (diff > 100) {
+                closeIframeModal();
+            } else {
+                iframeModal.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+                iframeModal.style.transform = 'translateY(0)';
+            }
+        }, { passive: true });
+
+        function toggleMenu() { menu.style.display = (menu.style.display === 'flex') ? 'none' : 'flex'; }
         
-        let activeIndex = 0;
-        let startX = 0;
-        let currentX = 0;
-        let isSwiping = false;
-        let windowWidth = window.innerWidth;
-
-        window.addEventListener('resize', () => {
-            windowWidth = window.innerWidth;
-            updateTabPosition(activeIndex, false);
-        });
-
         function switchTab(index) {
-            activeIndex = index;
-            tabs.forEach((item, i) => {
-                item.classList.remove('active');
-                if(i === index) item.classList.add('active');
-            });
-            const activeElement = tabs[index];
+            menu.style.display = 'none';
+            tabs.forEach((item, i) => { item.classList.toggle('active', i === index); });
             const indicator = document.getElementById('indicator');
-            indicator.style.width = `${activeElement.offsetWidth}px`;
-            indicator.style.left = `${activeElement.offsetLeft}px`;
-            activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-            updateTabPosition(index, true);
-        }
-
-        function updateTabPosition(index, animate) {
-            if (!animate) pager.classList.add('swiping');
+            indicator.style.width = `${tabs[index].offsetWidth}px`;
+            indicator.style.left = `${tabs[index].offsetLeft}px`;
             pager.style.transform = `translateX(-${index * (100 / tabs.length)}%)`;
-            if (!animate) setTimeout(() => pager.classList.remove('swiping'), 50);
         }
-
-        gestureZone.addEventListener('touchstart', (e) => {
-            startX = e.touches[0].clientX;
-            isSwiping = true;
-        }, { passive: true });
-
-        gestureZone.addEventListener('touchmove', (e) => {
-            if (!isSwiping) return;
-            currentX = e.touches[0].clientX;
-            const deltaX = currentX - startX;
-            if ((activeIndex === 0 && deltaX > 0) || (activeIndex === tabs.length - 1 && deltaX < 0)) return;
-            overlays.forEach(overlay => overlay.style.display = 'block');
-            pager.classList.add('swiping');
-            const currentTransform = -(activeIndex * windowWidth) + deltaX;
-            const percentageMove = (currentTransform / (windowWidth * tabs.length)) * 100;
-            pager.style.transform = `translateX(${percentageMove}%)`;
-        }, { passive: true });
-
-        gestureZone.addEventListener('touchend', (e) => {
-            if (!isSwiping) return;
-            isSwiping = false;
-            pager.classList.remove('swiping');
-            overlays.forEach(overlay => overlay.style.display = 'none');
-            const finalDeltaX = currentX - startX;
-            const swipeThreshold = windowWidth * 0.22;
-            if (finalDeltaX > swipeThreshold && activeIndex > 0) switchTab(activeIndex - 1);
-            else if (finalDeltaX < -swipeThreshold && activeIndex < tabs.length - 1) switchTab(activeIndex + 1);
-            else switchTab(activeIndex);
-            startX = 0; currentX = 0;
-        });
-
+        
         window.addEventListener('DOMContentLoaded', () => { switchTab(0); });
     </script>
 </body>
