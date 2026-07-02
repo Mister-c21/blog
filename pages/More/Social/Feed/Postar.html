@@ -1,1 +1,134 @@
-gh
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Câmera Interface</title>
+    <script src="https://unpkg.com/lucide"></script>
+    <style>
+        :root {
+            --blueviolet-color: #8a2be2;
+            --ghost-color: #f8f8ff;
+        }
+
+        * { box-sizing: border-box; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; }
+        
+        .camera-wrapper { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+        #video { width: 100%; height: 100%; object-fit: cover; }
+
+        /* Modal e Seletores */
+        #photo-modal { 
+            display: none; position: fixed; top: 0; left: 0; 
+            width: 100vw; height: 100vh; background: #000; 
+            z-index: 100; overflow: hidden;
+        }
+        #photo-preview { width: 100%; height: 100%; object-fit: contain; }
+
+        .modal-controls { 
+            position: absolute; top: 20px; right: 20px; 
+            display: flex; flex-direction: column; gap: 15px; align-items: center; 
+        }
+
+        .selector-panel {
+            display: none; position: absolute; bottom: 0; left: 0; 
+            width: 100%; height: 30vh; background: rgba(255, 255, 255, 0.1); 
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.2); 
+            border-radius: 20px 20px 0 0; padding: 20px; color: var(--ghost-color); 
+            z-index: 101;
+        }
+
+        /* Botão interno para fechar o seletor */
+        .close-selector {
+            background: none; border: none; color: var(--ghost-color);
+            cursor: pointer; margin-bottom: 10px; display: block;
+        }
+
+        .btn-action {
+            background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px); border: 1px solid var(--ghost-color); 
+            color: var(--ghost-color); padding: 10px; border-radius: 50%; 
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .btn-post { background: var(--blueviolet-color); border: none; }
+        
+        .controls-overlay { 
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); 
+            display: flex; gap: 30px; padding: 15px 30px; background: rgba(255, 255, 255, 0.15); 
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); 
+            border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 50px; z-index: 10; 
+        }
+        .icon-btn { background: transparent; border: none; color: var(--ghost-color); cursor: pointer; }
+        .shutter-button { 
+            width: 65px; height: 65px; background-color: var(--blueviolet-color); 
+            border: 4px solid var(--ghost-color); border-radius: 50%; cursor: pointer; 
+        }
+    </style>
+</head>
+<body>
+
+    <div class="camera-wrapper">
+        <video id="video" autoplay playsinline></video>
+        <div class="controls-overlay">
+            <button class="icon-btn" id="flip-btn"><i data-lucide="refresh-cw"></i></button>
+            <button class="shutter-button" id="snap"></button>
+            <button class="icon-btn" id="flash-btn"><i data-lucide="zap"></i></button>
+        </div>
+    </div>
+
+    <div id="photo-modal">
+        <img id="photo-preview" src="" alt="Prévia">
+        <div class="modal-controls">
+            <button class="icon-btn" id="cancel-btn"><i data-lucide="x"></i></button>
+            <button class="btn-action" onclick="showSelector('sticker-panel')"><i data-lucide="smile"></i></button>
+            <button class="btn-action" onclick="showSelector('music-panel')"><i data-lucide="music"></i></button>
+            <button class="btn-action" onclick="showSelector('text-panel')"><i data-lucide="type"></i></button>
+            <button class="btn-action" onclick="showSelector('tag-panel')"><i data-lucide="tag"></i></button>
+            <button class="btn-action btn-post"><i data-lucide="check"></i></button>
+        </div>
+
+        <div id="sticker-panel" class="selector-panel"><button class="close-selector" onclick="closeSelectors()"><i data-lucide="chevron-down"></i></button>Adesivos</div>
+        <div id="music-panel" class="selector-panel"><button class="close-selector" onclick="closeSelectors()"><i data-lucide="chevron-down"></i></button>Músicas</div>
+        <div id="text-panel" class="selector-panel"><button class="close-selector" onclick="closeSelectors()"><i data-lucide="chevron-down"></i></button>Textos</div>
+        <div id="tag-panel" class="selector-panel"><button class="close-selector" onclick="closeSelectors()"><i data-lucide="chevron-down"></i></button>Marcar Pessoas</div>
+    </div>
+
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        lucide.createIcons();
+        const video = document.getElementById('video'), canvas = document.getElementById('canvas'), modal = document.getElementById('photo-modal');
+
+        function showSelector(id) {
+            const el = document.getElementById(id);
+            if (el.style.display === 'block') {
+                el.style.display = 'none';
+            } else {
+                document.querySelectorAll('.selector-panel').forEach(p => p.style.display = 'none');
+                el.style.display = 'block';
+            }
+        }
+
+        function closeSelectors() {
+            document.querySelectorAll('.selector-panel').forEach(p => p.style.display = 'none');
+        }
+
+        document.getElementById('snap').addEventListener('click', () => {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            document.getElementById('photo-preview').src = canvas.toDataURL('image/png');
+            modal.style.display = 'flex';
+        });
+
+        document.getElementById('cancel-btn').addEventListener('click', () => {
+            modal.style.display = 'none';
+            closeSelectors();
+        });
+
+        // Câmera inicial
+        navigator.mediaDevices.getUserMedia({ video: true }).then(stream => video.srcObject = stream);
+    </script>
+</body>
+</html>
