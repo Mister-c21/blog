@@ -10,23 +10,26 @@
 
         body { background-color: #f7f7fc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; color: #1a1a1a; }
 
-        /* UI PADRÃO - Mantida como original */
-        .top-tab-container { width: 100%; padding: 14px 0; background: rgba(138, 43, 226, 0.08); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(138, 43, 226, 0.15); overflow-x: auto; white-space: nowrap; scrollbar-width: none; z-index: 1000; transition: opacity 0.3s ease; }
+        /* UI PADRÃO */
+        .top-tab-container { width: 100%; padding: 14px 0; background: rgba(138, 43, 226, 0.08); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(138, 43, 226, 0.15); z-index: 1000; transition: opacity 0.3s ease; }
         .tab-list { display: flex; align-items: center; justify-content: center; gap: 40px; list-style: none; }
         .tab-item { font-size: 16px; font-weight: 600; color: rgba(138, 43, 226, 0.6); cursor: pointer; transition: color 0.25s ease, transform 0.2s ease; position: relative; padding: 6px 4px; }
         .tab-item.active { color: #8a2be2; transform: scale(1.05); }
         .tab-indicator { position: absolute; bottom: -2px; height: 3px; background-color: #8a2be2; border-radius: 2px; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
 
-        /* Novo botão para o modo Postar */
-        #back-btn { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); font-size: 20px; color: #8a2be2; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 1001; }
-
         .window-wrapper { flex: 1; width: 100%; overflow: hidden; position: relative; }
-        .tabs-view-pager { display: flex; width: 300%; height: 100%; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
-        .tab-page { width: 33.333%; height: 100%; }
+        .tabs-view-pager { display: flex; width: 200%; height: 100%; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
+        .tab-page { width: 50%; height: 100%; }
         .content-iframe { width: 100%; height: 100%; border: none; }
 
-        /* Esconde apenas no desktop */
-        @media (min-width: 768px) { .tab-item:nth-child(3) { display: none !important; } }
+        /* FAB - Botão de Postagem */
+        .fab-post { position: fixed; bottom: 24px; right: 24px; width: 60px; height: 60px; background-color: #8a2be2; color: #f8f8ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(138, 43, 226, 0.4); z-index: 1500; transition: transform 0.2s; }
+        .fab-post:active { transform: scale(0.9); }
+
+        /* MODAL DE POSTAGEM */
+        .post-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(248, 248, 255, 0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); z-index: 2000; display: none; flex-direction: column; padding: 20px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .close-modal { font-size: 24px; color: #8a2be2; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -35,44 +38,46 @@
         <ul class="tab-list">
             <li class="tab-item active" onclick="switchTab(0)">Feed</li>
             <li class="tab-item" onclick="switchTab(1)">Perfil</li>
-            <li class="tab-item" onclick="switchTab(2)">Postar</li>
             <div class="tab-indicator" id="indicator"></div>
         </ul>
     </nav>
 
-    <i class="fa-solid fa-chevron-down" id="back-btn" onclick="switchTab(0)"></i>
-
-    <div class="window-wrapper" id="gesture-zone">
+    <div class="window-wrapper">
         <div class="tabs-view-pager" id="view-pager">
             <div class="tab-page"><iframe class="content-iframe" src="./Feed.html"></iframe></div>
             <div class="tab-page"><iframe class="content-iframe" src="./Perfil.html"></iframe></div>
-            <div class="tab-page"><iframe class="content-iframe" src="./Postar.html"></iframe></div>
         </div>
+    </div>
+
+    <!-- FAB -->
+    <div class="fab-post" onclick="toggleModal(true)">
+        <i class="fa-solid fa-plus"></i>
+    </div>
+
+    <!-- MODAL -->
+    <div class="post-modal" id="post-modal">
+        <div class="modal-header">
+            <h2>Nova Postagem</h2>
+            <i class="fa-solid fa-xmark close-modal" onclick="toggleModal(false)"></i>
+        </div>
+        <iframe class="content-iframe" src="./Postar.html"></iframe>
     </div>
 
     <script>
         const pager = document.getElementById('view-pager');
         const tabs = Array.from(document.querySelectorAll('.tab-item'));
-        const navBar = document.getElementById('nav-bar');
-        const backBtn = document.getElementById('back-btn');
+        const modal = document.getElementById('post-modal');
         
         function switchTab(index) {
-            // Lógica de visualização
-            if (index === 2) {
-                navBar.style.opacity = '0';
-                backBtn.style.opacity = '1';
-                backBtn.style.pointerEvents = 'all';
-            } else {
-                navBar.style.opacity = '1';
-                backBtn.style.opacity = '0';
-                backBtn.style.pointerEvents = 'none';
-            }
-
             tabs.forEach((item, i) => { item.classList.toggle('active', i === index); });
             const indicator = document.getElementById('indicator');
             indicator.style.width = `${tabs[index].offsetWidth}px`;
             indicator.style.left = `${tabs[index].offsetLeft}px`;
-            pager.style.transform = `translateX(-${index * (100 / 3)}%)`;
+            pager.style.transform = `translateX(-${index * 50}%)`;
+        }
+
+        function toggleModal(show) {
+            modal.style.display = show ? 'flex' : 'none';
         }
         
         window.addEventListener('DOMContentLoaded', () => { switchTab(0); });
