@@ -51,6 +51,7 @@
             background: rgba(255, 255, 255, 0.1); cursor: pointer;
         }
         .tag-item:hover { background: var(--blueviolet-color); }
+        .tag-item.active { background: var(--blueviolet-color); border-color: var(--ghost-color); box-shadow: 0 0 10px var(--blueviolet-color); }
 
         .btn-action {
             background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px);
@@ -96,7 +97,7 @@
         <div class="modal-controls">
             <button class="btn-action" id="cancel-btn"><i data-lucide="chevron-down"></i></button>
             <button class="btn-action" onclick="showSelector('tag-panel')"><i data-lucide="hash"></i></button>
-            <button class="btn-action btn-post"><i data-lucide="check"></i></button>
+            <button class="btn-action btn-post" id="post-btn"><i data-lucide="check"></i></button>
         </div>
 
         <div id="tag-panel" class="selector-panel">
@@ -123,7 +124,7 @@
               filePicker = document.getElementById('file-picker'),
               flashBtn = document.getElementById('flash-btn');
         
-        let videoTrack = null, flashOn = false;
+        let videoTrack = null, flashOn = false, selectedTag = null;
 
         // Lógica do Flash
         flashBtn.addEventListener('click', () => {
@@ -135,6 +136,24 @@
                     videoTrack.applyConstraints({ advanced: [{ torch: flashOn }] });
                 }
             }
+        });
+
+        // Lógica de Tags
+        document.querySelectorAll('.tag-item').forEach(tag => {
+            tag.addEventListener('click', () => {
+                document.querySelectorAll('.tag-item').forEach(t => t.classList.remove('active'));
+                tag.classList.add('active');
+                selectedTag = tag.innerText;
+            });
+        });
+
+        document.getElementById('post-btn').addEventListener('click', () => {
+            if (!selectedTag) {
+                alert('Por favor, selecione uma tag antes de postar.');
+                return;
+            }
+            console.log('Postando com a tag:', selectedTag);
+            modal.style.display = 'none';
         });
 
         document.getElementById('upload-btn').addEventListener('click', () => filePicker.click());
@@ -186,6 +205,8 @@
         document.getElementById('cancel-btn').addEventListener('click', () => {
             modal.style.display = 'none';
             closeSelectors();
+            selectedTag = null;
+            document.querySelectorAll('.tag-item').forEach(t => t.classList.remove('active'));
         });
 
         navigator.mediaDevices.getUserMedia({ 
