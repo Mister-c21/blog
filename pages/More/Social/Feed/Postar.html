@@ -39,7 +39,6 @@
             z-index: 101;
         }
 
-        /* Botão interno para fechar o seletor */
         .close-selector {
             background: none; border: none; color: var(--ghost-color);
             cursor: pointer; margin-bottom: 10px; display: block;
@@ -55,11 +54,14 @@
         
         .controls-overlay { 
             position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); 
-            display: flex; gap: 30px; padding: 15px 30px; background: rgba(255, 255, 255, 0.15); 
+            display: flex; flex-direction: column; align-items: center; gap: 15px;
+            padding: 15px 30px; background: rgba(255, 255, 255, 0.15); 
             backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); 
             border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 50px; z-index: 10; 
         }
-        .icon-btn { background: transparent; border: none; color: var(--ghost-color); cursor: pointer; }
+
+        .zoom-control { width: 150px; accent-color: var(--blueviolet-color); }
+        
         .shutter-button { 
             width: 65px; height: 65px; background-color: var(--blueviolet-color); 
             border: 4px solid var(--ghost-color); border-radius: 50%; cursor: pointer; 
@@ -71,16 +73,20 @@
     <div class="camera-wrapper">
         <video id="video" autoplay playsinline></video>
         <div class="controls-overlay">
-            <button class="icon-btn" id="flip-btn"><i data-lucide="refresh-cw"></i></button>
-            <button class="shutter-button" id="snap"></button>
-            <button class="icon-btn" id="flash-btn"><i data-lucide="zap"></i></button>
+            <input type="file" id="file-picker" style="display:none" accept="image/*">
+            <input type="range" id="zoom-slider" class="zoom-control" min="1" max="5" step="0.1" value="1">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button class="btn-action" id="plus-btn"><i data-lucide="plus"></i></button>
+                <button class="shutter-button" id="snap"></button>
+                <button class="btn-action" id="upload-btn"><i data-lucide="image"></i></button>
+            </div>
         </div>
     </div>
 
     <div id="photo-modal">
         <img id="photo-preview" src="" alt="Prévia">
         <div class="modal-controls">
-            <button class="icon-btn" id="cancel-btn"><i data-lucide="x"></i></button>
+            <button class="btn-action" id="cancel-btn"><i data-lucide="chevron-down"></i></button>
             <button class="btn-action" onclick="showSelector('sticker-panel')"><i data-lucide="smile"></i></button>
             <button class="btn-action" onclick="showSelector('text-panel')"><i data-lucide="type"></i></button>
             <button class="btn-action btn-post"><i data-lucide="check"></i></button>
@@ -94,7 +100,26 @@
 
     <script>
         lucide.createIcons();
-        const video = document.getElementById('video'), canvas = document.getElementById('canvas'), modal = document.getElementById('photo-modal');
+        const video = document.getElementById('video'), 
+              canvas = document.getElementById('canvas'), 
+              modal = document.getElementById('photo-modal'),
+              zoomSlider = document.getElementById('zoom-slider'),
+              filePicker = document.getElementById('file-picker');
+        
+        let videoTrack = null;
+
+        document.getElementById('upload-btn').addEventListener('click', () => filePicker.click());
+        filePicker.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    document.getElementById('photo-preview').src = event.target.result;
+                    modal.style.display = 'flex';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
 
         function showSelector(id) {
             const el = document.getElementById(id);
@@ -110,6 +135,17 @@
             document.querySelectorAll('.selector-panel').forEach(p => p.style.display = 'none');
         }
 
+        zoomSlider.addEventListener('input', (e) => {
+            if (videoTrack && videoTrack.getCapabilities) {
+                const capabilities = videoTrack.getCapabilities();
+                if (capabilities.zoom) {
+                    videoTrack.applyConstraints({
+                        advanced: [{ zoom: e.target.value }]
+                    });
+                }
+            }
+        });
+
         document.getElementById('snap').addEventListener('click', () => {
             const context = canvas.getContext('2d');
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
@@ -123,8 +159,18 @@
             closeSelectors();
         });
 
-        // Câmera inicial
-        navigator.mediaDevices.getUserMedia({ video: true }).then(stream => video.srcObject = stream);
+        navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: { exact: "environment" } } 
+        }).then(stream => {
+            video.srcObject = stream;
+            videoTrack = stream.getVideoTracks()[0];
+        }).catch(err => {
+            console.error("Erro ao acessar câmera:", err);
+            navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                video.srcObject = stream;
+                videoTrack = stream.getVideoTracks()[0];
+            });
+        });
     </script>
 </body>
 </html>
