@@ -36,13 +36,21 @@
             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border-top: 1px solid rgba(255, 255, 255, 0.2); 
             border-radius: 20px 20px 0 0; padding: 20px; color: var(--ghost-color); 
-            z-index: 101;
+            z-index: 101; overflow-y: auto;
         }
 
         .close-selector {
             background: none; border: none; color: var(--ghost-color);
             cursor: pointer; margin-bottom: 10px; display: block;
         }
+
+        /* Estilo para tags */
+        .tags-container { display: flex; gap: 10px; flex-wrap: wrap; }
+        .tag-item {
+            padding: 8px 16px; border-radius: 20px; border: 1px solid var(--ghost-color);
+            background: rgba(255, 255, 255, 0.1); cursor: pointer;
+        }
+        .tag-item:hover { background: var(--blueviolet-color); }
 
         .btn-action {
             background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px);
@@ -76,7 +84,7 @@
             <input type="file" id="file-picker" style="display:none" accept="image/*">
             <input type="range" id="zoom-slider" class="zoom-control" min="1" max="5" step="0.1" value="1">
             <div style="display: flex; align-items: center; gap: 15px;">
-                <button class="btn-action" id="plus-btn"><i data-lucide="plus"></i></button>
+                <button class="btn-action" id="flash-btn"><i data-lucide="zap"></i></button>
                 <button class="shutter-button" id="snap"></button>
                 <button class="btn-action" id="upload-btn"><i data-lucide="image"></i></button>
             </div>
@@ -87,13 +95,21 @@
         <img id="photo-preview" src="" alt="Prévia">
         <div class="modal-controls">
             <button class="btn-action" id="cancel-btn"><i data-lucide="chevron-down"></i></button>
-            <button class="btn-action" onclick="showSelector('sticker-panel')"><i data-lucide="smile"></i></button>
-            <button class="btn-action" onclick="showSelector('text-panel')"><i data-lucide="type"></i></button>
+            <button class="btn-action" onclick="showSelector('tag-panel')"><i data-lucide="hash"></i></button>
             <button class="btn-action btn-post"><i data-lucide="check"></i></button>
         </div>
 
-        <div id="sticker-panel" class="selector-panel"><button class="close-selector" onclick="closeSelectors()"><i data-lucide="chevron-down"></i></button>Adesivos</div>
-        <div id="text-panel" class="selector-panel"><button class="close-selector" onclick="closeSelectors()"><i data-lucide="chevron-down"></i></button>Textos</div>
+        <div id="tag-panel" class="selector-panel">
+            <button class="close-selector" onclick="closeSelectors()"><i data-lucide="chevron-down"></i></button>
+            <div class="tags-container">
+                <div class="tag-item">cosplay</div>
+                <div class="tag-item">arte</div>
+                <div class="tag-item">animais</div>
+                <div class="tag-item">natureza</div>
+                <div class="tag-item">céu</div>
+                <div class="tag-item">jogos</div>
+            </div>
+        </div>
     </div>
 
     <canvas id="canvas" style="display:none;"></canvas>
@@ -104,9 +120,22 @@
               canvas = document.getElementById('canvas'), 
               modal = document.getElementById('photo-modal'),
               zoomSlider = document.getElementById('zoom-slider'),
-              filePicker = document.getElementById('file-picker');
+              filePicker = document.getElementById('file-picker'),
+              flashBtn = document.getElementById('flash-btn');
         
-        let videoTrack = null;
+        let videoTrack = null, flashOn = false;
+
+        // Lógica do Flash
+        flashBtn.addEventListener('click', () => {
+            flashOn = !flashOn;
+            flashBtn.style.background = flashOn ? 'var(--blueviolet-color)' : 'rgba(255, 255, 255, 0.2)';
+            if (videoTrack && videoTrack.getCapabilities) {
+                const capabilities = videoTrack.getCapabilities();
+                if (capabilities.torch) {
+                    videoTrack.applyConstraints({ advanced: [{ torch: flashOn }] });
+                }
+            }
+        });
 
         document.getElementById('upload-btn').addEventListener('click', () => filePicker.click());
         filePicker.addEventListener('change', (e) => {
