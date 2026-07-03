@@ -1,137 +1,328 @@
 <!DOCTYPE html>
-<html lang="pt-pt">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lore Blog</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <title>LorePlay</title>
+    
     <style>
         :root {
-            --primary: #8A2BE2; /* blueviolet */
-            --bg: #F8F8FF;      /* ghost */
+            --blueviolet-color: #8a2be2;
+            --ghost-color: #f8f8ff;
+            --glass-bg: rgba(255, 255, 255, 0.2); 
         }
 
-        * { box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #333;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            
-            /* Configuração do Fundo */
-            background-color: var(--bg);
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-            transition: background 1.5s ease-in-out; /* Transição suave */
+        #background {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1; background-size: cover; background-position: center;
+            transition: background-image 1s ease-in-out;
+            filter: brightness(0.6);
         }
 
-        .container {
-            max-width: 1000px;
-            margin: auto;
-            flex: 1;
-            width: 100%;
+        body { margin: 0; font-family: sans-serif; color: white; }
+        body.modal-open { overflow: hidden !important; height: 100vh !important; }
+
+        header { display: flex; align-items: center; padding: 10px 20px; background: rgba(138, 43, 226, 0.3); backdrop-filter: blur(10px); height: 60px; }
+        .nav-button { background: none; border: none; color: white; font-size: 20px; cursor: pointer; width: 30px; }
+        .title { flex-grow: 1; text-align: center; font-size: 20px; font-weight: bold; margin-right: 30px; }
+
+        .tab-bar { display: flex; overflow-x: auto; white-space: nowrap; background: var(--glass-bg); backdrop-filter: blur(10px); padding: 15px 0; border-bottom: 1px solid rgba(255,255,255,0.2); scrollbar-width: none; }
+        .tab-bar::-webkit-scrollbar { display: none; }
+        .tab-item { padding: 0 20px; font-weight: bold; color: white; cursor: pointer; position: relative; }
+        .tab-item.active { color: #fff; }
+        .tab-item.active::after { content: ''; position: absolute; bottom: -15px; left: 20px; right: 20px; height: 3px; background-color: white; border-radius: 2px; }
+
+        .search-wrapper { padding: 10px 15px; background: var(--glass-bg); backdrop-filter: blur(10px); display: flex; align-items: center; gap: 10px; }
+        .search-bar { flex-grow: 1; padding: 10px 15px; border: 1px solid rgba(255,255,255,0.3); border-radius: 25px; background: rgba(255,255,255,0.1); color: white; outline: none; }
+        .clear-btn, .voice-btn { background: none; border: none; color: white; cursor: pointer; font-size: 18px; }
+        .clear-btn { display: none; margin-right: 5px; }
+        .voice-btn { margin-right: 10px; }
+
+        .suggestions-label { padding: 10px 15px; margin: 0; font-weight: bold; color: white; background: var(--glass-bg); backdrop-filter: blur(5px); }
+
+        .feed-container { display: none; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 8px; }
+        .feed-container.active { display: grid; }
+        .feed-item { aspect-ratio: 1 / 1; background-size: cover; background-position: center; border-radius: 4px; position: relative; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; }
+        .item-title { position: absolute; bottom: 0; width: 100%; background: rgba(0, 0, 0, 0.5); color: white; padding: 5px 0; font-size: 12px; text-align: center; }
+
+        #epMenu { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; padding: 20px; }
+        .ep-menu-content { background: rgba(20, 20, 20, 0.95); padding: 20px; border-radius: 20px; width: 100%; max-width: 400px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+        .ep-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+        .ep-select-btn { background: var(--blueviolet-color); border: none; color: white; padding: 10px; border-radius: 10px; cursor: pointer; }
+
+        #playerModal {
+            position: fixed; inset: 0; z-index: 9999; background-color: black;
+            display: none; flex-direction: column;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(100%);
+            border-radius: 0; 
+            background-size: cover; background-position: center;
         }
+        #playerModal.active { display: flex; transform: translateY(0); }
+        #modal-drag-handle { height: 40px; display: flex; align-items: center; justify-content: center; cursor: grab; touch-action: none; flex-shrink: 0; }
+        .drag-pill { width: 48px; height: 6px; background: rgba(255, 255, 255, 0.3); border-radius: 9999px; }
+        
+        .modal-body { padding: 20px; display: flex; flex-direction: column; align-items: center; background: rgba(0, 0, 0, 0.85); flex-grow: 1; overflow-y: auto; width: 100%; box-sizing: border-box; }
+        .content-wrapper { width: 100%; max-width: 600px; }
+        .video-box { aspect-ratio: 16 / 9; background: #222; margin-bottom: 15px; border-radius: 15px; overflow: hidden; }
+        .video-box iframe { width: 100%; height: 100%; border: none; }
+        
+        .nav-ep-box { display: flex; gap: 5px; margin-bottom: 15px; justify-content: center; display: none; }
+        .nav-ep-btn { background: rgba(255,255,255,0.1); border: none; color: white; padding: 8px 15px; border-radius: 10px; cursor: pointer; }
+        .nav-ep-btn:disabled { opacity: 0.3; }
 
-        /* Estilo Vidro (Glassmorphism) */
-        .glass-card {
-            background: rgba(255, 255, 255, 0.4);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 16px;
-            padding: 0px;
-            margin-bottom: 15px;
-            box-shadow: 0 8px 32px 0 rgba(138, 43, 226, 0.15);
-            transition: all 0.3s ease;
-            cursor: pointer;
-            overflow: hidden;
-        }
+        .info-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; }
+        .work-title { font-size: 18px; font-weight: bold; }
+        .view-more-btn { background: var(--blueviolet-color); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 8px; }
 
-        .card-content { padding: 12px; background: transparent; }
-        .card-content h3 { margin: 0; font-size: 14px; color: #333; }
+        .ad-container { height: 180px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; margin-top: 15px; position: relative; display: flex; align-items: center; justify-content: center; cursor: pointer; color: rgba(255,255,255,0.5); font-size: 14px; }
+        .ad-label { position: absolute; top: 10px; left: 10px; font-size: 10px; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; color: white; }
 
-        .pin:hover, .pin:focus-within {
-            transform: translateY(-5px);
-            box-shadow: 0 0 20px rgba(138, 43, 226, 0.5);
-            border-color: rgba(138, 43, 226, 0.5);
-        }
+        .search-scroll-container { display: flex; gap: 10px; overflow-x: auto; padding: 12px 5px; margin-top: 15px; scrollbar-width: none; }
+        .search-scroll-container::-webkit-scrollbar { display: none; }
+        .scroll-search-btn { width: 120px; height: 80px; border: none; color: white; border-radius: 10px; clip-path: polygon(20% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 30%); font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background-size: cover; background-position: center; position: relative; }
+        .scroll-search-btn::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
+        .scroll-search-btn i { position: relative; z-index: 1; }
 
-        .pinterest-grid { column-count: 2; column-gap: 15px; }
-        @media (min-width: 600px) { .pinterest-grid { column-count: 3; } }
-        @media (min-width: 900px) { .pinterest-grid { column-count: 4; } }
+        .video-platform-list { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; padding-bottom: 20px; }
+        .platform-card { display: flex; align-items: center; gap: 15px; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; cursor: pointer; }
+        .platform-icon { width: 50px; height: 50px; background-size: cover; background-position: center; border-radius: 10px; }
+        .platform-name { font-weight: bold; }
 
-        .pin { break-inside: avoid; margin-bottom: 15px; outline: none; }
-        .pin img { width: 100%; height: auto; display: block; }
-
-        .nav-menu {
-            position: fixed; bottom: 0; left: 0; width: 100%; display: flex;
-            justify-content: space-around; padding: 15px 0;
-            background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(15px);
-            border-top: 1px solid rgba(255, 255, 255, 0.5); z-index: 1000;
-        }
-        .nav-item, .nav-link { color: #a0a0a0; cursor: pointer; transition: all 0.3s; text-decoration: none; outline: none; }
-        .nav-item.active, .nav-link.active { color: var(--primary); }
-        .nav-item:hover, .nav-link:hover { color: var(--primary); opacity: 0.8; }
-
-        @media (min-width: 768px) {
-            body { padding-left: 240px; }
-            .nav-menu {
-                position: fixed; top: 0; left: 0; width: 80px; height: 100vh;
-                flex-direction: column; justify-content: flex-start;
-                border-right: 1px solid rgba(255, 255, 255, 0.5); padding-top: 50px; gap: 30px;
-            }
-        }
+        @media (min-width: 768px) { .feed-container { grid-template-columns: repeat(4, 1fr); } }
     </style>
 </head>
 <body>
 
-    <nav class="nav-menu">
-        <a href="../../../index.html" class="nav-link"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
-        <div class="nav-item active" onclick="setActive(this)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></div>
-        <div class="nav-item" onclick="setActive(this)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg></div>
+    <div id="background"></div>
+
+    <header>
+        <button class="nav-button" onclick="closePlayer()"><i class="fas fa-chevron-left"></i></button>
+        <div class="title">Lore Play</div>
+    </header>
+
+    <nav class="tab-bar">
+        <div class="tab-item active" onclick="updateUI('seres', this)">seres</div>
+        <div class="tab-item" onclick="updateUI('filmes', this)">filmes</div>
+        <div class="tab-item" onclick="updateUI('músicas', this)">músicas</div>
     </nav>
 
-    <div class="container">
-        <main class="pinterest-grid">
-            <article class="glass-card pin" tabindex="0"><img src="https://i.pinimg.com/originals/2f/38/84/2f38841a446bdcb48fdfbcb1ffd335a5.gif" alt="Post 1"><div class="card-content"><h3>Animações</h3></div></article>
-            <article class="glass-card pin" tabindex="0"><img src="https://i.pinimg.com/originals/fd/ce/27/fdce2751f4569720a9f77428865fc996.gif" alt="Post 2"><div class="card-content"><h3>Animes</h3></div></article>
-            <article class="glass-card pin" tabindex="0"><img src="https://i.pinimg.com/originals/f9/ef/a3/f9efa376dece23c7a1aeb5c17208de18.gif" alt="Post 3"><div class="card-content"><h3>Música</h3></div></article>
-            <article class="glass-card pin" tabindex="0"><img src="https://i.pinimg.com/originals/2d/82/62/2d8262c9ad37e3433963a94c341a7366.gif" alt="Post 4"><div class="card-content"><h3>Games</h3></div></article>
-            <article class="glass-card pin" tabindex="0"><img src="https://i.pinimg.com/originals/bc/66/d6/bc66d6df15aa760d408d26a3425dc5b5.gif" alt="Post 5"><div class="card-content"><h3>filmes</h3></div></article>
-            <article class="glass-card pin" tabindex="0"><img src="https://64.media.tumblr.com/3a8a1b3ace6900eeae20bbdfd592b759/tumblr_pjkwc0bmWF1qcrr5qo2_r1_640.gif" alt="Post 6"><div class="card-content"><h3>Seres</h3></div></article>
-        </main>
+    <div class="search-wrapper">
+        <button id="voiceBtn" class="voice-btn" onclick="startVoiceSearch()"><i class="fas fa-microphone"></i></button>
+        <input type="text" id="searchInput" class="search-bar" placeholder="Buscar..." oninput="toggleClearBtn()">
+        <button id="clearBtn" class="clear-btn" onclick="clearSearch()"><i class="fas fa-times"></i></button>
+    </div>
+
+    <p class="suggestions-label">sugestões</p>
+
+    <main id="seres" class="feed-container active"></main>
+    <main id="filmes" class="feed-container"></main>
+    <main id="músicas" class="feed-container"></main>
+
+    <div id="epMenu" onclick="this.style.display='none'">
+        <div class="ep-menu-content" onclick="event.stopPropagation()">
+            <h3 id="epMenuTitle">Selecione o Episódio</h3>
+            <div class="ep-grid" id="epGrid"></div>
+        </div>
+    </div>
+
+    <div id="playerModal">
+        <div id="modal-drag-handle"><div class="drag-pill"></div></div>
+        <div class="modal-body">
+            <div class="content-wrapper">
+                <div class="video-box" id="videoBox"></div>
+                
+                <div class="nav-ep-box" id="navEpBox">
+                    <button class="nav-ep-btn" id="prevBtn" onclick="changeEp(-1)"><i class="fas fa-arrow-left"></i></button>
+                    <button class="nav-ep-btn" id="nextBtn" onclick="changeEp(1)"><i class="fas fa-arrow-right"></i></button>
+                </div>
+
+                <div class="info-bar">
+                    <div class="work-title" id="modalTitle">Nome da Obra</div>
+                    <button class="view-more-btn" onclick="goToPlatform()">Ver mais<i class="fas fa-external-link-alt"></i></button>
+                </div>
+
+                <div class="ad-container">
+                    <span class="ad-label">anúncio</span>
+                    <div>Espaço Publicitário</div>
+                </div>
+
+                <div class="search-scroll-container">
+                    <button class="scroll-search-btn" style="background-image: url('https://yt3.googleusercontent.com/bAseQlKvNmjdLQrvYWm_q3QDp8C8YKyYI-nYJewgOkPi0JU1_3X9oFgjrEdzkOlXzLGFxFbnsw=s900-c-k-c0x00ffffff-no-rj')" onclick="redirect('https://www.google.com/search?q=')"><i class="fas fa-search"></i></button>
+                    <button class="scroll-search-btn" style="background-image: url('https://www.latevaweb.com/web-design/bing-seo.jpg')" onclick="redirect('https://www.bing.com/search?q=')"><i class="fas fa-search"></i></button>
+                    <button class="scroll-search-btn" style="background-image: url('https://play-lh.googleusercontent.com/8g15G46I-P4wZRcQqX---TMMia5yzpXJLPBh2TWhwbD1zb7AvhMuTc05OZZfnVzXZxOtxLuU6d1G9JKCRUCdnQ=s256-rw')" onclick="redirect('https://search.naver.com/search.naver?query=')"><i class="fas fa-search"></i></button>
+                    <button class="scroll-search-btn" style="background-image: url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTn7G-6vqaf-a18YW56wfn0Fk8H0vgqlFC8RPyORXWI6hCCkRidRrNiCw14&s=10')" onclick="redirect('https://www.baidu.com/s?wd=')"><i class="fas fa-search"></i></button>
+                </div>
+
+                <div class="video-platform-list">
+                    <div class="platform-card" onclick="redirect('https://www.youtube.com/results?search_query=')">
+                        <div class="platform-icon" style="background-image: url('https://upload.wikimedia.org/wikipedia/commons/0/09/YouTube_full-color_icon_%282017%29.svg')"></div>
+                        <div class="platform-name">YouTube</div>
+                    </div>
+                    <div class="platform-card" onclick="redirect('https://www.twitch.tv/search?term=')">
+                        <div class="platform-icon" style="background-image: url('https://m.media-amazon.com/images/I/21kRx-CJsUL.png')"></div>
+                        <div class="platform-name">Twitch</div>
+                    </div>
+                    <div class="platform-card" onclick="redirect('https://www.tiktok.com/search?q=')">
+                        <div class="platform-icon" style="background-image: url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDES1RgqfRc__1IQZrqjhJjpED5AuRVRGVOSzvbT5jGA&s=10')"></div>
+                        <div class="platform-name">TikTok</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        function setActive(element) {
-            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-            element.classList.add('active');
-        }
+        const contentData = {
+            seres: [
+                { t: 'Transformes Prime T1', i: 'https://m.media-amazon.com/images/I/91aV7OU0b9L._AC_UF1000,1000_QL80_.jpg', eps: ['3ZU63LImFNI', '/yXMOH53eWgI'] },
+                { t: 'Sonic X t1', i: 'https://static.wikia.nocookie.net/sonic/images/7/72/SonicXposter.png/revision/latest?cb=20170828044211', eps: ['aNXnJ8FV3WE', '-W5daoll7Ow'] }
+            ],
+            filmes: [{ t: '3 Espiães Demais O Filme', i: 'https://i.ytimg.com/vi/zj3f0uvaLEU/sddefault.jpg?v=64ef44b4', v: 'zj3f0uvaLEU' }, { t: 'A Lenda Da Serpente', i: 'https://i.ytimg.com/vi/pjyih9cmfKk/maxresdefault.jpg', v: 'pjyih9cmfKk' }],
+            músicas: [{ t: 'VMZ-COLUMBINA', i: 'https://i.ytimg.com/vi/KsfjcFAITUE/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLAZSYPRlYwq4t_kHAgkUSgBjqiHkA', v: 'uWEuyJ0Epog' }, { t: 'LexClash-Caminho Da Dor', i: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRhC8Vrlw9aNWV-9wFJS_PRnQfMJ_wPFrNxkzyTcWba_NRe3d_7V8A-rWRP&s=10', v: 'tiP5oB6vBEk' }]
+        };
 
-        // Array de imagens de fundo
-        const imagensFundo = [
-            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR5y7ghk1lkATsg2qgCDY7nHRiUIBl5y-F_uAH8PBOK6JR3v5AT47u3wnFG&s=10",
-            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT-TPxNhwFPTkf9Qo5HU1agIJ7EvRrWUarVdjs2lByWUDE9F_bFE5qFfpAS&s=10",
-            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT-TPxNhwFPTkf9Qo5HU1agIJ7EvRrWUarVdjs2lByWUDE9F_bFE5qFfpAS&s=10",
-            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlcLL8ZOXNx4Ok4UIj3mIvN_KPAK4bVex5jB_g0YSm3XFDujqJEqNvBN4&s=10"
+        const backgroundImages = [
+            'https://static.crunchyroll.com/cr-acquisition/assets/img/start/hero/us-global/background-desktop.jpg',
+            'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSthZIQDPJrKOz_O2t485hQjlcAOxdtTw-BF2rNzsmcdwNeY00XMddXodNw&s=10',
+            'https://png.pngtree.com/thumb_back/fh260/background/20230611/pngtree-colorful-music-notes-and-a-black-background-image_2975597.jpg',
         ];
+        
+        let bgIndex = 0;
+        const bgElement = document.getElementById('background');
 
-        let indiceAtual = 0;
+        function rotateBackground() {
+            bgIndex = (bgIndex + 1) % backgroundImages.length;
+            bgElement.style.backgroundImage = `url('${backgroundImages[bgIndex]}')`;
+        }
+        setInterval(rotateBackground, 8000);
 
-        function trocarFundo() {
-            document.body.style.backgroundImage = `url('${imagensFundo[indiceAtual]}')`;
-            indiceAtual = (indiceAtual + 1) % imagensFundo.length;
+        const playerModal = document.getElementById('playerModal');
+        const epMenu = document.getElementById('epMenu');
+        const handle = document.getElementById('modal-drag-handle');
+        const videoBox = document.getElementById('videoBox');
+        let touchStartY = 0, isDragging = false, currentTab = 'seres';
+        let currentItem = { title: '', eps: [], currentEpIndex: 0, img: '' };
+
+        function startVoiceSearch() {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'pt-BR';
+            recognition.start();
+            
+            const btn = document.getElementById('voiceBtn');
+            btn.style.color = '#ff0000'; 
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('searchInput').value = transcript;
+                toggleClearBtn();
+                btn.style.color = 'white';
+            };
+
+            recognition.onerror = () => { btn.style.color = 'white'; };
+            recognition.onend = () => { btn.style.color = 'white'; };
         }
 
-        // Troca a imagem a cada 10 segundos
-        setInterval(trocarFundo, 10000);
+        function toggleClearBtn() {
+            const input = document.getElementById('searchInput');
+            const value = input.value;
+            document.getElementById('clearBtn').style.display = value.length > 0 ? 'block' : 'none';
+            filterContent(value);
+        }
 
-        // Inicia a primeira imagem
-        trocarFundo();
+        function filterContent(query) {
+            const container = document.getElementById(currentTab);
+            const filteredData = contentData[currentTab].filter(item => 
+                item.t.toLowerCase().includes(query.toLowerCase())
+            );
+            render(filteredData, container);
+        }
+
+        function clearSearch() { 
+            document.getElementById('searchInput').value = ''; 
+            toggleClearBtn(); 
+        }
+
+        function handleItemClick(item) {
+            if (currentTab === 'seres') {
+                document.getElementById('epMenuTitle').innerText = item.t;
+                const grid = document.getElementById('epGrid');
+                grid.innerHTML = '';
+                item.eps.forEach((v, index) => {
+                    grid.innerHTML += `<button class="ep-select-btn" onclick="openPlayerWithEp('${item.t}', '${item.i}', ${index}, '${item.eps.join(',')}')">Ep ${index + 1}</button>`;
+                });
+                epMenu.style.display = 'flex';
+            } else {
+                openPlayer(item.t, item.i, item.v);
+            }
+        }
+
+        function openPlayerWithEp(title, imageUrl, index, epsString) {
+            const eps = epsString.split(',');
+            currentItem = { title, eps, currentEpIndex: index, img: imageUrl };
+            renderPlayer(title, imageUrl, eps[index], index, eps.length);
+        }
+
+        function openPlayer(title, imageUrl, videoId) {
+            currentItem = { title, eps: [], currentEpIndex: -1, img: imageUrl };
+            renderPlayer(title, imageUrl, videoId);
+        }
+
+        function renderPlayer(title, imageUrl, videoId, index = -1, total = 0) {
+            epMenu.style.display = 'none';
+            const displayTitle = index !== -1 ? `${title} - Ep ${index + 1}` : title;
+            document.getElementById('modalTitle').innerText = displayTitle;
+            videoBox.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;
+            playerModal.style.backgroundImage = `url('${imageUrl}')`;
+            playerModal.classList.add('active');
+            document.body.classList.add('modal-open');
+
+            const nav = document.getElementById('navEpBox');
+            nav.style.display = total > 0 ? 'flex' : 'none';
+            document.getElementById('prevBtn').disabled = index <= 0;
+            document.getElementById('nextBtn').disabled = index >= total - 1;
+        }
+
+        function changeEp(dir) {
+            const newIndex = currentItem.currentEpIndex + dir;
+            if(newIndex >= 0 && newIndex < currentItem.eps.length) {
+                renderPlayer(currentItem.title, currentItem.img, currentItem.eps[newIndex], newIndex, currentItem.eps.length);
+                currentItem.currentEpIndex = newIndex;
+            }
+        }
+
+        function render(data, container) {
+            container.innerHTML = data.map(item => `
+                <div class="feed-item" style="background-image: url('${item.i}')" onclick="handleItemClick(${JSON.stringify(item).replace(/"/g, "'")})">
+                    <div class="item-title">${item.t}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateUI(id, el) {
+            currentTab = id;
+            document.querySelectorAll('.feed-container').forEach(f => f.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            render(contentData[id], document.getElementById(id));
+            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        function closePlayer() {
+            playerModal.style.transform = 'translateY(100%)';
+            setTimeout(() => { playerModal.classList.remove('active'); playerModal.style.transform = ''; document.body.classList.remove('modal-open'); videoBox.innerHTML = ''; }, 400);
+        }
+
+        function goToPlatform() { window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(document.getElementById('modalTitle').innerText)}`, '_blank'); }
+        function redirect(url) { window.open(url + encodeURIComponent(document.getElementById('modalTitle').innerText), '_blank'); }
+
+        handle.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; isDragging = true; }, { passive: true });
+        handle.addEventListener('touchmove', (e) => { if (!isDragging) return; const diff = e.touches[0].clientY - touchStartY; if (diff > 0) playerModal.style.transform = `translateY(${diff}px)`; }, { passive: true });
+        handle.addEventListener('touchend', (e) => { isDragging = false; const diff = e.changedTouches[0].clientY - touchStartY; diff > 100 ? closePlayer() : playerModal.style.transform = 'translateY(0)'; }, { passive: true });
+
+        bgElement.style.backgroundImage = `url('${backgroundImages[0]}')`;
+        updateUI('seres', document.querySelector('.tab-item'));
     </script>
 </body>
 </html>
