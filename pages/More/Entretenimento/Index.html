@@ -41,10 +41,19 @@
 
         .suggestions-label { padding: 10px 15px; margin: 0; font-weight: bold; color: white; background: var(--glass-bg); backdrop-filter: blur(5px); }
 
-        .feed-container { display: none; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 8px; }
+        .feed-container { display: none; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 12px; }
         .feed-container.active { display: grid; }
-        .feed-item { aspect-ratio: 1 / 1; background-size: cover; background-position: center; border-radius: 4px; position: relative; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.3s ease; }
-        .item-title { position: absolute; bottom: 0; width: 100%; background: rgba(0, 0, 0, 0.5); color: white; padding: 5px 0; font-size: 12px; text-align: center; }
+        .feed-item { 
+            aspect-ratio: 16 / 9; 
+            background-size: cover; 
+            background-position: center; 
+            border-radius: 8px; 
+            position: relative; 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+        }
+        .item-title { position: absolute; bottom: 0; width: 100%; background: rgba(0, 0, 0, 0.6); color: white; padding: 5px 0; font-size: 12px; text-align: center; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
 
         #epMenu { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; padding: 20px; }
         .ep-menu-content { background: rgba(20, 20, 20, 0.95); padding: 20px; border-radius: 20px; width: 100%; max-width: 400px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
@@ -110,7 +119,7 @@
 
     <div class="search-wrapper">
         <button id="voiceBtn" class="voice-btn" onclick="startVoiceSearch()"><i class="fas fa-microphone"></i></button>
-        <input type="text" id="searchInput" class="search-bar" placeholder="Buscar..." oninput="toggleClearBtn()">
+        <input type="text" id="searchInput" class="search-bar" placeholder="Buscar..." oninput="handleSearch()">
         <button id="clearBtn" class="clear-btn" onclick="clearSearch()"><i class="fas fa-times"></i></button>
     </div>
 
@@ -176,11 +185,17 @@
     <script>
         const contentData = {
             seres: [
-                { t: 'Transformes Prime T1', i: 'https://m.media-amazon.com/images/I/91aV7OU0b9L._AC_UF1000,1000_QL80_.jpg', eps: ['3ZU63LImFNI', '/yXMOH53eWgI'] },
-                { t: 'Sonic X t1', i: 'https://static.wikia.nocookie.net/sonic/images/7/72/SonicXposter.png/revision/latest?cb=20170828044211', eps: ['aNXnJ8FV3WE', '-W5daoll7Ow'] }
+                { t: 'Transformes Prime T1', eps: ['3ZU63LImFNI', 'yXMOH53eWgI'] },
+                { t: 'Sonic X t1', eps: ['aNXnJ8FV3WE', '-W5daoll7Ow'] }
             ],
-            filmes: [{ t: '3 Espiães Demais O Filme', i: 'https://i.ytimg.com/vi/zj3f0uvaLEU/sddefault.jpg?v=64ef44b4', v: 'zj3f0uvaLEU' }, { t: 'A Lenda Da Serpente', i: 'https://i.ytimg.com/vi/pjyih9cmfKk/maxresdefault.jpg', v: 'pjyih9cmfKk' }],
-            músicas: [{ t: 'VMZ-COLUMBINA', i: 'https://i.ytimg.com/vi/KsfjcFAITUE/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLAZSYPRlYwq4t_kHAgkUSgBjqiHkA', v: 'uWEuyJ0Epog' }, { t: 'LexClash-Caminho Da Dor', i: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRhC8Vrlw9aNWV-9wFJS_PRnQfMJ_wPFrNxkzyTcWba_NRe3d_7V8A-rWRP&s=10', v: 'tiP5oB6vBEk' }]
+            filmes: [
+                { t: '3 Espiães Demais O Filme', v: 'zj3f0uvaLEU' }, 
+                { t: 'A Lenda Da Serpente', v: 'pjyih9cmfKk' }
+            ],
+            músicas: [
+                { t: 'VMZ-COLUMBINA', v: 'uWEuyJ0Epog' }, 
+                { t: 'LexClash-Caminho Da Dor', v: 'tiP5oB6vBEk' }
+            ]
         };
 
         const backgroundImages = [
@@ -205,56 +220,51 @@
         let touchStartY = 0, isDragging = false, currentTab = 'seres';
         let currentItem = { title: '', eps: [], currentEpIndex: 0, img: '' };
 
-        function startVoiceSearch() {
-            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.lang = 'pt-BR';
-            recognition.start();
-            
-            const btn = document.getElementById('voiceBtn');
-            btn.style.color = '#ff0000'; 
+        // Lógica de monitoramento do término do vídeo via postMessage
+        window.addEventListener("message", function(event) {
+            if (event.origin === "https://www.youtube.com") {
+                const data = JSON.parse(event.data);
+                if (data.event === "infoDelivery" && data.info && data.info.playerState === 0) {
+                    if (currentItem.eps.length > 0 && currentItem.currentEpIndex < currentItem.eps.length - 1) {
+                        setTimeout(() => changeEp(1), 3000);
+                    }
+                }
+            }
+        });
 
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                document.getElementById('searchInput').value = transcript;
-                toggleClearBtn();
-                btn.style.color = 'white';
-            };
-
-            recognition.onerror = () => { btn.style.color = 'white'; };
-            recognition.onend = () => { btn.style.color = 'white'; };
+        function handleSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const clearBtn = document.getElementById('clearBtn');
+            clearBtn.style.display = query.length > 0 ? 'block' : 'none';
+            const activeContainer = document.getElementById(currentTab);
+            const items = activeContainer.querySelectorAll('.feed-item');
+            items.forEach(item => {
+                const title = item.querySelector('.item-title').innerText.toLowerCase();
+                item.style.display = title.includes(query) ? 'block' : 'none';
+            });
         }
 
-        function toggleClearBtn() {
+        function clearSearch() {
             const input = document.getElementById('searchInput');
-            const value = input.value;
-            document.getElementById('clearBtn').style.display = value.length > 0 ? 'block' : 'none';
-            filterContent(value);
+            input.value = '';
+            handleSearch();
+            input.focus();
         }
 
-        function filterContent(query) {
-            const container = document.getElementById(currentTab);
-            const filteredData = contentData[currentTab].filter(item => 
-                item.t.toLowerCase().includes(query.toLowerCase())
-            );
-            render(filteredData, container);
-        }
-
-        function clearSearch() { 
-            document.getElementById('searchInput').value = ''; 
-            toggleClearBtn(); 
-        }
+        function getThumb(id) { return `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`; }
 
         function handleItemClick(item) {
+            const img = item.v ? getThumb(item.v) : getThumb(item.eps[0]);
             if (currentTab === 'seres') {
                 document.getElementById('epMenuTitle').innerText = item.t;
                 const grid = document.getElementById('epGrid');
                 grid.innerHTML = '';
                 item.eps.forEach((v, index) => {
-                    grid.innerHTML += `<button class="ep-select-btn" onclick="openPlayerWithEp('${item.t}', '${item.i}', ${index}, '${item.eps.join(',')}')">Ep ${index + 1}</button>`;
+                    grid.innerHTML += `<button class="ep-select-btn" onclick="openPlayerWithEp('${item.t}', '${getThumb(v)}', ${index}, '${item.eps.join(',')}')">Ep ${index + 1}</button>`;
                 });
                 epMenu.style.display = 'flex';
             } else {
-                openPlayer(item.t, item.i, item.v);
+                openPlayer(item.t, img, item.v);
             }
         }
 
@@ -273,11 +283,11 @@
             epMenu.style.display = 'none';
             const displayTitle = index !== -1 ? `${title} - Ep ${index + 1}` : title;
             document.getElementById('modalTitle').innerText = displayTitle;
-            videoBox.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;
+            // Adicionado enablejsapi=1 para permitir o monitoramento via postMessage
+            videoBox.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
             playerModal.style.backgroundImage = `url('${imageUrl}')`;
             playerModal.classList.add('active');
             document.body.classList.add('modal-open');
-
             const nav = document.getElementById('navEpBox');
             nav.style.display = total > 0 ? 'flex' : 'none';
             document.getElementById('prevBtn').disabled = index <= 0;
@@ -287,17 +297,21 @@
         function changeEp(dir) {
             const newIndex = currentItem.currentEpIndex + dir;
             if(newIndex >= 0 && newIndex < currentItem.eps.length) {
-                renderPlayer(currentItem.title, currentItem.img, currentItem.eps[newIndex], newIndex, currentItem.eps.length);
+                renderPlayer(currentItem.title, getThumb(currentItem.eps[newIndex]), currentItem.eps[newIndex], newIndex, currentItem.eps.length);
                 currentItem.currentEpIndex = newIndex;
             }
         }
 
         function render(data, container) {
-            container.innerHTML = data.map(item => `
-                <div class="feed-item" style="background-image: url('${item.i}')" onclick="handleItemClick(${JSON.stringify(item).replace(/"/g, "'")})">
-                    <div class="item-title">${item.t}</div>
-                </div>
-            `).join('');
+            container.innerHTML = data.map(item => {
+                const thumb = item.v ? getThumb(item.v) : getThumb(item.eps[0]);
+                const itemStr = JSON.stringify(item).replace(/"/g, "'");
+                return `
+                    <div class="feed-item" style="background-image: url('${thumb}')" onclick="handleItemClick(${itemStr})">
+                        <div class="item-title">${item.t}</div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function updateUI(id, el) {
@@ -307,6 +321,8 @@
             render(contentData[id], document.getElementById(id));
             document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
             el.classList.add('active');
+            document.getElementById('searchInput').value = '';
+            handleSearch();
         }
 
         function closePlayer() {
