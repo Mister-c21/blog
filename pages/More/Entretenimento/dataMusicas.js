@@ -6,7 +6,7 @@ const dataMusicas = [
     { t: 'Dança Do Caos', v: 'YBqh5iTDGP4'},
     { t: 'Seu Astro', v: 'pdhCJ3v-7mU'},
     { t: 'Meu Pequeno Guaraná', v: '4EoGIUvP_uA'},
-    
+    { t: 'Não Tem Perdão', v: '9a56JsnfVSk'},
 ];
 
 
