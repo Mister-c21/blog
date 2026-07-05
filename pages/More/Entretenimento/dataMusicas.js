@@ -10,6 +10,9 @@ const dataMusicas = [
     { t: 'O que é Amor', v: '8EeiglBYmcU'},
     { t: 'Primeiro Amor', v: 'ap_gt_IyERg'},
     { t: 'Até o Fim', v: 'tQqkwk_ud5o'},
+    { t: 'Além do Tempo', v: 'aoduQLwSVnQ'},
+    { t: 'Laço Espiritual', v: 'iIQITqKIiLI'},
+    { t: 'Aroma Doce', v: 'G6MPs7tddwU'},
 ];
 
 
