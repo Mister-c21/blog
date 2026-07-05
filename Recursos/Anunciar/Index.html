@@ -1,193 +1,144 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Criar Anúncio • Nova Campanha</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    :root { --primary: #8a2be2; }
-    body { 
-      font-family: 'Inter', system-ui, sans-serif; 
-      background: linear-gradient(135deg, #f8f8ff 0%, #f0e6ff 100%); 
-      margin: 0;
-      min-height: 100vh;
-    }
-    .glass { background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
-    .upload-area { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-    .upload-area.dragover { background: #f3e8ff; border-color: var(--primary); transform: scale(1.02); }
-    .plan-card { transition: all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1); }
-    .plan-card:hover { transform: translateY(-8px) scale(1.03); box-shadow: 0 20px 25px -5px rgb(138 43 226 / 0.15); }
-    .selected-plan { border-color: var(--primary); background: #f8f0ff; box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.2); }
-  </style>
-</head>
-<body class="flex items-center justify-center w-screen h-screen p-4">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ferramentas</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 
-  <div class="w-full max-w-lg">
-    <div class="glass rounded-3xl shadow-xl p-8 border border-white/50">
-      <form id="adForm" class="space-y-8">
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-3">Mídia do Anúncio</label>
-          <div id="uploadArea" onclick="document.getElementById('file-upload').click()" class="upload-area border-2 border-dashed border-violet-400 rounded-2xl p-10 text-center cursor-pointer hover:border-violet-500 bg-white/70">
-            <img id="imagePreview" class="hidden max-h-32 mx-auto mb-4 rounded-lg">
-            <div id="uploadPlaceholder">
-              <i class="fa-solid fa-cloud-arrow-up text-5xl text-violet-400 mb-4"></i>
-              <p class="font-medium text-violet-700">Clique ou arraste uma imagem</p>
-            </div>
-            <input type="file" id="file-upload" accept="image/*" class="hidden">
-          </div>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-2">URL Final</label>
-          <input type="url" id="finalUrl" placeholder="https://seusite.com.br/oferta" class="w-full p-4 bg-white border border-gray-300 rounded-2xl focus:border-violet-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-3">Duração da Campanha</label>
-          <div class="grid grid-cols-3 gap-3" id="durationGroup">
-            <div data-days="3" class="duration-option text-center py-4 bg-white rounded-2xl cursor-pointer hover:border-violet-200 border-2 border-transparent">
-              <div class="font-bold text-xl">3</div><div class="text-sm text-gray-500">dias</div>
-            </div>
-            <div data-days="7" class="duration-option text-center py-4 bg-white rounded-2xl cursor-pointer hover:border-violet-200 border-2 border-transparent selected-plan">
-              <div class="font-bold text-xl">7</div><div class="text-sm text-gray-500">dias</div>
-            </div>
-            <div data-days="12" class="duration-option text-center py-4 bg-white rounded-2xl cursor-pointer hover:border-violet-200 border-2 border-transparent">
-              <div class="font-bold text-xl">12</div><div class="text-sm text-gray-500">dias</div>
-            </div>
-          </div>
-        </div>
-        <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-semibold py-4 rounded-2xl text-lg shadow-lg opacity-50 cursor-not-allowed" disabled>
-          <i class="fa-solid fa-rocket"></i> Publicar Anúncio
-        </button>
-      </form>
-    </div>
-  </div>
+        body { background-color: #f7f7fc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; color: #1a1a1a; }
 
-  <div id="modal" class="hidden fixed inset-0 z-50 bg-white/30 backdrop-blur-xl flex flex-col">
-    <div class="flex-1 p-8 overflow-y-auto">
-      <h2 class="text-2xl font-bold text-center text-violet-700 mb-2">Escolha o nível</h2>
-      <div id="priceDisplay" class="font-bold text-violet-700 text-center text-3xl mb-8">Total: R$ 0</div>
-      <div class="flex flex-row gap-4 overflow-x-auto pb-4" id="plansContainer"></div>
-      <h3 class="text-lg font-bold text-violet-700 mt-6 mb-3">Boost de Anúncio</h3>
-      <div class="flex flex-row gap-4 overflow-x-auto pb-4" id="boostContainer"></div>
-      <h3 class="text-lg font-bold text-violet-700 mt-6 mb-3">Tempo Extra</h3>
-      <div class="flex flex-row gap-4 overflow-x-auto pb-4" id="extraTimeContainer"></div>
-    </div>
-    <div class="bg-gray-50 px-8 py-5 flex justify-end items-center border-t">
-      <div class="flex gap-3">
-        <button onclick="closeModal()" class="text-gray-500 font-medium px-6 py-3">Cancelar</button>
-        <button onclick="confirmPlan()" class="bg-violet-600 text-white px-8 py-3 rounded-2xl">Confirmar</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    let selectedFile = null, selectedPlan = 0, selectedBoost = "Sem Boost", selectedExtraTime = "Nenhum", selectedDays = 7;
-    
-    const plans = [
-      { name: "Básico", price: 7, features: ["Pesquisas", "Feed"], popular: false },
-      { name: "Padrão", price: 14, features: ["Pesquisas", "Feed", "Games"], popular: true },
-      { name: "Premium", price: 21, features: ["Pesquisas", "Feed", "Games", "Ferramentas"], popular: false }
-    ];
-
-    const boosts = [
-      { name: "Sem Boost", pct: 0, benefit: "Padrão" },
-      { name: "Bronze", pct: 0.10, benefit: "+10%" },
-      { name: "Prata", pct: 0.25, benefit: "+25%", rec: true },
-      { name: "Ouro", pct: 0.50, benefit: "+50%" },
-      { name: "Diamante", pct: 1.00, benefit: "+100%" }
-    ];
-    const extraTimes = [
-      { name: "Nenhum", pct: 0 },
-      { name: "1 dia", pct: 0.02 },
-      { name: "3 dias", pct: 0.05, rec: true },
-      { name: "1 semana", pct: 0.08 }
-    ];
-
-    function validate() {
-      const btn = document.getElementById('submitBtn');
-      const url = document.getElementById('finalUrl').value;
-      if (selectedFile && url.trim() !== "") {
-        btn.disabled = false;
-        btn.classList.remove('opacity-50', 'cursor-not-allowed');
-      } else {
-        btn.disabled = true;
-        btn.classList.add('opacity-50', 'cursor-not-allowed');
-      }
-    }
-
-    document.getElementById('file-upload').addEventListener('change', function(e) {
-      selectedFile = e.target.files[0];
-      if (selectedFile) {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-          document.getElementById('imagePreview').src = event.target.result;
-          document.getElementById('imagePreview').classList.remove('hidden');
-          document.getElementById('uploadPlaceholder').classList.add('hidden');
+        /* MODAL APRIMORADO */
+        #iframe-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(247, 247, 252, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(138, 43, 226, 0.2);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(100%);
+            display: flex;
+            flex-direction: column;
+            border-radius: 24px 24px 0 0;
+            box-shadow: 0 -10px 30px rgba(138, 43, 226, 0.1);
+            pointer-events: none;
+            will-change: transform;
         }
-        reader.readAsDataURL(selectedFile);
-      }
-      validate();
-    });
+        
+        #iframe-modal.active { transform: translateY(0); pointer-events: auto; }
 
-    document.getElementById('finalUrl').addEventListener('input', validate);
+        #modal-drag-handle {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            touch-action: none;
+        }
 
-    function calculateTotal() {
-      if (selectedPlan === null) return 0;
-      let basePrice = plans[selectedPlan].price;
-      const boost = boosts.find(b => b.name === selectedBoost);
-      const extra = extraTimes.find(e => e.name === selectedExtraTime);
-      let total = basePrice + (basePrice * boost.pct) + (basePrice * extra.pct);
-      return total.toFixed(2);
-    }
+        .drag-pill { width: 48px; height: 6px; background: rgba(138, 43, 226, 0.3); border-radius: 9999px; }
 
-    function renderPlans() {
-      const container = document.getElementById('plansContainer');
-      container.innerHTML = plans.map((plan, index) => `
-        <div onclick="selectPlan(this, ${index})" class="plan-card cursor-pointer p-5 rounded-2xl border-2 min-w-[220px] flex-1 ${plan.popular ? 'border-violet-500' : 'border-gray-200'} bg-white ${selectedPlan === index ? 'selected-plan' : ''}">
-          ${plan.popular ? '<div class="text-center text-violet-600 text-xs font-bold mb-2">RECOMENDADO</div>' : ''}
-          <h3 class="font-bold text-xl text-center">${plan.name}</h3>
-          <p class="text-3xl font-bold text-violet-600 text-center my-4">R$ ${plan.price}</p>
-          <ul class="space-y-2 mt-2"> ${plan.features.map(f => `<li class="flex items-center gap-2 text-xs"><i class="fa-solid fa-check text-emerald-500"></i> ${f}</li>`).join('')} </ul>
+        #modal-close-btn {
+            position: absolute; right: 16px; top: 8px; color: #8a2be2; font-size: 24px; padding: 4px; display: none; background: none; border: none; cursor: pointer;
+        }
+
+        @media (min-width: 768px) { #modal-close-btn { display: block; } .drag-pill { display: none; } }
+
+        #iframe-modal iframe { width: 100%; flex: 1; border: none; }
+
+        /* UI PADRÃO */
+        .top-tab-container { width: 100%; padding: 14px 0; background: rgba(138, 43, 226, 0.08); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(138, 43, 226, 0.15); overflow-x: auto; white-space: nowrap; scrollbar-width: none; z-index: 1000; }
+        .tab-list { display: inline-flex; align-items: center; justify-content: space-around; width: 100%; list-style: none; }
+        .tab-item { font-size: 16px; font-weight: 600; color: rgba(138, 43, 226, 0.6); cursor: pointer; transition: color 0.25s ease, transform 0.2s ease; position: relative; padding: 6px 4px; }
+        .tab-item.active { color: #8a2be2; transform: scale(1.05); }
+        .tab-indicator { position: absolute; bottom: -2px; height: 3px; background-color: #8a2be2; border-radius: 2px; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
+
+        .window-wrapper { flex: 1; width: 100%; overflow: hidden; position: relative; }
+        .tabs-view-pager { display: flex; width: 300%; height: 100%; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
+        .tab-page { width: calc(100% / 3); height: 100%; }
+        .content-iframe { width: 100%; height: 100%; border: none; }
+    </style>
+</head>
+<body>
+
+    <div id="iframe-modal">
+        <div id="modal-drag-handle">
+            <div class="drag-pill"></div>
+            <button id="modal-close-btn" onclick="closeIframeModal()"><i class="fas fa-times"></i></button>
         </div>
-      `).join('');
-      
-      const bContainer = document.getElementById('boostContainer');
-      bContainer.innerHTML = boosts.map((b) => `
-        <div onclick="selectBoost(this, '${b.name}')" class="p-4 rounded-xl border-2 cursor-pointer hover:border-violet-400 bg-white min-w-[140px] text-center relative ${selectedBoost === b.name ? 'selected-plan' : 'border-gray-200'}">
-          ${b.rec ? '<div class="absolute -top-4 left-0 w-full text-center text-[10px] font-bold text-violet-600">RECOMENDADO</div>' : ''}
-          <div class="font-bold text-violet-700 mt-1">${b.name}</div>
-          <div class="text-xs text-gray-600">${b.benefit}</div>
+        <iframe id="main-iframe" src=""></iframe>
+    </div>
+
+    <nav class="top-tab-container">
+        <ul class="tab-list">
+            <li class="tab-item active" onclick="switchTab(0)">Anunciar</li>
+            <li class="tab-item" onclick="switchTab(1)">Parceria</li>
+            <li class="tab-item" onclick="switchTab(2)">Loja</li>
+            <div class="tab-indicator" id="indicator"></div>
+        </ul>
+    </nav>
+
+    <div class="window-wrapper" id="gesture-zone">
+        <div class="tabs-view-pager" id="view-pager">
+            <div class="tab-page"><iframe class="content-iframe" src="./Campanhas/Ads.html"></iframe></div>
+            <div class="tab-page"><iframe class="content-iframe" src="./Campanhas/Pacerias.html"></iframe></div>
+            <div class="tab-page"><iframe class="content-iframe" src="./Campanhas/Loja-Ads.html"></iframe></div>
         </div>
-      `).join('');
+    </div>
 
-      const eContainer = document.getElementById('extraTimeContainer');
-      eContainer.innerHTML = extraTimes.map((e) => `
-        <div onclick="selectExtra(this, '${e.name}')" class="p-4 rounded-xl border-2 cursor-pointer hover:border-violet-400 bg-white min-w-[120px] text-center relative ${selectedExtraTime === e.name ? 'selected-plan' : 'border-gray-200'}">
-          ${e.rec ? '<div class="absolute -top-4 left-0 w-full text-center text-[10px] font-bold text-violet-600">RECOMENDADO</div>' : ''}
-          <div class="font-bold text-violet-700 mt-1">${e.name}</div>
-          <div class="text-xs text-gray-600">${e.pct > 0 ? '+' + (e.pct * 100) + '%' : ''}</div>
-        </div>
-      `).join('');
+    <script>
+        const iframeModal = document.getElementById('iframe-modal');
+        const handle = document.getElementById('modal-drag-handle');
+        const mainIframe = document.getElementById('main-iframe');
+        const pager = document.getElementById('view-pager');
+        const tabs = Array.from(document.querySelectorAll('.tab-item'));
+        let touchStartY = 0, isDragging = false;
 
-      document.getElementById('priceDisplay').innerText = `Total: R$ ${calculateTotal()}`;
-    }
+        function closeIframeModal() {
+            iframeModal.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+            iframeModal.style.transform = 'translateY(100%)'; 
+            setTimeout(() => { 
+                mainIframe.src = ''; 
+                iframeModal.classList.remove('active');
+            }, 400);
+        }
 
-    function selectPlan(el, index) { selectedPlan = index; renderPlans(); }
-    function selectBoost(el, b) { selectedBoost = b; renderPlans(); }
-    function selectExtra(el, e) { selectedExtraTime = e; renderPlans(); }
-    
-    document.querySelectorAll('.duration-option').forEach(opt => opt.addEventListener('click', (e) => {
-      document.querySelectorAll('.duration-option').forEach(o => o.classList.remove('selected-plan'));
-      opt.classList.add('selected-plan');
-      selectedDays = parseInt(opt.dataset.days);
-    }));
+        handle.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+            isDragging = true;
+            iframeModal.style.transition = 'none';
+        }, { passive: true });
 
-    document.getElementById('adForm').addEventListener('submit', (e) => { e.preventDefault(); document.getElementById('modal').classList.remove('hidden'); renderPlans(); });
-    function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-    function confirmPlan() { if(selectedPlan !== null) { closeModal(); alert("Publicado por R$ " + calculateTotal()); } else { alert("Selecione um plano"); } }
-  </script>
+        handle.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const diff = e.touches[0].clientY - touchStartY;
+            if (diff > 0) iframeModal.style.transform = `translateY(${diff}px)`;
+        }, { passive: true });
+
+        handle.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            const diff = e.changedTouches[0].clientY - touchStartY;
+            if (diff > 100) {
+                closeIframeModal();
+            } else {
+                iframeModal.style.transform = 'translateY(0)';
+            }
+        }, { passive: true });
+        
+        function switchTab(index) {
+            tabs.forEach((item, i) => { item.classList.toggle('active', i === index); });
+            const indicator = document.getElementById('indicator');
+            indicator.style.width = `${tabs[index].offsetWidth}px`;
+            indicator.style.left = `${tabs[index].offsetLeft}px`;
+            pager.style.transform = `translateX(-${index * (100 / tabs.length)}%)`;
+        }
+        
+        window.addEventListener('DOMContentLoaded', () => { switchTab(0); });
+    </script>
 </body>
 </html>
