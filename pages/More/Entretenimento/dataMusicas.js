@@ -16,6 +16,8 @@ const dataMusicas = [
     { t: 'Depois do Fim', v:'s1hFHdIhc8c'},
     { t: 'A Flor e o Beija-flor', v: 'qUX8gNg0IUQ'},
     { t: 'Jura Juradinho', v: 'Yx1krJ3DycU'},
+    { t: 'Teu Perfume', v: '-chsVcNpGUQ'},
+    { t: 'Auras', v: 'dfmm6ARNl1Q'},
 ];
 
 
