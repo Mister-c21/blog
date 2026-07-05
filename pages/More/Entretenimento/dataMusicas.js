@@ -13,7 +13,8 @@ const dataMusicas = [
     { t: 'Além do Tempo', v: 'aoduQLwSVnQ'},
     { t: 'Laço Espiritual', v: 'iIQITqKIiLI'},
     { t: 'Só Você', v: 'uL8ShMKlrF8'},
-    { t: 'Depois do Fim', v:'s1hFHdIhc8c',},
+    { t: 'Depois do Fim', v:'s1hFHdIhc8c'},
+    { t: 'A Flor e o Beija-flor', v: 'qUX8gNg0IUQ'},
 ];
 
 
