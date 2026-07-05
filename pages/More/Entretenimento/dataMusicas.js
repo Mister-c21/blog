@@ -7,6 +7,9 @@ const dataMusicas = [
     { t: 'Seu Astro', v: 'pdhCJ3v-7mU'},
     { t: 'Meu Pequeno Guaraná', v: '4EoGIUvP_uA'},
     { t: 'Não Tem Perdão', v: '9a56JsnfVSk'},
+    { t: 'O que é Amor', v: '8EeiglBYmcU'},
+    { t: 'Primeiro Amor', v: 'ap_gt_IyERg'},
+    { t: 'Até o Fim', v: 'tQqkwk_ud5o'},
 ];
 
 
