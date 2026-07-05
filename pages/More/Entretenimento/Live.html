@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lives</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --blueviolet-color: #8a2be2;
+            --ghost: #f8f8ff;
+            --vidro: rgba(255, 255, 255, 0.1);
+            --bg-dark: #0e0e10;
+        }
+
+        body { 
+            background-color: var(--bg-dark); 
+            color: var(--ghost); 
+            font-family: 'Inter', sans-serif; 
+            margin: 0;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            transition: background 1.5s ease-in-out;
+        }
+
+        body.modal-open { overflow: hidden; }
+
+        header { 
+         position: sticky; 
+         top: 0; 
+         height: 60px; 
+         display: flex; 
+         align-items: center; 
+         justify-content: center; 
+         /* Alterado para o efeito de vidro */
+         background: rgba(14, 14, 16, 0.6); 
+         backdrop-filter: blur(15px); 
+         border-bottom: 1px solid var(--vidro); 
+         z-index: 1000; 
+         }
+
+       .btn-nav { position: absolute; left: 20px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--vidro); color: var(--ghost); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        
+        .search-container { padding: 20px; display: flex; gap: 10px; align-items: center; }
+        .input-wrapper { position: relative; width: 100%; display: flex; align-items: center; }
+        .search-input { width: 100%; padding: 12px 40px 12px 20px; border-radius: 25px; border: 1px solid var(--vidro); background: rgba(255,255,255,0.05); color: var(--ghost); outline: none; box-sizing: border-box; transition: 0.3s; }
+        .search-input:focus { border-color: var(--blueviolet-color); box-shadow: 0 0 10px rgba(138,43,226,0.3); }
+        .clear-btn { position: absolute; right: 15px; background: none; border: none; color: var(--ghost); cursor: pointer; display: none; font-size: 1rem; }
+        .mic-btn { background: none; border: none; color: var(--ghost); cursor: pointer; font-size: 1.2rem; transition: 0.2s; }
+        .mic-btn:active { color: var(--blueviolet-color); }
+
+        main { padding: 0 20px 20px 20px; }
+        h2 { font-size: 1.2rem; margin: 30px 0 15px 0; padding-left: 5px; border-left: 4px solid var(--blueviolet-color); }
+
+        .carrossel-wrapper { display: flex; overflow-x: auto; gap: 16px; padding-bottom: 15px; scrollbar-width: none; }
+        .carrossel-wrapper::-webkit-scrollbar { display: none; }
+
+        .card { flex: 0 0 240px; height: 135px; background-color: var(--vidro); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; cursor: pointer; position: relative; overflow: hidden; background-size: cover; background-position: center; display: flex; align-items: flex-end; padding: 10px; transition: transform 0.3s; }
+        .card:hover { transform: translateY(-5px); border-color: var(--blueviolet-color); }
+        .card-title { background: rgba(0, 0, 0, 0.6); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
+
+        .search-engines a:hover, .search-engines a:focus, 
+        .short-card:hover, .short-card:focus {
+            border-color: var(--blueviolet-color);
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.5);
+            outline: none;
+            transform: scale(1.05);
+        }
+
+        #playerModal { position: fixed; inset: 0; z-index: 9999; background-color: black; display: none; flex-direction: column; transform: translateY(100%); transition: transform 0.3s ease-out; }
+        #playerModal.active { display: flex; transform: translateY(0); }
+        #modal-drag-handle { height: 40px; display: flex; align-items: center; justify-content: center; cursor: grab; touch-action: none; flex-shrink: 0; }
+        .drag-pill { width: 48px; height: 6px; background: rgba(255, 255, 255, 0.3); border-radius: 9999px; }
+        .modal-body { padding: 20px; display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,0.85); flex-grow: 1; overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain; width: 100%; box-sizing: border-box; }
+        
+        .video-box, .ad-container, .shorts-wrapper { width: 100%; max-width: 950px; box-sizing: border-box; }
+        .video-box { aspect-ratio: 16/9; background: #222; border-radius: 15px; overflow: hidden; flex-shrink: 0; }
+        .ad-container { height: 100px; background: var(--vidro); margin: 20px 0; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--blueviolet-color); flex-shrink: 0; position: relative; }
+        .ad-tag { position: absolute; top: 5px; left: 10px; font-size: 0.6rem; color: var(--blueviolet-color); text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; }
+        
+        .search-engines { display: flex; gap: 10px; padding: 10px 20px; width: 100%; max-width: 950px; overflow-x: auto; scrollbar-width: none; white-space: nowrap; flex-shrink: 0; box-sizing: border-box; }
+        .search-engines::-webkit-scrollbar { display: none; }
+        .search-engines a { display: flex; align-items: center; gap: 8px; color: var(--ghost); text-decoration: none; font-size: 0.9rem; padding: 8px 20px; border-radius: 20px; background: rgba(255,255,255,0.05); flex-shrink: 0; border: 1px solid transparent; transition: 0.3s; }
+        
+        .shorts-wrapper { display: flex; overflow-x: auto; gap: 12px; padding: 10px 0; scrollbar-width: none; flex-shrink: 0; }
+        .short-card { flex: 0 0 160px; height: 285px; background: var(--vidro); border-radius: 12px; background-size: cover; background-position: center; display: flex; align-items: flex-end; padding: 10px; cursor: pointer; border: 1px solid transparent; transition: 0.3s; }
+        
+        .close-btn { display: none; position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; z-index: 10; }
+        @media (min-width: 768px) { .close-btn { display: block; } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <button onclick="window.location.href='../../../../index.html'" class="btn-nav"><i class="fas fa-arrow-left"></i></button>
+        <h1>Lives</h1>
+    </header>
+
+    <div class="search-container">
+        <div class="input-wrapper">
+            <input type="text" id="searchInput" class="search-input" placeholder="Buscar canal..." oninput="toggleClearBtn()" onkeyup="handleSearch(event)">
+            <button id="clearBtn" class="clear-btn" onclick="clearSearch()"><i class="fas fa-times"></i></button>
+        </div>
+        <button class="mic-btn" onclick="startVoiceSearch()"><i class="fas fa-microphone"></i></button>
+    </div>
+
+    <main id="app"></main>
+
+    <div id="playerModal">
+        <div id="modal-drag-handle"><div class="drag-pill"></div></div>
+        <div class="modal-body" id="modalContainer">
+            <button class="close-btn" onclick="closePlayer()"><i class="fas fa-times"></i></button>
+            <div class="video-box" id="videoBox"></div>
+            <h2 id="modalTitle">Título da Live</h2>
+            <a id="twitchLink" href="#" target="_blank" style="color: var(--blueviolet-color); text-decoration: none; font-size: 0.9rem; margin-bottom: 10px;">Ver mais na Twitch</a>
+            
+            <div class="ad-container">
+                <span class="ad-tag">Anúncio</span>
+                Espaço para Anúncio
+            </div>
+
+            <div class="search-engines">
+                <a href="#" onclick="this.href=getSearchUrl('google')" target="_blank"><img src="https://www.google.com/s2/favicons?domain=google.com&sz=32" alt="G"> Google</a>
+                <a href="#" onclick="this.href=getSearchUrl('bing')" target="_blank"><img src="https://www.google.com/s2/favicons?domain=bing.com&sz=32" alt="B"> Bing</a>
+                <a href="#" onclick="this.href=getSearchUrl('duckduckgo')" target="_blank"><img src="https://www.google.com/s2/favicons?domain=duckduckgo.com&sz=32" alt="D"> DuckDuckGo</a>
+                <a href="#" onclick="this.href=getSearchUrl('naver')" target="_blank"><img src="https://www.google.com/s2/favicons?domain=naver.com&sz=32" alt="N"> Naver</a>
+                <a href="#" onclick="this.href=getSearchUrl('baidu')" target="_blank"><img src="https://www.google.com/s2/favicons?domain=baidu.com&sz=32" alt="B"> Baidu</a>
+            </div>
+
+            <h2 style="align-self: flex-start; width: 100%; max-width: 950px;">Vídeos Curtos</h2>
+            <div class="shorts-wrapper" id="shortsList"></div>
+        </div>
+    </div>
+
+    <script>
+        const dadosCarrossel = [
+            { tema: "E-sports", itens: [{ nome: "VALORANT", img: "https://images.steamusercontent.com/ugc/1009310639741043947/C4780FD7B53B39EFE4A536842FC1281A48A1256F/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false" }, { nome: "CBLOL", img: "https://upload.wikimedia.org/wikipedia/pt/b/bc/CBLOL_logo_2022.png" }, { nome: "BLASTPremier", img: "https://i.namu.wiki/i/xnkOODUsRuZKWZoJHRemVKSTpHd2YcDLLS1tTDFGF-lF3ZCg9AgzJJRva_PWgDXka3OSQ6ZsGGK31wbaaGaPuQ.webp" }] },
+            { tema: "Cosplay", itens: [{ nome: "KamuiCosplay", img: "https://www.kamuicosplay.com/wp-content/uploads/2018/10/04_Monster_Hunter_Zinogre_Kamui_Cosplay-1024x696.jpg" }, { nome: "BindiSmalls", img: "https://pbs.twimg.com/media/FXZiHR_XkAAbvYr.jpg" }, { nome: "YayaHan", img: "https://yt3.googleusercontent.com/VXdmgPRsQZXDMMFMKH48GRafuK7HlV-6CvF4rQxtxkyhifAqaBE1X_46xKNLIR2ZuHINpij-q74=s900-c-k-c0x00ffffff-no-rj" }] },
+            { tema: "Musica", itens: [{ nome: "matthewkheafy", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR7beUzQLL5wqVQk8FzYK1Ewpc_dnhjeD8aDY1r_WSZnQ&s=10" }, { nome: "lara6683", img: "https://i.ytimg.com/vi/ftrO0goo-3E/sddefault.jpg?sqp=-oaymwEmCIAFEOAD8quKqQMa8AEB-AH-BIAC4AOKAgwIABABGHIgVSg8MA8=&rs=AOn4CLAEUApjaVMceM7MklMD00EC613qHg" }, { nome: "marcrebillet", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRCubddEbJJ_7-DAf1ae0McQqpkkN7knzKifEHVEGiuSYAUCN8NbLBCunaH&s=10" }] },
+            { tema: "Notícias", itens: [{ nome: "GamesRadar", img: "https://cdn.mos.cms.futurecdn.net/MCMBNG8BB4erKPSeCJQMcD-1920-80.jpg" }, { nome: "IGN", img: "https://m.media-amazon.com/images/I/41UqVp8UgEL.png" }, { nome: "HasanAbi", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRN35K4_4XHEYtgpbvozZ8r7RgTEWzprSiXb1YrSPj2JSpnde8gQweKkoIM&s=10" }] },
+            { tema: "ASMR", itens: [{ nome: "SweetCarol", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRqSJpmeAZ65BT0eFVac4M8-GkODApdkuNFNhQupDCp0Cq64XGoSx0YsWs1&s=10" }, { nome: "MizzRoseASMR", img: "https://pbs.twimg.com/media/FttSeMMaEAAn2GU.jpg" }, { nome: "Alinity", img: "https://static.wikia.nocookie.net/youtube/images/7/7c/Alinity.jpg/revision/latest?cb=20201107153316" }] },
+            { tema: "Reação", itens: [{ nome: "LubaTV", img: "https://i.pinimg.com/564x/82/e1/3c/82e13c8d14ee6e93907df9121c7ac431.jpg" }, { nome: "cellbit", img: "https://s2-techtudo.glbimg.com/3ehm7sRJ2ViXXL1_UNmFPGcXN1I=/0x0:750x500/984x0/smart/filters:strip_icc()/i.s3.glbimg.com/v1/AUTH_08fbf48bc0524877943fe86e43087e7a/internal_photos/bs/2022/K/e/xKP9QWREu1HcLAB4d2yQ/youtuber-cellbit-quarto-gravando-widexl.jpg" }, { nome: "KaiCenat", img: "https://www.billboard.com/wp-content/uploads/2025/01/Kai-Cenat-jan-2024-a-billboard-1548.jpg" }] }
+        ];
+
+        const imagensFundo = [
+            'https://www.oficinadanet.com.br/imagens/post/24260/esports-2.jpg',
+            'https://upload-os-bbs.hoyolab.com/upload/2024/10/10/100250575/fad5afce35418d20e60ad071ff8f669e_4928620822152350094.jpg?x-oss-process=image%2Fresize%2Cs_1000%2Fauto-orient%2C0%2Finterlace%2C1%2Fformat%2Cwebp%2Fquality%2Cq_70',
+            'https://cdn.crusoe.com.br/uploads/2025/10/homem-ouvindo-musica-scaled-1.jpg',
+            'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRCl0LO94kumIapVh6fAV9aa4UKhzmvPUF7Rkqcb6h4LwKBNPIf8NeqhBTu&s=10',
+            'https://forbes.com.br/wp-content/uploads/2023/11/ASMR.jpg',
+            'https://media.clipchamp.com/clipchamp/2048/2qp1BKkEe0FtVtwTQxmOcf'
+        ];
+
+        let indiceFundo = 0;
+        function mudarFundo() {
+            document.body.style.backgroundImage = `linear-gradient(rgba(14, 14, 16, 0.9), rgba(14, 14, 16, 0.9)), url('${imagensFundo[indiceFundo]}')`;
+            indiceFundo = (indiceFundo + 1) % imagensFundo.length;
+        }
+        setInterval(mudarFundo, 10000);
+        mudarFundo();
+
+        const app = document.getElementById('app');
+        const shortsList = document.getElementById('shortsList');
+        const searchInput = document.getElementById('searchInput');
+        const clearBtn = document.getElementById('clearBtn');
+
+        function toggleClearBtn() { clearBtn.style.display = searchInput.value.length > 0 ? 'block' : 'none'; }
+        function clearSearch() { searchInput.value = ''; toggleClearBtn(); document.querySelectorAll('.card').forEach(card => card.style.display = ''); }
+        
+        function startVoiceSearch() {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'pt-BR';
+            recognition.start();
+            recognition.onresult = (event) => { searchInput.value = event.results[0][0].transcript; toggleClearBtn(); handleSearch({key: 'Enter'}); };
+        }
+
+        function getSearchUrl(engine) {
+            const canalAtivo = document.getElementById('modalTitle').innerText;
+            const query = (canalAtivo !== "Título da Live" && canalAtivo !== "") ? canalAtivo : searchInput.value.trim();
+            const baseUrl = { 'google': 'https://google.com/search?q=', 'bing': 'https://bing.com/search?q=', 'duckduckgo': 'https://duckduckgo.com/?q=', 'naver': 'https://search.naver.com/search.naver?query=', 'baidu': 'https://www.baidu.com/s?wd=' };
+            return query ? baseUrl[engine] + encodeURIComponent(query) : `https://${engine}.com`;
+        }
+
+        dadosCarrossel.forEach(data => {
+            const section = document.createElement('section');
+            section.innerHTML = `<h2>${data.tema}</h2>`;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'carrossel-wrapper';
+            data.itens.forEach(canal => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.dataset.canal = canal.nome.toLowerCase();
+                card.style.backgroundImage = `url('${canal.img}')`;
+                card.innerHTML = `<span class="card-title">${canal.nome}</span>`;
+                card.onclick = (e) => openPlayer(canal.nome, e.target);
+                wrapper.appendChild(card);
+            });
+            section.appendChild(wrapper);
+            app.appendChild(section);
+        });
+
+        dadosCarrossel[0].itens.forEach(canal => {
+            const short = document.createElement('div');
+            short.className = 'short-card';
+            short.style.backgroundImage = `url('${canal.img}')`;
+            short.innerHTML = `<span class="card-title">${canal.nome}</span>`;
+            short.onclick = (e) => openPlayer(canal.nome, e.target);
+            shortsList.appendChild(short);
+        });
+
+        function handleSearch(event) {
+            const query = searchInput.value.toLowerCase().trim();
+            const cards = document.querySelectorAll('.card');
+            if (event.key === 'Enter' && query !== "") {
+                const exists = Array.from(cards).some(c => c.dataset.canal === query);
+                if (!exists) openPlayer(query, null);
+            } else { cards.forEach(card => card.style.display = card.dataset.canal.includes(query) ? '' : 'none'); }
+        }
+
+        function openPlayer(canal, element) {
+            document.getElementById('modalTitle').innerText = canal;
+            document.getElementById('twitchLink').href = `https://twitch.tv/${canal}`;
+            
+            // Aplica a imagem do card no fundo do modal com um degradê para legibilidade
+            const bg = element ? element.style.backgroundImage : "none";
+            document.getElementById('modalContainer').style.backgroundImage = `linear-gradient(rgba(0,0,0,0.9), rgba(0,0,0,0.9)), ${bg}`;
+            document.getElementById('modalContainer').style.backgroundSize = "cover";
+
+            document.getElementById('videoBox').innerHTML = `<iframe src="https://player.twitch.tv/?channel=${canal}&parent=${window.location.hostname}&muted=false" frameborder="0" allowfullscreen="true" scrolling="no" height="100%" width="100%"></iframe>`;
+            document.getElementById('playerModal').classList.add('active');
+            document.body.classList.add('modal-open');
+        }
+
+        function closePlayer() {
+            document.getElementById('playerModal').style.transform = 'translateY(100%)';
+            setTimeout(() => {
+                document.getElementById('playerModal').classList.remove('active');
+                document.getElementById('playerModal').style.transform = '';
+                document.getElementById('modalTitle').innerText = "Título da Live";
+                document.body.classList.remove('modal-open');
+                document.getElementById('videoBox').innerHTML = '';
+                document.getElementById('modalContainer').style.backgroundImage = "none";
+            }, 300);
+        }
+
+        const handle = document.getElementById('modal-drag-handle');
+        let touchStartY = 0;
+        handle.addEventListener('touchstart', (e) => touchStartY = e.touches[0].clientY);
+        handle.addEventListener('touchmove', (e) => {
+            const diff = e.touches[0].clientY - touchStartY;
+            if (diff > 0) document.getElementById('playerModal').style.transform = `translateY(${diff}px)`;
+        });
+        handle.addEventListener('touchend', (e) => {
+            if (e.changedTouches[0].clientY - touchStartY > 150) closePlayer();
+            else document.getElementById('playerModal').style.transform = 'translateY(0)';
+        });
+    </script>
+</body>
+</html>
