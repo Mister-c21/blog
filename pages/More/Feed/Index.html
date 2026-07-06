@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        :root {
+            --violet-glow: #8a2be2;
+            --ghost-color: #333;
+            --glass-bg: rgba(255, 255, 255, 0.6);
+            --glass-border: var(--violet-glow);
+        }
+
+        body { 
+            background-color: white; 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background 1s ease-in-out;
+            margin: 0; padding: 10px; font-family: sans-serif; 
+            display: flex; flex-direction: column; align-items: center; 
+            min-height: 100vh; width: 100%; box-sizing: border-box;
+        }
+        body.modal-open { overflow: hidden !important; height: 100vh !important; }
+        
+        header, .tab-container, .post-feed { 
+            width: 95% !important; 
+            max-width: 600px;
+        }
+
+        header { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; color: var(--violet-glow); position: relative; }
+        
+        .tab-container { display: flex; overflow-x: auto; gap: 20px; margin-bottom: 20px; color: var(--violet-glow); font-weight: bold; border-bottom: 1px solid var(--violet-glow); padding-bottom: 10px; white-space: nowrap; scrollbar-width: none; }
+        .tab-container::-webkit-scrollbar { display: none; }
+        .tab { cursor: pointer; transition: opacity 0.3s; padding-bottom: 5px; flex-shrink: 0; }
+        .tab.active { border-bottom: 2px solid var(--violet-glow); }
+
+        .back-btn, .post-btn { 
+            background: none; border: none; color: var(--violet-glow); font-size: 1.25rem; cursor: pointer; 
+            transition: opacity 0.3s, text-shadow 0.3s; text-shadow: 0 0 5px var(--violet-glow);
+        }
+        .back-btn { position: absolute; left: 0; }
+        .header-right { position: absolute; right: 0; }
+        
+        .post-feed { display: flex; flex-direction: column; gap: 15px; color: var(--ghost-color); }
+        .post { 
+            background: var(--glass-bg); backdrop-filter: blur(10px); padding: 15px; border-radius: 15px; 
+            border: 2px solid var(--glass-border); box-shadow: 0 4px 10px rgba(138, 43, 226, 0.2);
+        }
+        .post-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; color: black; }
+        .post-content { font-size: 0.95rem; margin-bottom: 15px; }
+        .post-footer { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--violet-glow); }
+
+        .modal-base {
+            position: fixed; inset: 0; z-index: 9999; background-color: black;
+            display: none; flex-direction: column; transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .modal-base.active { display: flex; transform: translateY(0); }
+        .drag-handle { height: 40px; display: flex; align-items: center; justify-content: center; cursor: grab; }
+        .drag-pill { width: 48px; height: 6px; background: rgba(255, 255, 255, 0.3); border-radius: 9999px; }
+        .modal-body { flex-grow: 1; width: 100%; overflow: hidden; }
+        #modalIframe { width: 100%; height: 100%; border: none; }
+        .close-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; z-index: 10; }
+        
+        #nglModal { z-index: 10000; }
+        .ngl-card { background: var(--violet-glow); width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-size: cover; background-position: center; }
+        .ngl-inner { background: rgba(26, 31, 46, 0.8); padding: 30px; border-radius: 17px; color: white; text-align: center; width: 85%; max-width: 350px; display: flex; flex-direction: column; gap: 15px; }
+        .ngl-btns { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 10px; }
+        .ngl-btn { font-size: 24px; color: white; cursor: pointer; }
+        .reply-btn { background: var(--violet-glow); border: none; color: white; padding: 12px; border-radius: 20px; cursor: pointer; font-weight: bold; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <button class="back-btn"><i class="fas fa-arrow-left"></i></button>
+        <h1>Feed</h1>
+        <div class="header-right">
+            <button class="post-btn" onclick="openModal('postar.html')"><i class="fas fa-plus"></i></button>
+        </div>
+    </header>
+
+    <div class="tab-container">
+        <div class="tab active">Feed</div>
+        <div class="tab" onclick="openModal('galeria.html')">Galeria</div>
+        <div class="tab" onclick="openModal('videos.html')">Vídeo</div>
+        <div class="tab" onclick="openModal('chat.html')">Chat</div>
+    </div>
+
+    <div class="post-feed">
+        <div class="post">
+            <div class="post-title">Título do Post Exemplo</div>
+            <div class="post-content">Este é o conteúdo do post que simula a experiência de leitura do Reddit.</div>
+            <div class="post-footer">
+                <span onclick="toggleNgl(this)"><i class="fas fa-circle-notch"></i></span>
+                <span><i class="fas fa-book-reader"></i></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="playerModal" class="modal-base">
+        <div id="modal-drag-handle" class="drag-handle"><div class="drag-pill"></div></div>
+        <button class="close-btn" onclick="closeAnyModal('playerModal')"><i class="fas fa-times"></i></button>
+        <div class="modal-body"><iframe id="modalIframe" src=""></iframe></div>
+    </div>
+
+    <div id="nglModal" class="modal-base">
+        <div id="ngl-drag-handle" class="drag-handle"><div class="drag-pill"></div></div>
+        <button class="close-btn" onclick="closeAnyModal('nglModal')"><i class="fas fa-times"></i></button>
+        <div class="ngl-card" id="nglCard">
+            <div class="ngl-inner">
+                <div>
+                    <h3 id="nglTitleDisplay"></h3>
+                    <p id="nglTextDisplay"></p>
+                </div>
+                <button class="reply-btn" onclick="compartilharNgl()">Responder</button>
+                <div class="ngl-btns">
+                    <i class="fas fa-palette ngl-btn" onclick="trocarCorNgl()"></i>
+                    <i class="fas fa-camera ngl-btn" onclick="document.getElementById('imageInput').click()"></i>
+                    <input type="file" id="imageInput" accept="image/*" style="display:none" onchange="mudarFundo(event)">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function compartilharNgl() {
+            const card = document.getElementById('nglCard');
+            const canvas = await html2canvas(card, { backgroundColor: null });
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], "post.png", { type: "image/png" });
+                if (navigator.share) {
+                    await navigator.share({ files: [file] });
+                }
+            });
+        }
+
+        function applyDragLogic(modalId, handleId) {
+            const modal = document.getElementById(modalId);
+            const handle = document.getElementById(handleId);
+            let touchStartY = 0, isDragging = false;
+            handle.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; isDragging = true; }, { passive: true });
+            handle.addEventListener('touchmove', (e) => { 
+                if (!isDragging) return; 
+                const diff = e.touches[0].clientY - touchStartY; 
+                if (diff > 0) modal.style.transform = `translateY(${diff}px)`; 
+            }, { passive: true });
+            handle.addEventListener('touchend', (e) => { 
+                isDragging = false; 
+                const diff = e.changedTouches[0].clientY - touchStartY; 
+                diff > 100 ? closeAnyModal(modalId) : modal.style.transform = 'translateY(0)'; 
+            }, { passive: true });
+        }
+
+        applyDragLogic('playerModal', 'modal-drag-handle');
+        applyDragLogic('nglModal', 'ngl-drag-handle');
+
+        function openModal(url) {
+            document.getElementById('modalIframe').src = url;
+            document.getElementById('playerModal').classList.add('active');
+            document.body.classList.add('modal-open');
+        }
+
+        function toggleNgl(element) {
+            const ngl = document.getElementById('nglModal');
+            if (element) {
+                const post = element.closest('.post');
+                document.getElementById('nglTitleDisplay').innerText = post.querySelector('.post-title').innerText;
+                document.getElementById('nglTextDisplay').innerText = post.querySelector('.post-content').innerText;
+            }
+            ngl.classList.toggle('active');
+            document.body.classList.toggle('modal-open');
+        }
+
+        function closeAnyModal(id) {
+            const modal = document.getElementById(id);
+            modal.style.transform = 'translateY(100%)';
+            setTimeout(() => { 
+                modal.classList.remove('active'); 
+                modal.style.transform = ''; 
+                document.body.classList.remove('modal-open'); 
+                if(id === 'playerModal') document.getElementById('modalIframe').src = '';
+            }, 400);
+        }
+
+        function mudarFundo(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => document.getElementById('nglCard').style.backgroundImage = `url('${e.target.result}')`;
+                reader.readAsDataURL(file);
+            }
+        }
+
+        const gradientes = [
+            'linear-gradient(135deg, #8a2be2, #4169e1)',
+            'linear-gradient(135deg, #ff0080, #ff8c00)', 
+            'linear-gradient(135deg, #00c6ff, #0072ff)'
+        ];
+        let gradIndex = 0;
+        function trocarCorNgl() {
+            gradIndex = (gradIndex + 1) % gradientes.length;
+            document.getElementById('nglCard').style.backgroundImage = gradientes[gradIndex];
+        }
+
+        const imagens = ['url("https://images.unsplash.com/photo-1506744038136-46273834b3fb")', 'url("https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05")'];
+        let bgIndex = 0;
+        setInterval(() => {
+            document.body.style.backgroundImage = imagens[bgIndex];
+            bgIndex = (bgIndex + 1) % imagens.length;
+        }, 10000);
+    </script>
+</body>
+</html>
