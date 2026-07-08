@@ -6,95 +6,71 @@
     <title>LoreWiki</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-
-        body { background-color: #f7f7fc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; color: #1a1a1a; }
-
-        .header { height: 50px; background: rgba(138, 43, 226, 0.1); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid rgba(138, 43, 226, 0.15); }
-        .header h1 { font-size: 18px; color: #8a2be2; flex: 1; text-align: center; }
-        .header a { text-decoration: none; color: #8a2be2; font-size: 24px; width: 24px; display: flex; align-items: center; }
-
-        /* MODAL APRIMORADO */
-        #iframe-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background: rgba(247, 247, 252, 0.85);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(138, 43, 226, 0.2);
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            transform: translateY(100%);
-            display: flex;
-            flex-direction: column;
-            border-radius: 24px 24px 0 0;
-            box-shadow: 0 -10px 30px rgba(138, 43, 226, 0.1);
-            pointer-events: none;
-            will-change: transform;
+        :root {
+            --primary: #8a2be2;
+            --bg: #f7f7fc;
+            --glass: rgba(255, 255, 255, 0.7);
+            --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; color: #1a1a1a; }
+
+        .header { height: 50px; background: rgba(138, 43, 226, 0.05); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid rgba(138, 43, 226, 0.1); }
+        .header h1 { font-size: 18px; color: var(--primary); flex: 1; text-align: center; }
+        .header a { text-decoration: none; color: var(--primary); font-size: 20px; }
+
+        #iframe-modal {
+            position: fixed; inset: 0; z-index: 9999;
+            background: var(--bg); backdrop-filter: blur(20px);
+            transform: translateY(100%);
+            transition: var(--transition);
+            display: flex; flex-direction: column;
+            border-radius: 24px 24px 0 0;
+            pointer-events: none;
+        }
         #iframe-modal.active { transform: translateY(0); pointer-events: auto; }
 
-        #modal-drag-handle {
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: grab;
-            touch-action: none;
-        }
+        #modal-drag-handle { height: 40px; display: flex; align-items: center; justify-content: center; cursor: grab; touch-action: none; }
+        .drag-pill { width: 48px; height: 6px; background: rgba(138, 43, 226, 0.2); border-radius: 9999px; }
 
-        .drag-pill { width: 48px; height: 6px; background: rgba(138, 43, 226, 0.3); border-radius: 9999px; }
+        .top-tab-container { width: 100%; background: var(--bg); border-bottom: 1px solid rgba(138, 43, 226, 0.1); overflow-x: auto; scrollbar-width: none; }
+        .tab-list { display: flex; align-items: center; gap: 20px; padding: 0 20px; list-style: none; position: relative; }
+        .tab-item { padding: 14px 4px; font-weight: 600; color: #999; cursor: pointer; transition: var(--transition); white-space: nowrap; }
+        .tab-item.active { color: var(--primary); }
+        .tab-indicator { position: absolute; bottom: 0; height: 3px; background-color: var(--primary); border-radius: 2px; transition: var(--transition); }
 
-        #modal-close-btn {
-            position: absolute; right: 16px; top: 8px; color: #8a2be2; font-size: 24px; padding: 4px; display: none; background: none; border: none; cursor: pointer;
-        }
-
-        @media (min-width: 768px) { #modal-close-btn { display: block; } .drag-pill { display: none; } }
-
-        #iframe-modal iframe { width: 100%; flex: 1; border: none; }
-
-        /* UI PADRÃO */
-        .top-tab-container { width: 100%; padding: 14px 0; background: rgba(138, 43, 226, 0.08); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(138, 43, 226, 0.15); overflow-x: auto; white-space: nowrap; scrollbar-width: none; z-index: 1000; }
-        .tab-list { display: inline-flex; align-items: center; gap: 28px; padding: 0 24px; list-style: none; }
-        .tab-item { font-size: 16px; font-weight: 600; color: rgba(138, 43, 226, 0.6); cursor: pointer; transition: color 0.25s ease, transform 0.2s ease; position: relative; padding: 6px 4px; }
-        .tab-item.active { color: #8a2be2; transform: scale(1.05); }
-        .tab-indicator { position: absolute; bottom: -2px; height: 3px; background-color: #8a2be2; border-radius: 2px; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
-
-        .window-wrapper { flex: 1; width: 100%; overflow: hidden; position: relative; }
-        .tabs-view-pager { display: flex; width: 700%; height: 100%; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
-        .tab-page { width: calc(100% / 7); height: 100%; }
+        .window-wrapper { flex: 1; width: 100%; overflow: hidden; }
+        .tabs-view-pager { display: flex; width: 500%; height: 100%; transition: var(--transition); }
+        .tab-page { width: 20%; height: 100%; }
         .content-iframe { width: 100%; height: 100%; border: none; }
     </style>
 </head>
 <body>
 
     <div id="iframe-modal">
-        <div id="modal-drag-handle">
-            <div class="drag-pill"></div>
-            <button id="modal-close-btn" onclick="closeIframeModal()"><i class="fas fa-times"></i></button>
-        </div>
+        <div id="modal-drag-handle"><div class="drag-pill"></div></div>
         <iframe id="main-iframe" src=""></iframe>
     </div>
 
     <header class="header">
         <a href="../../../index.html"><i class="fas fa-arrow-left"></i></a>
         <h1>LoreWiki</h1>
-        <div style="width: 24px;"></div>
+        <div style="width: 20px;"></div>
     </header>
 
     <nav class="top-tab-container">
-        <ul class="tab-list">
-            <li class="tab-item active" onclick="switchTab(0)">Animes</li>
-            <li class="tab-item" onclick="switchTab(1)">Games</li>
-            <li class="tab-item" onclick="switchTab(2)">Séries</li>
-            <li class="tab-item" onclick="switchTab(3)">Filmes</li>
-            <li class="tab-item" onclick="switchTab(4)">Livros</li>
+        <div class="tab-list" id="tab-list">
+            <div class="tab-item active" onclick="switchTab(0)">Animes</div>
+            <div class="tab-item" onclick="switchTab(1)">Games</div>
+            <div class="tab-item" onclick="switchTab(2)">Séries</div>
+            <div class="tab-item" onclick="switchTab(3)">Filmes</div>
+            <div class="tab-item" onclick="switchTab(4)">Livros</div>
             <div class="tab-indicator" id="indicator"></div>
-        </ul>
+        </div>
     </nav>
 
-    <div class="window-wrapper" id="gesture-zone">
+    <div class="window-wrapper">
         <div class="tabs-view-pager" id="view-pager">
             <div class="tab-page"><iframe class="content-iframe" src="./Themes/Animes.html"></iframe></div>
             <div class="tab-page"><iframe class="content-iframe" src="./Themes/Games.html"></iframe></div>
@@ -106,61 +82,37 @@
 
     <script>
         const iframeModal = document.getElementById('iframe-modal');
-        const handle = document.getElementById('modal-drag-handle');
-        const mainIframe = document.getElementById('main-iframe');
         const pager = document.getElementById('view-pager');
-        const tabs = Array.from(document.querySelectorAll('.tab-item'));
-        let touchStartY = 0, isDragging = false;
+        const tabs = document.querySelectorAll('.tab-item');
+        const indicator = document.getElementById('indicator');
+        let touchStartY = 0;
 
-        function openIframeModal(url) {
-            mainIframe.src = url;
-            iframeModal.classList.add('active');
-            iframeModal.style.transform = 'translateY(0)';
+        function switchTab(index) {
+            tabs.forEach((t, i) => t.classList.toggle('active', i === index));
+            const activeTab = tabs[index];
+            indicator.style.width = `${activeTab.offsetWidth}px`;
+            indicator.style.left = `${activeTab.offsetLeft}px`;
+            pager.style.transform = `translateX(-${index * 20}%)`;
         }
 
-        function closeIframeModal() {
-            iframeModal.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
-            iframeModal.style.transform = 'translateY(100%)'; 
-            setTimeout(() => { 
-                mainIframe.src = ''; 
-                iframeModal.classList.remove('active');
-            }, 400);
-        }
-
-        handle.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-            isDragging = true;
-            iframeModal.style.transition = 'none';
-        }, { passive: true });
-
-        handle.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
+        // Modal Touch Gestures
+        iframeModal.addEventListener('touchstart', (e) => touchStartY = e.touches[0].clientY, { passive: true });
+        iframeModal.addEventListener('touchmove', (e) => {
             const diff = e.touches[0].clientY - touchStartY;
             if (diff > 0) iframeModal.style.transform = `translateY(${diff}px)`;
         }, { passive: true });
 
-        handle.addEventListener('touchend', (e) => {
-            if (!isDragging) return;
-            isDragging = false;
+        iframeModal.addEventListener('touchend', (e) => {
             const diff = e.changedTouches[0].clientY - touchStartY;
-            
             if (diff > 100) {
-                closeIframeModal();
+                iframeModal.classList.remove('active');
+                iframeModal.style.transform = 'translateY(100%)';
             } else {
-                iframeModal.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
                 iframeModal.style.transform = 'translateY(0)';
             }
         }, { passive: true });
 
-        function switchTab(index) {
-            tabs.forEach((item, i) => { item.classList.toggle('active', i === index); });
-            const indicator = document.getElementById('indicator');
-            indicator.style.width = `${tabs[index].offsetWidth}px`;
-            indicator.style.left = `${tabs[index].offsetLeft}px`;
-            pager.style.transform = `translateX(-${index * (100 / tabs.length)}%)`;
-        }
-        
-        window.addEventListener('DOMContentLoaded', () => { switchTab(0); });
+        window.onload = () => switchTab(0);
     </script>
 </body>
 </html>
