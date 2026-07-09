@@ -24,7 +24,7 @@
         
         .search-bar {
             width: 100%;
-            padding: 12px 45px 12px 40px; /* Padding ajustado para não sobrepor o ícone */
+            padding: 12px 45px 12px 40px;
             border-radius: 25px;
             border: 1px solid var(--blueviolet-color);
             background: rgba(255, 255, 255, 0.5);
@@ -36,7 +36,6 @@
         }
         .search-bar::placeholder { color: var(--blueviolet-color); opacity: 0.7; }
 
-        /* Estilo do novo ícone */
         .search-icon {
             position: absolute;
             left: 15px;
@@ -55,7 +54,6 @@
             font-size: 18px;
         }
 
-        /* Mantendo o restante do CSS original inalterado */
         .item-card {
             background: rgba(255, 255, 255, 0.4);
             backdrop-filter: blur(10px);
@@ -133,7 +131,7 @@
             <i class="fa-solid fa-magnifying-glass search-icon"></i>
             <input type="text" id="search" class="search-bar" placeholder="Buscar animes..." 
                    oninput="toggleClearButton()" 
-                   onkeypress="if(event.key==='Enter') buscarAnime()">
+                   onkeydown="if(event.key==='Enter') buscarAnime()">
             <button id="clear-btn" onclick="limparBusca()">
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -147,7 +145,6 @@
     </div>
 
     <script>
-        // Scripts mantidos idênticos
         let currentAnime = null;
 
         async function fetchWikipediaArticle(title, lang = 'pt') {
@@ -190,16 +187,6 @@
             } catch (e) { container.innerHTML = '<p>Erro ao carregar dados.</p>'; }
         }
 
-        async function atualizarArtigo(lang) {
-            const container = document.getElementById('artigo-texto');
-            container.innerHTML = 'Carregando...';
-            const novoArtigo = await fetchWikipediaArticle(currentAnime.title, lang);
-            container.innerHTML = novoArtigo || 'Artigo indisponível neste idioma.';
-            
-            document.querySelectorAll('.lang-item').forEach(el => el.classList.remove('lang-active'));
-            document.getElementById('btn-lang-' + lang).classList.add('lang-active');
-        }
-
         function toggleClearButton() {
             const input = document.getElementById('search');
             const btn = document.getElementById('clear-btn');
@@ -214,8 +201,13 @@
         }
 
         function buscarAnime() {
-            const query = document.getElementById('search').value;
-            carregarLista(query);
+            const input = document.getElementById('search');
+            const query = input.value.trim();
+            if (query === "") {
+                limparBusca();
+            } else {
+                carregarLista(query);
+            }
         }
 
         async function abrirModal(anime) {
@@ -236,14 +228,12 @@
                 <h1 style="color: var(--blueviolet-color);">${anime.title}</h1>
                 <img src="${anime.images.jpg.large_image_url}" style="width:100%; max-width:400px; border-radius:15px; display:block; margin-bottom:15px;">
                 <p><strong><i class="fa-solid fa-tags" style="color: var(--blueviolet-color);"></i> Gêneros:</strong> ${generos}</p>
-                
                 <p><strong>Redirecionamento:</strong></p>
                 <div class="search-engines-scroll">
                     <div class="engine-item" onclick="window.open('https://www.google.com/search?q=${encodeURIComponent(anime.title)}', '_blank')"><i class="fa-brands fa-google"></i> Google</div>
                     <div class="engine-item" onclick="window.open('https://myanimelist.net/search/all?q=${encodeURIComponent(anime.title)}', '_blank')"><i class="fa-solid fa-list-ul"></i> MAL</div>
                     <div class="engine-item" onclick="window.open('https://www.youtube.com/results?search_query=${encodeURIComponent(anime.title + ' review')}', '_blank')"><i class="fa-brands fa-youtube"></i> YouTube</div>
                 </div>
-
                 <p><strong>Artigo:</strong></p>
                 <div class="lang-scroll">
                     <div class="lang-item lang-active" id="btn-lang-pt" onclick="atualizarArtigo('pt')">Português</div>
