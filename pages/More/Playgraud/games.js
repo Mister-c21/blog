@@ -81,13 +81,11 @@ export const consoles = {
      "playstation": { 
         key: "Playstation", 
         games: [
-            { title: "Mega Man X4", image: "https://m.media-amazon.com/images/M/MV5BMGEwNTlhOGEtYzg0ZS00NDAxLWIxNDEtMDE1OGIyZTNhMjFhXkEyXkFqcGc@._V1_.jpg", url: "https://www.retrogames.cc/embed/40778-mega-man-x4.html", video:" " },
-            { title: "Mega Man X5", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRKBeArtjSm6Zj3biBtEWVTp-Rh0aeegxQTNwNdSHbUW4n9jCsfUPUTv-PD&s=10", url: "https://www.retrogames.cc/embed/40779-mega-man-x5.html", video:" " },
-            { title: "Mega Man X6", image: "https://assets-prd.ignimgs.com/2022/04/05/megmanx6-1649186869987.jpg", url: "https://www.retrogames.cc/embed/40780-mega-man-x6.html", video:" " },
-            { title: "Mega Man Legends", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR1Hy_Fz5JBSeZMrhbwOitpGiEa0hvCvNxxV3yAy_unMeg7k8jVW2WWqKsf&s=10", url: "https://www.retrogames.cc/embed/40783-mega-man-legends.html", video:" " },
-            { title: "Mega Man Legends 2", image: "https://m.media-amazon.com/images/M/MV5BZmExYjI0MmQtOTYxZC00M2ZjLTlkNzQtODRjYzgxYWY2MTNlXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg", url: "https://www.retrogames.cc/embed/42739-mega-man-legends-2.html", video:" " },
-            { title: "Mega Man Legends 2", image: "https://m.media-amazon.com/images/M/MV5BZmExYjI0MmQtOTYxZC00M2ZjLTlkNzQtODRjYzgxYWY2MTNlXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg", url: "https://www.retrogames.cc/embed/42739-mega-man-legends-2.html", video:" " },
-            
+            { title: "Mega Man X4", image: "https://m.media-amazon.com/images/M/MV5BMGEwNTlhOGEtYzg0ZS00NDAxLWIxNDEtMDE1OGIyZTNhMjFhXkEyXkFqcGc@._V1_.jpg", url: "https://www.retrogames.cc/embed/40778-mega-man-x4.html", video:"r8e4ySrnXIU" },
+            { title: "Mega Man X5", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRKBeArtjSm6Zj3biBtEWVTp-Rh0aeegxQTNwNdSHbUW4n9jCsfUPUTv-PD&s=10", url: "https://www.retrogames.cc/embed/40779-mega-man-x5.html", video:"BYlYHJ4P4A8" },
+            { title: "Mega Man X6", image: "https://assets-prd.ignimgs.com/2022/04/05/megmanx6-1649186869987.jpg", url: "https://www.retrogames.cc/embed/40780-mega-man-x6.html", video:"Trty4ldGWVQ" },
+            { title: "Mega Man Legends", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR1Hy_Fz5JBSeZMrhbwOitpGiEa0hvCvNxxV3yAy_unMeg7k8jVW2WWqKsf&s=10", url: "https://www.retrogames.cc/embed/40783-mega-man-legends.html", video:"yTYcLd090qw" },
+            { title: "Mega Man Legends 2", image: "https://m.media-amazon.com/images/M/MV5BZmExYjI0MmQtOTYxZC00M2ZjLTlkNzQtODRjYzgxYWY2MTNlXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg", url: "https://www.retrogames.cc/embed/42739-mega-man-legends-2.html", video:"AjPAshHecrs" },
         ]
     },
 };
