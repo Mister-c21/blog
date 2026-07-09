@@ -53,10 +53,10 @@ export const consoles = {
     "SNES": { 
         key: "SNES", 
         games: [
-            { title: "Mega Man X", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSMGXgwmCZXv9V65PlsE5nqXz1eEtH1ItF9rsbydxg9Rw5yMg1gwqr-vY3R&s=10", url: "https://www.retrogames.cc/embed/18705-megaman-x-usa-rev-a.html", video:" " },
-            { title: "Mega Man X2", image: "https://upload.wikimedia.org/wikipedia/pt/e/e0/Capa_Mega_Man_X2.jpg", url: "https://www.retrogames.cc/embed/19996-megaman-x2-usa.html", video:" " },
-            { title: "Mega Man X3", image: "https://upload.wikimedia.org/wikipedia/pt/d/d8/Capa_Mega_Man_X3.jpg", url: "https://www.retrogames.cc/embed/22454-megaman-x3-europe.html", video:" " },
-            { title: "Mega Man 7", image: "https://upload.wikimedia.org/wikipedia/pt/f/f8/Mega_Man_7_capa.jpg", url: "https://www.retrogames.cc/embed/16692-megaman-vii-usa.html", video:" " },
+            { title: "Mega Man X", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSMGXgwmCZXv9V65PlsE5nqXz1eEtH1ItF9rsbydxg9Rw5yMg1gwqr-vY3R&s=10", url: "https://www.retrogames.cc/embed/18705-megaman-x-usa-rev-a.html", video:"XptSQ9ycEDw" },
+            { title: "Mega Man X2", image: "https://upload.wikimedia.org/wikipedia/pt/e/e0/Capa_Mega_Man_X2.jpg", url: "https://www.retrogames.cc/embed/19996-megaman-x2-usa.html", video:"Kqig9Srm-XM" },
+            { title: "Mega Man X3", image: "https://upload.wikimedia.org/wikipedia/pt/d/d8/Capa_Mega_Man_X3.jpg", url: "https://www.retrogames.cc/embed/22454-megaman-x3-europe.html", video:"GrH31dSTFew" },
+            { title: "Mega Man 7", image: "https://upload.wikimedia.org/wikipedia/pt/f/f8/Mega_Man_7_capa.jpg", url: "https://www.retrogames.cc/embed/16692-megaman-vii-usa.html", video:"v0RMk0tz0ZU" },
             { title: "Mega Man Soccer", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSs4dWjqNP31cy3JYJoP4_LXFSJ9tAwUhva0GXKk5-6ABuZFaZNgKf6DLk&s=10", url: "https://www.retrogames.cc/embed/22454-megaman-x3-europe.html", video:" " },
             { title: "Mega Man & Bass", image: "https://i.pinimg.com/736x/9a/43/3a/9a433a286f6cc72aff387cd52a6dceb3.jpg", url: "https://www.retrogames.cc/embed/43955-megaman-bass.html", video:" " },
             { title: "Marvel Super Heroes: War of the Gems", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRdlw45E-QXih05uKjd86nF-g_W-EVwys8HWdnGqzNppVLhyWHIxivfDAU&s=10", url: "https://www.retrogames.cc/embed/22520-marvel-super-heroes-war-of-the-gems-usa.html", video:" "},
