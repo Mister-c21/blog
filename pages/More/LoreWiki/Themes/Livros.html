@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoreWiki-Livros</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --blueviolet-color: #8a2be2;
+            --ghost-color: #f8f8ff;
+            --glass-bg: rgba(255, 255, 255, 0.4);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        body {
+            background-color: var(--ghost-color);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: var(--blueviolet-color);
+        }
+
+        .lista-container { max-width: 600px; margin: auto; }
+
+        .search-wrapper { margin-bottom: 20px; position: relative; display: flex; align-items: center; }
+        .search-bar {
+            width: 100%;
+            padding: 12px 45px 12px 20px;
+            border-radius: 25px;
+            border: 1px solid var(--blueviolet-color);
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            outline: none;
+            box-sizing: border-box;
+            font-size: 16px;
+            color: var(--blueviolet-color);
+        }
+        .search-bar::placeholder { color: var(--blueviolet-color); opacity: 0.7; }
+
+        #clear-btn {
+            position: absolute;
+            right: 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--blueviolet-color);
+            display: none;
+            font-size: 18px;
+        }
+
+        .item-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: var(--glass-border);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        .item-card:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(138, 43, 226, 0.2); }
+        .item-card img { width: 80px; height: 120px; border-radius: 8px; object-fit: cover; }
+
+        .info h3 { margin: 0 0 5px 0; font-size: 16px; }
+        .info p { margin: 0; font-size: 13px; color: #555; }
+
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: var(--ghost-color);
+            z-index: 1000;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .modal-header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .fechar-btn { font-size: 24px; cursor: pointer; padding: 10px; }
+        
+        .idiomas-container { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
+        .btn-lang { padding: 5px 12px; border: 1px solid var(--blueviolet-color); background: none; border-radius: 15px; cursor: pointer; color: var(--blueviolet-color); font-size: 12px; }
+        .btn-lang.active { background: var(--blueviolet-color); color: white; }
+        
+        .plataformas-container { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+        .btn-plat { padding: 8px 15px; border: 1px solid var(--blueviolet-color); background: var(--glass-bg); border-radius: 20px; cursor: pointer; color: var(--blueviolet-color); text-decoration: none; font-size: 12px; transition: 0.3s; }
+        .btn-plat:hover { background: var(--blueviolet-color); color: white; }
+
+        .sugestoes-lista { margin-top: 30px; }
+        
+        .autor-perfil {
+            margin-top: 30px;
+            padding: 15px;
+            background: var(--glass-bg);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border: var(--glass-border);
+        }
+        .autor-info { display: flex; align-items: center; gap: 15px; }
+        .autor-perfil img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+        
+        .btn-mais {
+            padding: 8px;
+            border: 1px solid var(--blueviolet-color);
+            background: var(--glass-bg);
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--blueviolet-color);
+            text-decoration: none;
+            text-align: center;
+            font-size: 12px;
+            transition: 0.3s;
+        }
+        .btn-mais:hover { background: var(--blueviolet-color); color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="lista-container">
+        <div class="search-wrapper">
+            <input type="text" id="search" class="search-bar" placeholder="Buscar livros..." 
+                   oninput="toggleClearButton()" 
+                   onkeydown="if(event.key==='Enter') buscarLivro()">
+            <button id="clear-btn" onclick="limparBusca()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div id="lista"></div>
+    </div>
+
+    <div id="modal">
+        <div id="modal-conteudo" class="lista-container"></div>
+    </div>
+
+    <script>
+        const OPEN_LIBRARY_URL = 'https://openlibrary.org/search.json?q=';
+        let livroSalvo = null;
+
+        async function carregarLista(query = 'foundation') {
+            const container = document.getElementById('lista');
+            container.innerHTML = '<p style="text-align:center;">Carregando...</p>';
+            try {
+                const res = await fetch(`${OPEN_LIBRARY_URL}${encodeURIComponent(query)}&limit=10`);
+                const data = await res.json();
+                container.innerHTML = '';
+                if (!data.docs || data.docs.length === 0) {
+                    container.innerHTML = '<p style="text-align:center;">Nenhum livro encontrado.</p>';
+                    return;
+                }
+                data.docs.forEach(item => container.appendChild(criarCard(item)));
+            } catch (e) { document.getElementById('lista').innerHTML = '<p style="text-align:center;">Erro ao conectar ao servidor.</p>'; }
+        }
+
+        function criarCard(item) {
+            const card = document.createElement('div');
+            card.className = 'item-card';
+            card.onclick = () => abrirModal(item);
+            card.innerHTML = `
+                <img src="${item.cover_i ? `https://covers.openlibrary.org/b/id/${item.cover_i}-M.jpg` : 'https://via.placeholder.com/80x120?text=Sem+Capa'}" alt="${item.title}">
+                <div class="info">
+                    <h3>${item.title}</h3>
+                    <p>${item.author_name ? item.author_name[0] : 'Autor desconhecido'}</p>
+                </div>
+            `;
+            return card;
+        }
+
+        async function buscarWiki(titulo, lang = 'pt') {
+            try {
+                const res = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(titulo)}`);
+                return (await res.json()).extract || "Conteúdo não disponível.";
+            } catch (e) { return "Erro."; }
+        }
+
+        async function buscarAutor(nome, lang = 'pt') {
+            try {
+                const url = `https://${lang}.wikipedia.org/w/api.php?action=query&prop=pageimages|extracts&exintro&explaintext&titles=${encodeURIComponent(nome)}&format=json&origin=*&pithumbsize=200`;
+                const res = await fetch(url);
+                const data = await res.json();
+                const page = Object.values(data.query.pages)[0];
+                return {
+                    bio: page.extract ? page.extract.substring(0, 100) + '...' : "Biografia não encontrada.",
+                    img: page.thumbnail ? page.thumbnail.source : 'https://via.placeholder.com/60?text=Sem+Foto'
+                };
+            } catch (e) { return { bio: "Biografia indisponível.", img: 'https://via.placeholder.com/60' }; }
+        }
+
+        async function obterSugestoes(titulo) {
+            try {
+                const res = await fetch(`${OPEN_LIBRARY_URL}${encodeURIComponent(titulo.split(' ')[0])}&limit=6`);
+                const data = await res.json();
+                return data.docs.filter(d => d.title !== titulo).slice(0, 5);
+            } catch (e) { return []; }
+        }
+
+        async function abrirModal(livro, lang = 'pt') {
+            livroSalvo = livro;
+            const modal = document.getElementById('modal');
+            const modalConteudo = document.getElementById('modal-conteudo');
+            const autorNome = livro.author_name ? livro.author_name[0] : "Autor desconhecido";
+            
+            modalConteudo.innerHTML = `<div class="modal-header"><h1>Carregando...</h1></div>`;
+            modal.style.display = 'block';
+
+            const wikiConteudo = await buscarWiki(livro.title, lang);
+            const autorData = await buscarAutor(autorNome, lang);
+            const sugestoes = await obterSugestoes(livro.title);
+            
+            modalConteudo.innerHTML = `
+                <div class="modal-header">
+                    <i class="fa-solid fa-arrow-left fechar-btn" onclick="fecharModal()"></i>
+                    <h1 style="margin:0; font-size: 20px;">${livro.title}</h1>
+                </div>
+                ${livro.cover_i ? `<img src="https://covers.openlibrary.org/b/id/${livro.cover_i}-L.jpg" style="width:150px; border-radius:15px; display:block; margin: 0 auto 20px;">` : ''}
+                
+                <p><strong>Autor(es):</strong> ${autorNome}</p>
+                <div class="idiomas-container">
+                    ${['pt', 'en', 'es', 'fr'].map(l => `<button class="btn-lang ${l === lang ? 'active' : ''}" onclick="abrirModal(livroSalvo, '${l}')">${l.toUpperCase()}</button>`).join('')}
+                </div>
+                <p><strong>Conteúdo:</strong> ${wikiConteudo}</p>
+                
+                <div class="plataformas-container">
+                    <a href="https://www.amazon.com.br/s?k=${encodeURIComponent(livro.title)}" target="_blank" class="btn-plat">Amazon</a>
+                    <a href="https://books.google.com.br/books?q=${encodeURIComponent(livro.title)}" target="_blank" class="btn-plat">Google Books</a>
+                    <a href="https://www.skoob.com.br/livro/lista?q=${encodeURIComponent(livro.title)}" target="_blank" class="btn-plat">Skoob</a>
+                </div>
+
+                <div class="sugestoes-lista"><h3>Sugestões:</h3></div>
+                
+                <div class="autor-perfil">
+                    <div class="autor-info">
+                        <img src="${autorData.img}" alt="${autorNome}">
+                        <div>
+                            <h4 style="margin:0;">${autorNome}</h4>
+                            <p style="font-size: 12px; margin: 5px 0;">${autorData.bio}</p>
+                        </div>
+                    </div>
+                    <a href="https://www.google.com/search?q=${encodeURIComponent(autorNome)}" target="_blank" class="btn-mais">Mais sobre ${autorNome.split(' ')[0]}</a>
+                </div>
+            `;
+            sugestoes.forEach(s => modalConteudo.querySelector('.sugestoes-lista').appendChild(criarCard(s)));
+        }
+
+        function toggleClearButton() { document.getElementById('clear-btn').style.display = document.getElementById('search').value.length > 0 ? 'block' : 'none'; }
+        function limparBusca() { document.getElementById('search').value = ''; toggleClearButton(); carregarLista('foundation'); }
+        function buscarLivro() { const val = document.getElementById('search').value.trim(); if(val) carregarLista(val); }
+        function fecharModal() { document.getElementById('modal').style.display = 'none'; }
+
+        carregarLista();
+    </script>
+</body>
+</html>
