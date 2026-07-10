@@ -18,6 +18,7 @@ const dataMusicas = [
     { t: 'Jura Juradinho', v: 'Yx1krJ3DycU'},
     { t: 'Teu Perfume', v: '-chsVcNpGUQ'},
     { t: 'Auras', v: 'dfmm6ARNl1Q'},
+    { t: 'VMZ-Amor(Animes)', v:'NG6jiXWnM8Q'},
 ];
 
 
