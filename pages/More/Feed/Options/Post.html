@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lore Videos</title>
+    <title>LoreSpace Videos</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
         * {
@@ -31,13 +31,38 @@
             justify-content: space-between;
             padding: 0 16px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-            z-index: 100;
+            z-index: 10100;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+        }
+
+        /* Classe para esconder o header com animação */
+        .site-header.hidden {
+            transform: translateY(-100%);
+            opacity: 0;
+            pointer-events: none;
         }
 
         .header-left {
             display: flex;
             align-items: center;
             gap: 12px;
+        }
+
+        /* Botão do Menu Hambúrguer */
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 22px;
+            color: #050505;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+
+        .menu-toggle:hover {
+            background-color: #f2f2f2;
         }
 
         /* Barra de busca arredondada */
@@ -77,7 +102,7 @@
             pointer-events: none;
         }
 
-        /* Botão Postar - Alterado para Tag de Link com Estilo Identico */
+        /* Botão Postar */
         .btn-post {
             background-color: #8b5cf6;
             color: #ffffff;
@@ -91,7 +116,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            text-decoration: none; /* Garante que o link não tenha sublinhado */
+            text-decoration: none;
             transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
         }
 
@@ -107,11 +132,20 @@
             transform: scale(0.95);
         }
 
-        /* Container Principal */
+        /* Container Principal com suporte a transição de tamanho */
         .main-container {
             display: flex;
             height: calc(100vh - 60px);
+            margin-top: 0;
             overflow: hidden;
+            position: relative;
+            transition: margin-top 0.4s cubic-bezier(0.4, 0, 0.2, 1), height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Quando o header sumir, o container sobe e ganha a altura total da tela */
+        .main-container.expanded {
+            margin-top: -60px;
+            height: 100vh;
         }
 
         /* Menu Lateral */
@@ -123,6 +157,8 @@
             flex-direction: column;
             gap: 8px;
             box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+            z-index: 10050;
         }
 
         nav h1 {
@@ -181,7 +217,6 @@
             border: 1px solid transparent;
         }
 
-        /* Efeitos Hover, Focus e Glow nos Posts */
         .video-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 24px rgba(139, 92, 246, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -615,16 +650,28 @@
         }
 
         @media (max-width: 900px) {
+            .menu-toggle {
+                display: block;
+            }
             nav {
-                display: none;
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 100%;
+                transform: translateX(-100%);
+                box-shadow: 4px 0 15px rgba(0,0,0,0.15);
+            }
+            nav.active {
+                transform: translateX(0);
             }
         }
     </style>
 </head>
 <body>
 
-    <header class="site-header">
+    <header class="site-header" id="siteHeader">
         <div class="header-left">
+            <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
             <div class="search-container">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
                 <input type="text" class="search-input" id="searchInput" placeholder="Pesquisar vídeos...">
@@ -635,21 +682,18 @@
         </div>
     </header>
 
-    <div class="main-container">
+    <div class="main-container" id="mainContainer">
         
-        <nav>
-            <h1>Vídeo</h1>
+        <nav id="sidebarNav">
+            <h1>Menu</h1>
             <a href="#" class="nav-item active">
-                <span class="nav-icon"><i class="fa-solid fa-tv"></i></span> Home
+                <span class="nav-icon"><i class="fa-solid fa-tv"></i></span> Vídeo
             </a>
             <a href="#" class="nav-item">
-                <span class="nav-icon"><i class="fa-solid fa-video"></i></span> Ao vivo
+                <span class="nav-icon"><i class="fa-solid fa-image"></i></span> Galeria
             </a>
             <a href="#" class="nav-item">
-                <span class="nav-icon"><i class="fa-solid fa-clapperboard"></i></span> Reels
-            </a>
-            <a href="#" class="nav-item">
-                <span class="nav-icon"><i class="fa-solid fa-bookmark"></i></span> Salvos
+                <span class="nav-icon"><i class="fa-solid fa-file-lines"></i></span> Blog
             </a>
         </nav>
 
@@ -713,6 +757,37 @@
         const videoContainers = document.querySelectorAll('.video-container');
         const searchInput = document.getElementById('searchInput');
         const videoCards = document.querySelectorAll('.video-card');
+        const siteHeader = document.getElementById('siteHeader');
+        const mainFeed = document.getElementById('mainFeed');
+        const mainContainer = document.getElementById('mainContainer');
+        
+        // Controle da Sidebar Mobile
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebarNav = document.getElementById('sidebarNav');
+
+        menuToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sidebarNav.classList.toggle('active');
+        });
+
+        // Lógica de Scroll Mobile - Esconder/Mostrar Header e expandir o container
+        let lastScrollTop = 0;
+        mainFeed.addEventListener('scroll', () => {
+            if (window.innerWidth <= 900) {
+                let scrollTop = mainFeed.scrollTop;
+                
+                if (scrollTop < 0) return;
+
+                if (scrollTop > lastScrollTop && scrollTop > 20) {
+                    siteHeader.classList.add('hidden');
+                    mainContainer.classList.add('expanded'); // Ocupa o espaço do header
+                } else if (scrollTop < lastScrollTop) {
+                    siteHeader.classList.remove('hidden');
+                    mainContainer.classList.remove('expanded'); // Devolve o espaço do header
+                }
+                lastScrollTop = scrollTop;
+            }
+        });
 
         // Lógica de Filtro da Barra de Busca
         searchInput.addEventListener('input', (e) => {
@@ -798,7 +873,6 @@
 
         function buildTikTokFeed() {
             feedContainer.innerHTML = '';
-            // Cria o feed modal considerando apenas os cards que estão visíveis no momento
             videoContainers.forEach((container, index) => {
                 const card = container.closest('.video-card');
                 if (card.style.display === 'none') return;
@@ -825,23 +899,19 @@
                             <p class="tiktok-desc">${desc}</p>
                         </div>
                         <div class="tiktok-sidebar-actions">
-                            
                             <a href="${socialNetworkUrl}" target="_blank" class="tiktok-action-item btn-social-link">
                                 <div class="icon-wrapper"><i class="fa-solid fa-link"></i></div>
                                 <span>Redes</span>
                             </a>
-                            
                             <div class="tiktok-action-item btn-trigger-react">
                                 <div class="icon-wrapper target-icon"><i class="fa-regular fa-face-smile"></i></div>
                                 <span class="target-label">Reagir</span>
-                                
                                 <div class="emoji-picker-menu">
                                     <div class="emoji-item" data-emoji="❤️">❤️</div>
                                     <div class="emoji-item" data-emoji="🔥">🔥</div>
                                     <div class="emoji-item" data-emoji="😂">😂</div>
                                     <div class="emoji-item" data-emoji="😮">😮</div>
                                     <div class="emoji-item" data-emoji="👏">👏</div>
-                                    
                                     <div class="extended-emojis">
                                         <div class="emoji-item" data-emoji="😮‍💨">😮‍💨</div>
                                         <div class="emoji-item" data-emoji="💀">💀</div>
@@ -849,15 +919,12 @@
                                         <div class="emoji-item" data-emoji="👑">👑</div>
                                         <div class="emoji-item" data-emoji="💯">💯</div>
                                     </div>
-
                                     <div class="btn-more-emojis"><i class="fa-solid fa-plus"></i></div>
                                 </div>
                             </div>
-
                             <div class="tiktok-action-item btn-trigger-chat">
                                 <div class="icon-wrapper"><i class="fa-solid fa-heart"></i></div>
                                 <span>Reações</span>
-
                                 <div class="twitch-chat-panel">
                                     <div class="twitch-chat-header">Chat de Reações</div>
                                     <div class="twitch-chat-body">
@@ -966,8 +1033,9 @@
             container.addEventListener('click', () => {
                 buildTikTokFeed();
                 modal.classList.add('active');
+                siteHeader.classList.add('hidden');
+                mainContainer.classList.add('expanded'); // Garante que fique expandido no fundo
                 
-                // Encontra a posição correta considerando apenas elementos visíveis
                 const visibleSlides = Array.from(feedContainer.children);
                 if(visibleSlides[index]) {
                     setTimeout(() => {
@@ -993,10 +1061,13 @@
             document.querySelectorAll('.twitch-chat-panel.active').forEach(panel => {
                 panel.classList.remove('active');
             });
+            sidebarNav.classList.remove('active');
         });
 
         function closeModal() {
             modal.classList.remove('active');
+            siteHeader.classList.remove('hidden');
+            mainContainer.classList.remove('expanded'); // Restaura o layout original do feed
             if (currentActiveVideo) {
                 currentActiveVideo.pause();
                 currentActiveVideo = null;
@@ -1026,4 +1097,3 @@
 
 </body>
 </html>
-
