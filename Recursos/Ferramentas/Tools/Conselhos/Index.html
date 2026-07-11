@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conselhos</title>
+    <style>
+        /* Configurações Globais / Reset */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #ffffff; /* Fundo principal Branco */
+            color: #1c1921; /* Texto principal escuro para contraste no fundo branco */
+            display: flex;
+            flex-direction: column; /* Alinha o header e a grid verticalmente */
+            align-items: center;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        /* Estilização do Header */
+        .main-header {
+            width: 100%;
+            max-width: 1200px;
+            text-align: center;
+            margin-bottom: 40px; /* Espaço entre o título do cabeçalho e os cards */
+        }
+
+        .main-header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #a252ee; /* Título adaptado para o fundo branco */
+            letter-spacing: -0.5px;
+        }
+
+        /* Container da Grid (Layout Base: Mobile - 2 Colunas) */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        /* Estilização Base do Card */
+        .card {
+            position: relative; /* Necessário para o posicionamento absoluto da imagem e do título */
+            height: 250px; /* Altura fixa para garantir que o card tenha tamanho mesmo com a imagem absoluta */
+            background-color: #f5f5f7; /* Fundo do card em cinza bem claro/branco */
+            border-radius: 12px;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Centraliza o título verticalmente */
+            align-items: center;     /* Centraliza o título horizontalmente */
+            border: 2px solid transparent;
+            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        /* Imagem Ocupando Todo o Card */
+        .card-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Garante que a imagem preencha o espaço sem distorcer */
+            z-index: 1; /* Fica atrás do texto */
+            transition: transform 0.3s ease, filter 0.3s ease;
+            filter: brightness(0.5); /* Escurece um pouco a imagem para dar leitura ao título escrito em branco */
+        }
+
+        /* Container do Título Isolado por Cima da Imagem */
+        .card-title {
+            position: relative;
+            z-index: 2; /* Fica por cima da imagem */
+            width: 100%;
+            padding: 20px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #ffffff; /* Texto sempre Branco */
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8); /* Sombra no texto para destacar ainda mais da imagem */
+            pointer-events: none; /* Garante que cliques passem direto para o card */
+        }
+
+        /* Efeitos de Hover (Rato) e Focus (Teclado) aplicados ao Card */
+        .card:hover,
+        .card:focus {
+            outline: none;
+            transform: translateY(-5px);
+            border-color: #8a2be2; /* Borda Violeta no hover/focus (Pequeno detalhe) */
+            /* Efeito Glow (Brilho Violeta Neon) */
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.4);
+        }
+
+        /* Efeitos na imagem quando o card sofre Hover/Focus */
+        .card:hover .card-image,
+        .card:focus .card-image {
+            transform: scale(1.08); /* Zoom na imagem */
+            filter: brightness(0.7); /* Clareia levemente no hover */
+        }
+
+        /* --- Estilização do Modal Ocupando Todo o Espaço --- */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1000;
+            display: none; /* Escondido por padrão */
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* Conteúdo do Modal Ocupando TODO o espaço disponível e Semitransparente */
+        .modal-content {
+            position: relative;
+            z-index: 2;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 40px;
+            background-color: rgba(255, 255, 255, 0.85); /* Fundo do modal agora é Branco semitransparente */
+            backdrop-filter: blur(4px); /* Efeito adicional de desfoque no vidro */
+            animation: fadeIn 0.4s ease;
+        }
+
+        /* Imagem de Fundo embutida diretamente no container capturado pelo HTML2Canvas */
+        .modal-content::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: var(--modal-bg-img, none);
+            background-size: cover;
+            background-position: center;
+            filter: blur(4px); 
+            z-index: -1; /* Garante que fica atrás de todos os textos */
+        }
+
+        .modal-emotion {
+            position: relative;
+            font-size: 2.2rem;
+            color: #a252ee; /* Detalhe em Violeta */
+            margin-bottom: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(138, 43, 226, 0.2);
+        }
+
+        .modal-advice {
+            position: relative;
+            font-size: 1.4rem;
+            color: #ffffff; /* Texto alterado para Branco Vivo baseado no seu pedido */
+            line-height: 1.6;
+            margin-bottom: 45px;
+            max-width: 800px; /* Limita a largura do texto para leitura confortável */
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.9); /* Sombra reforçada para contraste no fundo claro */
+        }
+
+        /* Lista Horizontal com extremidades opostas */
+        .modal-options-list {
+            position: relative;
+            display: flex;
+            justify-content: space-between; /* Empurra os itens para lados opostos */
+            align-items: center;
+            width: 100%;
+            max-width: 800px; /* Combina com a largura máxima do conselho */
+            list-style: none;
+            padding: 0 20px;
+        }
+
+        /* Estilização Base dos Botões de Ícones */
+        .icon-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0.8;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .icon-btn:hover,
+        .icon-btn:focus {
+            outline: none;
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .icon-share svg, 
+        .icon-download svg {
+            width: 26px;
+            height: 26px;
+            fill: none;
+            stroke: #ffffff; /* Ícones alterados para Branco baseado no seu pedido */
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.6)); /* Sombra adicionada aos ícones para dar destaque */
+            transition: stroke 0.2s ease;
+        }
+
+        .icon-btn:hover svg,
+        .icon-btn:focus svg {
+            stroke: #00ffff; /* Tom ciano brilhante/vivo no hover para contrastar sobre o branco */
+        }
+
+        /* Ícone de Seta para Baixo - Posicionado na extremidade superior */
+        .close-icon-btn {
+            position: absolute;
+            top: 30px; /* Alinha na extremidade superior */
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s ease;
+            z-index: 10;
+        }
+
+        /* Desenho da seta usando CSS puro */
+        .close-icon-btn::after {
+            content: "";
+            width: 20px;
+            height: 20px;
+            border-right: 4px solid #1c1921; /* Seta escura para o fundo branco */
+            border-bottom: 4px solid #1c1921;
+            transform: rotate(45deg); /* Rotaciona para virar uma seta apontando para baixo */
+            transition: border-color 0.2s ease;
+        }
+
+        /* Efeito ao passar o mouse ou dar foco na seta */
+        .close-icon-btn:hover,
+        .close-icon-btn:focus {
+            outline: none;
+            transform: translateY(4px); /* Move levemente para baixo imitando o clique */
+        }
+
+        .close-icon-btn:hover::after,
+        .close-icon-btn:focus::after {
+            border-color: #8a2be2; /* Muda a cor para violeta no hover (Pequeno detalhe) */
+        }
+
+        /* Marca d'água oculta no Modal mas visível na captura da imagem */
+        .modal-watermark {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7); /* Ajustado para aparecer sutilmente no fundo claro */
+            letter-spacing: 1px;
+        }
+
+        /* Classe utilitária usada dinamicamente pelo script durante o print (Compartilhar/Baixar) */
+        .sharing-mode .modal-watermark {
+            display: block !important;
+        }
+        .sharing-mode .close-icon-btn,
+        .sharing-mode .modal-options-list {
+            display: none !important;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Responsividade: Desktop (Transição para 3 Colunas) */
+        @media (min-width: 768px) {
+            .main-header h1 {
+                font-size: 2.5rem; /* Título do header um pouco maior no desktop */
+            }
+            .card-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 25px;
+            }
+            .card {
+                height: 300px; /* Cards ligeiramente maiores no desktop */
+            }
+            .modal-emotion {
+                font-size: 3rem;
+            }
+            .modal-advice {
+                font-size: 1.8rem;
+            }
+            .close-icon-btn {
+                top: 40px; /* Ajuste sutil do topo em telas maiores */
+            }
+            .icon-share svg, 
+            .icon-download svg {
+                width: 30px;
+                height: 30px;
+            }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+
+    <header class="main-header">
+        <h1>Como você está realmente se sentindo?</h1>
+    </header>
+
+    <div class="card-grid">
+        <a href="#" class="card" data-emotion="alegria">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSEBN9d6Y2EQYZ3sPYJcpeM1ysh32HSo6gBuSKR1zmkgH-DVB9QoDZY4Ek&s=10" alt="Alegria" class="card-image">
+            <h3 class="card-title">Alegria</h3>
+        </a>
+
+        <a href="#" class="card" data-emotion="tristeza">
+            <img src="https://www.conexasaude.com.br/blog/wp-content/uploads/2024/09/iStock-1631657667-1.jpg" alt="Tristeza" class="card-image">
+            <h3 class="card-title">Tristeza</h3>
+        </a>
+
+        <a href="#" class="card" data-emotion="calma">
+            <img src="https://wp-content.amenteemaravilhosa.com.br/2019/11/mulher-relaxada.jpeg" alt="Calma" class="card-image">
+            <h3 class="card-title">Calma</h3>
+        </a>
+
+        <a href="#" class="card" data-emotion="entusiasmo">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTp5BRiUQxqT2R7YnglEDxfMS_fBb0zRTKs3QjvJyjZtWXAfurBp9e2Mww&s=10" alt="Entusiasmo" class="card-image">
+            <h3 class="card-title">Entusiasmo</h3>
+        </a>
+
+        <a href="#" class="card" data-emotion="medo">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRCRj3lTqtGtm8OLpqdzRnjMA4pKDY5fSgKOtbvYvZ0fjJOZbU2qMaviEs&s=10" alt="Medo" class="card-image">
+            <h3 class="card-title">Medo</h3>
+        </a>
+
+        <a href="#" class="card" data-emotion="ansiedade">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSjf2wH340ihv-OREHZ7YOJypduSCWyBI7AXcK3bF8tzhWeCescnszalEw&s=10" alt="Ansiedade" class="card-image">
+            <h3 class="card-title">Ansiedade</h3>
+        </a>
+
+        <a href="#" class="card" data-emotion="inseguranca">
+            <img src="https://www.portalvilamariana.com/site/img/fotos_paginas_extras/imagem_pg648_01_01-04-2015_5028_temp.jpg" alt="Insegurança" class="card-image">
+            <h3 class="card-title">Insegurança</h3>
+        </a>
+
+        <a href="#" class="card" data-emotion="duvida">
+            <img src="https://ericasitta.wordpress.com/wp-content/uploads/2016/02/menina-adolescente-duvida.jpg?w=520" alt="Dúvida" class="card-image">
+            <h3 class="card-title">Dúvida</h3>
+        </a>
+
+        <a href="#" class="card" data-emotion="desanim">
+            <img src="https://conceito.de/wp-content/uploads/2024/04/desanimo.jpg" alt="Desânimo" class="card-image">
+            <h3 class="card-title">Desânimo</h3>
+        </a>
+    </div>
+
+    <div class="modal" id="emotionModal">
+        <div class="modal-content" id="modalContent">
+            <button class="close-icon-btn" id="closeModalBtn" aria-label="Fechar modal"></button>
+            
+            <div class="modal-emotion" id="modalEmotionTitle"></div>
+            <p class="modal-advice" id="modalAdviceText"></p>
+
+            <ul class="modal-options-list">
+                <li>
+                    <button class="icon-btn icon-share" id="shareBtn" aria-label="Compartilhar">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <circle cx="6" cy="12" r="3"></circle>
+                            <circle cx="18" cy="19" r="3"></circle>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                        </svg>
+                    </button>
+                </li>
+                <li>
+                    <button class="icon-btn icon-download" id="downloadBtn" aria-label="Baixar">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </button>
+                </li>
+            </ul>
+
+            <div class="modal-watermark">LoreSpace.com.br</div>
+        </div>
+    </div>
+
+    <script>
+        const emotionData = {
+            alegria: {
+                title: "Alegria",
+                advices: [
+                    "Aproveite este momento para contagiar alguém ao seu redor com um sorriso.",
+                    "Guarde essa sensação em sua memória para usar como combustível em dias difíceis.",
+                    "Celebre as pequenas vitórias atuais, você trabalhou duro para estar feliz hoje."
+                ]
+            },
+            tristeza: {
+                title: "Tristeza",
+                advices: [
+                    "Respeite o seu tempo. Chorar e silenciar também fazem parte do processo de cura.",
+                    "Lembre-se de que as nuvens mais escuras sempre passam para o sol voltar a brilhar.",
+                    "Não passe por isso sozinho. Às vezes, conversar com um amigo muda tudo."
+                ]
+            },
+            calma: {
+                title: "Calma",
+                advices: [
+                    "Use essa tranquilidade para organizar seus pensamentos e focar no que importa.",
+                    "Aprecie o silêncio do momento. Estar em paz consigo mesmo é o maior luxo.",
+                    "Respire fundo mais uma vez e ancore-se nesse estado de equilíbrio."
+                ]
+            },
+            entusiasmo: {
+                title: "Entusiasmo",
+                advices: [
+                    "Direcione toda essa energia maravilhosa para tirar aquele projeto antigo do papel.",
+                    "Confie no seu potencial, o entusiasmo é o primeiro passo para grandes conquistas.",
+                    "Mantenha o foco! O entusiasmo cria o impulso, mas a constância gera o resultado."
+                ]
+            },
+            medo: {
+                title: "Medo",
+                advices: [
+                    "O medo protege, mas também pode paralisar. Dê o primeiro passo mesmo com frio na barriga.",
+                    "Lembre-se de que a coragem não é a ausência de medo, mas o julgamento de que algo é mais importante do que ele.",
+                    "Divida o que te assusta em pequenos pedaços. Olhar de perto diminui o tamanho do monstro."
+                ]
+            },
+            ansiedade: {
+                title: "Ansiedade",
+                advices: [
+                    "Traga sua mente de volta para o agora. O futuro ainda não existe, foque no seu próximo passo.",
+                    "Respire devagar: inspire contando até 4, segure por 4 e expire em 4 tempos.",
+                    "Você não precisa resolver todos os problemas do mundo hoje. Faça apenas o que for possível agora."
+                ]
+            },
+            inseguranca: {
+                title: "Insegurança",
+                advices: [
+                    "Não compare os seus bastidores com o palco dos outros. Cada um tem seu próprio ritmo.",
+                    "Olhe para trás e veja tudo o que você já superou. Você é mais forte do que imagina.",
+                    "Errar faz parte do aprendizado. Permita-se ser iniciante em coisas novas."
+                ]
+            },
+            duvida: {
+                title: "Dúvida",
+                advices: [
+                    "A incerteza precede as grandes escolhas. Dê tempo para que as respostas clareiem.",
+                    "Confie um pouco mais na sua intuição. O que o seu coração diz quando a mente silencia?",
+                    "Às vezes, não escolher já é uma escolha. Respire e analise sem pressa."
+                ]
+            },
+            desanim: {
+                title: "Desânimo",
+                advices: [
+                    "Dias de baixa energia são normais. Tire o dia para descansar sem carregar culpa.",
+                    "Não tente recuperar o ritmo todo de uma vez. Comece com uma tarefa bem pequena.",
+                    "Lembre-se do motivo pelo qual você começou. Se o cansaço bater, aprenda a descansar, não a desistir."
+                ]
+            }
+        };
+
+        const cards = document.querySelectorAll('.card');
+        const modal = document.getElementById('emotionModal');
+        const modalContent = document.getElementById('modalContent');
+        const modalTitle = document.getElementById('modalEmotionTitle');
+        const modalAdvice = document.getElementById('modalAdviceText');
+        const closeBtn = document.getElementById('closeModalBtn');
+        const shareBtn = document.getElementById('shareBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        cards.forEach(card => {
+            card.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+                const emotionKey = card.getAttribute('data-emotion');
+                const imageSrc = card.querySelector('.card-image').src;
+                const emotion = emotionData[emotionKey];
+
+                if (emotion) {
+                    const randomIndex = Math.floor(Math.random() * emotion.advices.length);
+                    const randomAdvice = emotion.advices[randomIndex];
+
+                    modalTitle.textContent = emotion.title;
+                    modalAdvice.textContent = randomAdvice;
+                    
+                    // Injeta a imagem de fundo via variável CSS nativa
+                    modalContent.style.setProperty('--modal-bg-img', `url('${imageSrc}')`);
+
+                    modal.style.display = 'flex';
+                }
+            });
+        });
+
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        // Lógica de Compartilhamento Nativo com geração de imagem limpa e com fundo correto
+        shareBtn.addEventListener('click', async () => {
+            modalContent.classList.add('sharing-mode');
+
+            try {
+                const canvas = await html2canvas(modalContent, {
+                    useCORS: true,
+                    allowTaint: false,
+                    logging: false,
+                    scale: 2 
+                });
+
+                canvas.toBlob(async (blob) => {
+                    if (!blob) return;
+
+                    const file = new File([blob], 'conselho-emocional.png', { type: 'image/png' });
+
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            title: 'Meu Conselho do Dia',
+                            text: `Olha o conselho que recebi hoje sobre estar se sentindo com ${modalTitle.textContent.toLowerCase()}!`
+                        });
+                    } else {
+                        alert("O compartilhamento de arquivos não é suportado neste navegador. Tente baixar a imagem.");
+                    }
+                }, 'image/png');
+
+            } catch (error) {
+                console.error("Erro ao gerar imagem de compartilhamento:", error);
+            } finally {
+                modalContent.classList.remove('sharing-mode');
+            }
+        });
+
+        // Lógica de Baixar Imagem Localmente com geração limpa e marca d'água
+        downloadBtn.addEventListener('click', async () => {
+            modalContent.classList.add('sharing-mode');
+
+            try {
+                const canvas = await html2canvas(modalContent, {
+                    useCORS: true,
+                    allowTaint: false,
+                    logging: false,
+                    scale: 2 // Melhora a resolução final da imagem baixada
+                });
+
+                // Converte para formato Base64 de imagem
+                const imageURI = canvas.toDataURL('image/png');
+
+                // Cria um elemento de link virtual temporário para forçar o download direto
+                const createLink = document.createElement('a');
+                createLink.download = `conselho-${modalTitle.textContent.toLowerCase()}.png`;
+                createLink.href = imageURI;
+                
+                document.body.appendChild(createLink);
+                createLink.click();
+                document.body.removeChild(createLink);
+
+            } catch (error) {
+                console.error("Erro ao gerar imagem para download:", error);
+            } finally {
+                modalContent.classList.remove('sharing-mode');
+            }
+        });
+    </script>
+</body>
+</html>
