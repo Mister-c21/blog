@@ -33,52 +33,12 @@
             border-bottom: none;
         }
 
-        .header { height: 30px; background: rgba(138, 43, 226, 0.1); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid rgba(138, 43, 226, 0.15); }
+        .header { height: 30px; background: rgba(255, 255, 255, 0.8); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid rgba(0, 0, 0, 0.05); }
         .header h1 { font-size: 18px; color: #8a2be2; flex: 1; text-align: center; }
         .header a { text-decoration: none; color: #8a2be2; font-size: 24px; width: 24px; display: flex; align-items: center; }
 
-        /* MODAL APRIMORADO */
-        #iframe-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background: rgba(247, 247, 252, 0.85);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(138, 43, 226, 0.2);
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            transform: translateY(100%);
-            display: flex;
-            flex-direction: column;
-            
-            box-shadow: 0 -10px 30px rgba(138, 43, 226, 0.1);
-            pointer-events: none;
-            will-change: transform;
-        }
-        
-        #iframe-modal.active { transform: translateY(0); pointer-events: auto; }
-
-        #modal-drag-handle {
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: grab;
-            touch-action: none;
-        }
-
-        .drag-pill { width: 48px; height: 6px; background: rgba(138, 43, 226, 0.3); border-radius: 9999px; }
-
-        #modal-close-btn {
-            position: absolute; right: 16px; top: 8px; color: #8a2be2; font-size: 24px; padding: 4px; display: none; background: none; border: none; cursor: pointer;
-        }
-
-        @media (min-width: 768px) { #modal-close-btn { display: block; } .drag-pill { display: none; } }
-
-        #iframe-modal iframe { width: 100%; flex: 1; border: none; }
-
         /* UI PADRÃO */
-        .top-tab-container { width: 100%; padding: 3.5px 0; background: rgba(138, 43, 226, 0.08); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(138, 43, 226, 0.15); overflow-x: auto; white-space: nowrap; scrollbar-width: none; z-index: 1000; }
+        .top-tab-container { width: 100%; padding: 3.5px 0; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(0, 0, 0, 0.05); overflow-x: auto; white-space: nowrap; scrollbar-width: none; z-index: 1000; }
         .tab-list { display: inline-flex; align-items: center; gap: 28px; padding: 0 24px; list-style: none; }
         .tab-item { font-size: 16px; font-weight: 600; color: rgba(138, 43, 226, 0.6); cursor: pointer; transition: color 0.25s ease, transform 0.2s ease; position: relative; padding: 6px 4px; display: flex; align-items: center; gap: 8px; }
         .tab-item.active { color: #8a2be2; transform: scale(1.05); }
@@ -90,10 +50,10 @@
             top: 15px;
             left: 50%;
             transform: translateX(-50%) translateY(-100px);
-            background: rgba(138, 43, 226, 0.2);
+            background: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
-            border: 1px solid rgba(138, 43, 226, 0.3);
+            border: 1px solid rgba(0, 0, 0, 0.05);
             color: #8a2be2;
             width: 40px;
             height: 40px;
@@ -106,6 +66,7 @@
             z-index: 1005;
             opacity: 0;
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         #show-nav-btn.active {
@@ -122,14 +83,6 @@
 <body>
 
     <button id="show-nav-btn" onclick="restoreNavigation()"><i class="fas fa-chevron-down"></i></button>
-
-    <div id="iframe-modal">
-        <div id="modal-drag-handle">
-            <div class="drag-pill"></div>
-            <button id="modal-close-btn" onclick="closeIframeModal()"><i class="fas fa-times"></i></button>
-        </div>
-        <iframe id="main-iframe" src=""></iframe>
-    </div>
 
     <header class="header" id="app-header">
         <a href="../../../index.html"><i class="fas fa-arrow-left"></i></a>
@@ -156,57 +109,12 @@
     </div>
 
     <script>
-        const iframeModal = document.getElementById('iframe-modal');
-        const handle = document.getElementById('modal-drag-handle');
-        const mainIframe = document.getElementById('main-iframe');
         const pager = document.getElementById('view-pager');
         const tabs = Array.from(document.querySelectorAll('.tab-item'));
         
         const appHeader = document.getElementById('app-header');
         const appNav = document.getElementById('app-nav');
         const showNavBtn = document.getElementById('show-nav-btn');
-
-        let touchStartY = 0, isDragging = false;
-
-        function openIframeModal(url) {
-            mainIframe.src = url;
-            iframeModal.classList.add('active');
-            iframeModal.style.transform = 'translateY(0)';
-        }
-
-        function closeIframeModal() {
-            iframeModal.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
-            iframeModal.style.transform = 'translateY(100%)'; 
-            setTimeout(() => { 
-                mainIframe.src = ''; 
-                iframeModal.classList.remove('active');
-            }, 400);
-        }
-
-        handle.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-            isDragging = true;
-            iframeModal.style.transition = 'none';
-        }, { passive: true });
-
-        handle.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
-            const diff = e.touches[0].clientY - touchStartY;
-            if (diff > 0) iframeModal.style.transform = `translateY(${diff}px)`;
-        }, { passive: true });
-
-        handle.addEventListener('touchend', (e) => {
-            if (!isDragging) return;
-            isDragging = false;
-            const diff = e.changedTouches[0].clientY - touchStartY;
-            
-            if (diff > 100) {
-                closeIframeModal();
-            } else {
-                iframeModal.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
-                iframeModal.style.transform = 'translateY(0)';
-            }
-        }, { passive: true });
         
         function switchTab(index) {
             tabs.forEach((item, i) => { item.classList.toggle('active', i === index); });
@@ -215,7 +123,6 @@
             indicator.style.left = `${tabs[index].offsetLeft}px`;
             pager.style.transform = `translateX(-${index * (100 / tabs.length)}%)`;
 
-            // Condicional para esconder ou mostrar elementos dependendo da aba
             if (index === 1 || index === 2) {
                 appHeader.classList.add('hidden-nav');
                 appNav.classList.add('hidden-nav');
@@ -224,7 +131,6 @@
                 appHeader.classList.remove('hidden-nav');
                 appNav.classList.remove('hidden-nav');
                 showNavBtn.classList.remove('active');
-                // Pequeno ajuste no indicador quando os elementos voltam a ficar visíveis
                 setTimeout(() => {
                     indicator.style.width = `${tabs[index].offsetWidth}px`;
                     indicator.style.left = `${tabs[index].offsetLeft}px`;
