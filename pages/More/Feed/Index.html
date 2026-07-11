@@ -1,183 +1,242 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    
+    <title>Feed</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        :root {
-            --violet-glow: #8a2be2;
-            --ghost-color: #333;
-            --glass-bg: rgba(255, 255, 255, 0.6);
-            --glass-border: var(--violet-glow);
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+        body { background-color: #f7f7fc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; color: #1a1a1a; }
+
+        /* ANIMAÇÕES DE OCULTAÇÃO */
+        .header, .top-tab-container {
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
+            transform-origin: top;
         }
 
-        body { 
-            background-color: white; 
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            transition: background 1s ease-in-out;
-            margin: 0; padding: 10px; font-family: sans-serif; 
-            display: flex; flex-direction: column; align-items: center; 
-            min-height: 100vh; width: 100%; box-sizing: border-box;
+        .header.hidden-nav {
+            transform: translateY(-100%);
+            opacity: 0;
+            height: 0;
+            overflow: hidden;
+            border-bottom: none;
         }
-        body.modal-open { overflow: hidden !important; height: 100vh !important; }
+
+        .top-tab-container.hidden-nav {
+            transform: translateY(-100%);
+            opacity: 0;
+            padding: 0;
+            height: 0;
+            overflow: hidden;
+            border-bottom: none;
+        }
+
+        .header { height: 50px; background: rgba(138, 43, 226, 0.1); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid rgba(138, 43, 226, 0.15); }
+        .header h1 { font-size: 18px; color: #8a2be2; flex: 1; text-align: center; }
+        .header a { text-decoration: none; color: #8a2be2; font-size: 24px; width: 24px; display: flex; align-items: center; }
+
+        /* MODAL APRIMORADO */
+        #iframe-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(247, 247, 252, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(138, 43, 226, 0.2);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(100%);
+            display: flex;
+            flex-direction: column;
+            
+            box-shadow: 0 -10px 30px rgba(138, 43, 226, 0.1);
+            pointer-events: none;
+            will-change: transform;
+        }
         
-        header, .post-feed { width: 95% !important; max-width: 600px; }
-        header { display: flex; align-items: center; justify-content: center; margin-bottom: 20px; color: var(--violet-glow); position: relative; }
-        
-        .back-btn, .post-btn { background: none; border: none; color: var(--violet-glow); font-size: 1.25rem; cursor: pointer; transition: opacity 0.3s, text-shadow 0.3s; text-shadow: 0 0 5px var(--violet-glow); }
-        .back-btn { position: absolute; left: 0; }
-        .header-right { position: absolute; right: 0; }
-        .post-feed { display: flex; flex-direction: column; gap: 15px; color: var(--ghost-color); }
-        .post { background: var(--glass-bg); backdrop-filter: blur(10px); padding: 15px; border-radius: 15px; border: 2px solid var(--glass-border); box-shadow: 0 4px 10px rgba(138, 43, 226, 0.2); }
-        .post-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; color: black; }
-        .post-content { font-size: 0.95rem; margin-bottom: 15px; }
-        .post-footer { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--violet-glow); }
-        .modal-base { position: fixed; inset: 0; z-index: 9999; background-color: black; display: none; flex-direction: column; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        .modal-base.active { display: flex; transform: translateY(0); }
-        .drag-handle { height: 40px; display: flex; align-items: center; justify-content: center; cursor: grab; }
-        .drag-pill { width: 48px; height: 6px; background: rgba(255, 255, 255, 0.3); border-radius: 9999px; }
-        .modal-body { flex-grow: 1; width: 100%; overflow: hidden; }
-        #modalIframe { width: 100%; height: 100%; border: none; }
-        .close-btn { display: none; position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; z-index: 10; }
-        @media (min-width: 1024px) { .close-btn { display: block; } }
-        #nglModal { z-index: 10000; }
-        .ngl-card { background: var(--violet-glow); width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-size: cover; background-position: center; position: relative; }
-        .ngl-inner { background: rgba(26, 31, 46, 0.8); padding: 30px; border-radius: 17px; color: white; text-align: center; width: 85%; max-width: 350px; display: flex; flex-direction: column; gap: 15px; }
-        .ngl-btns { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 10px; }
-        .ngl-btn { font-size: 24px; color: white; cursor: pointer; }
-        .reply-btn { background: var(--violet-glow); border: none; color: white; padding: 12px; border-radius: 20px; cursor: pointer; font-weight: bold; width: 100%; }
-        .watermark { position: absolute; bottom: 10px; right: 15px; font-size: 0.7rem; color: rgba(255,255,255,0.5); font-weight: bold; }
+        #iframe-modal.active { transform: translateY(0); pointer-events: auto; }
+
+        #modal-drag-handle {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .drag-pill { width: 48px; height: 6px; background: rgba(138, 43, 226, 0.3); border-radius: 9999px; }
+
+        #modal-close-btn {
+            position: absolute; right: 16px; top: 8px; color: #8a2be2; font-size: 24px; padding: 4px; display: none; background: none; border: none; cursor: pointer;
+        }
+
+        @media (min-width: 768px) { #modal-close-btn { display: block; } .drag-pill { display: none; } }
+
+        #iframe-modal iframe { width: 100%; flex: 1; border: none; }
+
+        /* UI PADRÃO */
+        .top-tab-container { width: 100%; padding: 14px 0; background: rgba(138, 43, 226, 0.08); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(138, 43, 226, 0.15); overflow-x: auto; white-space: nowrap; scrollbar-width: none; z-index: 1000; }
+        .tab-list { display: inline-flex; align-items: center; gap: 28px; padding: 0 24px; list-style: none; }
+        .tab-item { font-size: 16px; font-weight: 600; color: rgba(138, 43, 226, 0.6); cursor: pointer; transition: color 0.25s ease, transform 0.2s ease; position: relative; padding: 6px 4px; display: flex; align-items: center; gap: 8px; }
+        .tab-item.active { color: #8a2be2; transform: scale(1.05); }
+        .tab-indicator { position: absolute; bottom: -2px; height: 3px; background-color: #8a2be2; border-radius: 2px; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
+
+        /* BOTÃO FLUTUANTE DE SETA */
+        #show-nav-btn {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(138, 43, 226, 0.2);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(138, 43, 226, 0.3);
+            color: #8a2be2;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 1005;
+            opacity: 0;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+        }
+
+        #show-nav-btn.active {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .window-wrapper { flex: 1; width: 100%; overflow: hidden; position: relative; }
+        .tabs-view-pager { display: flex; width: 300%; height: 100%; transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1); }
+        .tab-page { width: calc(100% / 3); height: 100%; }
+        .content-iframe { width: 100%; height: 100%; border: none; }
     </style>
 </head>
 <body>
 
-    <header>
-        <button class="back-btn" onclick="window.location.href='../../../index.html'"><i class="fas fa-arrow-left"></i></button>
-        <h1>Feed</h1>
-        <div class="header-right">
-            <button class="post-btn" onclick="openModal('postar.html')"><i class="fas fa-plus"></i></button>
+    <button id="show-nav-btn" onclick="restoreNavigation()"><i class="fas fa-chevron-down"></i></button>
+
+    <div id="iframe-modal">
+        <div id="modal-drag-handle">
+            <div class="drag-pill"></div>
+            <button id="modal-close-btn" onclick="closeIframeModal()"><i class="fas fa-times"></i></button>
         </div>
+        <iframe id="main-iframe" src=""></iframe>
+    </div>
+
+    <header class="header" id="app-header">
+        <a href="../../../index.html"><i class="fas fa-arrow-left"></i></a>
+        <h1>Feed</h1>
+        <div style="width: 24px;"></div>
     </header>
 
-    <div class="post-feed">
-        <div class="post">
-            <div class="post-title">Título do Post Exemplo</div>
-            <div class="post-content">Este é o conteúdo do post.</div>
-            <div class="post-footer">
-                <span onclick="toggleNgl(this)"><i class="fas fa-circle-notch"></i></span>
-            </div>
-        </div>
-    </div>
+    <nav class="top-tab-container" id="app-nav">
+        <ul class="tab-list">
+            <li class="tab-item active" onclick="switchTab(0)"><i class="fas fa-play"></i> Vídeos</li>
+            <li class="tab-item" onclick="switchTab(1)"><i class="fas fa-star"></i> Fanclub</li>
+            <li class="tab-item" onclick="switchTab(2)"><i class="fas fa-user"></i> Perfil</li>
+            
+            <div class="tab-indicator" id="indicator"></div>
+        </ul>
+    </nav>
 
-    <div id="playerModal" class="modal-base">
-        <div id="modal-drag-handle" class="drag-handle"><div class="drag-pill"></div></div>
-        <button class="close-btn" onclick="closeAnyModal('playerModal')"><i class="fas fa-times"></i></button>
-        <div class="modal-body"><iframe id="modalIframe" src=""></iframe></div>
-    </div>
-
-    <div id="nglModal" class="modal-base">
-        <div id="ngl-drag-handle" class="drag-handle"><div class="drag-pill"></div></div>
-        <button class="close-btn" onclick="closeAnyModal('nglModal')"><i class="fas fa-times"></i></button>
-        <div class="ngl-card" id="nglCard">
-            <div class="ngl-inner">
-                <div>
-                    <h3 id="nglTitleDisplay"></h3>
-                    <p id="nglTextDisplay"></p>
-                </div>
-                <button class="reply-btn" id="shareTrigger" onclick="compartilharNgl()">Responder</button>
-                <div class="ngl-btns" id="actionBtns">
-                    <i class="fas fa-palette ngl-btn" onclick="trocarCorNgl()"></i>
-                    <i class="fas fa-camera ngl-btn" onclick="document.getElementById('imageInput').click()"></i>
-                    <input type="file" id="imageInput" accept="image/*" style="display:none" onchange="mudarFundo(event)">
-                </div>
-            </div>
-            <div class="watermark">© LoreSpace.com.br</div>
+    <div class="window-wrapper" id="gesture-zone">
+        <div class="tabs-view-pager" id="view-pager">
+            <div class="tab-page"><iframe class="content-iframe" src="./sessoes/Videos.html"></iframe></div>
+            <div class="tab-page"><iframe class="content-iframe" src="./sessoes/Fanclub.html"></iframe></div>
+            <div class="tab-page"><iframe class="content-iframe" src="./sessoes/Perfil.html"></iframe></div>
         </div>
     </div>
 
     <script>
-        async function compartilharNgl() {
-            const card = document.getElementById('nglCard');
-            const btns = document.getElementById('actionBtns');
-            const shareBtn = document.getElementById('shareTrigger');
-            btns.style.display = 'none';
-            shareBtn.style.display = 'none';
-            const canvas = await html2canvas(card, { backgroundColor: null });
-            canvas.toBlob(async (blob) => {
-                const file = new File([blob], "post.png", { type: "image/png" });
-                if (navigator.share) { await navigator.share({ files: [file] }); }
-                btns.style.display = 'flex';
-                shareBtn.style.display = 'block';
-            });
+        const iframeModal = document.getElementById('iframe-modal');
+        const handle = document.getElementById('modal-drag-handle');
+        const mainIframe = document.getElementById('main-iframe');
+        const pager = document.getElementById('view-pager');
+        const tabs = Array.from(document.querySelectorAll('.tab-item'));
+        
+        const appHeader = document.getElementById('app-header');
+        const appNav = document.getElementById('app-nav');
+        const showNavBtn = document.getElementById('show-nav-btn');
+
+        let touchStartY = 0, isDragging = false;
+
+        function openIframeModal(url) {
+            mainIframe.src = url;
+            iframeModal.classList.add('active');
+            iframeModal.style.transform = 'translateY(0)';
         }
-        function applyDragLogic(modalId, handleId) {
-            const modal = document.getElementById(modalId);
-            const handle = document.getElementById(handleId);
-            let touchStartY = 0, isDragging = false;
-            handle.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; isDragging = true; }, { passive: true });
-            handle.addEventListener('touchmove', (e) => { 
-                if (!isDragging) return; 
-                const diff = e.touches[0].clientY - touchStartY; 
-                if (diff > 0) modal.style.transform = `translateY(${diff}px)`; 
-            }, { passive: true });
-            handle.addEventListener('touchend', (e) => { 
-                isDragging = false; 
-                const diff = e.changedTouches[0].clientY - touchStartY; 
-                diff > 100 ? closeAnyModal(modalId) : modal.style.transform = 'translateY(0)'; 
-            }, { passive: true });
-        }
-        applyDragLogic('playerModal', 'modal-drag-handle');
-        applyDragLogic('nglModal', 'ngl-drag-handle');
-        function openModal(url) {
-            document.getElementById('modalIframe').src = url;
-            document.getElementById('playerModal').classList.add('active');
-            document.body.classList.add('modal-open');
-        }
-        function toggleNgl(element) {
-            const ngl = document.getElementById('nglModal');
-            if (element) {
-                const post = element.closest('.post');
-                document.getElementById('nglTitleDisplay').innerText = post.querySelector('.post-title').innerText;
-                document.getElementById('nglTextDisplay').innerText = post.querySelector('.post-content').innerText;
-            }
-            ngl.classList.toggle('active');
-            document.body.classList.toggle('modal-open');
-        }
-        function closeAnyModal(id) {
-            const modal = document.getElementById(id);
-            modal.style.transform = 'translateY(100%)';
+
+        function closeIframeModal() {
+            iframeModal.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+            iframeModal.style.transform = 'translateY(100%)'; 
             setTimeout(() => { 
-                modal.classList.remove('active'); 
-                modal.style.transform = ''; 
-                document.body.classList.remove('modal-open'); 
-                if(id === 'playerModal') document.getElementById('modalIframe').src = '';
+                mainIframe.src = ''; 
+                iframeModal.classList.remove('active');
             }, 400);
         }
-        function mudarFundo(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => document.getElementById('nglCard').style.backgroundImage = `url('${e.target.result}')`;
-                reader.readAsDataURL(file);
+
+        handle.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+            isDragging = true;
+            iframeModal.style.transition = 'none';
+        }, { passive: true });
+
+        handle.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const diff = e.touches[0].clientY - touchStartY;
+            if (diff > 0) iframeModal.style.transform = `translateY(${diff}px)`;
+        }, { passive: true });
+
+        handle.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            const diff = e.changedTouches[0].clientY - touchStartY;
+            
+            if (diff > 100) {
+                closeIframeModal();
+            } else {
+                iframeModal.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+                iframeModal.style.transform = 'translateY(0)';
+            }
+        }, { passive: true });
+        
+        function switchTab(index) {
+            tabs.forEach((item, i) => { item.classList.toggle('active', i === index); });
+            const indicator = document.getElementById('indicator');
+            indicator.style.width = `${tabs[index].offsetWidth}px`;
+            indicator.style.left = `${tabs[index].offsetLeft}px`;
+            pager.style.transform = `translateX(-${index * (100 / tabs.length)}%)`;
+
+            // Condicional para esconder ou mostrar elementos dependendo da aba
+            if (index === 1 || index === 2) {
+                appHeader.classList.add('hidden-nav');
+                appNav.classList.add('hidden-nav');
+                showNavBtn.classList.add('active');
+            } else {
+                appHeader.classList.remove('hidden-nav');
+                appNav.classList.remove('hidden-nav');
+                showNavBtn.classList.remove('active');
+                // Pequeno ajuste no indicador quando os elementos voltam a ficar visíveis
+                setTimeout(() => {
+                    indicator.style.width = `${tabs[index].offsetWidth}px`;
+                    indicator.style.left = `${tabs[index].offsetLeft}px`;
+                }, 400);
             }
         }
-        const gradientes = ['linear-gradient(135deg, #8a2be2, #4169e1)', 'linear-gradient(135deg, #ff0080, #ff8c00)', 'linear-gradient(135deg, #00c6ff, #0072ff)'];
-        let gradIndex = 0;
-        function trocarCorNgl() {
-            gradIndex = (gradIndex + 1) % gradientes.length;
-            document.getElementById('nglCard').style.backgroundImage = gradientes[gradIndex];
+
+        function restoreNavigation() {
+            switchTab(0);
         }
-        const imagens = ['url("https://images.unsplash.com/photo-1506744038136-46273834b3fb")', 'url("https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05")'];
-        let bgIndex = 0;
-        setInterval(() => {
-            document.body.style.backgroundImage = imagens[bgIndex];
-            bgIndex = (bgIndex + 1) % imagens.length;
-        }, 10000);
+        
+        window.addEventListener('DOMContentLoaded', () => { switchTab(0); });
     </script>
 </body>
 </html>
