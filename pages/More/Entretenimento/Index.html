@@ -9,8 +9,6 @@
     <link rel="shortcut icon" href="/20260703_211636_0000.png">
     <link class="icon" type="image/svg+xml" href="/20260703_211636_0000.png">
 
-    <script src="dataSeres.js"></script>
-    <script src="dataFilmes.js"></script>
     <script src="dataMusicas.js"></script>
 
     <style>
@@ -60,22 +58,17 @@
         .feed-container { display: none; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 12px; }
         .feed-container.active { display: grid; }
         
-          .feed-item { 
+        .feed-item { 
             width: 100%; height: 120px; background-size: cover; background-position: center; 
             position: relative; box-sizing: border-box; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             transition: transform 0.2s ease, filter 0.2s ease;
             clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
-          }
+        }
         
         .feed-item:hover { transform: scale(1.03); box-shadow: 0 0 15px var(--blueviolet-color); z-index: 1; }
         
         .item-title { position: absolute; bottom: 0; width: 100%; background: rgba(0, 0, 0, 0.6); color: white; padding: 5px 0; font-size: 12px; text-align: center; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
-
-        #epMenu { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; padding: 20px; }
-        .ep-menu-content { background: rgba(20, 20, 20, 0.95); padding: 20px; border-radius: 20px; width: 100%; max-width: 400px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
-        .ep-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
-        .ep-select-btn { background: var(--blueviolet-color); border: none; color: white; padding: 10px; border-radius: 10px; cursor: pointer; }
 
         #playerModal {
             position: fixed; inset: 0; z-index: 9999; background-color: black;
@@ -136,12 +129,9 @@
     </header>
 
     <nav class="tab-bar">
-        <div class="tab-item active" onclick="updateUI('seres', this)">seres</div>
-        <div class="tab-item" onclick="updateUI('filmes', this)">filmes</div>
-        <div class="tab-item" onclick="updateUI('músicas', this)">músicas</div>
+        <div class="tab-item active" id="tabMusicas" onclick="updateUI('músicas', this)">músicas</div>
         <div class="tab-item" onclick="window.location.href='./Live.html'">Lives</div>
         <div class="tab-item" onclick="window.location.href='./Animes.html'">Animes</div>
-
     </nav>
 
     <div class="search-wrapper">
@@ -152,16 +142,7 @@
 
     <p class="suggestions-label">sugestões</p>
 
-    <main id="seres" class="feed-container active"></main>
-    <main id="filmes" class="feed-container"></main>
-    <main id="músicas" class="feed-container"></main>
-
-    <div id="epMenu" onclick="this.style.display='none'">
-        <div class="ep-menu-content" onclick="event.stopPropagation()">
-            <h3 id="epMenuTitle">Selecione o Episódio</h3>
-            <div class="ep-grid" id="epGrid"></div>
-        </div>
-    </div>
+    <main id="músicas" class="feed-container active"></main>
 
     <div id="playerModal">
         <div id="modal-drag-handle"><div class="drag-pill"></div></div>
@@ -211,11 +192,11 @@
     </div>
 
     <script>
-        const contentData = { seres: dataSeres, filmes: dataFilmes, músicas: dataMusicas };
+        const contentData = { músicas: dataMusicas };
         const backgroundImages = [
+            'https://png.pngtree.com/thumb_back/fh260/background/20230611/pngtree-colorful-music-notes-and-a-black-background-image_2975597.jpg',
             'https://static.crunchyroll.com/cr-acquisition/assets/img/start/hero/us-global/background-desktop.jpg',
-            'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSthZIQDPJrKOz_O2t485hQjlcAOxdtTw-BF2rNzsmcdwNeY00XMddXodNw&s=10',
-            'https://png.pngtree.com/thumb_back/fh260/background/20230611/pngtree-colorful-music-notes-and-a-black-background-image_2975597.jpg'
+            'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSthZIQDPJrKOz_O2t485hQjlcAOxdtTw-BF2rNzsmcdwNeY00XMddXodNw&s=10'
         ];
         let bgIndex = 0;
         const bgElement = document.getElementById('background');
@@ -227,11 +208,10 @@
         setInterval(rotateBackground, 8000);
 
         const playerModal = document.getElementById('playerModal');
-        const epMenu = document.getElementById('epMenu');
         const handle = document.getElementById('modal-drag-handle');
         const videoBox = document.getElementById('videoBox');
-        let touchStartY = 0, isDragging = false, currentTab = 'seres';
-        let currentItem = { title: '', eps: [], currentEpIndex: 0, img: '' };
+        let touchStartY = 0, isDragging = false, currentTab = 'músicas';
+        let currentItem = { title: '', eps: [], currentEpIndex: -1, img: '' };
 
         function handleSearch() {
             const query = document.getElementById('searchInput').value.toLowerCase();
@@ -256,23 +236,7 @@
 
         function handleItemClick(item) {
             const img = item.v ? getThumb(item.v) : getThumb(item.eps[0]);
-            if (currentTab === 'seres') {
-                document.getElementById('epMenuTitle').innerText = item.t;
-                const grid = document.getElementById('epGrid');
-                grid.innerHTML = '';
-                item.eps.forEach((v, index) => {
-                    grid.innerHTML += `<button class="ep-select-btn" onclick="openPlayerWithEp('${item.t}', '${getThumb(v)}', ${index}, '${item.eps.join(',')}')">Ep ${index + 1}</button>`;
-                });
-                epMenu.style.display = 'flex';
-            } else {
-                openPlayer(item.t, img, item.v);
-            }
-        }
-
-        function openPlayerWithEp(title, imageUrl, index, epsString) {
-            const eps = epsString.split(',');
-            currentItem = { title, eps, currentEpIndex: index, img: imageUrl };
-            renderPlayer(title, imageUrl, eps[index], index, eps.length);
+            openPlayer(item.t, img, item.v);
         }
 
         function openPlayer(title, imageUrl, videoId) {
@@ -281,7 +245,6 @@
         }
 
         function renderPlayer(title, imageUrl, videoId, index = -1, total = 0) {
-            epMenu.style.display = 'none';
             const displayTitle = index !== -1 ? `${title} - Ep ${index + 1}` : title;
             document.getElementById('modalTitle').innerText = displayTitle;
             videoBox.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
@@ -290,19 +253,10 @@
             document.body.classList.add('modal-open');
             const nav = document.getElementById('navEpBox');
             nav.style.display = total > 0 ? 'flex' : 'none';
-            document.getElementById('prevBtn').disabled = index <= 0;
-            document.getElementById('nextBtn').disabled = index >= total - 1;
-        }
-
-        function changeEp(dir) {
-            const newIndex = currentItem.currentEpIndex + dir;
-            if(newIndex >= 0 && newIndex < currentItem.eps.length) {
-                renderPlayer(currentItem.title, getThumb(currentItem.eps[newIndex]), currentItem.eps[newIndex], newIndex, currentItem.eps.length);
-                currentItem.currentEpIndex = newIndex;
-            }
         }
 
         function render(data, container) {
+            if (!data) return;
             container.innerHTML = data.map(item => {
                 const thumb = item.v ? getThumb(item.v) : getThumb(item.eps[0]);
                 const itemStr = JSON.stringify(item).replace(/"/g, "'");
@@ -338,7 +292,9 @@
         handle.addEventListener('touchend', (e) => { isDragging = false; const diff = e.changedTouches[0].clientY - touchStartY; diff > 100 ? closePlayer() : playerModal.style.transform = 'translateY(0)'; }, { passive: true });
 
         bgElement.style.backgroundImage = `url('${backgroundImages[0]}')`;
-        updateUI('seres', document.querySelector('.tab-item'));
+        
+        // Inicializa diretamente na aba de músicas
+        updateUI('músicas', document.getElementById('tabMusicas'));
     </script>
 </body>
 </html>
