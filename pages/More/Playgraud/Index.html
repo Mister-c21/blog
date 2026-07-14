@@ -1,299 +1,1053 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LoreGames</title>
-    <link rel="shortcut icon" href="./LoreSpace-Gamming.png">
-    <link class="icon" type="image/svg+xml" href="./LoreSpace-Gamming.png">
-
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <title>LoreSpace Emulação</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --primary: #8a2be2; --primary-light: #a052ee; --text: #2d2d2d;
-            --text-dim: #666666; --bg: #f8f8ff; --glass: rgba(138, 43, 226, 0.1); 
-            --glass-border: rgba(138, 43, 226, 0.2); --card-radius: 12px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        html { font-size: clamp(14px, 1.5vw, 18px); }
-        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: sans-serif; overflow-x: hidden; user-select: none; }
+
+        body {
+            background-color: #ffffff;
+            color: #121212;
+            padding-bottom: 20px;
+            transition: background-color 0.5s ease;
+        }
+
+        body.modal-open {
+            overflow: hidden !important;
+            height: 100vh !important;
+        }
+
+        body.emulation-mode-active {
+            background-color: #1a1a1a;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            color: #ffffff;
+        }
+
+        /* ==========================================================================
+           HEADER E BARRA DE PESQUISA
+           ========================================================================== */
+        .app-header {
+            padding: 20px 16px 4px 16px;
+            background-color: #ffffff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background-color 0.5s ease, border-color 0.5s ease;
+        }
+
+        body.emulation-mode-active .app-header {
+            background-color: transparent;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            position: relative;
+            min-height: 32px;
+        }
+
+        .app-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #121212;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            transition: opacity 0.2s ease-in-out, color 0.5s ease;
+        }
+
+        body.emulation-mode-active .app-title {
+            color: #ffffff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+        }
+
+        .nav-back-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #7b2cbf;
+            cursor: pointer;
+            outline: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .nav-back-btn:hover {
+            color: #9d4edd;
+            background-color: #f8f5fc;
+        }
+
+        body.emulation-mode-active .nav-back-btn {
+            color: #e0aaff;
+        }
+        body.emulation-mode-active .nav-back-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+
+        .search-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            width: 100%;
+            max-height: 50px;
+            opacity: 1;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+                        opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                        margin-bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .search-row.hide-search {
+            max-height: 0 !important;
+            opacity: 0 !important;
+            margin-bottom: 0 !important;
+            pointer-events: none;
+        }
+
+        .search-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 40px 10px 16px;
+            font-size: 15px;
+            border: 1.5px solid #e0aaff;
+            border-radius: 24px;
+            background-color: #f8f5fc;
+            color: #121212;
+            outline: none;
+            transition: border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
+        }
+
+        .search-input:hover {
+            border-color: #9d4edd;
+            background-color: #f3e5f5;
+        }
+
+        .search-input:focus {
+            border-color: #7b2cbf;
+            background-color: #ffffff;
+            box-shadow: 0 0 12px rgba(123, 44, 191, 0.4);
+        }
+
+        body.emulation-mode-active .search-input {
+            border-color: rgba(224, 170, 255, 0.4);
+            background-color: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+        }
+        body.emulation-mode-active .search-input:focus {
+            background-color: rgba(255, 255, 255, 0.25);
+            border-color: #e0aaff;
+            box-shadow: 0 0 12px rgba(224, 170, 255, 0.5);
+        }
+        body.emulation-mode-active .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .search-input::placeholder {
+            color: #a29bfe;
+            opacity: 1;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
+        }
+
+        .search-input.fade-placeholder::placeholder {
+            opacity: 0;
+        }
+
+        .clear-search-btn {
+            position: absolute;
+            right: 14px;
+            background: none;
+            border: none;
+            color: #a29bfe;
+            font-size: 16px;
+            cursor: pointer;
+            display: none;
+            padding: 4px;
+            outline: none;
+        }
+
+        .clear-search-btn:hover {
+            color: #7b2cbf;
+        }
+
+        body.emulation-mode-active .clear-search-btn {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        body.emulation-mode-active .clear-search-btn:hover {
+            color: #ffffff;
+        }
+
+        .vertical-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #7b2cbf;
+            padding: 16px 16px 8px 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ==========================================================================
+           ESTILO TIKTOK: TOP TAB BAR HORIZONTAL
+           ========================================================================== */
+        .tiktok-tab-container {
+            display: flex;
+            gap: 24px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding-bottom: 8px;
+            background-color: transparent;
+        }
+
+        .tiktok-tab-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tiktok-tab {
+            font-size: 16px;
+            font-weight: 600;
+            color: #757575;
+            cursor: pointer;
+            white-space: nowrap;
+            position: relative;
+            padding: 4px 0 8px 0;
+            transition: color 0.3s ease;
+            background: none;
+            border: none;
+            outline: none;
+        }
+
+        .tiktok-tab.active {
+            color: #121212;
+            font-weight: 700;
+        }
+
+        .tiktok-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 16px;
+            height: 3px;
+            background-color: #7b2cbf;
+            border-radius: 2px;
+            transition: background-color 0.3s ease;
+        }
+
+        body.emulation-mode-active .tiktok-tab {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        body.emulation-mode-active .tiktok-tab.active {
+            color: #ffffff;
+        }
+        body.emulation-mode-active .tiktok-tab.active::after {
+            background-color: #e0aaff;
+        }
+
+        /* ==========================================================================
+           CONTAINER DE BOTÕES ARREDONDADOS DA EMULAÇÃO
+           ========================================================================== */
+        .horizontal-buttons-container {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding: 0 4px 4px 4px;
+        }
+
+        .horizontal-buttons-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .rounded-filter-btn {
+            background-color: #f8f5fc;
+            color: #7b2cbf;
+            border: 1px solid #e0aaff;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .rounded-filter-btn:hover {
+            background-color: #f3e5f5;
+            border-color: #9d4edd;
+        }
+
+        .rounded-filter-btn.active {
+            background-color: #7b2cbf;
+            color: #ffffff;
+            border-color: #7b2cbf;
+        }
+
+        body.emulation-mode-active .rounded-filter-btn {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #e0aaff;
+            border: 1.5px solid rgba(224, 170, 255, 0.3);
+            backdrop-filter: blur(5px);
+        }
+        body.emulation-mode-active .rounded-filter-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-color: #e0aaff;
+            color: #ffffff;
+        }
+        body.emulation-mode-active .rounded-filter-btn.active {
+            background-color: #7b2cbf;
+            color: #ffffff;
+            border-color: #7b2cbf;
+            box-shadow: 0 0 10px rgba(123, 44, 191, 0.5);
+        }
+
+        /* ==========================================================================
+           ESTADO VAZIO / SEM EMULADORES
+           ========================================================================== */
+        .empty-friends-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 24px;
+            text-align: center;
+        }
+
+        .empty-friends-state i.fa-gamepad {
+            font-size: 56px;
+            color: #9d4edd;
+            margin-bottom: 16px;
+        }
+
+        .empty-friends-text {
+            font-size: 15px;
+            color: #757575;
+            line-height: 1.5;
+            max-width: 260px;
+            font-weight: 500;
+        }
+
+        body.emulation-mode-active .empty-friends-state i.fa-gamepad {
+            color: #e0aaff;
+        }
+        body.emulation-mode-active .empty-friends-text {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* ==========================================================================
+           LISTA VERTICAL DE COMUNIDADES E CARDS DO LORESPACE
+           ========================================================================== */
+        .tiktok-vertical-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 4px;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .vertical-community-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            cursor: pointer;
+            border-radius: 12px;
+            margin: 0 8px;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+            clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
+        }
+
+        .vertical-community-item:hover {
+            background-color: rgba(253, 251, 255, 0.9);
+            box-shadow: 0 4px 12px rgba(157, 78, 221, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .vertical-community-item.hidden {
+            display: none !important;
+        }
+
+        .vertical-community-item:active {
+            background-color: #f3e5f5;
+        }
+
+        .vertical-item-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .vertical-avatar-wrapper {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            flex-shrink: 0;
+        }
+
+        .vertical-avatar-img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .vertical-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .vertical-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #121212;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .emulation-active-style .vertical-community-item {
+            background-color: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 6px 16px;
+        }
+        .emulation-active-style .vertical-community-item:hover {
+            background-color: rgba(255, 255, 255, 0.22);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.08);
+        }
+        .emulation-active-style .vertical-name {
+            color: #ffffff;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+        }
+
+        .status-badge {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            width: 14px;
+            height: 14px;
+            background-color: #9d4edd;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+        }
+
+        body.emulation-mode-active .status-badge {
+            border-color: #1a1a1a;
+            background-color: #e0aaff;
+        }
+
+        .vertical-community-item.lorespace-card {
+            display: block;
+            position: relative;
+            height: 180px;
+            border-radius: 16px;
+            overflow: hidden;
+            margin: 12px 16px;
+            padding: 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .vertical-community-item.lorespace-card .lorespace-bg-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .vertical-community-item.lorespace-card:hover .lorespace-bg-img {
+            transform: scale(1.05);
+        }
+
+        .vertical-community-item.lorespace-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.2) 60%, rgba(0, 0, 0, 0) 100%);
+            z-index: 1;
+        }
+
+        .vertical-community-item.lorespace-card .lorespace-title {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            right: 16px;
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 700;
+            z-index: 2;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        /* ==========================================================================
+           FAB (FLOATING ACTION BUTTON) VOLTAR AO TOPO
+           ========================================================================== */
+        .scroll-top-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: #7b2cbf;
+            color: #ffffff;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(123, 44, 191, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            z-index: 90;
+            opacity: 0;
+            transform: scale(0);
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease;
+        }
+
+        .scroll-top-btn.show {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+
+        .scroll-top-btn:hover {
+            background-color: #9d4edd;
+        }
+
+        /* ==========================================================================
+           SESSÃO EXCLUSIVA DE EMULAÇÃO: BOTÕES DE PLATAFORMA
+           ========================================================================== */
+        .emulation-platforms-bar {
+            display: none;
+            padding: 10px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: border-color 0.5s ease;
+        }
         
-        .banner-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; }
-        .banner-img { position: absolute; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1s ease-in-out; }
-        .banner-img.active { opacity: 0.3; }
+        .emulation-platforms-bar.show-bar {
+            display: block;
+        }
 
-        header { position: sticky; top: 0; background: rgba(248, 248, 255, 0.85); backdrop-filter: blur(20px); z-index: 1000; padding: clamp(10px, 2vw, 15px) clamp(15px, 3vw, 20px); border-bottom: 1px solid var(--glass-border); }
-        .header-top { display: flex; align-items: center; justify-content: center; max-width: 1200px; margin: 0 auto; gap: clamp(8px, 1.5vw, 10px); }
-        .back-btn { cursor: pointer; color: var(--text-dim); }
-        .search-bar { flex: 1; max-width: 600px; position: relative; }
-        
-        .search-input { width: 100%; padding: clamp(10px, 1.5vw, 12px) 60px clamp(10px, 1.5vw, 12px) 45px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 50px; transition: all 0.3s ease; outline: none; }
-        .search-input:hover { border-color: var(--primary); background: rgba(138, 43, 226, 0.15); }
-        .search-input:focus { border-color: var(--primary); background: #ffffff; box-shadow: 0 0 15px rgba(138, 43, 226, 0.3); }
-        
-        .search-icon, .clear-icon, .voice-icon { position: absolute; top: 50%; transform: translateY(-50%); opacity: 0.5; width: clamp(16px, 2vw, 18px); cursor: pointer; }
-        .search-icon { left: 15px; }
-        .clear-icon { right: 40px; display: none; }
-        .voice-icon { right: 15px; }
-        
-        .stories-container { display: flex; overflow-x: auto; padding: 15px 20px; gap: clamp(10px, 2vw, 15px); border-bottom: 1px solid var(--glass-border); background: rgba(248, 248, 255, 0.5); backdrop-filter: blur(5px); }
-        .stories-container::-webkit-scrollbar { display: none; }
-        .story-item { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; flex-shrink: 0; transition: transform 0.2s; }
-        .story-item:hover { transform: scale(1.05); }
-        .story-ring { width: clamp(75px, 10vw, 85px); height: clamp(75px, 10vw, 85px); border-radius: 50%; padding: 3px; background: linear-gradient(45deg, var(--primary), #bc13fe); display: flex; align-items: center; justify-content: center; }
-        .story-icon { width: 100%; height: 100%; border-radius: 50%; background: var(--bg); display: flex; align-items: center; justify-content: center; border: 3px solid var(--bg); }
-        .story-text { font-size: clamp(0.6rem, 1vw, 0.7rem); color: var(--text); font-weight: 500; }
+        body.emulation-mode-active .emulation-platforms-bar {
+            background-color: transparent;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
 
-        .tab-container { display: flex; overflow-x: auto; padding: 10px 20px; border-bottom: 1px solid var(--glass-border); gap: clamp(15px, 3vw, 20px); }
-        .tab-item { font-weight: 600; color: var(--text-dim); cursor: pointer; padding-bottom: 5px; white-space: nowrap; }
-        .tab-item.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+        /* ==========================================================================
+           MODAL DE IFRAME TELA CHEIA
+           ========================================================================== */
+        #iframeModal {
+            position: fixed; 
+            inset: 0; 
+            z-index: 9999; 
+            background-color: black;
+            display: none; 
+            flex-direction: column;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(100%);
+            border-radius: 0;
+        }
 
-        .game-list { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
-        .game-card { display: flex; align-items: center; gap: 15px; cursor: pointer; padding: 8px; border-radius: var(--card-radius); transition: all 0.3s ease; }
-        .game-card:hover { background: rgba(138, 43, 226, 0.05); transform: scale(1.02); }
-        .card-image-wrapper { width: clamp(70px, 10vw, 85px); height: clamp(105px, 15vw, 125px); border-radius: 8px; overflow: hidden; background: var(--glass); flex-shrink: 0; }
-        .card-image-wrapper img { width: 100%; height: 100%; object-fit: cover; }
-        .title { font-weight: 600; margin: 0; font-size: clamp(0.9rem, 1.2vw, 1rem); }
-        .category { font-size: clamp(0.7rem, 1vw, 0.8rem); color: var(--text-dim); }
+        #iframeModal.active { 
+            display: flex; 
+            transform: translateY(0); 
+        }
 
-        .modal-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 3000; display: none; overflow-y: auto; }
-        .modal-bg-blur { position: absolute; inset: 0; background-size: cover; background-position: center; filter: blur(20px) brightness(1.2); opacity: 0.3; z-index: -1; pointer-events: none; }
-        .modal-header { position: sticky; top: 0; background: transparent; padding: 15px; display: flex; align-items: center; z-index: 10; cursor: pointer; }
-        
-        .dropdown { position: absolute; top: 50px; right: 15px; background: white; border: 1px solid var(--glass-border); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: none; z-index: 20; min-width: 160px; }
-        .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 12px; cursor: pointer; font-size: 0.9rem; color: var(--text); }
-        .dropdown-item:hover { background: var(--glass); }
-        .dropdown-icon { width: 18px; color: var(--text-dim); }
+        #modal-drag-handle { 
+            height: 25px; 
+            max-width: 600px; 
+            margin: 0 auto;   
+            width: 100%;      
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            cursor: grab; 
+            touch-action: none; 
+            flex-shrink: 0; 
+            background-color: #121212;
+            border-bottom: 1px solid #222;
+            position: relative;
+        }
 
-        .content-wrapper { padding: 0 20px 40px 20px; }
-        .hero-section { display: flex; align-items: center; gap: 20px; margin: 20px 0; }
-        .hero-img { width: clamp(70px, 10vw, 80px); height: clamp(70px, 10vw, 80px); border-radius: 16px; object-fit: cover; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .action-buttons { display: flex; margin-bottom: 20px; }
-        .btn-play { flex: 1; padding: 15px; border-radius: 50px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; background: var(--primary); color: white; }
-        .btn-play:hover { background: var(--primary-light); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(138, 43, 226, 0.3); }
+        .drag-pill { 
+            width: 48px; 
+            height: 6px; 
+            background: rgba(255, 255, 255, 0.3); 
+            border-radius: 9999px; 
+        }
 
-        .options-bar { display: flex; justify-content: space-between; margin-bottom: 30px; gap: 8px; padding: 10px 0; }
-        .option-tab { flex: 1; height: 55px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 20px; background: var(--glass); cursor: pointer; border: 1px solid var(--glass-border); font-size: 0.65rem; color: var(--text-dim); font-weight: 600; transition: all 0.3s ease; white-space: nowrap; gap: 4px; }
-        .option-tab:hover { background: rgba(138, 43, 226, 0.2); transform: scale(1.02); }
-        .option-tab.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(138, 43, 226, 0.3); }
+        .close-modal-btn {
+            position: absolute;
+            right: 16px;
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 20px;
+            cursor: pointer;
+            outline: none;
+            display: none; 
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
 
-        #feedOverlay { position: fixed; bottom: 0; left: 0; width: 100%; height: 80%; background: white; border-radius: 30px 30px 0 0; z-index: 5000; display: none; padding: 20px; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); overflow-y: auto; }
-        .feed-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 15px; border-bottom: 1px solid var(--glass-border); }
+        .close-modal-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
 
-        #gameEmbedContainer { position: fixed; inset: 0; background: var(--bg); z-index: 4000; display: none; }
-        .game-close-btn { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 4001; cursor: pointer; background: rgba(0,0,0,0.1); border-radius: 50%; padding: 8px; }
-        #engineSub { display: none; font-size: 0.85rem; padding-left: 25px; border-top: 1px solid var(--glass-border); }
+        .modal-iframe {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            border: none;
+            background-color: #ffffff;
+        }
+
+        @media (min-width: 768px) {
+            .close-modal-btn {
+                display: flex;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="banner-container">
-        <img src="https://static.wikia.nocookie.net/megaman/images/b/b0/MMXLCMain.jpg/revision/latest?cb=20251212225334" class="banner-img active">
-        <img src="https://cdn.shopify.com/s/files/1/1226/8792/files/Sleeve-3.jpg?v=1766420571" class="banner-img">
-        <img src="https://static.wikia.nocookie.net/megaman/images/d/df/Mega_Man_ZX_complete_promo_art.jpg/revision/latest?cb=20200305034959" class="banner-img">
-        <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEghSfHMpAl-3vP0dobSCO0k3-yqsiTYhHiLk1tjmo13HW7GITLRGQghv-PyFFlTxMnnORmdglTFGP9ZTCqsImmNMiETSaPX0dvupFETFKvzIrjMMGkJfn9vtrd9AXRk3caAsU8wHftl1qQ/s1600/megamanzx.jpg" class="banner-img">
-        <img src="https://www.europanet.com.br/superposter/images/vejapordentro/107147/107147.jpg" class="banner-img">
-        <img src="https://i.etsystatic.com/46045656/r/il/802057/5187468494/il_fullxfull.5187468494_7ebx.jpg" class="banner-img">
-        <img src="https://wallpaperaccess.com/full/3963802.png" class="banner-img">
-        <img src="https://images3.alphacoders.com/140/thumb-1920-1402545.png" class="banner-img">
-        <img src="https://i.pinimg.com/736x/c2/95/84/c29584be3cc13f27c07d1614c3b8ebb6.jpg" class="banner-img">
-     
-        
-    </div>
 
-    <header>
-        <div class="header-top">
-            <i data-lucide="arrow-left" class="back-btn" onclick="window.location.href='../../../../index.html'"></i>
-            <div class="search-bar">
-                <i data-lucide="search" class="search-icon"></i>
-                <input type="text" id="searchInput" class="search-input" placeholder="Pesquisar..." oninput="toggleClearBtn(); filterGames()">
-                <i data-lucide="x" id="clearBtn" class="clear-icon" onclick="clearSearch()"></i>
-                <i data-lucide="mic" id="voiceBtn" class="voice-icon" onclick="startVoiceSearch()"></i>
+    <header class="app-header">
+        <div class="title-row">
+            <button class="nav-back-btn" onclick="window.location.href='../../../../index.html'">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <h1 class="app-title" id="appMainTitle">LoreSpace</h1>
+        </div>
+        
+        <div class="search-row" id="searchRow">
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="Buscar comunidade">
+                <button id="clearSearchBtn" class="clear-search-btn"><i class="fas fa-xmark"></i></button>
             </div>
+        </div>
+        
+        <div class="tiktok-tab-container" id="tabContainer">
+            <button class="tiktok-tab" data-filter="emulacao">Emulação</button>
+            <button class="tiktok-tab active" data-filter="all">LoreSpace</button>
         </div>
     </header>
 
-    <main id="mainContainer">
-        <div class="stories-container">
-            <div class="story-item" tabindex="0" onclick="openStoryModal('./Puzzle/Index.html')"><div class="story-ring"><div class="story-icon"><i data-lucide="brain-circuit"></i></div></div><span class="story-text">Puzzle</span></div>
-            <div class="story-item" tabindex="0" onclick="openStoryModal('./Classics/Index.html')"><div class="story-ring"><div class="story-icon"><i data-lucide="rocket"></i></div></div><span class="story-text">Clássicos</span></div>
-        </div>
-        <div class="tab-container" id="topTabs"></div>
-        <div id="gameList" class="game-list"></div>
-    </main>
-
-    <div id="gameModal" class="modal-overlay">
-        <div id="modalBgBlur" class="modal-bg-blur"></div>
-        <div class="modal-header">
-            <i data-lucide="arrow-left" onclick="closeModal()"></i>
-            <i data-lucide="more-vertical" style="margin-left: auto;" onclick="toggleDropdown()"></i>
-            <div id="actionDropdown" class="dropdown">
-                <div class="dropdown-item" onclick="shareGame()"><i data-lucide="share-2" class="dropdown-icon"></i> Compartilhar</div>
-                <div class="dropdown-item" onclick="toggleEngineSub()"><i data-lucide="globe" class="dropdown-icon"></i> Web</div>
-                <div id="engineSub">
-                    <div class="dropdown-item" onclick="searchEngine('google')">Google</div>
-                    <div class="dropdown-item" onclick="searchEngine('bing')">Bing</div>
-                </div>
-            </div>
-        </div>
-        <div id="modalDetails" class="content-wrapper">
-            <div class="hero-section">
-                <img id="modalImg" class="hero-img" src="">
-                <div><h1 id="modalTitle"></h1><p id="modalCategory"></p></div>
-            </div>
-            <div class="action-buttons">
-                <button class="btn-play" id="playBtn">Jogar</button>
-            </div>
-            
-            <div class="options-bar" id="optionsBar">
-                <div class="option-tab" onclick="selectOption(this, 'Vídeos')"><i data-lucide="video"></i>Vídeos</div>
-                <div class="option-tab" onclick="selectOption(this, 'Wiki')"><i data-lucide="book-open"></i>Wiki</div>
-            </div>
-
-            <h3>Semelhantes</h3>
-            <div id="suggestedList" class="game-list" style="padding: 0;"></div>
-        </div>
+    <div id="emulationPlatformsBar" class="emulation-platforms-bar">
+        <div class="horizontal-buttons-container" id="platformButtonsContainer"></div>
     </div>
 
-    <div id="feedOverlay">
-        <div class="feed-header">
-            <h2 id="feedTitle">Feed</h2>
-            <i data-lucide="x" onclick="closeFeed()" style="cursor:pointer;"></i>
+    <h2 class="vertical-section-title" id="sectionTitle"></h2>
+    
+    <div class="tiktok-vertical-container" id="communitiesContainer"></div>
+
+    <button id="scrollTopBtn" class="scroll-top-btn" onclick="scrollToTop()">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <div id="iframeModal">
+        <div id="modal-drag-handle">
+            <div class="drag-pill"></div>
+            <button class="close-modal-btn" onclick="closeIframeModal()">
+                <i class="fas fa-xmark"></i>
+            </button>
         </div>
-        <div id="feedContent"></div>
-    </div>
-
-    <div id="gameEmbedContainer">
-        <div class="game-close-btn" onclick="closeGameFullscreen()"><i data-lucide="chevron-down"></i></div>
-        <iframe id="gameEmbed" style="width:100%; height:100%; border:none;"></iframe>
-    </div>
-
-    <div id="storyModal" class="modal-overlay">
-        <div class="modal-header"><i data-lucide="arrow-left" onclick="closeStoryModal()"></i></div>
-        <iframe id="storyEmbed" style="width:100%; height:100%; border:none;"></iframe>
+        <iframe id="modalIframe" class="modal-iframe" src="about:blank"></iframe>
     </div>
 
     <script type="module">
         import { consoles } from './games.js';
-        let currentPlatform = Object.keys(consoles)[0];
-        let currentGameData = null;
 
-        window.selectOption = async (el, type) => {
-            document.querySelectorAll('.option-tab').forEach(tab => tab.classList.remove('active'));
-            el.classList.add('active');
-            
-            const feedOverlay = document.getElementById('feedOverlay');
-            const feedContent = document.getElementById('feedContent');
-            const gameTitle = document.getElementById('modalTitle').innerText;
-            
-            document.getElementById('feedTitle').innerText = type;
-            feedContent.innerHTML = '<p>Carregando...</p>';
-            feedOverlay.style.display = 'block';
-
-            if (type === 'Vídeos') {
-                if (currentGameData && currentGameData.video) {
-                    feedContent.innerHTML = `<div style="width:100%; aspect-ratio: 16/9; border-radius: 12px; overflow: hidden; background: #000;"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/${currentGameData.video}" frameborder="0" allowfullscreen></iframe></div>`;
-                } else {
-                    feedContent.innerHTML = '<p>Vídeo não disponível.</p>';
-                }
-            } else if (type === 'Wiki') {
-                try {
-                    const response = await fetch(`https://pt.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(gameTitle)}`);
-                    const data = await response.json();
-                    if (data.type === "standard") {
-                        feedContent.innerHTML = `<div style="padding: 10px;">${data.thumbnail ? `<img src="${data.thumbnail.source}" style="width:100%; border-radius:8px; margin-bottom:10px;">` : ''}<p style="font-size: 0.9rem; line-height: 1.5;">${data.extract}</p><a href="${data.content_urls.desktop.page}" target="_blank" style="color: var(--primary);">Ler mais na Wikipedia</a></div>`;
-                    } else {
-                        feedContent.innerHTML = '<p>Nenhum artigo encontrado.</p>';
-                    }
-                } catch (error) { feedContent.innerHTML = '<p>Erro ao carregar dados.</p>'; }
+        // Coleção estruturada interna mantida para os cards da aba LoreSpace (sem categoria)
+        const lorespaceCards = [
+            {
+                title: "Comunidade de Animes",
+                image: "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=600",
+                url: "animes.html"
+            },
+            {
+                title: "Mundo do RPG de Mesa",
+                image: "https://images.unsplash.com/photo-1605846840748-18c224a7cfd8?q=80&w=600",
+                url: "rpg-mesa.html"
+            },
+            {
+                title: "Arena E-Sports",
+                image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=600",
+                url: "esports.html"
             }
-        };
+        ];
+
+        const searchInput = document.getElementById('searchInput');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        const communitiesContainer = document.getElementById('communitiesContainer');
+        const sectionTitle = document.getElementById('sectionTitle');
+        const searchRow = document.getElementById('searchRow');
+        const appMainTitle = document.getElementById('appMainTitle');
+        const tabs = document.querySelectorAll('.tiktok-tab');
+        const scrollTopBtn = document.getElementById('scrollTopBtn');
+        const emulationPlatformsBar = document.getElementById('emulationPlatformsBar');
+        const platformButtonsContainer = document.getElementById('platformButtonsContainer');
         
-        window.closeFeed = () => {
-            document.getElementById('feedOverlay').style.display = 'none';
-            document.querySelectorAll('.option-tab').forEach(tab => tab.classList.remove('active'));
-        };
+        const iframeModal = document.getElementById('iframeModal');
+        const modalIframe = document.getElementById('modalIframe');
+        const handle = document.getElementById('modal-drag-handle');
 
-        const banners = document.querySelectorAll('.banner-img');
-        let index = 0;
-        setInterval(() => {
-            banners[index].classList.remove('active');
-            index = (index + 1) % banners.length;
-            banners[index].classList.add('active');
-        }, 7000);
+        let currentFilter = 'all';
+        let currentPlatform = Object.keys(consoles)[0] || 'todos'; 
+        let touchStartY = 0;
+        let isDragging = false;
+        let emulacaoList = [];
+        let platformFilters = [];
 
-        window.openStoryModal = (url) => { document.getElementById('storyEmbed').src = url; document.getElementById('storyModal').style.display = 'block'; };
-        window.closeStoryModal = () => { document.getElementById('storyModal').style.display = 'none'; document.getElementById('storyEmbed').src = ''; };
+        // Estruturação e extração de dados do games.js equivalente ao modelo recebido
+        function initEmulationData() {
+            if (typeof consoles === 'undefined') {
+                console.warn("Aviso: Objeto 'consoles' não encontrado no arquivo games.js.");
+                return;
+            }
 
-        window.openModal = (g) => {
-            currentGameData = g;
-            document.querySelectorAll('.option-tab').forEach(tab => tab.classList.remove('active'));
-            document.getElementById('modalImg').src = g.image;
-            document.getElementById('modalBgBlur').style.backgroundImage = `url('${g.image}')`;
-            document.getElementById('modalTitle').innerText = g.title;
-            document.getElementById('modalCategory').innerText = currentPlatform;
-            document.getElementById('playBtn').onclick = () => { 
-                document.getElementById('gameEmbedContainer').style.display = 'block';
-                document.getElementById('gameEmbed').src = g.url;
-            };
-            document.getElementById('gameModal').style.display = 'block';
-            renderSuggested(g.title);
-            lucide.createIcons();
-        };
+            emulacaoList = [];
+            platformFilters = [];
 
-        const renderSuggested = (currentTitle) => {
-            const container = document.getElementById('suggestedList');
-            container.innerHTML = "";
-            consoles[currentPlatform].games.filter(g => g.title !== currentTitle).slice(0, 4).forEach(g => {
-                const card = document.createElement('div');
-                card.className = 'game-card';
-                card.onclick = () => { document.getElementById('gameModal').style.display = 'none'; openModal(g); };
-                card.innerHTML = `<div class="card-image-wrapper"><img src="${g.image || 'https://via.placeholder.com/60x90'}"></div><div class="info"><p class="title">${g.title}</p><p class="category">${currentPlatform}</p></div>`;
-                container.appendChild(card);
+            // Preenche os filtros dinâmicos de plataforma
+            Object.keys(consoles).forEach(platformKey => {
+                const consoleObj = consoles[platformKey];
+                
+                // Popula a lista unificada de jogos de emulação
+                consoleObj.games.forEach(game => {
+                    emulacaoList.push({
+                        name: game.title,
+                        platform: platformKey,
+                        img: game.image,
+                        url: game.url,
+                        hasBadge: false
+                    });
+                });
+
+                // Estrutura os botões de filtro de plataforma conforme as chaves de consoles
+                let fallbackBg = 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=1200';
+                const lowerKey = platformKey.toLowerCase();
+                if (lowerKey === 'gba') fallbackBg = 'https://images.unsplash.com/photo-1531525645387-7f14be1bdbbd?q=80&w=1200';
+                if (lowerKey === 'ps1' || lowerKey === 'playstation') fallbackBg = 'https://images.unsplash.com/photo-1592155131491-3f10a295fb7c?q=80&w=1200';
+
+                platformFilters.push({
+                    id: platformKey,
+                    label: platformKey,
+                    bgImage: fallbackBg
+                });
             });
-            lucide.createIcons();
-        };
 
-        window.closeGameFullscreen = () => { document.getElementById('gameEmbedContainer').style.display = 'none'; document.getElementById('gameEmbed').src = ''; };
-        window.closeModal = () => { document.getElementById('gameModal').style.display = 'none'; };
-
-        window.searchEngine = (engine) => {
-            const title = document.getElementById('modalTitle').innerText;
-            const url = engine === 'google' ? `https://www.google.com/search?q=${encodeURIComponent(title)}` : `https://www.bing.com/search?q=${encodeURIComponent(title)}`;
-            window.open(url, '_blank');
-            document.getElementById('actionDropdown').style.display = 'none';
-        };
-
-        window.toggleClearBtn = () => document.getElementById('clearBtn').style.display = document.getElementById('searchInput').value.length > 0 ? 'block' : 'none';
-        window.clearSearch = () => { const input = document.getElementById('searchInput'); input.value = ''; document.getElementById('clearBtn').style.display = 'none'; filterGames(); input.focus(); };
-        window.filterGames = () => {
-            const term = document.getElementById('searchInput').value.toLowerCase();
-            const gList = document.getElementById('gameList');
-            gList.innerHTML = "";
-            consoles[currentPlatform].games.filter(g => g.title.toLowerCase().includes(term)).forEach(g => {
-                const card = document.createElement('div');
-                card.className = 'game-card';
-                card.onclick = () => openModal(g);
-                card.innerHTML = `<div class="card-image-wrapper"><img src="${g.image || 'https://via.placeholder.com/60x90'}"></div><div class="info"><p class="title">${g.title}</p><p class="category">${currentPlatform}</p></div>`;
-                gList.appendChild(card);
-            });
-            lucide.createIcons();
-        };
-        window.toggleDropdown = () => document.getElementById('actionDropdown').style.display = (document.getElementById('actionDropdown').style.display === 'block') ? 'none' : 'block';
-        window.toggleEngineSub = () => document.getElementById('engineSub').style.display = (document.getElementById('engineSub').style.display === 'block') ? 'none' : 'block';
-        function render() {
-            const tContainer = document.getElementById('topTabs');
-            tContainer.innerHTML = "";
-            Object.keys(consoles).forEach(p => {
-                const div = document.createElement('div');
-                div.className = `tab-item ${p === currentPlatform ? 'active' : ''}`;
-                div.innerText = p;
-                div.onclick = () => { currentPlatform = p; render(); filterGames(); };
-                tContainer.appendChild(div);
-            });
-            filterGames();
-            lucide.createIcons();
+            if (platformFilters.length > 0 && currentPlatform === 'todos') {
+                currentPlatform = platformFilters[0].id;
+            }
         }
-        window.addEventListener('load', () => { render(); lucide.createIcons(); });
+
+        window.openIframeModal = function(url) {
+            modalIframe.src = url;
+            iframeModal.style.display = 'flex';
+            setTimeout(() => {
+                iframeModal.classList.add('active');
+            }, 10);
+            document.body.classList.add('modal-open');
+        }
+
+        window.closeIframeModal = function() {
+            iframeModal.style.transform = 'translateY(100%)';
+            setTimeout(() => { 
+                iframeModal.classList.remove('active'); 
+                iframeModal.style.transform = ''; 
+                iframeModal.style.display = 'none';
+                document.body.classList.remove('modal-open'); 
+                modalIframe.src = 'about:blank'; 
+            }, 400);
+        }
+
+        handle.addEventListener('touchstart', (e) => { 
+            touchStartY = e.touches[0].clientY; 
+            isDragging = true; 
+        }, { passive: true });
+
+        handle.addEventListener('touchmove', (e) => { 
+            if (!isDragging) return; 
+            const diff = e.touches[0].clientY - touchStartY; 
+            if (diff > 0) {
+                iframeModal.style.transform = `translateY(${diff}px)`; 
+            }
+        }, { passive: true });
+
+        handle.addEventListener('touchend', (e) => { 
+            isDragging = false; 
+            const diff = e.changedTouches[0].clientY - touchStartY; 
+            if (diff > 100) {
+                closeIframeModal();
+            } else {
+                iframeModal.style.transform = 'translateY(0)'; 
+            }
+        }, { passive: true });
+
+        function renderPlatformButtons() {
+            platformButtonsContainer.innerHTML = '';
+            platformFilters.forEach(platform => {
+                const btn = document.createElement('button');
+                btn.className = `rounded-filter-btn ${platform.id === currentPlatform ? 'active' : ''}`;
+                btn.textContent = platform.label;
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('#platformButtonsContainer .rounded-filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentPlatform = platform.id;
+                    
+                    updateEmulationBackground(platform.bgImage);
+                    applyTabFilterOnly();
+                });
+                platformButtonsContainer.appendChild(btn);
+            });
+        }
+
+        function updateEmulationBackground(imageUrl) {
+            if (currentFilter === 'emulacao' && imageUrl) {
+                document.body.classList.add('emulation-mode-active');
+                document.body.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('${imageUrl}')`;
+                communitiesContainer.classList.add('emulation-active-style');
+            } else {
+                document.body.classList.remove('emulation-mode-active');
+                document.body.style.backgroundImage = 'none';
+                communitiesContainer.classList.remove('emulation-active-style');
+            }
+        }
+
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 150) {
+                scrollTopBtn.classList.add('show');
+            } else {
+                scrollTopBtn.classList.remove('show');
+            }
+        });
+
+        window.scrollToTop = function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function fetchCommunities(query = '') {
+            try {
+                communitiesContainer.innerHTML = ''; 
+
+                emulacaoList.forEach(item => {
+                    createCommunityElement(item.name, item.img, 'emulacao', item.hasBadge, item.url, item.platform);
+                });
+
+                if (currentFilter !== 'emulacao') {
+                    const filteredCards = lorespaceCards.filter(card => 
+                        card.title.toLowerCase().includes(query.toLowerCase())
+                    );
+
+                    filteredCards.forEach(card => {
+                        createCommunityElement(card.title, card.image, '', false, card.url);
+                    });
+                }
+
+                applyTabFilterOnly();
+
+            } catch (error) {
+                console.error("Erro ao carregar dados: ", error);
+                communitiesContainer.innerHTML = '<p style="padding: 16px; color: red;">Erro ao carregar sugestões.</p>';
+            }
+        }
+
+        function createCommunityElement(name, imgUrl, category, hasBadge, targetUrl = null, platform = 'todos') {
+            const item = document.createElement('div');
+            item.setAttribute('data-category', category);
+            item.setAttribute('data-platform', platform);
+
+            if (category !== 'emulacao') {
+                item.className = 'vertical-community-item lorespace-card';
+                item.innerHTML = `
+                    <img class="lorespace-bg-img" src="${imgUrl}" alt="${name}">
+                    <span class="lorespace-title">${name}</span>
+                `;
+                item.addEventListener('click', () => { openIframeModal(targetUrl); });
+            } else {
+                item.className = 'vertical-community-item';
+                item.innerHTML = `
+                    <div class="vertical-item-left">
+                        <div class="vertical-avatar-wrapper">
+                            <img class="vertical-avatar-img" src="${imgUrl}" alt="${name}">
+                            ${hasBadge ? '<div class="status-badge"></div>' : ''}
+                        </div>
+                        <div class="vertical-info">
+                            <span class="vertical-name">${name}</span>
+                        </div>
+                    </div>
+                `;
+                item.addEventListener('click', () => { openIframeModal(targetUrl); });
+            }
+            communitiesContainer.appendChild(item);
+        }
+
+        function filterEmulacaoLocal(query) {
+            const communityItems = document.querySelectorAll('.vertical-community-item[data-category="emulacao"]');
+            let visibleCount = 0;
+
+            communityItems.forEach(item => {
+                const name = item.querySelector('.vertical-name').textContent.toLowerCase();
+                const itemPlatform = item.getAttribute('data-platform');
+                
+                const matchesQuery = name.includes(query.toLowerCase());
+                const matchesPlatform = (currentPlatform === 'todos' || itemPlatform === currentPlatform);
+
+                if (matchesQuery && matchesPlatform) {
+                    item.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+
+            const existingEmptyState = communitiesContainer.querySelector('.empty-friends-state');
+            if (visibleCount === 0 && (query.trim() !== '' || currentPlatform !== 'todos')) {
+                if (!existingEmptyState) {
+                    const emptyState = document.createElement('div');
+                    emptyState.className = 'empty-friends-state';
+                    emptyState.innerHTML = `
+                        <i class="fas fa-gamepad"></i>
+                        <p class="empty-friends-text">Nenhum emulador encontrado aqui.</p>
+                    `;
+                    communitiesContainer.appendChild(emptyState);
+                }
+            } else if (existingEmptyState) {
+                existingEmptyState.remove();
+            }
+        }
+
+        function applyTabFilterOnly() {
+            const communityItems = document.querySelectorAll('.vertical-community-item');
+            
+            if (currentFilter === 'emulacao') {
+                sectionTitle.textContent = "";
+                searchRow.classList.remove('hide-search');
+                emulationPlatformsBar.classList.add('show-bar');
+                
+                const activeFilterObj = platformFilters.find(f => f.id === currentPlatform);
+                if (activeFilterObj) updateEmulationBackground(activeFilterObj.bgImage);
+
+                if (appMainTitle.textContent !== "Emulação") {
+                    appMainTitle.style.opacity = 0;
+                    setTimeout(() => { appMainTitle.textContent = "Emulação"; appMainTitle.style.opacity = 1; }, 150);
+                }
+
+                if (searchInput.placeholder !== "Buscar emulador") {
+                    searchInput.classList.add('fade-placeholder');
+                    setTimeout(() => { searchInput.placeholder = "Buscar emulador"; searchInput.classList.remove('fade-placeholder'); }, 150);
+                }
+                
+                if (emulacaoList.length === 0) {
+                    communitiesContainer.innerHTML = `<div class="empty-friends-state"><i class="fas fa-gamepad"></i><p class="empty-friends-text">Nenhum emulador disponível.</p></div>`;
+                    return;
+                }
+
+                communityItems.forEach(item => {
+                    if (item.getAttribute('data-category') !== 'emulacao') item.classList.add('hidden');
+                });
+
+                filterEmulacaoLocal(searchInput.value.trim());
+                return;
+            } else {
+                emulationPlatformsBar.classList.remove('show-bar');
+                updateEmulationBackground(null);
+                searchRow.classList.add('hide-search');
+                sectionTitle.textContent = "";
+
+                if (appMainTitle.textContent !== "LoreSpace") {
+                    appMainTitle.style.opacity = 0;
+                    setTimeout(() => { appMainTitle.textContent = "LoreSpace"; appMainTitle.style.opacity = 1; }, 150);
+                }
+            }
+
+            const tempEmptyState = communitiesContainer.querySelector('.empty-friends-state');
+            if (tempEmptyState) tempEmptyState.remove();
+
+            communityItems.forEach(item => {
+                const communityCategory = item.getAttribute('data-category');
+                if (currentFilter === 'all') {
+                    if (communityCategory !== 'emulacao') item.classList.remove('hidden');
+                    else item.classList.add('hidden');
+                } else if (communityCategory === currentFilter) {
+                    item.classList.remove('hidden');
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+        }
+
+        searchInput.addEventListener('input', () => {
+            clearSearchBtn.style.display = searchInput.value.length > 0 ? 'block' : 'none';
+            if (currentFilter === 'emulacao') filterEmulacaoLocal(searchInput.value.trim());
+        });
+
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearSearchBtn.style.display = 'none';
+            if (currentFilter === 'emulacao') filterEmulacaoLocal('');
+            else fetchCommunities('');
+            searchInput.focus();
+        });
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                currentFilter = tab.getAttribute('data-filter');
+                if (currentFilter !== 'emulacao') fetchCommunities(searchInput.value.trim());
+                else applyTabFilterOnly();
+            });
+        });
+
+        // Execução inicial
+        initEmulationData();
+        renderPlatformButtons();
+        fetchCommunities();
     </script>
 </body>
 </html>
