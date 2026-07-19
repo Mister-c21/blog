@@ -90,6 +90,49 @@
             .tab-item i { display: none; }
         }
 
+        /* --- BOTÕES REDONDOS (SUB-NAV) --- */
+        .sub-nav-container {
+            width: 100%;
+            padding: 8px 16px;
+            background: #f7f7fc;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            white-space: nowrap;
+            flex-shrink: 0;
+            z-index: 999;
+            scrollbar-width: none;
+            transition: all 0.3s ease;
+        }
+        
+        .sub-nav-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .sub-nav-container.hidden {
+            display: none;
+        }
+
+        .btn-theme {
+            background: #ffffff;
+            color: #8a2be2;
+            border: 1px solid rgba(138, 43, 226, 0.2);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-theme:hover, .btn-theme:active, .btn-theme.active {
+            background: #8a2be2;
+            color: #ffffff;
+        }
+
         /* CONTEÚDO */
         .main-container {
             flex: 1;
@@ -144,6 +187,39 @@
                 border-right: 1px solid rgba(0, 0, 0, 0.05); 
                 padding: 60px 0 20px;
                 flex-shrink: 0;
+            }
+
+            .sub-nav-container {
+                position: absolute;
+                top: 40px;
+                right: 0;
+                left: auto;
+                width: max-content;
+                height: calc(100vh - 40px);
+                background: #f7f7fc;
+                border-left: 1px solid rgba(0, 0, 0, 0.05);
+                padding: 20px 16px;
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-start;
+                align-items: stretch;
+                gap: 12px;
+                overflow-y: auto;
+            }
+
+            .sub-nav-container .btn-theme {
+                justify-content: flex-start;
+                padding: 10px 16px;
+            }
+
+            .main-container {
+                margin-top: 40px;
+                margin-right: 145px;
+                transition: all 0.3s ease;
+            }
+
+            body:has(.sub-nav-container.hidden) .main-container {
+                margin-right: 0px;
             }
 
             .tab-list {
@@ -212,10 +288,18 @@
         </ul>
     </nav>
 
+    <div class="sub-nav-container" id="sub-nav-buttons">
+        <button class="btn-theme active" onclick="switchTheme(this, './Options/Post.html')"><i class="fas fa-file-alt"></i> Blog</button>
+        <button class="btn-theme" onclick="switchTheme(this, './Options/Galeria.html')"><i class="fas fa-images"></i> Galeria</button>
+        <button class="btn-theme" onclick="switchTheme(this, './Options/Links.html')"><i class="fas fa-link"></i> Links</button>
+        <button class="btn-theme" onclick="switchTheme(this, './Options/Videos.html')"><i class="fas fa-video"></i> Vídeos</button>
+        <button class="btn-theme" onclick="switchTheme(this, './Options/Namoro.html')"><i class="fas fa-heart"></i> Namoro</button>
+    </div>
+
     <div class="main-container">
         <div class="window-wrapper">
             <div class="tabs-view-pager" id="view-pager">
-                <div class="tab-page"><iframe class="content-iframe" src="./Options/Post.html"></iframe></div>
+                <div class="tab-page"><iframe id="posts-iframe" class="content-iframe" src="./Options/Post.html"></iframe></div>
                 <div class="tab-page"><iframe class="content-iframe" src="./Options/Criar.html"></iframe></div>
                 <div class="tab-page"><iframe class="content-iframe" src="./Options/Comunidade.html"></iframe></div>
                 <div class="tab-page"><iframe class="content-iframe" src="./Options/Perfil.html"></iframe></div>
@@ -228,21 +312,35 @@
     <script>
         const pager = document.getElementById('view-pager');
         const header = document.getElementById('app-header');
+        const subNav = document.getElementById('sub-nav-buttons');
+        const postsIframe = document.getElementById('posts-iframe'); // Mapeia o iframe de posts
         const tabs = Array.from(document.querySelectorAll('.tab-item'));
         const showNavBtn = document.getElementById('show-nav-btn');
+
+        // ATUALIZADO: Agora recebe a URL da página e altera o src do iframe correspondente
+        function switchTheme(clickedButton, pageUrl) {
+            const themeButtons = document.querySelectorAll('.btn-theme');
+            themeButtons.forEach(btn => btn.classList.remove('active'));
+            clickedButton.classList.add('active');
+            
+            // Altera dinamicamente a página renderizada dentro do iframe de posts
+            if(postsIframe && pageUrl) {
+                postsIframe.src = pageUrl;
+            }
+        }
 
         function switchTab(index) {
             tabs.forEach((item, i) => item.classList.toggle('active', i === index));
             
-            // Move o pager
             pager.style.transform = `translateX(-${index * 25}%)`;
 
-            // Header só aparece na aba Posts
             if (index === 0) {
                 header.classList.remove('hidden');
+                subNav.classList.remove('hidden');
                 showNavBtn.classList.remove('active');
             } else {
                 header.classList.add('hidden');
+                subNav.classList.add('hidden');
                 showNavBtn.classList.add('active');
             }
         }
@@ -251,12 +349,10 @@
             switchTab(0);
         }
         
-        // Inicializa
         window.addEventListener('DOMContentLoaded', () => {
             switchTab(0);
         });
 
-        // Atualiza ao redimensionar
         window.addEventListener('resize', () => {
             const activeIndex = tabs.findIndex(tab => tab.classList.contains('active'));
             switchTab(activeIndex >= 0 ? activeIndex : 0);
