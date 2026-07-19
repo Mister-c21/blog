@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrazyGames - Jogos Online Gratuitos</title>
+    <link class="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-main: #13091c; 
+            --bg-sidebar: #1c102b;
+            --bg-card: #25163a;
+            --text-color: #ffffff;
+            --text-secondary: #b3a1ca;
+            --accent-color: #8a2be2; 
+            --gradient-accent: linear-gradient(135deg, #a855f7, #6366f1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            transition: padding-bottom 0.5s ease;
+        }
+
+        body.modal-open {
+            overflow: hidden !important;
+            height: 100vh !important;
+        }
+
+        /* Menu Lateral (Desktop) */
+        aside {
+            width: 240px;
+            min-width: 240px;
+            background-color: var(--bg-sidebar);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            border-right: 1px solid rgba(255,255,255,0.05);
+            overflow-y: auto;
+        }
+
+        .menu-item {
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .menu-item:hover, .menu-item.active {
+            background-color: var(--bg-card);
+            color: var(--text-color);
+        }
+
+        .desktop-nav-tabs {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 15px;
+        }
+
+        .desktop-nav-tabs .menu-item {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .menu-item svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            flex-shrink: 0;
+        }
+
+        .menu-subtitle {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.4);
+            font-weight: 700;
+            margin-top: 5px;
+            padding-left: 16px;
+        }
+
+        /* Conteúdo Principal */
+        main {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            max-width: 100%;
+        }
+
+        /* Header Centralizado */
+        .app-header {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 12px;
+        }
+
+        .title-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 36px;
+            width: 100%;
+        }
+
+        .logo-header {
+            font-size: 24px;
+            font-weight: 700;
+            background: var(--gradient-accent);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            white-space: nowrap;
+        }
+
+        .logo-header a {
+            text-decoration: none;
+            color: inherit;
+            background: inherit;
+            -webkit-background-clip: inherit;
+            -webkit-text-fill-color: inherit;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            position: relative;
+        }
+
+        /* Barra de Busca (Desktop Base) */
+        .search-bar {
+            width: 100%;
+            max-width: 320px;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 8px 36px 8px 14px;
+            font-size: 14px;
+            background-color: var(--bg-sidebar);
+            border: 1.5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 18px;
+            color: white;
+            outline: none;
+            transition: border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .search-bar input:hover {
+            border-color: rgba(168, 85, 247, 0.5);
+            background-color: rgba(28, 16, 43, 0.8);
+        }
+
+        .search-bar input:focus {
+            border-color: var(--accent-color);
+            background-color: var(--bg-sidebar);
+            box-shadow: 0 0 14px rgba(138, 43, 226, 0.6);
+        }
+
+        .clear-btn {
+            position: absolute;
+            right: 12px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 18px;
+            cursor: pointer;
+            display: none; 
+            user-select: none;
+            line-height: 1;
+        }
+
+        .clear-btn:hover {
+            color: var(--text-color);
+        }
+
+        .hamburger-menu {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            flex-direction: column;
+            gap: 6px;
+            padding: 4px;
+            position: absolute;
+            left: 0;
+            z-index: 110;
+        }
+
+        .hamburger-menu span {
+            display: block;
+            width: 26px;
+            height: 3px;
+            background-color: var(--text-color);
+            border-radius: 2px;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        .hamburger-menu.open span:nth-child(1) {
+            transform: translateY(9px) rotate(45deg);
+        }
+        .hamburger-menu.open span:nth-child(2) {
+            opacity: 0;
+        }
+        .hamburger-menu.open span:nth-child(3) {
+            transform: translateY(-9px) rotate(-45deg);
+        }
+
+        /* Menu Lateral Drawer (Mobile) */
+        .mobile-drawer {
+            position: fixed;
+            top: 0;
+            left: -280px;
+            width: 280px;
+            height: 100vh;
+            background-color: var(--bg-sidebar);
+            z-index: 100;
+            padding: 80px 20px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 5px 0 25px rgba(0,0,0,0.5);
+            transition: left 0.3s ease-in-out;
+            overflow-y: auto;
+        }
+
+        .mobile-drawer.open {
+            left: 0;
+        }
+
+        .drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+            z-index: 99;
+            display: none;
+        }
+
+        .drawer-overlay.open {
+            display: block;
+        }
+
+        /* Grade de Jogos */
+        .games-section {
+            width: 100%;
+        }
+
+        .games-section h2 {
+            font-size: 22px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+            width: 100%;
+        }
+
+        .game-card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 1.5px solid rgba(255, 255, 255, 0.03);
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), 
+                        box-shadow 0.3s cubic-bezier(0.25, 1, 0.5, 1), 
+                        border-color 0.3s ease;
+        }
+
+        .game-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(168, 85, 247, 0.4);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6), 
+                        0 0 14px rgba(168, 85, 247, 0.25);
+        }
+
+        .game-thumb {
+            width: 100%;
+            height: 135px;
+            background-color: #3b245d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: linear-gradient(135deg, #2a1942, #3b245d);
+            transition: opacity 0.2s;
+        }
+
+        .game-card:hover .game-thumb {
+            opacity: 0.9;
+        }
+
+        .game-info {
+            padding: 12px;
+        }
+
+        .game-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .game-category {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Modal */
+        #iframeModal {
+            position: fixed; 
+            inset: 0; 
+            z-index: 9999; 
+            background-color: black;
+            display: none; 
+            flex-direction: column;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(100%);
+            border-radius: 0;
+        }
+
+        #iframeModal.active { 
+            display: flex; 
+            transform: translateY(0); 
+        }
+
+        #modal-drag-handle { 
+            height: 30px; 
+            width: 100%;      
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            cursor: grab; 
+            touch-action: none; 
+            flex-shrink: 0; 
+            background-color: #121212;
+            border-bottom: 1px solid #222;
+            position: relative;
+        }
+
+        .drag-pill { 
+            width: 48px; 
+            height: 6px; 
+            background: rgba(255, 255, 255, 0.3); 
+            border-radius: 9999px; 
+        }
+
+        .close-modal-btn {
+            position: absolute;
+            right: 16px;
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 20px;
+            cursor: pointer;
+            outline: none;
+            display: none; 
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .close-modal-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-iframe {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            border: none;
+            background-color: #ffffff;
+        }
+
+        /* ==========================================================================
+           REGRAS RESTRITAS PARA MOBILE (BARRA DE BUSCA EXPANDIDA)
+           ========================================================================== */
+        @media (max-width: 768px) {
+            aside {
+                display: none; 
+            }
+            .hamburger-menu {
+                display: flex; 
+            }
+            .games-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 12px;
+            }
+            main {
+                padding: 16px;
+                gap: 20px; 
+            }
+            
+            /* Proporções da barra de busca no mobile ligeiramente aumentadas */
+            .search-bar {
+                max-width: 250px; /* Aumentado de 210px para 250px para melhor aproveitamento */
+            }
+            
+            .search-bar input {
+                padding: 8px 32px 8px 14px; /* Aumentado o padding para melhorar a área de toque */
+                font-size: 13px; /* Fonte levemente maior para melhor leitura */
+                border-radius: 16px; /* Ajuste sutil no arredondamento */
+            }
+
+            .clear-btn {
+                right: 11px;
+                font-size: 16px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .close-modal-btn {
+                display: flex; 
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <nav class="desktop-nav-tabs">
+            <a href="#" class="menu-item active">
+                <svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                Para você
+            </a>
+            <a href="#" class="menu-item">
+                <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Ação
+            </a>
+            <a href="#" class="menu-item">
+                <svg viewBox="0 0 24 24"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
+                Aventura
+            </a>
+            <a href="#" class="menu-item">
+                <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4M8 10v4M15 11h.01M18 13h.01"/></svg>
+                Puzzle
+            </a>
+        </nav>
+
+        <div class="menu-subtitle">Mais em</div>
+
+        <a href="#" class="menu-item">
+            <svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3;M1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z"/></svg>
+            Populares
+        </a>
+        <a href="#" class="menu-item">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Novos
+        </a>
+        <a href="#" class="menu-item">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            Ação
+        </a>
+        <a href="#" class="menu-item">
+            <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            Carros
+        </a>
+        <a href="#" class="menu-item">
+            <svg viewBox="0 0 24 24"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
+            Puzzle
+        </a>
+    </aside>
+
+    <div class="drawer-overlay" id="drawerOverlay"></div>
+    <nav class="mobile-drawer" id="mobileDrawer">
+        <a href="../../index.html" class="menu-item">
+            <svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Início / Home
+        </a>
+        <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 5px 0;">
+        <a href="#" class="menu-item active">
+            <svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Para você
+        </a>
+        <a href="#" class="menu-item">
+            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Ação
+        </a>
+        <a href="#" class="menu-item">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
+            Aventura
+        </a>
+        <a href="#" class="menu-item">
+            <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4M8 10v4M15 11h.01M18 13h.01"/></svg>
+            Puzzle
+        </a>
+        <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 10px 0;">
+        
+        <div class="menu-subtitle">Mais em</div>
+        
+        <a href="#" class="menu-item">
+            <svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3;M1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z"/></svg>
+            Populares
+        </a>
+        <a href="#" class="menu-item">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Novos
+        </a>
+        <a href="#" class="menu-item">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            Ação
+        </a>
+        <a href="#" class="menu-item">
+            <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            Carros
+        </a>
+        <a href="#" class="menu-item">
+            <svg viewBox="0 0 24 24"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
+            Puzzle
+        </a>
+    </nav>
+
+    <main>
+        <header class="app-header">
+            <div class="title-row">
+                <div class="logo-header"><a href="/">WebGames</a></div>
+            </div>
+            
+            <div class="top-bar">
+                <button class="hamburger-menu" id="hamburgerBtn" aria-label="Abrir menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <div class="search-bar">
+                    <input type="text" id="searchInput" placeholder="Buscar jogos...">
+                    <button id="clearBtn" class="clear-btn" aria-label="Limpar busca">&times;</button>
+                </div>
+            </div>
+        </header>
+
+        <section class="games-section">
+            <h2>Jogos em Destaque</h2>
+            <div class="games-grid">
+                
+                <div class="game-card" data-url="https://html5.gamedistribution.com/b282967f674542d99d1297e68e0d6627/">
+                    <div class="game-thumb">Jogo 1</div>
+                    <div class="game-info">
+                        <div class="game-title">Bullet Force</div>
+                        <div class="game-category">Ação • FPS</div>
+                    </div>
+                </div>
+
+                <div class="game-card" data-url="https://html5.gamedistribution.com/6c9f6920977a419cb17bf49e13d09e53/">
+                    <div class="game-thumb">Jogo 2</div>
+                    <div class="game-info">
+                        <div class="game-title">Madalin Stunt Cars 2</div>
+                        <div class="game-category">Corrida</div>
+                    </div>
+                </div>
+
+                <div class="game-card" data-url="https://html5.gamedistribution.com/9a5ed644910e40849206d997f7fa0833/">
+                    <div class="game-thumb">Jogo 3</div>
+                    <div class="game-info">
+                        <div class="game-title">Shell Shockers</div>
+                        <div class="game-category">Tiro</div>
+                    </div>
+                </div>
+
+                <div class="game-card" data-url="https://html5.gamedistribution.com/d0b98f244b7d413589b2b34a6aa7c4f4/">
+                    <div class="game-thumb">Jogo 4</div>
+                    <div class="game-info">
+                        <div class="game-title">Uno Online</div>
+                        <div class="game-category">Cartas</div>
+                    </div>
+                </div>
+
+                <div class="game-card" data-url="https://html5.gamedistribution.com/c405a766db354972a9e34bf393630f57/">
+                    <div class="game-thumb">Jogo 5</div>
+                    <div class="game-info">
+                        <div class="game-title">Moto X3M</div>
+                        <div class="game-category">Esportes</div>
+                    </div>
+                </div>
+
+                <div class="game-card" data-url="https://html5.gamedistribution.com/6a56ecbeee4f4f3ea3c6b24505f92270/">
+                    <div class="game-thumb">Jogo 6</div>
+                    <div class="game-info">
+                        <div class="game-title">Surfers Code</div>
+                        <div class="game-category">Aventura</div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <div id="iframeModal">
+        <div id="modal-drag-handle">
+            <div class="drag-pill"></div>
+            <button class="close-modal-btn" onclick="closeIframeModal()">
+                <i class="fas fa-xmark"></i>
+            </button>
+        </div>
+        <iframe id="modalIframe" class="modal-iframe" src="about:blank"></iframe>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const clearBtn = document.getElementById('clearBtn');
+        const gameCards = document.querySelectorAll('.game-card');
+        
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const mobileDrawer = document.getElementById('mobileDrawer');
+        const drawerOverlay = document.getElementById('drawerOverlay');
+
+        const iframeModal = document.getElementById('iframeModal');
+        const modalIframe = document.getElementById('modalIframe');
+        const handle = document.getElementById('modal-drag-handle');
+        
+        let touchStartY = 0;
+        let isDragging = false;
+
+        function toggleMenu() {
+            hamburgerBtn.classList.toggle('open');
+            mobileDrawer.classList.toggle('open');
+            drawerOverlay.classList.toggle('open');
+        }
+
+        hamburgerBtn.addEventListener('click', toggleMenu);
+        drawerOverlay.addEventListener('click', toggleMenu);
+
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase().trim();
+            clearBtn.style.display = query.length > 0 ? 'block' : 'none';
+
+            gameCards.forEach(card => {
+                const title = card.querySelector('.game-title').textContent.toLowerCase();
+                const category = card.querySelector('.game-category').textContent.toLowerCase();
+                if (title.includes(query) || category.includes(query)) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearBtn.style.display = 'none';
+            searchInput.focus();
+            gameCards.forEach(card => card.style.display = '');
+        });
+
+        const allMenuItems = document.querySelectorAll('.menu-item');
+        allMenuItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (item.getAttribute('href') === '#') {
+                    e.preventDefault();
+                    allMenuItems.forEach(el => el.classList.remove('active'));
+                    item.classList.add('active');
+                }
+                if(mobileDrawer.classList.contains('open')) {
+                    toggleMenu();
+                }
+            });
+        });
+
+        window.openIframeModal = function(url) {
+            modalIframe.src = url;
+            iframeModal.style.display = 'flex';
+            setTimeout(() => {
+                iframeModal.classList.add('active');
+            }, 10);
+            document.body.classList.add('modal-open');
+        }
+
+        window.closeIframeModal = function() {
+            iframeModal.style.transform = 'translateY(100%)';
+            setTimeout(() => { 
+                iframeModal.classList.remove('active'); 
+                iframeModal.style.transform = ''; 
+                iframeModal.style.display = 'none';
+                document.body.classList.remove('modal-open'); 
+                modalIframe.src = 'about:blank'; 
+            }, 400);
+        }
+
+        gameCards.forEach(card => {
+            card.addEventListener('click', () => {
+                const targetUrl = card.getAttribute('data-url');
+                if(targetUrl) {
+                    openIframeModal(targetUrl);
+                }
+            });
+        });
+
+        handle.addEventListener('touchstart', (e) => { 
+            touchStartY = e.touches[0].clientY; 
+            isDragging = true; 
+        }, { passive: true });
+
+        handle.addEventListener('touchmove', (e) => { 
+            if (!isDragging) return; 
+            const diff = e.touches[0].clientY - touchStartY; 
+            if (diff > 0) {
+                iframeModal.style.transform = `translateY(${diff}px)`; 
+            }
+        }, { passive: true });
+
+        handle.addEventListener('touchend', (e) => { 
+            isDragging = false; 
+            const diff = e.changedTouches[0].clientY - touchStartY; 
+            if (diff > 100) {
+                closeIframeModal();
+            } else {
+                iframeModal.style.transform = 'translateY(0)'; 
+            }
+        }, { passive: true });
+    </script>
+</body>
+</html>
