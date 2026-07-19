@@ -1,1 +1,350 @@
-bb
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoreSpace Videos</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Container Principal ajustado para tela cheia */
+        .main-container {
+            display: flex;
+            height: 100vh;
+            margin-top: 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Feed de Vídeos e Posts */
+        .feed {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        /* Cartão de Post (Vídeo, Imagem ou Link) */
+        .video-card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 680px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            padding-bottom: 12px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .video-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+
+        .video-card:focus-within {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 1px #8b5cf6, 0 0 20px rgba(139, 92, 246, 0.6);
+            transform: translateY(-2px);
+        }
+
+        /* Cabeçalho do Post */
+        .post-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+        }
+
+        .profile-pic {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #ccc;
+            margin-right: 12px;
+            overflow: hidden; /* Garante que a imagem dentro não ultrapasse as bordas redondas */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Estilo para a imagem de perfil inserida */
+        .profile-pic img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Faz com que a imagem preencha o círculo sem distorcer */
+        }
+
+        .post-info-meta {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page-name {
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        .page-name:hover {
+            text-decoration: underline;
+        }
+
+        .post-description {
+            padding: 4px 16px 12px 16px;
+            font-size: 15px;
+        }
+
+        /* Área do Vídeo */
+        .video-container {
+            background-color: #000;
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; 
+        }
+
+        /* Ajuste adicionando iframe para o embed do YouTube */
+        .video-container video,
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0; /* Remove bordas padrões do iframe */
+        }
+
+        /* Área da Imagem */
+        .image-container {
+            width: 100%;
+            background-color: #e4e6eb;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .image-container img {
+            width: 100%;
+            height: auto;
+            max-height: 500px;
+            object-fit: cover;
+        }
+
+        /* Área do Link Preview */
+        .link-container {
+            margin: 0 16px 8px 16px;
+            border: 1px solid #e4e6eb;
+            border-radius: 8px;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            transition: background-color 0.2s;
+        }
+
+        .link-container:hover {
+            background-color: #f8f9fa;
+        }
+
+        .link-preview-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-bottom: 1px solid #e4e6eb;
+            display: none; /* Começa escondida e só aparece se a imagem carregar */
+        }
+
+        .link-preview-text {
+            padding: 12px;
+        }
+
+        .link-domain {
+            font-size: 12px;
+            color: #65676b;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .link-title {
+            font-weight: bold;
+            font-size: 16px;
+            color: #050505;
+            margin-bottom: 4px;
+        }
+
+        .link-description {
+            font-size: 14px;
+            color: #65676b;
+            line-height: 1.3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container" id="mainContainer">
+        
+        <main class="feed" id="mainFeed">
+
+            <div class="video-card" tabindex="0">
+                <div class="post-header">
+                    <div class="profile-pic">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Natureza Incrível">
+                    </div>
+                    <div class="post-info-meta">
+                        <span class="page-name">Natureza Incrível</span>
+                    </div>
+                </div>
+                
+                <div class="post-description">
+                    Olha que vista maravilhosa! 🌲✨ #natureza #viagem
+                </div>
+
+                <div class="video-container">
+                    <iframe 
+                        src="https://www.youtube.com/embed/dQw4w9WgXcQ" 
+                        title="YouTube video player" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        allowfullscreen>
+                    </iframe>
+                </div>
+            </div>
+
+            <div class="video-card" tabindex="0">
+                <div class="post-header">
+                    <div class="profile-pic">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" alt="Fotografia Urbana">
+                    </div>
+                    <div class="post-info-meta">
+                        <span class="page-name">Fotografia Urbana</span>
+                    </div>
+                </div>
+                
+                <div class="post-description">
+                    O reflexo das luzes da cidade após a chuva. 🌃🌧️ #fotografia #cidade
+                </div>
+
+                <div class="image-container">
+                    <img src="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&auto=format&fit=crop&q=80" alt="Cidade Iluminada">
+                </div>
+            </div>
+
+            <div class="video-card" tabindex="0">
+                <div class="post-header">
+                    <div class="profile-pic">
+                        <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80" alt="Tecnologia Diária">
+                    </div>
+                    <div class="post-info-meta">
+                        <span class="page-name">Tecnologia Diária</span>
+                    </div>
+                </div>
+                
+                <div class="post-description">
+                    Confira as principais inovações tecnológicas que prometem mudar o mercado este ano! 🚀💡
+                </div>
+
+                <a href="https://github.com" target="_blank" class="link-container dynamic-preview">
+                    <img class="link-preview-image" src="" alt="Preview">
+                    <div class="link-preview-text">
+                        <div class="link-domain">Carregando...</div>
+                        <div class="link-title">Buscando informações do site...</div>
+                        <div class="link-description">Por favor, aguarde enquanto geramos a prévia do link.</div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="video-card" tabindex="0">
+                <div class="post-header">
+                    <div class="profile-pic">
+                        <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&auto=format&fit=crop&q=80" alt="Culinária Prática">
+                    </div>
+                    <div class="post-info-meta">
+                        <span class="page-name">Culinária Prática</span>
+                    </div>
+                </div>
+                
+                <div class="post-description">
+                    A receita definitiva de hoje! Fácil e rápida de fazer. 🍕⬇️
+                </div>
+
+                <div class="video-container">
+                    <iframe 
+                        src="https://www.youtube.com/embed/jNQXAC9IVRw" 
+                        title="YouTube video player" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        allowfullscreen>
+                    </iframe>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const previewCards = document.querySelectorAll('.dynamic-preview');
+
+            previewCards.forEach(card => {
+                const url = card.getAttribute('href');
+                if (!url) return;
+
+                try {
+                    const parsedUrl = new URL(url);
+                    card.querySelector('.link-domain').textContent = parsedUrl.hostname.replace('www.', '');
+                } catch(e) {
+                    card.querySelector('.link-domain').textContent = url;
+                }
+
+                const apiEndpoint = `https://api.microlink.io?url=${encodeURIComponent(url)}`;
+
+                fetch(apiEndpoint)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success' && data.data) {
+                            const info = data.data;
+
+                            if (info.title) {
+                                card.querySelector('.link-title').textContent = info.title;
+                            }
+
+                            if (info.description) {
+                                card.querySelector('.link-description').textContent = info.description;
+                            }
+
+                            if (info.image && info.image.url) {
+                                const imgElement = card.querySelector('.link-preview-image');
+                                imgElement.src = info.image.url;
+                                imgElement.style.display = 'block';
+                            }
+                        } else {
+                            card.querySelector('.link-title').textContent = "Visualizar Link";
+                            card.querySelector('.link-description').textContent = "Clique para acessar diretamente o site de destino.";
+                        }
+                    })
+                    .catch(() => {
+                        card.querySelector('.link-title').textContent = "Visualizar Link";
+                        card.querySelector('.link-description').textContent = "Clique para acessar diretamente o site de destino.";
+                    });
+            });
+        });
+    </script>
+</body>
+</html>
