@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feed de Descobertas</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.5s ease;
+        }
+
+        body.modal-open {
+            overflow: hidden !important;
+            height: 100vh !important;
+        }
+
+        /* Header Transparente com Título Centralizado */
+        header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Centraliza o título */
+            padding: 0 20px;
+            background-color: transparent;
+            z-index: 20;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .btn-back {
+            position: absolute;
+            left: 20px;
+            background: none;
+            border: none;
+            color: #333;
+            font-size: 24px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: none; /* Oculto por padrão no Desktop */
+        }
+
+        .btn-back:active {
+            transform: scale(0.9);
+        }
+
+        /* Container de Ícones do Desktop */
+        .header-desktop-actions {
+            position: absolute;
+            right: 20px;
+            display: none; /* Escondido por padrão no Mobile */
+            gap: 20px;
+        }
+
+        .header-desktop-actions .btn-icon {
+            background: none;
+            border: none;
+            font-size: 22px;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        .header-desktop-actions .btn-icon:hover {
+            opacity: 0.8;
+        }
+
+        .header-desktop-actions .btn-icon:active {
+            transform: scale(0.9);
+        }
+
+        /* Cores idênticas para manter a consistência visual */
+        .header-desktop-actions .btn-chat {
+            color: #a020f0;
+        }
+
+        .header-desktop-actions .btn-profile {
+            color: #007bff;
+        }
+
+        .header-desktop-actions .btn-story {
+            color: #ff477e;
+        }
+
+        /* Container principal do Feed (Padrão Mobile) */
+        .feed-container {
+            position: relative;
+            width: 350px;
+            height: 500px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 5; /* Garante que fique acima de elementos de fundo, mas abaixo do header */
+        }
+
+        /* Estilização dos Cards (Padrão Mobile) */
+        .card {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            background-color: #fff;
+            transition: transform 0.5s ease, opacity 0.5s ease;
+            cursor: grab;
+            user-select: none;
+            touch-action: none; /* Impede comportamentos padrões do mobile durante o arrasto */
+        }
+
+        .card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+        }
+
+        /* Botões de Ação Inferiores (Padrão Mobile) */
+        .buttons-container {
+            margin-top: 25px;
+            display: flex;
+            gap: 20px;
+            z-index: 10;
+            position: relative; /* Mantém o fluxo normal sem sobrepor a área dos cards */
+        }
+
+        .btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            background-color: white;
+        }
+
+        .btn:active {
+            transform: scale(0.9);
+        }
+
+        .btn-chat {
+            color: #a020f0; /* Cor roxa para o chat */
+        }
+
+        .btn-profile {
+            color: #007bff; /* Cor azul para o Perfil */
+        }
+
+        .btn-story {
+            color: #ff477e; /* Cor rosa/magenta para o Story */
+        }
+
+        /* Classes de animação para os lados */
+        .swipe-left {
+            transform: translateX(-150%) rotate(-20deg) !important;
+            opacity: 0;
+        }
+
+        .swipe-right {
+            transform: translateX(150%) rotate(20deg) !important;
+            opacity: 0;
+        }
+
+        /* ==========================================================================
+           MODAL DE IFRAME TELA CHEIA (Estilo Deslizante LoreSpace)
+           ========================================================================== */
+        #iframeModal {
+            position: fixed; 
+            inset: 0; 
+            z-index: 9999; 
+            background-color: black;
+            display: none; 
+            flex-direction: column;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(100%);
+            border-radius: 0;
+        }
+
+        #iframeModal.active { 
+            display: flex; 
+            transform: translateY(0); 
+        }
+
+        /* Área de controle superior unificada */
+        #modal-drag-handle { 
+            height: 25px; 
+            max-width: 600px;
+            margin: 0 auto;   
+            width: 100%;      
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            cursor: grab; 
+            touch-action: none; 
+            flex-shrink: 0; 
+            background-color: #121212;
+            border-bottom: 1px solid #222;
+            position: relative;
+        }
+
+        .drag-pill { 
+            width: 48px; 
+            height: 6px; 
+            background: rgba(255, 255, 255, 0.3); 
+            border-radius: 9999px; 
+        }
+
+        /* Botão de fechar (X) discreto na área do handle - Desktop */
+        .close-modal-btn {
+            position: absolute;
+            right: 16px;
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 20px;
+            cursor: pointer;
+            outline: none;
+            display: none; 
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .close-modal-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-iframe {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            border: none;
+            background-color: #ffffff;
+        }
+
+        /* Media Query para exibir a seta horizontal apenas em dispositivos móveis */
+        @media (max-width: 768px) {
+            .btn-back {
+                display: block;
+            }
+        }
+
+        /* ==========================================================================
+           REGRAS PARA DESKTOP (A partir de 768px)
+           ========================================================================== */
+        @media (min-width: 768px) {
+            .close-modal-btn {
+                display: flex;
+            }
+
+            /* Oculta os botões de ação redondos inferiores */
+            .buttons-container {
+                display: none;
+            }
+
+            /* Exibe os 3 ícones de ação na extremidade direita do Header */
+            .header-desktop-actions {
+                display: flex;
+            }
+
+            /* Ajustes do corpo para suportar a rolagem vertical do grid do Pinterest */
+            body {
+                justify-content: flex-start; 
+                overflow-y: auto;
+                padding-top: 80px; /* Impede que o header fixo cubra os cards */
+            }
+
+            /* Transforma o Feed em uma Grade Responsiva (Estilo Pinterest) */
+            .feed-container {
+                position: relative;
+                width: 90%;
+                max-width: 1200px;
+                height: auto;
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                grid-gap: 20px;
+                align-items: start;
+                margin-bottom: 40px;
+            }
+
+            /* Desativa o empilhamento absoluto e o swipe lateral no Desktop */
+            .card {
+                position: relative; 
+                width: 100%;
+                height: 350px; /* Define uma altura consistente para os itens do grid */
+                transform: none !important; 
+                opacity: 1 !important;
+                cursor: default;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <button class="btn-back" onclick="window.history.back()">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+        <span class="header-title">Descobertas</span>
+
+        <div class="header-desktop-actions">
+            <button class="btn-icon btn-chat" onclick="openIframeModal('https://example.com/chat')">
+                <i class="fas fa-comments"></i>
+            </button>
+            <button class="btn-icon btn-profile" onclick="openIframeModal('https://example.com/profile')">
+                <i class="fas fa-user"></i>
+            </button>
+            <button class="btn-icon btn-story" onclick="openIframeModal('https://example.com/story')">
+                <i class="fas fa-circle-notch"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="feed-container" id="feed">
+        <div class="card">
+            <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500" alt="Foto de perfil">
+        </div>
+
+        <div class="card">
+            <img src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=500" alt="Foto de perfil">
+        </div>
+
+        <div class="card">
+            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500" alt="Foto de perfil">
+        </div>
+    </div>
+
+    <div class="buttons-container">
+        <button class="btn btn-chat" onclick="openIframeModal('https://example.com/chat')">
+            <i class="fas fa-comments"></i>
+        </button>
+        <button class="btn btn-profile" onclick="openIframeModal('https://example.com/profile')">
+            <i class="fas fa-user"></i>
+        </button>
+        <button class="btn btn-story" onclick="openIframeModal('https://example.com/story')">
+            <i class="fas fa-circle-notch"></i>
+        </button>
+    </div>
+
+    <div id="iframeModal">
+        <div id="modal-drag-handle">
+            <div class="drag-pill"></div>
+            <button class="close-modal-btn" onclick="closeIframeModal()">
+                <i class="fas fa-xmark"></i>
+            </button>
+        </div>
+        <iframe id="modalIframe" class="modal-iframe" src="about:blank"></iframe>
+    </div>
+
+    <script>
+        let isDragging = false;
+        let startX = 0;
+        let currentX = 0;
+        let activeCard = null;
+
+        // Elementos do Modal de Iframe Deslizante
+        const iframeModal = document.getElementById('iframeModal');
+        const modalIframe = document.getElementById('modalIframe');
+        const handle = document.getElementById('modal-drag-handle');
+        let touchStartY = 0;
+        let isDraggingModal = false;
+
+        // ==========================================================================
+        // FUNÇÕES DO MODAL DESLIZANTE COM GESTOS
+        // ==========================================================================
+        function openIframeModal(url) {
+            modalIframe.src = url;
+            iframeModal.style.display = 'flex';
+            
+            // Força um repaint do navegador antes de aplicar a animação
+            setTimeout(() => {
+                iframeModal.classList.add('active');
+            }, 10);
+            
+            document.body.classList.add('modal-open');
+        }
+
+        function closeIframeModal() {
+            iframeModal.style.transform = 'translateY(100%)';
+            setTimeout(() => { 
+                iframeModal.classList.remove('active'); 
+                iframeModal.style.transform = ''; 
+                iframeModal.style.display = 'none';
+                document.body.classList.remove('modal-open'); 
+                modalIframe.src = 'about:blank'; 
+            }, 400);
+        }
+
+        // Lógica de arrastar do handle superior (exclusivo para mobile fechar arrastando para baixo)
+        handle.addEventListener('touchstart', (e) => { 
+            touchStartY = e.touches[0].clientY; 
+            isDraggingModal = true; 
+        }, { passive: true });
+
+        handle.addEventListener('touchmove', (e) => { 
+            if (!isDraggingModal) return; 
+            const diff = e.touches[0].clientY - touchStartY; 
+            if (diff > 0) {
+                iframeModal.style.transform = `translateY(${diff}px)`; 
+            }
+        }, { passive: true });
+
+        handle.addEventListener('touchend', (e) => { 
+            isDraggingModal = false; 
+            const diff = e.changedTouches[0].clientY - touchStartY; 
+            if (diff > 100) {
+                closeIframeModal();
+            } else {
+                iframeModal.style.transform = 'translateY(0)'; 
+            }
+        }, { passive: true });
+
+
+        // ==========================================================================
+        // LÓGICA DE FUNCIONAMENTO DOS CARDS (FEED GESTURES)
+        // ==========================================================================
+
+        // Retorna sempre o card do topo do feed
+        function getTopCard() {
+            const cards = document.querySelectorAll('.card');
+            return cards.length > 0 ? cards[cards.length - 1] : null;
+        }
+
+        // Inicia o evento de arrastar (Mouse e Touch)
+        function startDrag(e) {
+            activeCard = getTopCard();
+            if (!activeCard) return;
+
+            isDragging = true;
+            
+            // Remove temporariamente a transição CSS para o card seguir o cursor instantaneamente
+            activeCard.style.transition = 'none';
+            
+            startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            activeCard.style.cursor = 'grabbing';
+        }
+
+        // Controla o movimento enquanto arrasta
+        function drag(e) {
+            if (!isDragging || !activeCard) return;
+
+            currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const deltaX = currentX - startX;
+            
+            // Calcula uma rotação leve proporcional à distância arrastada
+            const rotation = deltaX * 0.08; 
+
+            // Aplica a translação e rotação em tempo real
+            activeCard.style.transform = `translateX(${deltaX}px) rotate(${rotation}deg)`;
+        }
+
+        // Finaliza o arrasto e decide se faz o swipe ou se volta ao centro
+        function endDrag() {
+            if (!isDragging || !activeCard) return;
+            isDragging = false;
+            
+            // Devolve a transição suave para o card
+            activeCard.style.transition = 'transform 0.5s ease, opacity 0.5s ease';
+            activeCard.style.cursor = 'grab';
+
+            const deltaX = currentX - startX;
+            const threshold = 120; // Distância em pixels necessária para aceitar a ação
+
+            if (deltaX > threshold) {
+                swipe('right');
+            } else if (deltaX < -threshold) {
+                swipe('left');
+            } else {
+                // Se não arrastou o suficiente, o card volta ao centro
+                activeCard.style.transform = 'translateX(0px) rotate(0deg)';
+            }
+
+            // Reseta variáveis de controle
+            startX = 0;
+            currentX = 0;
+            activeCard = null;
+        }
+
+        // Realiza o efeito de deslize (tanto via botão quanto via arrasto)
+        function swipe(direction) {
+            const cards = document.querySelectorAll('.card');
+            if (cards.length === 0) return;
+
+            const topCard = cards[cards.length - 1];
+            
+            // Restaura transições caso o comando tenha vindo do clique do botão
+            topCard.style.transition = 'transform 0.5s ease, opacity 0.5s ease';
+
+            if (direction === 'left') {
+                topCard.classList.add('swipe-left');
+            } else if (direction === 'right') {
+                topCard.classList.add('swipe-right');
+            }
+
+            // Remove o elemento após o término da animação
+            setTimeout(() => {
+                topCard.remove();
+                setupDragEvents(); // Configura os eventos de arrasto no próximo card
+            }, 500);
+        }
+
+        // Aplica os listeners ao card que estiver no topo do feed
+        function setupDragEvents() {
+            const topCard = getTopCard();
+            if (!topCard) return;
+
+            // Limpa eventos anteriores para não acumular processos no mesmo elemento
+            topCard.removeEventListener('mousedown', startDrag);
+            topCard.removeEventListener('touchstart', startDrag);
+
+            topCard.addEventListener('mousedown', startDrag);
+            topCard.addEventListener('touchstart', startDrag, { passive: true });
+        }
+
+        // Escutas globais de movimento para que a ação continue mesmo se o mouse sair de cima do card
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('touchmove', drag, { passive: false });
+
+        document.addEventListener('mouseup', endDrag);
+        document.addEventListener('touchend', endDrag);
+
+        // Inicialização primária
+        setupDragEvents();
+    </script>
+</body>
+</html>
