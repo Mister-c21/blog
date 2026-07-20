@@ -54,12 +54,18 @@
         .clear-btn { background: none; border: none; color: white; cursor: pointer; font-size: 18px; }
         .clear-btn { display: none; margin-right: 5px; }
 
-        .feed-container { display: none; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 12px; }
-        .feed-container.active { display: grid; }
+        /* Customização para Carrosséis de Música */
+        .feed-container { display: none; padding: 12px; box-sizing: border-box; }
+        .feed-container.active { display: flex; flex-direction: column; gap: 25px; }
         
+        .carousel-container { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+        .carousel-title { font-size: 18px; font-weight: bold; text-transform: capitalize; border-left: 4px solid var(--blueviolet-color); padding-left: 10px; margin: 0; }
+        .carousel-track { display: flex; gap: 12px; overflow-x: auto; padding: 5px 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .carousel-track::-webkit-scrollbar { display: none; }
+
         .feed-item { 
-            width: 100%; height: 120px; background-size: cover; background-position: center; 
-            position: relative; box-sizing: border-box; cursor: pointer;
+            width: 180px; height: 120px; background-size: cover; background-position: center; 
+            position: relative; box-sizing: border-box; cursor: pointer; flex-shrink: 0;
             display: flex; align-items: center; justify-content: center;
             transition: transform 0.2s ease, filter 0.2s ease;
             clip-path: polygon(12px 0%, 100% 0%, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0% 100%, 0% 12px);
@@ -181,13 +187,16 @@
             .platform-name { 
                 font-size: 11px !important; 
             }
+            .feed-item {
+                width: 150px;
+                height: 100px;
+            }
         }
 
         @media (min-width: 768px) { 
             header { height: 60px; flex-wrap: nowrap; gap: 20px; }
             .search-wrapper { width: 300px; order: unset; padding: 0; }
             .close-btn { display: block; }
-            .feed-container { grid-template-columns: repeat(4, 1fr); } 
             
             /* Divisão de duas colunas (Igual ao YouTube) */
             .content-wrapper { 
@@ -200,6 +209,10 @@
             .sidebar-suggestions { width: 350px; margin-top: 0; flex-shrink: 0; }
             
             .video-box { aspect-ratio: 16 / 9; }
+            .feed-item {
+                width: 210px;
+                height: 130px;
+            }
         }
 
         .nav-ep-box { display: flex; gap: 5px; margin-bottom: 15px; justify-content: center; display: none; }
@@ -223,6 +236,39 @@
         .platform-card { display: flex; align-items: center; gap: 15px; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; cursor: pointer; }
         .platform-icon { width: 50px; height: 50px; background-size: cover; background-position: center; border-radius: 10px; }
         .platform-name { font-weight: bold; }
+
+        /* Estilos do Botão Voltar ao Topo (FAB) */
+        .scroll-to-top-btn {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 50px;
+            height: 50px;
+            background-color: var(--blueviolet-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            z-index: 999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.2s ease;
+        }
+        
+        .scroll-to-top-btn.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .scroll-to-top-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 15px var(--blueviolet-color);
+        }
     </style>
 </head>
 <body>
@@ -245,6 +291,10 @@
     </header>
 
     <main id="músicas" class="feed-container active"></main>
+
+    <button id="scrollTopBtn" class="scroll-to-top-btn" onclick="scrollToTop()">
+        <i class="fas fa-arrow-up"></i>
+    </button>
 
     <div id="playerModal">
         <div id="modal-drag-handle"><div class="drag-pill"></div></div>
@@ -302,7 +352,7 @@
                             <div class="platform-icon" style="background-image: url('https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png')"></div>
                             <div class="platform-name">Facebook (Reels)</div>
                         </div>
-                        <div class="platform-card" onclick="redirect('https://kick.com/search?q=')">
+                       <div class="platform-card" onclick="redirect('https://kick.com/search?q=')">
                             <div class="platform-icon" style="background-image: url('data:image/svg+xml;utf8,<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;%2353FC18&quot;><path d=&quot;M2.2 0h6.142v6.142h3.071V3.071h3.071V0H21.8c1.215 0 2.2.985 2.2 2.2v19.6c0 1.215-.985 2.2-2.2 2.2H14.484v-3.071h-3.071V17.86h-3.071v6.142H2.2c-1.215 0-2.2-.985-2.2-2.2V2.2C0 .985.985 0 2.2 0zm12.284 9.213V6.142h-3.071v11.716h3.071v-3.071h3.071v-5.574h-3.071z&quot;/></svg>')"></div>
                             <div class="platform-name">Kick</div>
                         </div>
@@ -328,6 +378,8 @@
         let bgIndex = 0;
         const bgElement = document.getElementById('background');
 
+        const MAX_CARDS_PER_CAROUSEL = 10;
+
         function rotateBackground() {
             bgIndex = (bgIndex + 1) % backgroundImages.length;
             bgElement.style.backgroundImage = `url('${backgroundImages[bgIndex]}')`;
@@ -340,16 +392,53 @@
         let touchStartY = 0, isDragging = false, currentTab = 'músicas';
         let currentItem = { title: '', eps: [], currentEpIndex: -1, img: '' };
 
+        // Lógica de Monitoramento da Rolagem da Página
+        const scrollTopBtn = document.getElementById('scrollTopBtn');
+        window.onscroll = function() {
+            if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+                scrollTopBtn.classList.add('visible');
+            } else {
+                scrollTopBtn.classList.remove('visible');
+            }
+        };
+
+        // Função para Executar o Scroll Suave para o Topo
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
         function handleSearch() {
             const query = document.getElementById('searchInput').value.toLowerCase();
             const clearBtn = document.getElementById('clearBtn');
             clearBtn.style.display = query.length > 0 ? 'block' : 'none';
             const activeContainer = document.getElementById(currentTab);
-            const items = activeContainer.querySelectorAll('.feed-item');
-            items.forEach(item => {
-                const title = item.querySelector('.item-title').innerText.toLowerCase();
-                item.style.display = title.includes(query) ? 'block' : 'none';
-            });
+            
+            const carousels = activeContainer.querySelectorAll('.carousel-container');
+            if (carousels.length > 0) {
+                carousels.forEach(carousel => {
+                    let hasVisibleItem = false;
+                    const items = carousel.querySelectorAll('.feed-item');
+                    items.forEach(item => {
+                        const title = item.querySelector('.item-title').innerText.toLowerCase();
+                        if (title.includes(query)) {
+                            item.style.display = 'block';
+                            hasVisibleItem = true;
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                    carousel.style.display = hasVisibleItem ? 'flex' : 'none';
+                });
+            } else {
+                const items = activeContainer.querySelectorAll('.feed-item');
+                items.forEach(item => {
+                    const title = item.querySelector('.item-title').innerText.toLowerCase();
+                    item.style.display = title.includes(query) ? 'block' : 'none';
+                });
+            }
         }
 
         function clearSearch() {
@@ -387,8 +476,18 @@
             const listContainer = document.getElementById('suggestionList');
             const musics = contentData['músicas'] || [];
             
-            const filteredMusics = musics.filter(item => item.t !== currentTitle);
+            const currentMusicObj = musics.find(item => item.t === currentTitle);
+            const currentGenre = currentMusicObj ? (currentMusicObj.genero || 'Outros') : 'Outros';
+
+            // Filtra as músicas do mesmo gênero, exceto a atual
+            let filteredMusics = musics.filter(item => item.t !== currentTitle && (item.genero || 'Outros').toLowerCase() === currentGenre.toLowerCase());
             
+            // Algoritmo de Fisher-Yates para embaralhar a lista de sugestões de forma aleatória
+            for (let i = filteredMusics.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [filteredMusics[i], filteredMusics[j]] = [filteredMusics[j], filteredMusics[i]];
+            }
+
             listContainer.innerHTML = filteredMusics.map(item => {
                 const thumb = item.v ? getThumb(item.v) : getThumb(item.eps[0]);
                 const itemStr = JSON.stringify(item).replace(/"/g, "'");
@@ -405,7 +504,47 @@
 
         function render(data, container) {
             if (!data) return;
-            container.innerHTML = data.map(item => {
+
+            const temasOrdenados = [
+                "rock", "geek", "animes", "gospel", "Lo-fi", "clássicas", "pop", "hip-hop/rap", 
+                "R&B (Rhythm and Blues)", "Reggae", "Dancehall", "Heavy Metal", "Punk Rock", 
+                "Indie / Alternativo", "Grunge", "House", "Techno", "Trance", 
+                "EDM (Electronic Dance Music)", "Dubstep", "Blues", "Jazz", 
+                "Música Clássica / Erudita", "Folk / Música Autoral", "Country", 
+                "Sertanejo", "Samba", "Pagode", "Funk Brasileiro", "Forró", 
+                "MPB (Música Popular Brasileira)", "Bossa Nova", "Axé", "Reggaeton", 
+                "Salsa", "Bachata", "Afrobeats"
+            ];
+
+            const buckets = {};
+            temasOrdenados.forEach(tema => { buckets[tema] = []; });
+            buckets["Outros"] = [];
+
+            data.forEach(item => {
+                const genero = item.genero || 'Outros';
+                const bucketKey = temasOrdenados.find(t => t.toLowerCase() === genero.toLowerCase()) || "Outros";
+                buckets[bucketKey].push(item);
+            });
+
+            let finalHtml = '';
+            
+            temasOrdenados.forEach(tema => {
+                if (buckets[tema].length > 0) {
+                    const limitedItens = buckets[tema].slice(0, MAX_CARDS_PER_CAROUSEL);
+                    finalHtml += buildCarouselHtml(tema, limitedItens);
+                }
+            });
+
+            if (buckets["Outros"].length > 0) {
+                const limitedItens = buckets["Outros"].slice(0, MAX_CARDS_PER_CAROUSEL);
+                finalHtml += buildCarouselHtml("Outros", limitedItens);
+            }
+
+            container.innerHTML = finalHtml;
+        }
+
+        function buildCarouselHtml(titulo, itens) {
+            const cardsHtml = itens.map(item => {
                 const thumb = item.v ? getThumb(item.v) : getThumb(item.eps[0]);
                 const itemStr = JSON.stringify(item).replace(/"/g, "'");
                 return `
@@ -414,6 +553,15 @@
                     </div>
                 `;
             }).join('');
+
+            return `
+                <div class="carousel-container">
+                    <h2 class="carousel-title">${titulo}</h2>
+                    <div class="carousel-track">
+                        ${cardsHtml}
+                    </div>
+                </div>
+            `;
         }
 
         function updateUI(id, el) {
