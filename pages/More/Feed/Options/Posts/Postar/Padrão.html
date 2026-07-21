@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Postar - Violet</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f0fa;
+            display: flex;
+            justify-content: center;
+            padding-top: 50px;
+        }
+
+        .tweet-card {
+            background-color: #ffffff;
+            width: 100%;
+            max-width: 500px;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(138, 43, 226, 0.1);
+            border: 1px solid #e6d8f5;
+            position: relative;
+        }
+
+        .tweet-header {
+            display: flex;
+            gap: 12px;
+        }
+
+        .tweet-input-area {
+            width: 100%;
+        }
+
+        textarea {
+            width: 100%;
+            height: 90px;
+            border: none;
+            resize: none;
+            outline: none;
+            font-size: 18px;
+            color: #333333;
+            padding-top: 8px;
+        }
+
+        textarea::placeholder {
+            color: #a082c6;
+        }
+
+        /* Menus de URL */
+        .url-input-menu {
+            display: none;
+            gap: 8px;
+            margin-top: 10px;
+            padding: 8px;
+            background-color: #faf7fd;
+            border: 1px solid #e6d8f5;
+            border-radius: 8px;
+        }
+
+        .url-input-menu input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #d1b3f0;
+            border-radius: 20px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .url-input-menu input:focus {
+            border-color: #8a2be2;
+        }
+
+        .btn-add-url {
+            background-color: #8a2be2;
+            color: #ffffff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Modal Estilo Instagram Music */
+        .music-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .music-modal {
+            background: #ffffff;
+            width: 90%;
+            max-width: 380px;
+            height: 520px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .music-modal-header {
+            padding: 16px;
+            border-bottom: 1px solid #f0e6fa;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .music-modal-header h3 {
+            font-size: 16px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .btn-close-modal {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #888;
+        }
+
+        .music-search-box {
+            padding: 12px 16px;
+        }
+
+        .music-search-box input {
+            width: 100%;
+            padding: 10px 16px;
+            border-radius: 20px;
+            border: 1px solid #e6d8f5;
+            background-color: #faf7fd;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .music-search-box input:focus {
+            border-color: #8a2be2;
+        }
+
+        .music-results-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 16px 16px 16px;
+        }
+
+        .music-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .music-item:hover {
+            background-color: #f3e8fc;
+        }
+
+        .music-item img {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .music-info {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .music-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .music-artist {
+            font-size: 12px;
+            color: #777;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* --- ESTILO PRÓPRIO PARA A FAIXA DE MÚSICA NO CARROSSEL --- */
+        .music-card-attachment {
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: #ffffff;
+            border-radius: 12px;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .music-card-attachment::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: inherit;
+            filter: blur(20px) brightness(0.6);
+            transform: scale(1.2);
+            z-index: 1;
+        }
+
+        .music-card-cover-wrapper,
+        .music-card-details,
+        .music-card-attachment audio {
+            position: relative;
+            z-index: 2;
+        }
+
+        .music-card-cover-wrapper {
+            width: 110px;
+            height: 110px;
+        }
+
+        .music-card-attachment img {
+            width: 100%;
+            height: 100%;
+            border-radius: 14px;
+            object-fit: cover;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .music-card-details {
+            text-align: center;
+            width: 100%;
+            padding: 0 10px;
+        }
+
+        .music-card-details h4 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .music-card-details p {
+            font-size: 13px;
+            color: #e2d1f9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .music-card-attachment audio {
+            width: 100%;
+            height: 36px;
+            margin-top: 6px;
+            border-radius: 18px;
+            outline: none;
+            filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.2));
+        }
+
+        /* Container de Carrossel Horizontal */
+        .attachments-container {
+            display: none;
+            flex-direction: row;
+            gap: 12px;
+            margin-top: 10px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory;
+            padding-bottom: 8px;
+            align-items: flex-start;
+        }
+
+        .attachments-container::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .attachments-container::-webkit-scrollbar-track {
+            background: #f0e6fa;
+            border-radius: 4px;
+        }
+
+        .attachments-container::-webkit-scrollbar-thumb {
+            background: #a082c6;
+            border-radius: 4px;
+        }
+
+        .attachment-item {
+            position: relative;
+            flex: 0 0 90%;
+            scroll-snap-align: start;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #e6d8f5;
+            background-color: #faf7fd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 250px;
+            height: auto;
+        }
+
+        .attachment-item img {
+            width: 100%;
+            max-height: 350px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .attachment-item iframe {
+            width: 100%;
+            min-height: 250px;
+            border: none;
+            display: block;
+        }
+
+        .attachment-item-post {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .btn-remove-attachment {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: #ffffff;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background-color 0.2s;
+            z-index: 10;
+        }
+
+        .btn-remove-attachment:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        .divider {
+            height: 1px;
+            background-color: #f0e6fa;
+            margin: 12px 0;
+        }
+
+        .tweet-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .char-counter {
+            font-size: 13px;
+            color: #a082c6;
+            font-weight: 600;
+        }
+
+        .icons {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: #8a2be2;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .icon-btn:hover {
+            background-color: #f3e8fc;
+        }
+
+        .icon-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: #8a2be2;
+        }
+
+        .btn-postar {
+            background-color: #8a2be2;
+            color: #ffffff;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-postar:hover {
+            background-color: #7122bd;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="tweet-card">
+        <div class="tweet-header">
+            <div class="tweet-input-area">
+                <textarea id="tweetText" maxlength="70" placeholder="O que está acontecendo?"></textarea>
+
+                <div class="url-input-menu" id="urlInputMenu">
+                    <input type="url" id="imageUrlInput" placeholder="Cole a URL da imagem aqui...">
+                    <button class="btn-add-url" id="btnAddUrl">Adicionar</button>
+                </div>
+
+                <div class="url-input-menu" id="videoUrlInputMenu">
+                    <input type="url" id="videoUrlInput" placeholder="Cole o link do YouTube aqui...">
+                    <button class="btn-add-url" id="btnAddVideoUrl">Adicionar</button>
+                </div>
+
+                <div class="url-input-menu" id="postUrlInputMenu">
+                    <input type="url" id="postUrlInput" placeholder="Link do Twitter, Instagram, Facebook ou Reddit...">
+                    <button class="btn-add-url" id="btnAddPostUrl">Adicionar</button>
+                </div>
+
+                <div class="attachments-container" id="attachmentsContainer"></div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="tweet-footer">
+            <div class="icons">
+                <button class="icon-btn" id="btnVideoIcon" title="Vídeo">
+                    <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                </button>
+                <button class="icon-btn" id="btnImageIcon" title="Imagem">
+                    <svg viewBox="0 0 24 24"><path d="M19.75 2H4.25C3.01 2 2 3.01 2 4.25v15.5C2 20.99 3.01 22 4.25 22h15.5c1.24 0 2.25-1.01 2.25-2.25V4.25C22 3.01 20.99 2 19.75 2zM4.25 3.5h15.5c.41 0 .75.34.75.75v10.19l-3.64-3.64c-.58-.58-1.52-.58-2.1 0L10.5 15.06l-2.44-2.44c-.58-.58-1.52-.58-2.1 0L3.5 15.09V4.25c0-.41.34-.75.75-.75zm0 17c-.41 0-.75-.34-.75-.75v-1.83l3.53-3.53 2.44 2.44c.58.58 1.52.58 2.1 0l4.26-4.26 4.17 4.17V20.25c0 .41-.34.75-.75.75H4.25zM8.5 11c1.38 0 2.5-1.12 2.5-2.5S9.88 6 8.5 6 6 7.12 6 8.5 7.12 11 8.5 11zm0-3.5c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z"/></svg>
+                </button>
+                <button class="icon-btn" id="btnMusicIcon" title="Música">
+                    <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                </button>
+                <button class="icon-btn" id="btnPostIcon" title="Post">
+                    <svg viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+                </button>
+            </div>
+            <div class="footer-right">
+                <span class="char-counter" id="charCounter">70</span>
+                <button class="btn-postar">Postar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="music-modal-overlay" id="musicModalOverlay">
+        <div class="music-modal">
+            <div class="music-modal-header">
+                <h3>Selecione uma Música</h3>
+                <button class="btn-close-modal" id="btnCloseMusicModal">✕</button>
+            </div>
+            <div class="music-search-box">
+                <input type="text" id="musicSearchInput" placeholder="Pesquisar música ou artista...">
+            </div>
+            <div class="music-results-list" id="musicResultsList"></div>
+        </div>
+    </div>
+
+    <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+    <script async src="https://www.instagram.com/embed.js"></script>
+    <script async src="https://embed.reddit.com/widgets.js" charset="UTF-8"></script>
+
+    <script>
+        const tweetText = document.getElementById('tweetText');
+        const charCounter = document.getElementById('charCounter');
+        const MAX_CHARS = 70;
+
+        // Atualização do Contador de Caracteres
+        tweetText.addEventListener('input', function() {
+            const remaining = MAX_CHARS - tweetText.value.length;
+            charCounter.textContent = remaining;
+        });
+
+        const btnImageIcon = document.getElementById('btnImageIcon');
+        const btnVideoIcon = document.getElementById('btnVideoIcon');
+        const btnPostIcon = document.getElementById('btnPostIcon');
+        const btnMusicIcon = document.getElementById('btnMusicIcon');
+
+        const urlInputMenu = document.getElementById('urlInputMenu');
+        const videoUrlInputMenu = document.getElementById('videoUrlInputMenu');
+        const postUrlInputMenu = document.getElementById('postUrlInputMenu');
+
+        const imageUrlInput = document.getElementById('imageUrlInput');
+        const videoUrlInput = document.getElementById('videoUrlInput');
+        const postUrlInput = document.getElementById('postUrlInput');
+
+        const btnAddUrl = document.getElementById('btnAddUrl');
+        const btnAddVideoUrl = document.getElementById('btnAddVideoUrl');
+        const btnAddPostUrl = document.getElementById('btnAddPostUrl');
+
+        const attachmentsContainer = document.getElementById('attachmentsContainer');
+
+        // Elementos do Modal de Música
+        const musicModalOverlay = document.getElementById('musicModalOverlay');
+        const btnCloseMusicModal = document.getElementById('btnCloseMusicModal');
+        const musicSearchInput = document.getElementById('musicSearchInput');
+        const musicResultsList = document.getElementById('musicResultsList');
+
+        let attachmentCount = 0;
+        let currentAttachmentType = null; // Guarda o tipo de anexo atual (ex: 'image', 'video', 'music', 'post')
+        const MAX_ATTACHMENTS = 4;
+        let searchTimeout = null;
+
+        function hideAllMenus() {
+            urlInputMenu.style.display = 'none';
+            videoUrlInputMenu.style.display = 'none';
+            postUrlInputMenu.style.display = 'none';
+        }
+
+        // Valida se o usuário pode adicionar o tipo de anexo desejado
+        function canAddAttachment(type) {
+            if (attachmentCount >= MAX_ATTACHMENTS) {
+                alert('Você só pode adicionar até 4 anexos.');
+                return false;
+            }
+            if (currentAttachmentType && currentAttachmentType !== type) {
+                alert('Você só pode adicionar anexos do mesmo tipo. Remova os anexos atuais para mudar de tipo.');
+                return false;
+            }
+            return true;
+        }
+
+        function createAttachmentItem(contentElement, type) {
+            const item = document.createElement('div');
+            item.className = 'attachment-item';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'btn-remove-attachment';
+            removeBtn.title = 'Remover anexo';
+            removeBtn.innerHTML = '✕';
+            removeBtn.onclick = function () {
+                item.remove();
+                attachmentCount--;
+                if (attachmentCount === 0) {
+                    attachmentsContainer.style.display = 'none';
+                    currentAttachmentType = null; // Reseta o tipo de anexo permitido quando não há nenhum
+                }
+            };
+
+            item.appendChild(removeBtn);
+            item.appendChild(contentElement);
+            attachmentsContainer.appendChild(item);
+            attachmentsContainer.style.display = 'flex';
+            attachmentCount++;
+            currentAttachmentType = type;
+
+            // Rola automaticamente para o novo anexo adicionado
+            attachmentsContainer.scrollLeft = attachmentsContainer.scrollWidth;
+        }
+
+        // Alternar Menus
+        btnImageIcon.addEventListener('click', function() {
+            const isVisible = urlInputMenu.style.display === 'flex';
+            hideAllMenus();
+            if (!isVisible) {
+                urlInputMenu.style.display = 'flex';
+                imageUrlInput.focus();
+            }
+        });
+
+        btnVideoIcon.addEventListener('click', function() {
+            const isVisible = videoUrlInputMenu.style.display === 'flex';
+            hideAllMenus();
+            if (!isVisible) {
+                videoUrlInputMenu.style.display = 'flex';
+                videoUrlInput.focus();
+            }
+        });
+
+        btnPostIcon.addEventListener('click', function() {
+            const isVisible = postUrlInputMenu.style.display === 'flex';
+            hideAllMenus();
+            if (!isVisible) {
+                postUrlInputMenu.style.display = 'flex';
+                postUrlInput.focus();
+            }
+        });
+
+        // Controle do Modal de Música
+        btnMusicIcon.addEventListener('click', function() {
+            if (!canAddAttachment('music')) return;
+            hideAllMenus();
+            musicModalOverlay.style.display = 'flex';
+            musicSearchInput.focus();
+            if (musicResultsList.children.length === 0) {
+                searchItunes('pop'); // Busca padrão inicial
+            }
+        });
+
+        btnCloseMusicModal.addEventListener('click', function() {
+            musicModalOverlay.style.display = 'none';
+        });
+
+        musicModalOverlay.addEventListener('click', function(e) {
+            if (e.target === musicModalOverlay) {
+                musicModalOverlay.style.display = 'none';
+            }
+        });
+
+        // Pesquisa na API do iTunes
+        musicSearchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = musicSearchInput.value.trim();
+            if (query.length > 1) {
+                searchTimeout = setTimeout(() => searchItunes(query), 300);
+            }
+        });
+
+        function searchItunes(query) {
+            const script = document.createElement('script');
+            script.src = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=15&callback=handleItunesResponse`;
+            document.body.appendChild(script);
+            document.body.removeChild(script);
+        }
+
+        window.handleItunesResponse = function(data) {
+            musicResultsList.innerHTML = '';
+            if (data.results && data.results.length > 0) {
+                data.results.forEach(track => {
+                    const item = document.createElement('div');
+                    item.className = 'music-item';
+                    
+                    // Imagem de maior resolução
+                    const artworkUrl = track.artworkUrl100.replace('100x100bb', '300x300bb');
+
+                    item.innerHTML = `
+                        <img src="${track.artworkUrl100}" alt="${track.trackName}">
+                        <div class="music-info">
+                            <div class="music-title">${track.trackName}</div>
+                            <div class="music-artist">${track.artistName}</div>
+                        </div>
+                    `;
+
+                    item.onclick = function() {
+                        if (!canAddAttachment('music')) return;
+
+                        const musicCard = document.createElement('div');
+                        musicCard.className = 'music-card-attachment';
+                        musicCard.style.backgroundImage = `url('${artworkUrl}')`;
+                        musicCard.innerHTML = `
+                            <div class="music-card-cover-wrapper">
+                                <img src="${artworkUrl}" alt="${track.trackName}">
+                            </div>
+                            <div class="music-card-details">
+                                <h4>${track.trackName}</h4>
+                                <p>${track.artistName}</p>
+                            </div>
+                            <audio controls src="${track.previewUrl}"></audio>
+                        `;
+
+                        createAttachmentItem(musicCard, 'music');
+                        musicModalOverlay.style.display = 'none';
+                    };
+
+                    musicResultsList.appendChild(item);
+                });
+            } else {
+                musicResultsList.innerHTML = '<p style="text-align:center; color:#888; margin-top:20px;">Nenhuma música encontrada.</p>';
+            }
+        };
+
+        // Adicionar Imagem
+        btnAddUrl.addEventListener('click', function() {
+            if (!canAddAttachment('image')) return;
+            const url = imageUrlInput.value.trim();
+            if (url) {
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = 'Preview da imagem';
+                createAttachmentItem(img, 'image');
+                hideAllMenus();
+                imageUrlInput.value = '';
+            }
+        });
+
+        // Adicionar Vídeo (YouTube)
+        btnAddVideoUrl.addEventListener('click', function() {
+            if (!canAddAttachment('video')) return;
+            const url = videoUrlInput.value.trim();
+            const videoId = getYouTubeId(url);
+            if (videoId) {
+                const iframe = document.createElement('iframe');
+                iframe.src = `https://www.youtube.com/embed/${videoId}`;
+                iframe.allowFullscreen = true;
+                createAttachmentItem(iframe, 'video');
+                hideAllMenus();
+                videoUrlInput.value = '';
+            } else {
+                alert('Insira um link válido do YouTube.');
+            }
+        });
+
+        // Adicionar Post
+        btnAddPostUrl.addEventListener('click', function() {
+            if (!canAddAttachment('post')) return;
+            const url = postUrlInput.value.trim();
+            const postDiv = document.createElement('div');
+            postDiv.className = 'attachment-item-post';
+
+            if (url.includes('twitter.com') || url.includes('x.com')) {
+                postDiv.innerHTML = `<blockquote class="twitter-tweet"><a href="${url}"></a></blockquote>`;
+                createAttachmentItem(postDiv, 'post');
+                if (window.twttr && window.twttr.widgets) {
+                    window.twttr.widgets.load(postDiv);
+                }
+            } else if (url.includes('instagram.com')) {
+                const cleanUrl = url.split('?')[0];
+                postDiv.innerHTML = `<blockquote class="instagram-media" data-instgrm-permalink="${cleanUrl}" data-instgrm-version="14"></blockquote>`;
+                createAttachmentItem(postDiv, 'post');
+                if (window.instgrm && window.instgrm.Embeds) {
+                    window.instgrm.Embeds.process();
+                }
+            } else if (url.includes('reddit.com')) {
+                postDiv.innerHTML = `<blockquote class="reddit-embed-bq"><a href="${url}"></a></blockquote>`;
+                createAttachmentItem(postDiv, 'post');
+                if (window.rembeddit) {
+                    window.rembeddit.init();
+                }
+            } else if (url.includes('facebook.com')) {
+                const fbEmbedUrl = `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(url)}&show_text=true&width=500`;
+                postDiv.innerHTML = `<iframe src="${fbEmbedUrl}" width="100%" height="450" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>`;
+                createAttachmentItem(postDiv, 'post');
+            } else {
+                alert('Insira um link válido do Twitter, Instagram, Facebook ou Reddit.');
+                return;
+            }
+
+            hideAllMenus();
+            postUrlInput.value = '';
+        });
+
+        function getYouTubeId(url) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+    </script>
+
+</body>
+</html>
