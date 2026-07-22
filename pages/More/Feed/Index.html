@@ -1,333 +1,379 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Feed</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rede Social</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg-color: #f8f9fa;
+      --card-bg: #ffffff;
+      --primary-violet: #7c3aed;
+      --primary-violet-hover: #6d28d9;
+      --primary-light: #f5f3ff;
+      --text-dark: #1e293b;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --nav-size: 65px;
+      --sidebar-width: 240px;
+    }
 
-        body {
-            background-color: #f7f7fc;
-            height: 100vh;
-            overflow: hidden;
-            color: #1a1a1a;
-            display: flex;
-            flex-direction: column;
-        }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
 
-        /* CABEÇALHO - Só aparece na aba Posts principal */
-        .header {
-            height: 40px;
-            background: rgba(255, 255, 255, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-            z-index: 1001;
-            flex-shrink: 0;
-            transition: all 0.4s ease;
-        }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
 
-        .header.hidden {
-            transform: translateY(-100%);
-            opacity: 0;
-            height: 0;
-            padding: 0;
-            overflow: hidden;
-        }
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-dark);
+      display: flex;
+      flex-direction: column;
+    }
 
-        .header h1 {
-            font-size: 18px;
-            color: #8a2be2;
-            flex: 1;
-            text-align: center;
-        }
+    /* --- NAVEGAÇÃO (Mobile First: Bottom Tabbar) --- */
+    .navbar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: var(--nav-size);
+      background-color: var(--card-bg);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      z-index: 1000;
+    }
 
-        /* ESTILO DOS BOTÕES NO HEADER */
-        .header a, .header .header-search-btn, .header .header-dating-btn {
-            color: #8a2be2;
-            text-decoration: none;
-            background: none;
-            border: none;
-            font-size: 16px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 24px;
-            height: 24px;
-        }
+    .logo {
+      display: none; /* Escondido no mobile */
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--primary-violet);
+      padding: 0 20px;
+      margin-bottom: 20px;
+    }
 
-        /* Container para agrupar os botões da direita no header */
-        .header-actions {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
+    .nav-list {
+      display: flex;
+      width: 100%;
+      justify-content: space-around;
+      list-style: none;
+    }
 
-        /* NAVEGAÇÃO */
-        .nav-container { 
-            width: 100%; 
-            padding: 6px 0;
-            background: rgba(255, 255, 255, 0.8); 
-            backdrop-filter: blur(16px);
-            border-bottom: 1px solid rgba(0, 0, 0, 0.05); 
-            z-index: 1000;
-            flex-shrink: 0;
-            transition: all 0.3s ease;
-        }
+    .nav-item a {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      gap: 4px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
 
-        /* ESCONDER A NAVEGAÇÃO APENAS NO MOBILE QUANDO HOUVER A CLASSE HIDDEN */
-        @media (max-width: 767px) {
-            .nav-container.hidden {
-                display: none;
-            }
-        }
+    .nav-item a:hover, .nav-item a.active {
+      color: var(--primary-violet);
+      background-color: var(--primary-light);
+    }
 
-        .tab-list {
-            display: flex;
-            align-items: center;
-            justify-content: space-around;
-            list-style: none;
-            position: relative;
-        }
+    .nav-item a i {
+      width: 24px;
+      height: 24px;
+    }
 
-        .tab-item {
-            font-size: 14px;
-            font-weight: 600;
-            color: rgba(138, 43, 226, 0.6);
-            cursor: pointer;
-            padding: 6px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-        }
+    /* Controla a exibição dos ícones no mobile/desktop */
+    .icon-desktop {
+      display: none;
+    }
 
-        .tab-item.active {
-            color: #8a2be2;
-        }
+    /* --- BOTÃO DE HOME NO MOBILE --- */
+    .nav-item.nav-home {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      z-index: 1100;
+    }
 
-        @media (max-width: 767px) {
-            .tab-item i { display: none; }
-        }
+    .nav-item.nav-home a {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.7); /* Semitransparente */
+      backdrop-filter: blur(8px); /* Efeito de desfoque de fundo */
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      justify-content: center;
+      padding: 0;
+      outline: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
 
-        /* CONTEÚDO */
-        .main-container {
-            flex: 1;
-            display: flex;
-            overflow: hidden;
-            min-height: 0;
-        }
+    /* Efeito Hover & Focus com Glow */
+    .nav-item.nav-home a:hover,
+    .nav-item.nav-home a:focus-visible {
+      background-color: rgba(255, 255, 255, 0.95);
+      color: var(--primary-violet);
+      border-color: var(--primary-violet);
+      box-shadow: 0 0 15px rgba(124, 58, 237, 0.4), 0 4px 12px rgba(0, 0, 0, 0.1);
+      transform: translateY(-1px);
+    }
 
-        .window-wrapper {
-            flex: 1;
-            overflow: hidden;
-            position: relative;
-            min-height: 0;
-        }
+    /* Efeito Focus-Visible nativo da navegação via teclado */
+    .nav-item.nav-home a:focus-visible {
+      outline: 2px solid var(--primary-violet);
+      outline-offset: 2px;
+    }
 
-        .tabs-view-pager {
-            display: flex;
-            width: 400%;
-            height: 100%;
-            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-        }
+    .nav-item.nav-home span {
+      display: none; /* Oculta o texto no botão circular do mobile */
+    }
 
-        .tab-page {
-            width: 25%;
-            height: 100%;
-        }
+    /* --- CONTEÚDO PRINCIPAL --- */
+    .main-wrapper {
+      flex: 1;
+      width: 100%;
+      height: calc(100vh - var(--nav-size));
+      display: flex;
+    }
 
-        .content-iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            display: block;
-        }
+    .feed {
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      padding: 0;
+    }
 
-        /* ====================== DESKTOP ====================== */
-        @media (min-width: 768px) {
-            body {
-                flex-direction: row;
-            }
+    /* Estilização do iframe para ocupar 100% do espaço útil */
+    .feed-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
 
-            .header {
-                position: absolute;
-                top: 0;
-                left: 240px;
-                right: 0;
-                z-index: 1002;
-            }
+    /* Cards do Feed */
+    .post-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
 
-            .nav-container { 
-                width: 240px; 
-                height: 100vh;
-                border-right: 1px solid rgba(0, 0, 0, 0.05); 
-                padding: 60px 0 20px;
-                flex-shrink: 0;
-            }
+    .post-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
 
-            /* Margens baseadas no estado oculto do Header */
-            .main-container {
-                margin-top: 40px;
-                transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            }
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: var(--primary-violet);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
 
-            /* Se o header estiver escondido (.hidden), zera o topo para ocupar o espaço */
-            body:has(.header.hidden) .main-container {
-                margin-top: 0px;
-            }
+    .user-info h4 {
+      font-size: 0.95rem;
+    }
 
-            .tab-list {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
-                padding: 0 16px;
-            }
+    .user-info span {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
 
-            .tab-item {
-                flex-direction: row;
-                gap: 12px;
-                width: 100%;
-                padding: 12px 16px;
-                border-radius: 8px;
-                font-size: 16px;
-            }
+    .post-content {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      margin-bottom: 15px;
+    }
 
-            .tab-item i { display: inline-block; }
+    .post-actions {
+      display: flex;
+      gap: 20px;
+      border-top: 1px solid var(--border-color);
+      padding-top: 12px;
+      color: var(--text-muted);
+    }
 
-            .tab-item.active {
-                background: rgba(138, 43, 226, 0.1);
-            }
-        }
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
 
-        #show-nav-btn {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            color: #8a2be2;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1005;
-            opacity: 0;
-            transition: all 0.4s;
-        }
+    .action-btn:hover {
+      color: var(--primary-violet);
+    }
 
-        #show-nav-btn.active {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
-    </style>
+    /* --- LAYOUT DESKTOP (Sidebar) --- */
+    @media (min-width: 768px) {
+      body {
+        flex-direction: row;
+      }
+
+      .navbar {
+        position: sticky;
+        top: 0;
+        left: 0;
+        width: var(--sidebar-width);
+        height: 100vh;
+        flex-direction: column;
+        justify-content: flex-start;
+        padding-top: 30px;
+        border-top: none;
+        border-right: 1px solid var(--border-color);
+      }
+
+      .logo {
+        display: block;
+      }
+
+      .nav-list {
+        flex-direction: column;
+        gap: 8px;
+        padding: 0 12px;
+      }
+
+      .nav-item a {
+        flex-direction: row;
+        font-size: 1rem;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 10px;
+      }
+
+      /* Exibe o ícone de home no desktop e esconde o de seta */
+      .icon-mobile {
+        display: none !important;
+      }
+      .icon-desktop {
+        display: inline-block !important;
+      }
+
+      /* Reseta a estilização circular do botão Home no desktop */
+      .nav-item.nav-home {
+        position: static;
+      }
+
+      .nav-item.nav-home a {
+        width: 100%;
+        height: auto;
+        border-radius: 10px;
+        border: none;
+        box-shadow: none;
+        background-color: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        justify-content: flex-start;
+        padding: 12px 16px;
+        transform: none;
+      }
+
+      .nav-item.nav-home a:hover,
+      .nav-item.nav-home a:focus-visible {
+        box-shadow: none;
+        background-color: var(--primary-light);
+        color: var(--primary-violet);
+        transform: none;
+      }
+
+      .nav-item.nav-home span {
+        display: inline; /* Exibe o texto "Home" na sidebar */
+      }
+
+      .main-wrapper {
+        height: 100vh;
+      }
+    }
+  </style>
 </head>
 <body>
 
-    <header class="header" id="app-header">
-        <a href="../../../index.html"><i class="fas fa-arrow-left"></i></a>
-        <h1>Feed</h1>
-        <div class="header-actions">
-            <button class="header-dating-btn" onclick="switchTheme(this, './Options/Posts/Namoro.html')">
-                <i class="fas fa-heart"></i>
-            </button>
-            <button class="header-search-btn" onclick="switchTheme(this, './Options/Posts/Pesquisar.html')">
-                <i class="fas fa-search"></i>
-            </button>
-        </div>
-    </header>
+  <nav class="navbar">
+    <ul class="nav-list">
+      <li class="nav-item nav-home">
+        <a href="../../../index.html">
+          <i data-lucide="arrow-left" class="icon-mobile"></i>
+          <i data-lucide="home" class="icon-desktop"></i>
+          <span>Home</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#" data-src="videos.html" class="active">
+          <i data-lucide="play"></i>
+          <span>Vídeos</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#" data-src="salas.html">
+          <i data-lucide="users"></i>
+          <span>Salas</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#" data-src="postar.html">
+          <i data-lucide="plus-circle"></i>
+          <span>Postar</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
 
-    <nav class="nav-container" id="app-nav">
-        <ul class="tab-list">
-            <li class="tab-item active" onclick="switchTab(0)"><i class="fas fa-play"></i> <span>Posts</span></li>
-            <li class="tab-item" onclick="switchTab(1)"><i class="far fa-plus-square"></i> <span>Criar</span></li>
-            <li class="tab-item" onclick="switchTab(2)"><i class="fas fa-star"></i> <span>Comunidades</span></li>
-            <li class="tab-item" onclick="switchTab(3)"><i class="fas fa-user"></i> <span>Perfil</span></li>
-        </ul>
-    </nav>
+  <div class="main-wrapper">
+    <main class="feed">
+      
+      <iframe src="videos.html" class="feed-iframe" title="Conteúdo do Feed"></iframe>
 
-    <div class="main-container">
-        <div class="window-wrapper">
-            <div class="tabs-view-pager" id="view-pager">
-                <div class="tab-page"><iframe id="posts-iframe" class="content-iframe" src="./Options/Post.html"></iframe></div>
-                <div class="tab-page"><iframe class="content-iframe" src="./Options/Posts/Postar/Index.html"></iframe></div>
-                <div class="tab-page"><iframe class="content-iframe" src="./Options/Comunidade.html"></iframe></div>
-                <div class="tab-page"><iframe class="content-iframe" src="./Options/Perfil.html"></iframe></div>
-            </div>
-        </div>
-    </div>
+    </main>
+  </div>
 
-    <button id="show-nav-btn" onclick="restoreNavigation()"><i class="fas fa-chevron-up"></i></button>
+  <script>
+    lucide.createIcons();
 
-    <script>
-        const pager = document.getElementById('view-pager');
-        const header = document.getElementById('app-header');
-        const nav = document.getElementById('app-nav');
-        const postsIframe = document.getElementById('posts-iframe');
-        const tabs = Array.from(document.querySelectorAll('.tab-item'));
-        const showNavBtn = document.getElementById('show-nav-btn');
-
-        function switchTheme(clickedButton, pageUrl) {
-            if(postsIframe && pageUrl) {
-                postsIframe.src = pageUrl;
-            }
-            // Oculta o header, a navegação de abas no mobile e exibe o botão de retorno
-            header.classList.add('hidden');
-            nav.classList.add('hidden');
-            showNavBtn.classList.add('active');
-        }
-
-        function switchTab(index) {
-            tabs.forEach((item, i) => item.classList.toggle('active', i === index));
-            
-            pager.style.transform = `translateX(-${index * 25}%)`;
-
-            // Oculta/exibe o cabeçalho
-            if (index === 0) {
-                header.classList.remove('hidden');
-                showNavBtn.classList.remove('active');
-                if (postsIframe) {
-                    postsIframe.src = "./Options/Post.html";
-                }
-            } else {
-                header.classList.add('hidden');
-                showNavBtn.classList.add('active');
-            }
-
-            // Oculta a navegação no mobile em todas as abas exceto Posts (índice 0)
-            if (index !== 0) {
-                nav.classList.add('hidden');
-            } else {
-                nav.classList.remove('hidden');
-            }
-        }
-
-        function restoreNavigation() {
-            switchTab(0);
-        }
+    const feedIframe = document.querySelector('.feed-iframe');
+    const navLinks = document.querySelectorAll('.nav-list .nav-item:not(.nav-home) a');
+    
+    navLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
         
-        window.addEventListener('DOMContentLoaded', () => {
-            switchTab(0);
-        });
-
-        window.addEventListener('resize', () => {
-            const activeIndex = tabs.findIndex(tab => tab.classList.contains('active'));
-            switchTab(activeIndex >= 0 ? activeIndex : 0);
-        });
-    </script>
+        // Remove 'active' de todos os itens e adiciona ao clicado
+        document.querySelectorAll('.nav-list a').forEach(item => item.classList.remove('active'));
+        link.classList.add('active');
+        
+        // Atualiza a origem do iframe com o arquivo especificado no atributo data-src
+        const newSrc = link.getAttribute('data-src');
+        if (newSrc) {
+          feedIframe.src = newSrc;
+        }
+      });
+    });
+  </script>
 </body>
 </html>
