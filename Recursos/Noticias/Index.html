@@ -370,13 +370,13 @@
         const newsGrid = document.getElementById('news-grid');
         const topTabItems = document.querySelectorAll('.top-tabbar-item');
 
+        // Substitua pela sua chave obtida no site gnews.io se possuir uma
         const apiKey = '555f0883a37432386c2d1d61841ee734'; 
         let currentTopic = 'Brasil';
         
-        // Caminho da página de esportes
         const esportesUrl = 'esportes.html';
 
-        // Evento para tratar o clique nos itens do Top Tabbar
+        // Seleção do Top Tabbar com alteração de classe active
         topTabItems.forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -397,7 +397,7 @@
             });
         });
 
-        // Função para calcular tempo decorrido
+        // Função para calcular o tempo decorrido
         function timeAgo(dateString) {
             const date = new Date(dateString);
             const now = new Date();
@@ -415,39 +415,63 @@
             }
         }
 
-        // Função para buscar notícias reais da API
+        // Função para buscar notícias na API principal
         async function fetchNews(query = 'Brasil') {
             newsGrid.innerHTML = '<p style="padding: 1rem;">Carregando notícias...</p>';
 
-            const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=pt&country=br&apikey=${apiKey}`;
+            const targetUrl = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=pt&country=br&apikey=${apiKey}`;
 
             try {
-                const response = await fetch(url);
+                const response = await fetch(targetUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Erro API: Status ${response.status}`);
+                }
+
                 const data = await response.json();
 
                 if (data.articles && data.articles.length > 0) {
                     renderNews(data.articles);
                 } else {
-                    fetchFallbackNews();
+                    fetchFallbackNews(query);
                 }
             } catch (error) {
-                console.error('Erro ao buscar notícias:', error);
-                fetchFallbackNews();
+                console.warn('Requisição inicial falhou (CORS/Chave). Usando proxy de emergência...', error);
+                fetchFallbackNews(query);
             }
         }
 
-        // Fallback caso a chave precise ser configurada
-        async function fetchFallbackNews() {
+        // Contingência com Proxy CORS para GitHub Pages e domínio próprio
+        async function fetchFallbackNews(query) {
             try {
-                const res = await fetch('https://ok.m3o.co/news/headlines?language=pt');
+                const rssFeedUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssFeedUrl)}`;
+
+                const res = await fetch(proxyUrl);
                 const data = await res.json();
-                renderNews(data.articles || []);
+                
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(data.contents, "text/xml");
+                const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 10);
+
+                if (items.length > 0) {
+                    const articles = items.map(item => ({
+                        title: item.querySelector("title")?.textContent || "Sem título",
+                        url: item.querySelector("link")?.textContent || "#",
+                        publishedAt: item.querySelector("pubDate")?.textContent || new Date().toISOString(),
+                        image: null
+                    }));
+                    renderNews(articles);
+                } else {
+                    newsGrid.innerHTML = '<p style="padding: 1rem;">Nenhuma notícia encontrada.</p>';
+                }
             } catch (e) {
-                newsGrid.innerHTML = '<p style="padding: 1rem;">Não foi possível carregar as notícias. Adicione uma chave válida da API GNews.</p>';
+                console.error('Erro no fallback:', e);
+                newsGrid.innerHTML = '<p style="padding: 1rem; color: #d93025;">Não foi possível carregar as notícias. Tente novamente mais tarde.</p>';
             }
         }
 
-        // Desenha os cards de notícias
+        // Renderização dos cards de notícia na grid
         function renderNews(articles) {
             newsGrid.innerHTML = '';
             
@@ -457,12 +481,16 @@
                 card.href = article.url;
                 card.target = '_blank';
 
-                const domain = new URL(article.url || article.source.url || 'https://google.com').hostname.replace('www.', '');
-                const imageUrl = article.image || article.urlToImage || 'https://via.placeholder.com/120x80?text=Noticia';
+                let domain = 'noticias';
+                try {
+                    domain = new URL(article.url).hostname.replace('www.', '');
+                } catch(e) {}
+
+                const imageUrl = article.image || article.urlToImage || '';
                 const timeStr = article.publishedAt ? timeAgo(article.publishedAt) : 'recente';
 
                 card.innerHTML = `
-                    <img class="card-image" src="${imageUrl}" alt="${article.title}" onerror="this.style.background='linear-gradient(135deg, #1e3c72, #2a5298)'; this.src='';">
+                    <img class="card-image" src="${imageUrl}" alt="${article.title}" onerror="this.style.background='linear-gradient(135deg, #8a2be2, #4e4376)'; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'80\'><rect width=\'100%\' height=\'100%\' fill=\'%23e8eaed\'/></svg>';">
                     <div class="card-content">
                         <h2 class="card-title">${article.title}</h2>
                         <div class="card-meta">${domain} · ${timeStr}</div>
@@ -473,7 +501,7 @@
             });
         }
 
-        // Controle da barra de pesquisa
+        // Funcionalidade do botão de limpar e pesquisa por texto
         function toggleClearButton() {
             clearBtn.style.display = searchInput.value.trim().length > 0 ? 'flex' : 'none';
         }
@@ -495,7 +523,7 @@
             searchInput.focus();
         });
 
-        // Carrega notícias ao iniciar a página
+        // Execução inicial
         fetchNews(currentTopic);
     </script>
 </body>
