@@ -230,15 +230,6 @@
             box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
         }
 
-        .card-image {
-            width: 120px;
-            height: 80px;
-            object-fit: cover;
-            border-radius: 10px;
-            background-color: #e8eaed;
-            flex-shrink: 0;
-        }
-
         .card-content {
             display: flex;
             flex-direction: column;
@@ -304,7 +295,6 @@
         @media (max-width: 600px) {
             .top-tabbar { justify-content: flex-start; }
             .news-card { padding: 0.8rem; gap: 0.8rem; }
-            .card-image { width: 100px; height: 70px; }
             .card-title { font-size: 0.95rem; }
         }
     </style>
@@ -348,7 +338,7 @@
 
         <main>
             <div class="news-grid" id="news-grid">
-                </div>
+            </div>
         </main>
 
     </div>
@@ -370,10 +360,7 @@
         const newsGrid = document.getElementById('news-grid');
         const topTabItems = document.querySelectorAll('.top-tabbar-item');
 
-        // Substitua pela sua chave obtida no site gnews.io se possuir uma
-        const apiKey = '555f0883a37432386c2d1d61841ee734'; 
         let currentTopic = 'Brasil';
-        
         const esportesUrl = 'esportes.html';
 
         // Seleção do Top Tabbar com alteração de classe active
@@ -404,9 +391,11 @@
             const seconds = Math.floor((now - date) / 1000);
             const hours = Math.floor(seconds / 3600);
             
+            if (isNaN(hours)) return 'recente';
+
             if (hours < 1) {
                 const minutes = Math.floor(seconds / 60);
-                return `${minutes}m`;
+                return `${Math.max(1, minutes)}m`;
             } else if (hours < 24) {
                 return `${hours}h`;
             } else {
@@ -415,58 +404,29 @@
             }
         }
 
-        // Função para buscar notícias na API principal
+        // Função para buscar notícias usando o RSS público do Google News via rss2json
         async function fetchNews(query = 'Brasil') {
             newsGrid.innerHTML = '<p style="padding: 1rem;">Carregando notícias...</p>';
 
-            const targetUrl = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=pt&country=br&apikey=${apiKey}`;
+            const googleNewsRss = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+            const endpoint = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(googleNewsRss)}`;
 
             try {
-                const response = await fetch(targetUrl);
-                
-                if (!response.ok) {
-                    throw new Error(`Erro API: Status ${response.status}`);
-                }
-
+                const response = await fetch(endpoint);
                 const data = await response.json();
 
-                if (data.articles && data.articles.length > 0) {
-                    renderNews(data.articles);
-                } else {
-                    fetchFallbackNews(query);
-                }
-            } catch (error) {
-                console.warn('Requisição inicial falhou (CORS/Chave). Usando proxy de emergência...', error);
-                fetchFallbackNews(query);
-            }
-        }
-
-        // Contingência com Proxy CORS para GitHub Pages e domínio próprio
-        async function fetchFallbackNews(query) {
-            try {
-                const rssFeedUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssFeedUrl)}`;
-
-                const res = await fetch(proxyUrl);
-                const data = await res.json();
-                
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(data.contents, "text/xml");
-                const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 10);
-
-                if (items.length > 0) {
-                    const articles = items.map(item => ({
-                        title: item.querySelector("title")?.textContent || "Sem título",
-                        url: item.querySelector("link")?.textContent || "#",
-                        publishedAt: item.querySelector("pubDate")?.textContent || new Date().toISOString(),
-                        image: null
+                if (data.status === 'ok' && data.items && data.items.length > 0) {
+                    const articles = data.items.map(item => ({
+                        title: item.title,
+                        url: item.link,
+                        publishedAt: item.pubDate
                     }));
                     renderNews(articles);
                 } else {
                     newsGrid.innerHTML = '<p style="padding: 1rem;">Nenhuma notícia encontrada.</p>';
                 }
-            } catch (e) {
-                console.error('Erro no fallback:', e);
+            } catch (error) {
+                console.error('Erro ao buscar notícias:', error);
                 newsGrid.innerHTML = '<p style="padding: 1rem; color: #d93025;">Não foi possível carregar as notícias. Tente novamente mais tarde.</p>';
             }
         }
@@ -486,11 +446,9 @@
                     domain = new URL(article.url).hostname.replace('www.', '');
                 } catch(e) {}
 
-                const imageUrl = article.image || article.urlToImage || '';
                 const timeStr = article.publishedAt ? timeAgo(article.publishedAt) : 'recente';
 
                 card.innerHTML = `
-                    <img class="card-image" src="${imageUrl}" alt="${article.title}" onerror="this.style.background='linear-gradient(135deg, #8a2be2, #4e4376)'; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'80\'><rect width=\'100%\' height=\'100%\' fill=\'%23e8eaed\'/></svg>';">
                     <div class="card-content">
                         <h2 class="card-title">${article.title}</h2>
                         <div class="card-meta">${domain} · ${timeStr}</div>
