@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Notícias - Esportes</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- ESTILOS GERAIS & VARIÁVEIS --- */
+        :root {
+            --primary-color: #8a2be2;
+            --background-color: #f8f9fa;
+            --card-background: #ffffff;
+            --text-color: #202124;
+            --text-secondary: #5f6368;
+            --border-color: #dadce0;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.5;
+        }
+
+        /* --- CABEÇALHO (HEADER) --- */
+        header {
+            background-color: var(--card-background);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 0.8rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .search-bar {
+            flex: 0 1 720px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 0.8rem 3rem 0.8rem 3rem;
+            border: 1px solid transparent;
+            border-radius: 24px;
+            background-color: #f1f3f4;
+            font-size: 1rem;
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+
+        .search-bar input:focus {
+            background-color: var(--card-background);
+            border-color: transparent;
+            box-shadow: 0 1px 1px 0 rgba(65,69,73,0.3), 0 1px 3px 1px rgba(65,69,73,0.15);
+            outline: none;
+        }
+
+        .search-submit-btn {
+            position: absolute;
+            left: 1.2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            border-radius: 50%;
+            transition: background-color 0.1s, color 0.1s;
+        }
+
+        .search-submit-btn:hover {
+            background-color: rgba(0, 0, 0, 0.08);
+            color: var(--primary-color);
+        }
+
+        .clear-search-btn {
+            position: absolute;
+            right: 1.2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1rem;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            border-radius: 50%;
+            transition: background-color 0.1s;
+        }
+
+        /* --- TOP TABBAR (ESTILO TIKTOK) --- */
+        .top-tabbar {
+            display: none;
+            background-color: var(--card-background);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+            white-space: nowrap;
+            padding: 0 1rem;
+            gap: 1.5rem;
+            justify-content: center;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .top-tabbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .top-tabbar-item {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.8rem 0.2rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 1.05rem;
+            font-weight: 700;
+            background-color: transparent;
+            border-radius: 0;
+            position: relative;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+
+        .top-tabbar-item.active {
+            color: var(--text-color);
+            background-color: transparent;
+        }
+
+        .top-tabbar-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 15%;
+            right: 15%;
+            height: 3px;
+            background-color: var(--primary-color);
+            border-radius: 10px;
+        }
+
+        /* --- LAYOUT PRINCIPAL --- */
+        .container {
+            display: flex;
+            max-width: 1280px;
+            margin: 1.5rem auto;
+            padding: 0 1rem;
+            gap: 2rem;
+        }
+
+        /* --- MENU LATERAL (SIDEBAR) --- */
+        aside {
+            width: 250px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            position: sticky;
+            top: 5rem;
+        }
+
+        .sidebar-menu li a {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            color: var(--text-color);
+            text-decoration: none;
+            border-radius: 0 100px 100px 0;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: background-color 0.1s;
+        }
+
+        .sidebar-menu li a i {
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-menu li a:hover {
+            background-color: #f1f3f4;
+        }
+
+        .sidebar-menu li.active a {
+            color: var(--primary-color);
+            background-color: #f3eafb;
+        }
+
+        /* --- CONTEÚDO DE NOTÍCIAS --- */
+        main {
+            flex-grow: 1;
+        }
+
+        .news-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .news-card {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: row;
+            gap: 1rem;
+            transition: box-shadow 0.2s;
+            text-decoration: none;
+        }
+
+        .news-card:hover {
+            box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+        }
+
+        .card-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex-grow: 1;
+            width: 100%;
+        }
+
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 0.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+
+        /* --- BOTTOM TABBAR --- */
+        .bottom-tabbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: var(--card-background);
+            border-top: 1px solid var(--border-color);
+            display: none;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .tabbar-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            height: 100%;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-weight: 500;
+            gap: 4px;
+        }
+
+        .tabbar-item.active {
+            color: var(--primary-color);
+        }
+
+        /* Estilo específico para badges de status de placar estilo SuperScore */
+        .badge-status {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            background-color: #e8f0fe;
+            color: #1a73e8;
+        }
+
+        .badge-status.finished {
+            background-color: #f1f3f4;
+            color: #5f6368;
+        }
+
+        .team-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .team-logo {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+        }
+
+        .match-score {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            padding: 0 10px;
+        }
+
+        /* --- RESPONSIVIDADE --- */
+        @media (max-width: 960px) {
+            aside { display: none; }
+            .bottom-tabbar { display: flex; }
+            .top-tabbar { display: flex; }
+            .container { flex-direction: column; gap: 1rem; margin-top: 0; padding: 0; }
+            main { padding: 0 1rem; }
+            body { padding-bottom: 60px; }
+        }
+
+        @media (max-width: 600px) {
+            .top-tabbar { justify-content: flex-start; }
+            .news-card { padding: 0.8rem; gap: 0.8rem; }
+            .card-title { font-size: 0.95rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="search-bar">
+            <button type="submit" class="search-submit-btn" title="Pesquisar">
+                <i class="fas fa-search"></i>
+            </button>
+            <input type="text" id="search-input" placeholder="Pesquisar esportes, times e atletas">
+            <button type="button" id="clear-btn" class="clear-search-btn" title="Limpar pesquisa">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </header>
+
+    <nav class="top-tabbar">
+        <a href="#" class="top-tabbar-item active" data-sport="Futebol">Futebol</a>
+        <a href="#" class="top-tabbar-item" data-sport="Basquete">Basquete</a>
+        <a href="#" class="top-tabbar-item" data-sport="Vôlei">Vôlei</a>
+        <a href="#" class="top-tabbar-item" data-sport="Fórmula 1">Fórmula 1</a>
+        <a href="#" class="top-tabbar-item" data-sport="Lutas">Lutas</a>
+    </nav>
+
+    <div class="container">
+        
+        <aside>
+            <ul class="sidebar-menu">
+                <li><a href="index.html"><i class="fas fa-newspaper"></i> Notícias</a></li>
+                <li class="active"><a href="#"><i class="fas fa-trophy"></i> Esportes</a></li>
+                <hr style="margin: 1rem 0; border: none; border-top: 1px solid var(--border-color);">
+                <li class="sport-link active" data-sport="Futebol"><a href="#"><i class="fas fa-futbol"></i> Futebol</a></li>
+                <li class="sport-link" data-sport="Basquete"><a href="#"><i class="fas fa-basketball-ball"></i> Basquete</a></li>
+                <li class="sport-link" data-sport="Vôlei"><a href="#"><i class="fas fa-volleyball-ball"></i> Vôlei</a></li>
+                <li class="sport-link" data-sport="Fórmula 1"><a href="#"><i class="fas fa-flag-checkered"></i> Fórmula 1</a></li>
+                <li class="sport-link" data-sport="Lutas"><a href="#"><i class="fas fa-hand-rock"></i> Lutas</a></li>
+            </ul>
+        </aside>
+
+        <main>
+            <div class="news-grid" id="news-grid">
+            </div>
+        </main>
+
+    </div>
+
+    <nav class="bottom-tabbar">
+        <a href="index.html" class="tabbar-item">
+            <i class="fas fa-newspaper"></i>
+            <span>Notícias</span>
+        </a>
+        <a href="#" class="tabbar-item active">
+            <i class="fas fa-trophy"></i>
+            <span>Placares</span>
+        </a>
+    </nav>
+
+    <script>
+        const searchInput = document.getElementById('search-input');
+        const clearBtn = document.getElementById('clear-btn');
+        const newsGrid = document.getElementById('news-grid');
+        const topTabItems = document.querySelectorAll('.top-tabbar-item');
+        const sidebarItems = document.querySelectorAll('.sidebar-menu .sport-link');
+
+        let currentSport = 'Futebol';
+
+        // Configuração de ligas por modalidade esportiva no estilo FlashScore/SuperScore
+        const sportsConfig = {
+            'Futebol': [
+                { id: '4328', name: 'Premier League' },
+                { id: '4335', name: 'La Liga' },
+                { id: '4334', name: 'Ligue 1' },
+                { id: '4332', name: 'Serie A' }
+            ],
+            'Basquete': [
+                { id: '4387', name: 'NBA' }
+            ],
+            'Vôlei': [
+                { id: '4979', name: 'Liga das Nações de Vôlei' }
+            ],
+            'Fórmula 1': [
+                { id: '4370', name: 'Fórmula 1 - Corridas' }
+            ],
+            'Lutas': [
+                { id: '4443', name: 'UFC - Artes Marciais' }
+            ]
+        };
+
+        // Sincroniza abas superiores e menu lateral
+        function setSport(sportName) {
+            currentSport = sportName;
+
+            topTabItems.forEach(item => {
+                if(item.getAttribute('data-sport') === sportName) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+
+            sidebarItems.forEach(item => {
+                if(item.getAttribute('data-sport') === sportName) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+
+            searchInput.value = '';
+            toggleClearButton();
+            fetchScores(currentSport);
+        }
+
+        topTabItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                setSport(item.getAttribute('data-sport'));
+            });
+        });
+
+        sidebarItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                setSport(item.getAttribute('data-sport'));
+            });
+        });
+
+        // Formatação do tempo/data
+        function formatDate(dateString) {
+            if(!dateString) return 'Encerrado';
+            const date = new Date(dateString);
+            if(isNaN(date)) return 'Finalizado';
+            return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Função de busca de jogos e placares no estilo SuperScore
+        async function fetchScores(sport = 'Futebol') {
+            newsGrid.innerHTML = '<p style="padding: 1rem; text-align: center;"><i class="fas fa-spinner fa-spin"></i> Carregando placares em tempo real...</p>';
+
+            const queryText = searchInput.value.trim();
+            let eventsList = [];
+
+            try {
+                if (queryText.length > 0) {
+                    const response = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchevents.php?e=${encodeURIComponent(queryText)}`);
+                    const data = await response.json();
+                    eventsList = data.event || data.events || [];
+                } else {
+                    const leagues = sportsConfig[sport] || sportsConfig['Futebol'];
+                    
+                    for (const league of leagues) {
+                        const response = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventspastleague.php?id=${league.id}`);
+                        const data = await response.json();
+                        if (data && data.events) {
+                            eventsList = eventsList.concat(data.events);
+                        }
+                    }
+                }
+
+                if (eventsList && eventsList.length > 0) {
+                    const formattedEvents = eventsList.slice(0, 15).map(event => {
+                        const homeScore = event.intHomeScore !== null && event.intHomeScore !== undefined ? event.intHomeScore : '0';
+                        const awayScore = event.intAwayScore !== null && event.intAwayScore !== undefined ? event.intAwayScore : '0';
+                        const leagueName = event.strLeague || sport;
+                        const homeTeam = event.strHomeTeam || 'Atleta/Time 1';
+                        const awayTeam = event.strAwayTeam || 'Atleta/Time 2';
+                        const homeBadge = event.strHomeTeamBadge || '';
+                        const awayBadge = event.strAwayTeamBadge || '';
+                        const status = event.strStatus || 'Encerrado';
+
+                        return {
+                            homeTeam,
+                            awayTeam,
+                            homeScore,
+                            awayScore,
+                            homeBadge,
+                            awayBadge,
+                            league: leagueName,
+                            status: status,
+                            date: event.dateEvent ? `${event.dateEvent}T${event.strTime || '00:00:00'}` : null
+                        };
+                    });
+
+                    renderScores(formattedEvents);
+                } else {
+                    newsGrid.innerHTML = '<p style="padding: 1rem; text-align: center; color: var(--text-secondary);">Nenhum jogo ou placar ao vivo encontrado no momento.</p>';
+                }
+
+            } catch (error) {
+                console.error('Erro ao carregar dados do SuperScore:', error);
+                newsGrid.innerHTML = '<p style="padding: 1rem; text-align: center; color: #d93025;">Erro ao obter placares. Verifique sua conexão e tente novamente.</p>';
+            }
+        }
+
+        // Renderiza os placares estilo SuperScore
+        function renderScores(events) {
+            newsGrid.innerHTML = '';
+            
+            events.forEach(event => {
+                const card = document.createElement('div');
+                card.className = 'news-card';
+
+                const timeStr = formatDate(event.date);
+                const homeBadgeImg = event.homeBadge ? `<img src="${event.homeBadge}" class="team-logo" alt="${event.homeTeam}">` : '<i class="fas fa-shield-alt"></i>';
+                const awayBadgeImg = event.awayBadge ? `<img src="${event.awayBadge}" class="team-logo" alt="${event.awayTeam}">` : '<i class="fas fa-shield-alt"></i>';
+
+                card.innerHTML = `
+                    <div class="card-content">
+                        <div class="card-title">
+                            <div class="team-box">
+                                ${homeBadgeImg}
+                                <span>${event.homeTeam}</span>
+                            </div>
+                            <span class="match-score">${event.homeScore} x ${event.awayScore}</span>
+                            <div class="team-box">
+                                <span>${event.awayTeam}</span>
+                                ${awayBadgeImg}
+                            </div>
+                        </div>
+                        <div class="card-meta">
+                            <span><i class="fas fa-trophy"></i> ${event.league}</span>
+                            <span class="badge-status finished">${event.status} · ${timeStr}</span>
+                        </div>
+                    </div>
+                `;
+
+                newsGrid.appendChild(card);
+            });
+        }
+
+        // Busca com debounce
+        function toggleClearButton() {
+            clearBtn.style.display = searchInput.value.trim().length > 0 ? 'flex' : 'none';
+        }
+
+        let debounceTimer;
+        searchInput.addEventListener('input', () => {
+            toggleClearButton();
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                fetchScores(currentSport);
+            }, 500);
+        });
+
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            toggleClearButton();
+            fetchScores(currentSport);
+            searchInput.focus();
+        });
+
+        // Inicialização
+        fetchScores(currentSport);
+    </script>
+</body>
+</html>
