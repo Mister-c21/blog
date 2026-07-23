@@ -759,6 +759,15 @@
             }
         });
 
+        // Identifica a plataforma baseada na URL do vídeo
+        function detectPlatformFromUrl(url) {
+            if (url.includes('youtube.com') || url.includes('youtu.be')) return 'YouTube';
+            if (url.includes('tiktok.com')) return 'TikTok';
+            if (url.includes('facebook.com')) return 'Facebook';
+            if (url.includes('instagram.com')) return 'Instagram';
+            return 'YouTube';
+        }
+
         // Obtém a capa do vídeo adicionado ou o fallback do card
         function getVideoCoverUrl(url, platform) {
             if (platform === 'YouTube') {
@@ -802,23 +811,30 @@
             return embedUrl;
         }
 
+        // Função responsável por abrir o modal da sala de vídeo
+        function openRoomWithVideo(videoUrl, roomId = null) {
+            const platform = selectedPlatform || detectPlatformFromUrl(videoUrl);
+            
+            // Aplica a capa do vídeo como fundo do modal
+            const coverUrl = getVideoCoverUrl(videoUrl, platform);
+            if (coverUrl) {
+                playerModal.style.backgroundImage = `linear-gradient(rgba(15, 15, 15, 0.85), rgba(15, 15, 15, 0.85)), url('${coverUrl}')`;
+            }
+
+            // Define ou reutiliza a ID da sala
+            const finalRoomId = roomId || Math.random().toString(36).substring(2, 9);
+            roomLinkInput.value = `${window.location.origin}${window.location.pathname}?room=${finalRoomId}&video=${encodeURIComponent(videoUrl)}`;
+
+            // Configura o iframe de acordo com a plataforma
+            videoIframe.src = getEmbedUrl(videoUrl, platform);
+            playerModal.classList.add('active');
+        }
+
         btnConfirm.addEventListener('click', () => {
             const url = urlInput.value.trim();
             if (url) {
                 closeUrlModal();
-                // Aplica a capa do vídeo como fundo do modal
-                const coverUrl = getVideoCoverUrl(url, selectedPlatform);
-                if (coverUrl) {
-                    playerModal.style.backgroundImage = `linear-gradient(rgba(15, 15, 15, 0.85), rgba(15, 15, 15, 0.85)), url('${coverUrl}')`;
-                }
-                
-                // Gera o Link único de compartilhamento da sala
-                const roomId = Math.random().toString(36).substring(2, 9);
-                roomLinkInput.value = `${window.location.origin}${window.location.pathname}?room=${roomId}&video=${encodeURIComponent(url)}`;
-
-                // Configura o iframe de acordo com a plataforma
-                videoIframe.src = getEmbedUrl(url, selectedPlatform);
-                playerModal.classList.add('active');
+                openRoomWithVideo(url);
             } else {
                 urlInput.focus();
             }
@@ -869,6 +885,17 @@
         chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 sendMessage();
+            }
+        });
+
+        // --- ENTRAR DIRETO NA SALA SE ACESSADO VIA LINK COMPARTILHADO ---
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sharedVideo = urlParams.get('video');
+            const roomId = urlParams.get('room');
+
+            if (sharedVideo) {
+                openRoomWithVideo(decodeURIComponent(sharedVideo), roomId);
             }
         });
     </script>
