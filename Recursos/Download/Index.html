@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Download do App</title>
+  <style>
+    :root {
+      --bg-color: #ffffff;
+      --card-bg: transparent;
+      --violet-primary: #9d4edd;
+      --violet-glow: #7b2cbf;
+      --text-white: #1a1a1a;
+      --text-muted: #666666;
+      --bg-image: none;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      font-family: 'Segoe UI', system-ui, Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100dvh;
+      padding: 20px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Background desfocado */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: var(--bg-image);
+      background-size: cover;
+      background-position: center;
+      filter: blur(25px) brightness(0.8);
+      opacity: 0;
+      transition: opacity 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+      z-index: -1;
+      transform: scale(1.08);
+      will-change: opacity;
+    }
+
+    body.has-hover::before {
+      opacity: 1;
+    }
+
+    /* Cabeçalho */
+    .header {
+      width: 100%;
+      max-width: 450px;
+      padding: 10px 0;
+      margin-bottom: 30px;
+    }
+
+    .header-title {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-white);
+    }
+
+    /* Lista de Cards */
+    .card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      width: 100%;
+      max-width: 450px;
+    }
+
+    /* Card */
+    .card {
+      background-color: var(--card-bg);
+      border: 2px solid rgba(157, 78, 221, 0.4);
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      color: var(--text-white);
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      outline: none;
+      height: 180px;
+      display: block;
+      text-decoration: none;
+      position: relative;
+      isolation: isolate;
+    }
+
+    .card:focus-visible {
+      outline: 3px solid var(--violet-primary);
+      outline-offset: 4px;
+    }
+
+    .card-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      will-change: transform;
+    }
+
+    .card-content {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 20px;
+      background: linear-gradient(to top, rgba(255,255,255,0.95) 30%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-white);
+      text-shadow: 0 1px 3px rgba(255,255,255,0.85);
+    }
+
+    /* Hover & Focus */
+    .card:hover,
+    .card:focus-visible {
+      transform: translateY(-6px);
+      border-color: var(--violet-primary);
+      box-shadow: 
+        0 20px 25px -5px rgba(157, 78, 221, 0.15),
+        0 0 25px rgba(157, 78, 221, 0.35);
+    }
+
+    .card:hover .card-image,
+    .card:focus-visible .card-image {
+      transform: scale(1.06);
+    }
+
+    .spacer {
+      height: 90px;
+      visibility: hidden;
+    }
+
+    /* ===================== MODAL ===================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-container {
+      background-color: rgba(255, 255, 255, 0.96);
+      border: 2px solid var(--violet-primary);
+      border-radius: 24px;
+      width: 100%;
+      max-width: 400px;
+      padding: 32px 24px;
+      box-shadow: 
+        0 25px 60px rgba(157, 78, 221, 0.25),
+        0 0 25px rgba(157, 78, 221, 0.15);
+      text-align: center;
+      transform: scale(0.85) translateY(40px);
+      opacity: 0;
+      transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .modal-overlay.active .modal-container {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+
+    .modal-title {
+      font-size: 1.5rem;
+      color: var(--text-white);
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+
+    .modal-description {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      line-height: 1.45;
+    }
+
+    .modal-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Download Button */
+    .download-wrapper {
+      position: relative;
+      width: 100%;
+      height: 48px;
+      border-radius: 9999px;
+      overflow: hidden;
+      background: rgba(157, 78, 221, 0.12);
+      transition: all 0.4s ease;
+    }
+
+    .btn-download {
+      position: absolute;
+      inset: 0;
+      background-color: var(--violet-primary);
+      color: #ffffff;
+      border: none;
+      border-radius: 9999px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-download:hover {
+      background-color: var(--violet-glow);
+      box-shadow: 0 0 25px rgba(157, 78, 221, 0.6);
+      transform: scale(1.02);
+    }
+
+    .progress-fill {
+      position: absolute;
+      inset: 0;
+      width: 0%;
+      background: linear-gradient(90deg, var(--violet-primary), #c77dff);
+      border-radius: 9999px;
+      transition: width 0.1s linear;
+      z-index: 1;
+    }
+
+    .progress-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: white;
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .download-wrapper.downloading .btn-download {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .download-wrapper.downloading .progress-text {
+      opacity: 1;
+    }
+
+    .btn-close {
+      background: transparent;
+      border: 1.5px solid rgba(157, 78, 221, 0.4);
+      color: var(--text-white);
+      padding: 12px 20px;
+      border-radius: 9999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-close:hover {
+      background-color: rgba(157, 78, 221, 0.1);
+      border-color: var(--violet-primary);
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <h1 class="header-title">Baixar App</h1>
+  </header>
+
+  <div class="card-list">
+    <!-- Cards mantidos exatamente iguais -->
+    <a href="#" class="card" data-system="Android">
+      <img class="card-image" src="https://picsum.photos/id/1069/600/300" alt="Download para Android" loading="lazy">
+      <div class="card-content">
+        <h3 class="card-title">Android</h3>
+      </div>
+    </a>
+
+    <a href="#" class="card" data-system="iOS">
+      <img class="card-image" src="https://picsum.photos/id/1039/600/300" alt="Download para iOS" loading="lazy">
+      <div class="card-content">
+        <h3 class="card-title">iOS</h3>
+      </div>
+    </a>
+
+    <a href="#" class="card" data-system="Windows">
+      <img class="card-image" src="https://picsum.photos/id/1025/600/300" alt="Download para Windows" loading="lazy">
+      <div class="card-content">
+        <h3 class="card-title">Windows</h3>
+      </div>
+    </a>
+
+    <a href="#" class="card" data-system="macOS">
+      <img class="card-image" src="https://picsum.photos/id/1011/600/300" alt="Download para macOS" loading="lazy">
+      <div class="card-content">
+        <h3 class="card-title">macOS</h3>
+      </div>
+    </a>
+
+    <a href="#" class="card" data-system="Linux">
+      <img class="card-image" src="https://picsum.photos/id/1060/600/300" alt="Download para Linux" loading="lazy">
+      <div class="card-content">
+        <h3 class="card-title">Linux</h3>
+      </div>
+    </a>
+
+    <div class="spacer" aria-hidden="true"></div>
+  </div>
+
+  <!-- Modal mantido com mesma estrutura -->
+  <div class="modal-overlay" id="downloadModal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-container">
+      <h2 class="modal-title" id="modalTitle">Download do App</h2>
+      <p class="modal-description" id="modalDescription">Clique no botão abaixo para iniciar o download do instalador.</p>
+      
+      <div class="modal-actions">
+        <div class="download-wrapper" id="downloadWrapper">
+          <button class="btn-download" id="confirmDownloadBtn">Iniciar Download</button>
+          <div class="progress-fill" id="progressFill"></div>
+          <span class="progress-text" id="progressText">0%</span>
+        </div>
+
+        <button class="btn-close" id="closeModalBtn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // === Variáveis ===
+    const cards = document.querySelectorAll('.card');
+    const body = document.body;
+    const modal = document.getElementById('downloadModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalDescription = document.getElementById('modalDescription');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const confirmDownloadBtn = document.getElementById('confirmDownloadBtn');
+    const downloadWrapper = document.getElementById('downloadWrapper');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+
+    let downloadInterval = null;
+
+    // === Event Delegation para Cards ===
+    const cardList = document.querySelector('.card-list');
+
+    cardList.addEventListener('click', (e) => {
+      const card = e.target.closest('.card');
+      if (!card) return;
+
+      e.preventDefault();
+      const system = card.dataset.system;
+
+      modalTitle.textContent = `Baixar para ${system}`;
+      resetProgress();
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+    });
+
+    // Hover background (mantido otimizado)
+    cards.forEach(card => {
+      const img = card.querySelector('.card-image');
+      if (!img) return;
+
+      const setBg = () => {
+        body.style.setProperty('--bg-image', `url("${img.src}")`);
+        body.classList.add('has-hover');
+      };
+
+      const removeBg = () => {
+        body.classList.remove('has-hover');
+      };
+
+      card.addEventListener('mouseenter', setBg);
+      card.addEventListener('mouseleave', removeBg);
+      card.addEventListener('focus', setBg);
+      card.addEventListener('blur', removeBg);
+    });
+
+    // === Funções do Modal ===
+    function resetProgress() {
+      clearInterval(downloadInterval);
+      downloadWrapper.classList.remove('downloading');
+      progressFill.style.width = '0%';
+      progressText.textContent = '0%';
+      modalDescription.textContent = 'Clique no botão abaixo para iniciar o download do instalador.';
+      closeModalBtn.textContent = 'Cancelar';
+    }
+
+    function closeModal() {
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+      setTimeout(resetProgress, 450);
+    }
+
+    // Eventos do Modal
+    closeModalBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Fechar com ESC
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('active')) {
+        closeModal();
+      }
+    });
+
+    // Download Simulation
+    confirmDownloadBtn.addEventListener('click', () => {
+      downloadWrapper.classList.add('downloading');
+      modalDescription.textContent = 'Baixando seu arquivo, aguarde um instante...';
+
+      let progress = 0;
+      downloadInterval = setInterval(() => {
+        progress += Math.floor(Math.random() * 9) + 4;
+
+        if (progress >= 100) {
+          progress = 100;
+          clearInterval(downloadInterval);
+          progressFill.style.width = '100%';
+          progressText.textContent = 'Concluído!';
+          modalDescription.textContent = 'Download finalizado com sucesso!';
+          closeModalBtn.textContent = 'Fechar';
+        } else {
+          progressFill.style.width = `${progress}%`;
+          progressText.textContent = `${progress}%`;
+        }
+      }, 140);
+    });
+  </script>
+</body>
+</html>
