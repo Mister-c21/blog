@@ -46,12 +46,31 @@
             box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
         }
 
+        /* Indicador animado flutuante */
+        .nav-indicator {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            width: 0;
+            background: linear-gradient(90deg, #8A2BE2, #9400D3);
+            border-radius: 3px 3px 0 0;
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.6);
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), 
+                        width 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                        top 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                        height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            pointer-events: none;
+            z-index: 1001;
+        }
+
         .app-nav-item {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             color: #8A2BE2;
+            opacity: 0.6;
             text-decoration: none;
             font-size: 0.75rem;
             font-weight: 600;
@@ -61,16 +80,46 @@
             cursor: pointer;
             width: 100%;
             height: 100%;
-            transition: color 0.2s ease, background-color 0.2s ease;
+            position: relative;
+            outline: none;
+            transition: color 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
         }
 
         .app-nav-item i {
             font-size: 1.2rem;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
+        /* Efeito de ativado */
+        .app-nav-item.active {
+            color: #8A2BE2;
+            opacity: 1;
+        }
+
+        .app-nav-item.active i {
+            transform: scale(1.15);
+        }
+
+        /* Hover & Focus suaves sem desformatar o layout */
         .app-nav-item:hover,
-        .app-nav-item:focus {
+        .app-nav-item:focus-visible {
+            opacity: 1;
             color: #9400D3;
+        }
+
+        .app-nav-item:hover i,
+        .app-nav-item:focus-visible i {
+            transform: translateY(-2px) scale(1.1);
+        }
+
+        .app-nav-item:focus-visible {
+            background-color: rgba(138, 43, 226, 0.05);
+            border-radius: 8px;
+        }
+
+        /* Oculta o item "Temas" no mobile por padrão */
+        .desktop-only-item {
+            display: none;
         }
 
         /* Estilos do Desktop (Sidebar à Esquerda) */
@@ -94,6 +143,15 @@
                 box-shadow: 2px 0 10px rgba(0,0,0,0.05);
             }
 
+            /* No desktop, o indicador vira uma barra vertical à esquerda */
+            .nav-indicator {
+                left: 0;
+                top: 0;
+                height: 0;
+                width: 4px;
+                border-radius: 0 4px 4px 0;
+            }
+
             .app-nav-item {
                 flex-direction: row;
                 justify-content: flex-start;
@@ -111,6 +169,63 @@
             .app-nav-item:hover {
                 background-color: #f5f5f5;
             }
+
+            .desktop-only-item {
+                display: flex;
+            }
+
+            /* Ocultar a TopTabBar horizontal apenas no Desktop */
+            .tiktok-tabs-container {
+                display: none !important;
+            }
+        }
+
+        /* Submenu de Temas para a Sidebar (Desktop) */
+        .sidebar-dropdown {
+            position: relative;
+            width: 100%;
+        }
+
+        .sidebar-dropdown-content {
+            display: none;
+            flex-direction: column;
+            background-color: #ffffff;
+            width: 100%;
+            max-height: 50vh;
+            overflow-y: auto;
+            border-top: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+        }
+
+        .sidebar-dropdown:hover .sidebar-dropdown-content,
+        .sidebar-dropdown-content.show {
+            display: flex;
+        }
+
+        .sidebar-dropdown-item {
+            padding: 10px 25px 10px 45px;
+            font-size: 0.9rem;
+            color: #8A2BE2;
+            cursor: pointer;
+            text-align: left;
+            background: none;
+            border: none;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+        }
+
+        .sidebar-dropdown-item:hover {
+            background-color: #f0f0f0;
+            color: #9400D3;
+        }
+
+        .sidebar-dropdown-content::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar-dropdown-content::-webkit-scrollbar-thumb {
+            background: #8A2BE2;
+            border-radius: 2px;
         }
 
         .transparent-header {
@@ -931,19 +1046,51 @@
 </head>
 <body>
 
-    <nav class="app-nav">
-        <button class="app-nav-item" onclick="scrollToSection('home')">
+    <nav class="app-nav" id="appNav">
+        <div class="nav-indicator" id="navIndicator"></div>
+        <button class="app-nav-item active" id="navBtnAssistir" onclick="handleNavClick(this, () => scrollToSection('home'))">
             <i class="fas fa-play"></i>
             <span>Assistir</span>
         </button>
-        <button class="app-nav-item" onclick="openSearchModal()">
+        <button class="app-nav-item" onclick="handleNavClick(this, openSearchModal)">
             <i class="fas fa-magnifying-glass"></i>
             <span>Pesquisa</span>
         </button>
-        <button class="app-nav-item" onclick="playRandomMedia()">
+        <button class="app-nav-item" onclick="handleNavClick(this, playRandomMedia)">
             <i class="fas fa-shuffle"></i>
             <span>Aleatório</span>
         </button>
+        
+        <div class="sidebar-dropdown desktop-only-item">
+            <button class="app-nav-item" onclick="handleNavClick(this, toggleDesktopThemesMenu)">
+                <i class="fas fa-layer-group"></i>
+                <span>Temas</span>
+            </button>
+            <div class="sidebar-dropdown-content" id="desktopThemesMenu">
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('top')">Todas</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('adicionadosContainer')">Adicionados Recentemente</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('emAltaContainer')">Em Alta</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('cartoonsContainer')">Cartoons</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('infantilContainer')">Infantil</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('animesContainer')">Animes</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('filmesContainer')">Filmes</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('seriesContainer')">Séries</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('tvContainer')">TV & Programas</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('novelasContainer')">Novelas</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('dramasContainer')">Dramas</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('documentariosContainer')">Documentários</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('acaoContainer')">Ação</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('romanceContainer')">Romance</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('terrorContainer')">Terror</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('ficcaoContainer')">Ficção</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('historicosContainer')">Históricos</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('comediaContainer')">Comédia</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('familiaContainer')">Família</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('brasileirosContainer')">Brasileiros</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('aventuraContainer')">Aventura</button>
+                <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('anos80Container')">Anos 80</button>
+            </div>
+        </div>
     </nav>
 
     <div id="searchModal">
@@ -984,9 +1131,14 @@
         <div class="tiktok-tab active" data-target="top">Todas</div>
         <div class="tiktok-tab" data-target="adicionadosContainer">Adicionados Recentemente</div>
         <div class="tiktok-tab" data-target="emAltaContainer">Em Alta</div>
+        <div class="tiktok-tab" data-target="cartoonsContainer">Cartoons</div>
+        <div class="tiktok-tab" data-target="infantilContainer">Infantil</div>
         <div class="tiktok-tab" data-target="animesContainer">Animes</div>
         <div class="tiktok-tab" data-target="filmesContainer">Filmes</div>
         <div class="tiktok-tab" data-target="seriesContainer">Séries</div>
+        <div class="tiktok-tab" data-target="tvContainer">TV & Programas</div>
+        <div class="tiktok-tab" data-target="novelasContainer">Novelas</div>
+        <div class="tiktok-tab" data-target="dramasContainer">Dramas</div>
         <div class="tiktok-tab" data-target="documentariosContainer">Documentários</div>
         <div class="tiktok-tab" data-target="acaoContainer">Ação</div>
         <div class="tiktok-tab" data-target="romanceContainer">Romance</div>
@@ -1027,6 +1179,20 @@
 
         <section class="carousel-section">
             <div class="carousel-header">
+                <h2>Cartoons</h2>
+            </div>
+            <div class="carousel-container" id="cartoonsContainer" tabindex="0"></div>
+        </section>
+
+        <section class="carousel-section">
+            <div class="carousel-header">
+                <h2>Infantil</h2>
+            </div>
+            <div class="carousel-container" id="infantilContainer" tabindex="0"></div>
+        </section>
+
+        <section class="carousel-section">
+            <div class="carousel-header">
                 <h2>Animes</h2>
             </div>
             <div class="carousel-container" id="animesContainer" tabindex="0"></div>
@@ -1044,6 +1210,27 @@
                 <h2>Séries</h2>
             </div>
             <div class="carousel-container" id="seriesContainer" tabindex="0"></div>
+        </section>
+
+        <section class="carousel-section">
+            <div class="carousel-header">
+                <h2>TV & Programas</h2>
+            </div>
+            <div class="carousel-container" id="tvContainer" tabindex="0"></div>
+        </section>
+
+        <section class="carousel-section">
+            <div class="carousel-header">
+                <h2>Novelas</h2>
+            </div>
+            <div class="carousel-container" id="novelasContainer" tabindex="0"></div>
+        </section>
+
+        <section class="carousel-section">
+            <div class="carousel-header">
+                <h2>Dramas</h2>
+            </div>
+            <div class="carousel-container" id="dramasContainer" tabindex="0"></div>
         </section>
 
         <section class="carousel-section">
@@ -1188,6 +1375,49 @@
         const IMG_URL_16_9 = 'https://image.tmdb.org/t/p/w500';
         const IMG_URL_2_3 = 'https://image.tmdb.org/t/p/w342';
 
+        /* ==========================================================
+           LÓGICA DO INDICADOR ANIMADO DE NAVEGAÇÃO
+           ========================================================== */
+        const navIndicator = document.getElementById('navIndicator');
+        const navContainer = document.getElementById('appNav');
+
+        function updateNavIndicator(activeButton) {
+            if (!activeButton || !navIndicator || !navContainer) return;
+
+            const isDesktop = window.innerWidth >= 1024;
+            const btnRect = activeButton.getBoundingClientRect();
+            const containerRect = navContainer.getBoundingClientRect();
+
+            if (isDesktop) {
+                const topOffset = btnRect.top - containerRect.top;
+                navIndicator.style.transform = `translateY(${topOffset}px)`;
+                navIndicator.style.height = `${btnRect.height}px`;
+                navIndicator.style.width = '4px';
+            } else {
+                const leftOffset = btnRect.left - containerRect.left;
+                navIndicator.style.transform = `translateX(${leftOffset}px)`;
+                navIndicator.style.width = `${btnRect.width}px`;
+                navIndicator.style.height = '3px';
+            }
+        }
+
+        function handleNavClick(clickedBtn, action) {
+            const allNavBtns = navContainer.querySelectorAll('.app-nav-item');
+            allNavBtns.forEach(btn => btn.classList.remove('active'));
+
+            clickedBtn.classList.add('active');
+            updateNavIndicator(clickedBtn);
+
+            if (typeof action === 'function') {
+                action();
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            const activeBtn = navContainer.querySelector('.app-nav-item.active');
+            if (activeBtn) updateNavIndicator(activeBtn);
+        });
+
         let currentSlide = 0;
         let slides = [];
         let indicators = [];
@@ -1222,6 +1452,25 @@
                 const el = document.getElementById('section-destaques');
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
+        }
+
+        // Função utilitária para os links de Temas navegarem até as seções
+        function scrollToSectionTarget(targetId) {
+            if (targetId === 'top') {
+                const mainList = document.getElementById('mainVerticalList');
+                if (mainList) mainList.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    const section = targetElement.closest('.carousel-section');
+                    if (section) section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
+
+        function toggleDesktopThemesMenu() {
+            const menu = document.getElementById('desktopThemesMenu');
+            if (menu) menu.classList.toggle('show');
         }
 
         /* ==========================================================
@@ -1339,16 +1588,7 @@
                 tab.classList.add('active');
 
                 const targetId = tab.getAttribute('data-target');
-                if (targetId === 'top') {
-                    const mainList = document.getElementById('mainVerticalList');
-                    if (mainList) mainList.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                } else {
-                    const targetElement = document.getElementById(targetId);
-                    if (targetElement) {
-                        const section = targetElement.closest('.carousel-section');
-                        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                }
+                scrollToSectionTarget(targetId);
             });
         });
 
@@ -1430,7 +1670,7 @@
                 videoBox.innerHTML = `<div style="width:100%; height:100%; background: url('${fallbackImg}') center/cover no-repeat; display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.3rem; font-weight:bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); cursor:pointer;"><i class="fas fa-play-circle" style="font-size:3.5rem; margin-right:10px; color:#8A2BE2;"></i> Selecione um episódio</div>`;
 
                 selectorsContainer.innerHTML = `
-                    <div class="tiktok-tabs-container" id="modalSeasonsContainer" style="padding: 10px 0; margin-bottom: 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <div class="tiktok-tabs-container" id="modalSeasonsContainer" style="padding: 10px 0; margin-bottom: 0; border-bottom: 1px solid rgba(255,255,255,0.1); display:flex !important;">
                         <div class="tiktok-tab active">Carregando...</div>
                     </div>
                     <div id="modalEpisodesContainer" style="display: flex; flex-direction: column; gap: 12px; width: 100%; max-height: 400px; overflow-y: auto; padding-right: 5px;">
@@ -1714,12 +1954,24 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => {
+            const defaultActiveBtn = document.getElementById('navBtnAssistir');
+            if (defaultActiveBtn) {
+                updateNavIndicator(defaultActiveBtn);
+            }
+
             fetchMainBanner();
             fetchHorizontalCarousel('/movie/upcoming', 'adicionadosContainer');
             fetchTop10Carousel('/trending/movie/day', 'emAltaContainer');
+            
+            // Recomposição dos carrosséis adicionados
+            fetchHorizontalCarousel('/discover/tv?with_genres=16&without_keywords=210024', 'cartoonsContainer');
+            fetchHorizontalCarousel('/discover/movie?with_genres=10751,16', 'infantilContainer');
             fetchAnimesCarousel();
             fetchHorizontalCarousel('/movie/popular', 'filmesContainer');
             fetchHorizontalCarousel('/tv/popular', 'seriesContainer');
+            fetchHorizontalCarousel('/discover/tv?with_genres=10763,10764,10767', 'tvContainer');
+            fetchHorizontalCarousel('/discover/tv?with_genres=10766', 'novelasContainer');
+            fetchHorizontalCarousel('/discover/movie?with_genres=18', 'dramasContainer');
             fetchHorizontalCarousel('/discover/movie?with_genres=99', 'documentariosContainer');
             fetchHorizontalCarousel('/discover/movie?with_genres=28', 'acaoContainer');
             fetchHorizontalCarousel('/discover/movie?with_genres=10749', 'romanceContainer');
