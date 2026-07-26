@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TikTok Top TabBar - Wikipédia com Modal Enriquecido</title>
+  <style>
+    /* Reset básico para evitar interferências */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #ffffff; /* Fundo principal Branco */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1a1a1a;
+    }
+
+    /* Container principal da barra superior */
+    .tiktok-header-container {
+      width: 100%;
+      background-color: #ffffff; /* Fundo principal Branco */
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      border-bottom: 2px solid #8b5cf6; /* Borda inferior Violeta */
+      box-shadow: 0 2px 10px rgba(139, 92, 246, 0.1);
+    }
+
+    /* Container da TabBar */
+    .tiktok-tabbar-container {
+      padding: 12px 0 8px 0;
+    }
+
+    /* Lista com scroll horizontal oculto */
+    .tiktok-tabbar {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 0 16px;
+      list-style: none;
+      overflow-x: auto;
+      white-space: nowrap;
+      
+      /* Oculta a barra de rolagem (Firefox e IE/Edge) */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    /* Oculta a barra de rolagem nos navegadores WebKit (Chrome, Safari) */
+    .tiktok-tabbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Item individual da Tab */
+    .tab-item {
+      position: relative;
+      font-size: 16px;
+      font-weight: 600;
+      color: #6b7280; /* Texto inativo sutil */
+      cursor: pointer;
+      padding: 6px 0;
+      transition: color 0.2s ease;
+      user-select: none;
+    }
+
+    /* Efeito de hover com destaque Violeta */
+    .tab-item:hover {
+      color: #8b5cf6; /* Cor secundária Violeta */
+    }
+
+    /* Estado ativo */
+    .tab-item.active {
+      color: #8b5cf6; /* Texto em Violeta para destaque no fundo branco */
+      font-weight: 700;
+    }
+
+    /* Traço/Indicador da aba ativa */
+    .tab-item.active::after {
+      content: "";
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 3px;
+      background-color: #7c3aed; /* Indicador em Violeta Vibrante */
+      border-radius: 2px;
+    }
+
+    /* --- Container da Barra de Busca --- */
+    .search-container {
+      padding: 4px 16px 12px 16px;
+    }
+
+    .search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Input de busca */
+    .search-input {
+      width: 100%;
+      padding: 10px 40px 10px 16px;
+      font-size: 14px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 20px; /* Bordas bem arredondadas */
+      outline: none;
+      background-color: #f9fafb;
+      color: #1f2937;
+      transition: all 0.25s ease;
+    }
+
+    /* Efeito Hover na busca */
+    .search-input:hover {
+      border-color: #c4b5fd;
+      background-color: #ffffff;
+    }
+
+    /* Efeito Focus (clique/digitação) na busca */
+    .search-input:focus {
+      border-color: #8b5cf6;
+      background-color: #ffffff;
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+    }
+
+    /* Botão de limpar (X) */
+    .clear-btn {
+      position: absolute;
+      right: 12px;
+      display: none; /* Oculto por padrão */
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border: none;
+      border-radius: 50%;
+      background-color: #9ca3af;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .clear-btn:hover {
+      background-color: #8b5cf6; /* Destaque violeta no hover do X */
+    }
+
+    /* Exibe o botão quando tem a classe 'visible' */
+    .clear-btn.visible {
+      display: flex;
+    }
+
+    /* --- Lista de Artigos Estilo Contatos --- */
+    .content-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .contact-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      color: inherit;
+      background-color: #ffffff;
+      border: 1px solid #f3f4f6;
+      transition: all 0.2s ease;
+    }
+
+    .contact-item:hover {
+      background-color: #f5f3ff; /* Fundo suave levemente violeta */
+      border-color: #ddd6fe;
+      transform: translateY(-1px);
+    }
+
+    /* Foto/Avatar no estilo Lista de Contatos */
+    .contact-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      object-fit: cover;
+      background-color: #ede9fe;
+      border: 2px solid #8b5cf6;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #7c3aed;
+      font-size: 18px;
+    }
+
+    /* Informações do Artigo */
+    .contact-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .contact-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .contact-snippet {
+      font-size: 13px;
+      color: #6b7280;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      line-height: 1.4;
+    }
+
+    /* Mensagem de Carregamento e Vazio */
+    .loading, .empty-msg {
+      text-align: center;
+      padding: 40px 0;
+      color: #8b5cf6;
+      font-weight: 600;
+    }
+
+    /* --- Paginação Estilo Google --- */
+    .pagination-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 24px;
+      padding: 16px 0 32px 0;
+      user-select: none;
+    }
+
+    .page-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      height: 36px;
+      padding: 0 8px;
+      border-radius: 50%;
+      border: none;
+      background-color: transparent;
+      color: #4b5563;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .page-btn:hover:not(:disabled) {
+      background-color: #f5f3ff;
+      color: #8b5cf6;
+    }
+
+    .page-btn.active {
+      background-color: #8b5cf6;
+      color: #ffffff;
+      font-weight: 700;
+      box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
+    }
+
+    .page-btn:disabled {
+      color: #d1d5db;
+      cursor: not-allowed;
+    }
+
+    .page-btn.nav-text {
+      border-radius: 18px;
+      padding: 0 14px;
+      color: #8b5cf6;
+    }
+
+    /* --- Modal em Tela Cheia (Design Premium Reformulado) --- */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #f9fafb;
+      z-index: 2000;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    /* Cabeçalho do Modal */
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      background-color: #ffffff;
+      border-bottom: 2px solid #8b5cf6;
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.08);
+      position: sticky;
+      top: 0;
+      z-index: 2001;
+    }
+
+    .modal-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    .modal-badge {
+      background-color: #ede9fe;
+      color: #7c3aed;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #4c1d95;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Botão fechar modal */
+    .modal-close-btn {
+      background: #f3f4f6;
+      border: none;
+      font-size: 20px;
+      font-weight: bold;
+      color: #6b7280;
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .modal-close-btn:hover {
+      background-color: #8b5cf6;
+      color: #ffffff;
+      transform: rotate(90deg);
+    }
+
+    /* Corpo do Modal */
+    .modal-body {
+      flex: 1;
+      padding: 32px 24px 60px 24px;
+      overflow-y: auto;
+      max-width: 860px;
+      width: 100%;
+      margin: 0 auto;
+      line-height: 1.7;
+      color: #374151;
+      scrollbar-width: thin;
+      scrollbar-color: #c4b5fd #f3f4f6;
+    }
+
+    .modal-body::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .modal-body::-webkit-scrollbar-thumb {
+      background-color: #c4b5fd;
+      border-radius: 4px;
+    }
+
+    /* --- Cartão de Metadados / Fatos Rápidos (API REST Wikipédia) --- */
+    .wiki-facts-card {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);
+      border: 1px solid #ddd6fe;
+      border-left: 5px solid #8b5cf6;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 28px;
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.06);
+    }
+
+    @media (min-width: 640px) {
+      .wiki-facts-card {
+        flex-direction: row;
+        align-items: center;
+      }
+    }
+
+    .wiki-facts-img {
+      width: 120px;
+      height: 120px;
+      border-radius: 12px;
+      object-fit: cover;
+      border: 2px solid #8b5cf6;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      flex-shrink: 0;
+      margin: 0 auto;
+    }
+
+    .wiki-facts-info {
+      flex: 1;
+    }
+
+    .wiki-facts-description {
+      font-size: 14px;
+      font-weight: 600;
+      color: #6d28d9;
+      text-transform: capitalize;
+      margin-bottom: 6px;
+    }
+
+    .wiki-facts-extract {
+      font-size: 14px;
+      color: #4b5563;
+      margin-bottom: 12px;
+    }
+
+    .wiki-facts-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 12px;
+    }
+
+    .wiki-meta-pill {
+      background-color: #ffffff;
+      color: #5b21b6;
+      border: 1px solid #c4b5fd;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .wiki-meta-pill:hover {
+      background-color: #7c3aed;
+      color: #ffffff;
+      border-color: #7c3aed;
+    }
+
+    /* Estilização estilizada dos elementos internos do HTML da Wikipédia */
+    .article-parsed-content {
+      font-size: 15px;
+    }
+
+    .article-parsed-content h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #5b21b6;
+      border-bottom: 2px solid #ede9fe;
+      padding-bottom: 6px;
+      margin: 32px 0 16px 0;
+    }
+
+    .article-parsed-content h3 {
+      font-size: 17px;
+      font-weight: 600;
+      color: #6d28d9;
+      margin: 24px 0 12px 0;
+    }
+
+    .article-parsed-content p {
+      margin-bottom: 16px;
+      text-align: justify;
+    }
+
+    .article-parsed-content ul, .article-parsed-content ol {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+
+    .article-parsed-content li {
+      margin-bottom: 6px;
+    }
+
+    .article-parsed-content blockquote {
+      background-color: #f5f3ff;
+      border-left: 4px solid #8b5cf6;
+      padding: 12px 18px;
+      margin: 16px 0;
+      border-radius: 0 8px 8px 0;
+      font-style: italic;
+      color: #4c1d95;
+    }
+
+    .article-parsed-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 12px;
+      margin: 16px 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .article-parsed-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+      overflow-x: auto;
+      display: block;
+    }
+
+    .article-parsed-content th, .article-parsed-content td {
+      border: 1px solid #e5e7eb;
+      padding: 10px 14px;
+      text-align: left;
+    }
+
+    .article-parsed-content th {
+      background-color: #f5f3ff;
+      color: #6d28d9;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="tiktok-header-container">
+    <nav class="tiktok-tabbar-container">
+      <ul class="tiktok-tabbar">
+        <li class="tab-item active" data-search="Literatura">Literatura</li>
+        <li class="tab-item" data-search="Entretenimento">Entretenimento</li>
+        <li class="tab-item" data-search="Personalidades">Personalidades</li>
+        <li class="tab-item" data-search="Personagens de ficção">Personagens</li>
+        <li class="tab-item" data-search="Educação">Educação</li>
+        <li class="tab-item" data-search="Cultura">Cultura</li>
+        <li class="tab-item" data-search="Arte">Arte</li>
+        <li class="tab-item" data-search="Tecnologia">Tecnologia</li>
+        <li class="tab-item" data-search="Esportes">Esportes</li>
+        <li class="tab-item" data-search="História mundial">Eventos Históricos</li>
+      </ul>
+    </nav>
+
+    <div class="search-container">
+      <div class="search-box">
+        <input type="text" id="searchInput" class="search-input" placeholder="Filtrar ou buscar novo artigo na Wikipédia..." autocomplete="off">
+        <button id="clearBtn" class="clear-btn" aria-label="Limpar busca">&times;</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="content-container">
+    <ul id="contactList" class="contact-list">
+      </ul>
+    <div id="loadingState" class="loading">Carregando artigos...</div>
+
+    <nav id="pagination" class="pagination-container" aria-label="Navegação de páginas">
+      </nav>
+  </main>
+
+  <div id="articleModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-header">
+      <div class="modal-header-left">
+        <span class="modal-badge">Enciclopédia</span>
+        <h2 id="modalTitle" class="modal-title">Título do Artigo</h2>
+      </div>
+      <button id="closeModalBtn" class="modal-close-btn" aria-label="Fechar Modal">&times;</button>
+    </div>
+    <div id="modalBody" class="modal-body">
+      </div>
+  </div>
+
+  <script>
+    const tabs = document.querySelectorAll('.tab-item');
+    const contactList = document.getElementById('contactList');
+    const loadingState = document.getElementById('loadingState');
+    const searchInput = document.getElementById('searchInput');
+    const clearBtn = document.getElementById('clearBtn');
+    const pagination = document.getElementById('pagination');
+
+    // Elementos do Modal
+    const articleModal = document.getElementById('articleModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+
+    // Variáveis de Estado
+    let originalTabArticles = []; // Artigos originais da aba atual
+    let displayArticles = [];       // Artigos atualmente sendo exibidos
+    let currentPage = 1;
+    const itemsPerPage = 12;      // 12 itens por página
+    let searchDebounceTimeout = null;
+
+    // Função para buscar artigos na Wikipédia através da API REST pública
+    async function fetchWikipediaArticles(searchTerm, isDirectSearch = false) {
+      contactList.innerHTML = '';
+      pagination.innerHTML = '';
+      loadingState.style.display = 'block';
+      loadingState.textContent = isDirectSearch ? `Buscando "${searchTerm}" na Wikipédia...` : 'Carregando artigos da Wikipédia...';
+
+      const url = `https://pt.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(searchTerm)}&gsrlimit=48&prop=pageimages|extracts&piprop=thumbnail&pithumbsize=120&exintro=1&explaintext=1&exchars=140`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        loadingState.style.display = 'none';
+
+        if (data.query && data.query.pages) {
+          const results = Object.values(data.query.pages);
+          displayArticles = results;
+
+          if (!isDirectSearch) {
+            originalTabArticles = [...results];
+          }
+
+          currentPage = 1;
+          renderPaginatedList();
+        } else {
+          displayArticles = [];
+          contactList.innerHTML = '<div class="empty-msg">Nenhum artigo encontrado na Wikipédia.</div>';
+        }
+      } catch (error) {
+        loadingState.textContent = 'Erro ao carregar dados da Wikipédia.';
+      }
+    }
+
+    // Renderiza a lista dividida em páginas
+    function renderPaginatedList() {
+      contactList.innerHTML = '';
+
+      if (displayArticles.length === 0) {
+        contactList.innerHTML = '<div class="empty-msg">Nenhum resultado encontrado.</div>';
+        pagination.innerHTML = '';
+        return;
+      }
+
+      const totalPages = Math.ceil(displayArticles.length / itemsPerPage);
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const currentItems = displayArticles.slice(startIndex, endIndex);
+
+      renderContactList(currentItems);
+      renderGooglePagination(totalPages);
+    }
+
+    // Renderiza os contatos na tela
+    function renderContactList(items) {
+      items.forEach(item => {
+        const title = item.title;
+        const snippet = item.extract ? item.extract : 'Clique para ver o artigo completo.';
+        const imageUrl = item.thumbnail ? item.thumbnail.source : null;
+        const initial = title.charAt(0).toUpperCase();
+
+        const li = document.createElement('li');
+        li.className = 'contact-item';
+        li.innerHTML = `
+          ${
+            imageUrl 
+              ? `<img src="${imageUrl}" alt="${title}" class="contact-avatar">`
+              : `<div class="contact-avatar">${initial}</div>`
+          }
+          <div class="contact-info">
+            <div class="contact-title">${title}</div>
+            <div class="contact-snippet">${snippet}</div>
+          </div>
+        `;
+
+        li.addEventListener('click', () => {
+          openArticleModal(item.pageid, title);
+        });
+
+        contactList.appendChild(li);
+      });
+    }
+
+    // Renderiza a barra de paginação estilo Google
+    function renderGooglePagination(totalPages) {
+      pagination.innerHTML = '';
+
+      if (totalPages <= 1) return;
+
+      // Botão Anterior
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'page-btn nav-text';
+      prevBtn.textContent = '‹ Anterior';
+      prevBtn.disabled = currentPage === 1;
+      prevBtn.addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderPaginatedList();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+      pagination.appendChild(prevBtn);
+
+      // Botões numéricos de páginas
+      for (let i = 1; i <= totalPages; i++) {
+        const pageBtn = document.createElement('button');
+        pageBtn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+        pageBtn.textContent = i;
+        pageBtn.addEventListener('click', () => {
+          currentPage = i;
+          renderPaginatedList();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        pagination.appendChild(pageBtn);
+      }
+
+      // Botão Próximo
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'page-btn nav-text';
+      nextBtn.textContent = 'Próximo ›';
+      nextBtn.disabled = currentPage === totalPages;
+      nextBtn.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderPaginatedList();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+      pagination.appendChild(nextBtn);
+    }
+
+    // Integração com API REST v1 + API Action Parse da Wikipédia para Modal Enriquecido
+    async function openArticleModal(pageId, title) {
+      modalTitle.textContent = title;
+      modalBody.innerHTML = '<div class="loading">Carregando conteúdo e metadados da Wikipédia...</div>';
+      articleModal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+
+      // 1. API REST v1 para obter resumo/metadados da página
+      const summaryUrl = `https://pt.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+      // 2. API Action Parse para obter HTML compilado do artigo
+      const parseUrl = `https://pt.wikipedia.org/w/api.php?action=parse&format=json&origin=*&pageid=${pageId}&prop=text`;
+
+      try {
+        const [summaryRes, parseRes] = await Promise.all([
+          fetch(summaryUrl).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch(parseUrl).then(r => r.json()).catch(() => null)
+        ]);
+
+        let cardHtml = '';
+
+        // Monta o Cartão de Metadados / Fatos Rápidos
+        if (summaryRes) {
+          const description = summaryRes.description || 'Artigo Enciclopédico';
+          const extract = summaryRes.extract || '';
+          const imageSrc = summaryRes.thumbnail ? summaryRes.thumbnail.source : null;
+          const desktopUrl = summaryRes.content_urls ? summaryRes.content_urls.desktop.page : `https://pt.wikipedia.org/?curid=${pageId}`;
+
+          cardHtml = `
+            <div class="wiki-facts-card">
+              ${imageSrc ? `<img src="${imageSrc}" alt="${title}" class="wiki-facts-img">` : ''}
+              <div class="wiki-facts-info">
+                <div class="wiki-facts-description">✨ ${description}</div>
+                <div class="wiki-facts-extract">${extract}</div>
+                <div class="wiki-facts-meta">
+                  <a href="${desktopUrl}" target="_blank" rel="noopener noreferrer" class="wiki-meta-pill">
+                    🌐 Ver na Wikipédia Oficial ↗
+                  </a>
+                  <span class="wiki-meta-pill">🆔 ID: ${pageId}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        let parsedContentHtml = '';
+        if (parseRes && parseRes.parse && parseRes.parse.text) {
+          parsedContentHtml = `<div class="article-parsed-content">${parseRes.parse.text['*']}</div>`;
+        } else {
+          parsedContentHtml = '<p>Não foi possível carregar o texto completo do artigo.</p>';
+        }
+
+        modalBody.innerHTML = cardHtml + parsedContentHtml;
+
+      } catch (error) {
+        modalBody.innerHTML = '<p class="empty-msg">Erro ao conectar com as APIs da Wikipédia.</p>';
+      }
+    }
+
+    // Fecha o Modal
+    function closeModal() {
+      articleModal.classList.remove('open');
+      document.body.style.overflow = '';
+      modalBody.innerHTML = '';
+    }
+
+    closeModalBtn.addEventListener('click', closeModal);
+
+    // Evento de clique nas abas
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        tab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+
+        searchInput.value = '';
+        clearBtn.classList.remove('visible');
+
+        const searchTerm = tab.getAttribute('data-search');
+        fetchWikipediaArticles(searchTerm);
+      });
+    });
+
+    // Lógica inteligente da Busca (Filtro Local + Requisição à API se não encontrado)
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.toLowerCase().trim();
+      clearTimeout(searchDebounceTimeout);
+
+      if (query === '') {
+        clearBtn.classList.remove('visible');
+        displayArticles = [...originalTabArticles];
+        currentPage = 1;
+        renderPaginatedList();
+        return;
+      }
+
+      clearBtn.classList.add('visible');
+
+      // 1. Tenta filtrar localmente na lista da aba ativa
+      const filteredLocal = originalTabArticles.filter(item => 
+        item.title.toLowerCase().includes(query) || 
+        (item.extract && item.extract.toLowerCase().includes(query))
+      );
+
+      if (filteredLocal.length > 0) {
+        displayArticles = filteredLocal;
+        currentPage = 1;
+        renderPaginatedList();
+      } else {
+        // 2. Se NÃO encontrou na lista local, faz requisição à API da Wikipédia com debounce (500ms)
+        searchDebounceTimeout = setTimeout(() => {
+          fetchWikipediaArticles(query, true);
+        }, 500);
+      }
+    });
+
+    // Limpar input de busca
+    clearBtn.addEventListener('click', () => {
+      clearTimeout(searchDebounceTimeout);
+      searchInput.value = '';
+      clearBtn.classList.remove('visible');
+      displayArticles = [...originalTabArticles];
+      currentPage = 1;
+      renderPaginatedList();
+      searchInput.focus();
+    });
+
+    // Carregamento inicial ("Literatura")
+    fetchWikipediaArticles('Literatura');
+  </script>
+
+</body>
+</html>
