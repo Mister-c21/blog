@@ -242,64 +242,6 @@
       font-weight: 600;
     }
 
-    /* --- Paginação Estilo Google --- */
-    .pagination-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      margin-top: 24px;
-      padding: 16px 0 32px 0;
-      user-select: none;
-    }
-
-    /* Elemento invisível (Oculto no Desktop por padrão) */
-    .mobile-invisible-element {
-      display: none;
-      heath: 90px;
-      width:100%;      
-    }
-
-    .page-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 36px;
-      height: 36px;
-      padding: 0 8px;
-      border-radius: 50%;
-      border: none;
-      background-color: transparent;
-      color: #4b5563;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .page-btn:hover:not(:disabled) {
-      background-color: #f5f3ff;
-      color: #8b5cf6;
-    }
-
-    .page-btn.active {
-      background-color: #8b5cf6;
-      color: #ffffff;
-      font-weight: 700;
-      box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
-    }
-
-    .page-btn:disabled {
-      color: #d1d5db;
-      cursor: not-allowed;
-    }
-
-    .page-btn.nav-text {
-      border-radius: 18px;
-      padding: 0 14px;
-      color: #8b5cf6;
-    }
-
     /* ==========================================================================
        ESTILOS DO MODAL (ESTRUTURA DE TELA CHEIA E RESPONSIVIDADE)
        ========================================================================== */
@@ -576,14 +518,6 @@
 
     /* --- LAYOUT MOBILE (Até 767px) --- */
     @media (max-width: 767px) {
-      /* Torna o elemento presente apenas no DOM/layout Mobile, mantendo-o totalmente invisível */
-      .mobile-invisible-element {
-        display: block;
-        visibility: hidden;
-        opacity: 0;
-        pointer-events: none;
-      }
-
       .modal-header {
         padding: 8px 16px 12px 16px;
       }
@@ -734,10 +668,6 @@
     <ul id="contactList" class="contact-list">
       </ul>
     <div id="loadingState" class="loading">Carregando artigos...</div>
-
-    <nav id="pagination" class="pagination-container" aria-label="Navegação de páginas">
-      </nav>
-    <div class="mobile-invisible-element" aria-hidden="true"></div>
   </main>
 
   <div id="articleModal" class="modal-overlay" aria-hidden="true">
@@ -761,7 +691,6 @@
     const loadingState = document.getElementById('loadingState');
     const searchInput = document.getElementById('searchInput');
     const clearBtn = document.getElementById('clearBtn');
-    const pagination = document.getElementById('pagination');
 
     // Elementos do Modal
     const articleModal = document.getElementById('articleModal');
@@ -772,8 +701,6 @@
     // Variáveis de Estado
     let originalTabArticles = []; // Artigos originais da aba atual
     let displayArticles = [];       // Artigos atualmente sendo exibidos
-    let currentPage = 1;
-    const itemsPerPage = 12;      // 12 itens por página
     let searchDebounceTimeout = null;
 
     // Redireciona qualquer clique em link interno do modal para a Wikipédia em outra aba
@@ -794,7 +721,6 @@
     // Função para buscar artigos na Wikipédia através da API REST pública
     async function fetchWikipediaArticles(searchTerm, isDirectSearch = false) {
       contactList.innerHTML = '';
-      pagination.innerHTML = '';
       loadingState.style.display = 'block';
       loadingState.textContent = isDirectSearch ? `Buscando "${searchTerm}" na Wikipédia...` : 'Carregando artigos da Wikipédia...';
 
@@ -814,8 +740,7 @@
             originalTabArticles = [...results];
           }
 
-          currentPage = 1;
-          renderPaginatedList();
+          renderContactList(displayArticles);
         } else {
           displayArticles = [];
           contactList.innerHTML = '<div class="empty-msg">Nenhum artigo encontrado na Wikipédia.</div>';
@@ -825,29 +750,15 @@
       }
     }
 
-    // Renderiza a lista dividida em páginas
-    function renderPaginatedList() {
+    // Renderiza os contatos na tela
+    function renderContactList(items) {
       contactList.innerHTML = '';
 
-      if (displayArticles.length === 0) {
+      if (items.length === 0) {
         contactList.innerHTML = '<div class="empty-msg">Nenhum resultado encontrado.</div>';
-        pagination.innerHTML = '';
         return;
       }
 
-      const totalPages = Math.ceil(displayArticles.length / itemsPerPage);
-      if (currentPage > totalPages) currentPage = totalPages;
-
-      const startIndex = (currentPage - 1) * itemsPerPage;
-      const endIndex = startIndex + itemsPerPage;
-      const currentItems = displayArticles.slice(startIndex, endIndex);
-
-      renderContactList(currentItems);
-      renderGooglePagination(totalPages);
-    }
-
-    // Renderiza os contatos na tela
-    function renderContactList(items) {
       items.forEach(item => {
         const title = item.title;
         const snippet = item.extract ? item.extract : 'Clique para ver o artigo completo.';
@@ -874,54 +785,6 @@
 
         contactList.appendChild(li);
       });
-    }
-
-    // Renderiza a barra de paginação estilo Google
-    function renderGooglePagination(totalPages) {
-      pagination.innerHTML = '';
-
-      if (totalPages <= 1) return;
-
-      // Botão Anterior
-      const prevBtn = document.createElement('button');
-      prevBtn.className = 'page-btn nav-text';
-      prevBtn.textContent = '‹ Anterior';
-      prevBtn.disabled = currentPage === 1;
-      prevBtn.addEventListener('click', () => {
-        if (currentPage > 1) {
-          currentPage--;
-          renderPaginatedList();
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-      });
-      pagination.appendChild(prevBtn);
-
-      // Botões numéricos de páginas
-      for (let i = 1; i <= totalPages; i++) {
-        const pageBtn = document.createElement('button');
-        pageBtn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
-        pageBtn.textContent = i;
-        pageBtn.addEventListener('click', () => {
-          currentPage = i;
-          renderPaginatedList();
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-        pagination.appendChild(pageBtn);
-      }
-
-      // Botão Próximo
-      const nextBtn = document.createElement('button');
-      nextBtn.className = 'page-btn nav-text';
-      nextBtn.textContent = 'Próximo ›';
-      nextBtn.disabled = currentPage === totalPages;
-      nextBtn.addEventListener('click', () => {
-        if (currentPage < totalPages) {
-          currentPage++;
-          renderPaginatedList();
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-      });
-      pagination.appendChild(nextBtn);
     }
 
     // Integração com API REST v1 + API Action Parse da Wikipédia para Modal Enriquecido
@@ -1067,8 +930,7 @@
       if (query === '') {
         clearBtn.classList.remove('visible');
         displayArticles = [...originalTabArticles];
-        currentPage = 1;
-        renderPaginatedList();
+        renderContactList(displayArticles);
         return;
       }
 
@@ -1082,8 +944,7 @@
 
       if (filteredLocal.length > 0) {
         displayArticles = filteredLocal;
-        currentPage = 1;
-        renderPaginatedList();
+        renderContactList(displayArticles);
       } else {
         // 2. Se NÃO encontrou na lista local, faz requisição à API da Wikipédia com debounce (500ms)
         searchDebounceTimeout = setTimeout(() => {
@@ -1098,8 +959,7 @@
       searchInput.value = '';
       clearBtn.classList.remove('visible');
       displayArticles = [...originalTabArticles];
-      currentPage = 1;
-      renderPaginatedList();
+      renderContactList(displayArticles);
       searchInput.focus();
     });
 
