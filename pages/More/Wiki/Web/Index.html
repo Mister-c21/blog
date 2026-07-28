@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Busca Web</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script type="module">
+        import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.0';
+        window.pipeline = pipeline;
+    </script>
+
     <style>
         * {
             margin: 0;
@@ -51,12 +57,617 @@
             transform: scale(1.03);
             cursor: pointer;
         }
+
+        /* --- ESTILOS DO FAB CONTAINER E LEQUE --- */
+        .fab-container {
+            position: fixed;
+            bottom: 75px; /* Subido 45px para cima (30px + 45px = 75px) */
+            right: 30px;
+            z-index: 9999;
+        }
+
+        /* Botão Principal (+ Floating) */
+        .fab-main {
+            width: 60px;
+            height: 60px;
+            background-color: #8a2be2;
+            color: #ffffff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+            position: relative;
+            z-index: 2;
+            border: none;
+            outline: none;
+        }
+
+        .fab-main:hover {
+            background-color: #7b1fa2;
+        }
+
+        /* Rotacionar o ícone + ao abrir */
+        .fab-container.active .fab-main {
+            transform: rotate(135deg);
+        }
+
+        /* Botões do Leque */
+        .fab-options {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            width: 50px;
+            height: 50px;
+            pointer-events: none;
+        }
+
+        .fab-option {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background-color: #ffffff;
+            color: #8a2be2;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+            text-decoration: none;
+            opacity: 0;
+            transform: scale(0.5) translate(0, 0);
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            border: 2px solid #8a2be2;
+            cursor: pointer;
+        }
+
+        .fab-option:hover {
+            background-color: #8a2be2;
+            color: #ffffff;
+        }
+
+        /* Animações de abertura em Leque */
+        .fab-container.active .fab-options {
+            pointer-events: auto;
+        }
+
+        /* Opção 1: Pesquisa por Voz */
+        .fab-container.active .fab-option:nth-child(1) {
+            opacity: 1;
+            transform: translate(0, -90px) scale(1);
+        }
+
+        /* Opção 2: Pesquisa por Imagem */
+        .fab-container.active .fab-option:nth-child(2) {
+            opacity: 1;
+            transform: translate(-65px, -65px) scale(1);
+        }
+
+        /* Opção 3: Pesquisa por Vídeo */
+        .fab-container.active .fab-option:nth-child(3) {
+            opacity: 1;
+            transform: translate(-90px, 0) scale(1);
+        }
+
+        /* --- MODAIS FLUTUANTES (VOZ, IMAGEM E VÍDEO) --- */
+        .custom-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .custom-modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            width: 340px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: #666;
+            cursor: pointer;
+        }
+
+        /* Estilos específicos Modal Voz */
+        .voice-mic-icon {
+            width: 70px;
+            height: 70px;
+            background-color: #8a2be2;
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            margin: 0 auto 20px auto;
+            animation: pulse 1.5s infinite;
+        }
+
+        .voice-status {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .voice-transcript {
+            font-size: 14px;
+            color: #666;
+            min-height: 20px;
+            font-style: italic;
+        }
+
+        /* Estilos específicos Modal Imagem e Vídeo */
+        .modal-title {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .media-input-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .media-input-group label {
+            font-size: 12px;
+            color: #666;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .media-input-group input[type="url"] {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .media-input-group input[type="url"]:focus {
+            border-color: #8a2be2;
+        }
+
+        .divider {
+            margin: 15px 0;
+            font-size: 12px;
+            color: #aaa;
+            position: relative;
+        }
+
+        .file-upload-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #f0f0f0;
+            color: #333;
+            border: 1px dashed #8a2be2;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .file-upload-btn:hover {
+            background-color: #f3e5f5;
+        }
+
+        .file-upload-btn input[type="file"] {
+            display: none;
+        }
+
+        .btn-submit-media {
+            width: 100%;
+            padding: 12px;
+            background-color: #8a2be2;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            margin-top: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-submit-media:hover {
+            background-color: #7b1fa2;
+        }
+
+        .loading-status {
+            display: none;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #8a2be2;
+            font-weight: bold;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(138, 43, 226, 0.6);
+            }
+            70% {
+                box-shadow: 0 0 0 20px rgba(138, 43, 226, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(138, 43, 226, 0);
+            }
+        }
     </style>
 </head>
 <body>
 
     <script async src="https://cse.google.com/cse.js?cx=4241717f32002490e"></script>
     <div class="gcse-search" data-linkTarget="_blank"></div>
+
+    <div class="fab-container" id="fabContainer">
+        <div class="fab-options">
+            <button class="fab-option" id="btnVoice" title="Pesquisa por Voz">
+                <i class="fas fa-microphone"></i>
+            </button>
+            <button class="fab-option" id="btnImage" title="Pesquisa por Imagem">
+                <i class="fas fa-image"></i>
+            </button>
+            <button class="fab-option" id="btnVideo" title="Pesquisa por Vídeo">
+                <i class="fas fa-video"></i>
+            </button>
+        </div>
+        <button class="fab-main" id="fabBtn">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+
+    <div class="custom-modal" id="voiceModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeVoiceModal"><i class="fas fa-times"></i></button>
+            <div class="voice-mic-icon">
+                <i class="fas fa-microphone"></i>
+            </div>
+            <div class="voice-status" id="voiceStatus">Ouvindo...</div>
+            <div class="voice-transcript" id="voiceTranscript">Fale agora...</div>
+        </div>
+    </div>
+
+    <div class="custom-modal" id="imageModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeImageModal"><i class="fas fa-times"></i></button>
+            <div class="modal-title">Pesquisa por Imagem</div>
+            
+            <div class="media-input-group">
+                <label for="imageUrlInput">Cole o URL da imagem:</label>
+                <input type="url" id="imageUrlInput" placeholder="https://exemplo.com/imagem.jpg">
+            </div>
+
+            <div class="divider">OU</div>
+
+            <label class="file-upload-btn">
+                <i class="fas fa-upload"></i> <span id="imageFileName">Escolher do dispositivo</span>
+                <input type="file" id="imageFileInput" accept="image/*">
+            </label>
+
+            <button class="btn-submit-media" id="btnSearchImage">Reconhecer e Pesquisar</button>
+            <div class="loading-status" id="imageLoadingStatus"><i class="fas fa-spinner fa-spin"></i> Analisando imagem...</div>
+        </div>
+    </div>
+
+    <div class="custom-modal" id="videoModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeVideoModal"><i class="fas fa-times"></i></button>
+            <div class="modal-title">Pesquisa por Vídeo</div>
+            
+            <div class="media-input-group">
+                <label for="videoUrlInput">Cole o URL do vídeo:</label>
+                <input type="url" id="videoUrlInput" placeholder="https://exemplo.com/video.mp4">
+            </div>
+
+            <div class="divider">OU</div>
+
+            <label class="file-upload-btn">
+                <i class="fas fa-upload"></i> <span id="videoFileName">Escolher do dispositivo</span>
+                <input type="file" id="videoFileInput" accept="video/*">
+            </label>
+
+            <button class="btn-submit-media" id="btnSearchVideo">Reconhecer e Pesquisar</button>
+            <div class="loading-status" id="videoLoadingStatus"><i class="fas fa-spinner fa-spin"></i> Processando vídeo...</div>
+        </div>
+    </div>
+
+    <script>
+        const fabContainer = document.getElementById('fabContainer');
+        const fabBtn = document.getElementById('fabBtn');
+        
+        // Elementos Modal Voz
+        const btnVoice = document.getElementById('btnVoice');
+        const voiceModal = document.getElementById('voiceModal');
+        const closeVoiceModal = document.getElementById('closeVoiceModal');
+        const voiceStatus = document.getElementById('voiceStatus');
+        const voiceTranscript = document.getElementById('voiceTranscript');
+
+        // Elementos Modal Imagem
+        const btnImage = document.getElementById('btnImage');
+        const imageModal = document.getElementById('imageModal');
+        const closeImageModal = document.getElementById('closeImageModal');
+        const imageUrlInput = document.getElementById('imageUrlInput');
+        const imageFileInput = document.getElementById('imageFileInput');
+        const imageFileNameSpan = document.getElementById('imageFileName');
+        const btnSearchImage = document.getElementById('btnSearchImage');
+        const imageLoadingStatus = document.getElementById('imageLoadingStatus');
+
+        // Elementos Modal Vídeo
+        const btnVideo = document.getElementById('btnVideo');
+        const videoModal = document.getElementById('videoModal');
+        const closeVideoModal = document.getElementById('closeVideoModal');
+        const videoUrlInput = document.getElementById('videoUrlInput');
+        const videoFileInput = document.getElementById('videoFileInput');
+        const videoFileNameSpan = document.getElementById('videoFileName');
+        const btnSearchVideo = document.getElementById('btnSearchVideo');
+        const videoLoadingStatus = document.getElementById('videoLoadingStatus');
+
+        let recognition = null;
+        let classifier = null;
+
+        // Abrir/Fechar o leque do FAB
+        fabBtn.addEventListener('click', () => {
+            fabContainer.classList.toggle('active');
+        });
+
+        /* --- LÓGICA DE RECONHECIMENTO DE VOZ --- */
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'pt-BR';
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => {
+                voiceStatus.textContent = "Ouvindo...";
+                voiceTranscript.textContent = "Fale agora...";
+            };
+
+            recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                voiceTranscript.textContent = transcript;
+
+                if (event.results[0].isFinal) {
+                    executarBusca(transcript);
+                }
+            };
+
+            recognition.onerror = () => {
+                voiceStatus.textContent = "Erro ao ouvir.";
+                voiceTranscript.textContent = "Tente novamente.";
+            };
+
+            recognition.onend = () => {
+                setTimeout(() => {
+                    fecharModalVoz();
+                }, 1500);
+            };
+        }
+
+        btnVoice.addEventListener('click', () => {
+            fabContainer.classList.remove('active');
+            voiceModal.classList.add('active');
+            if (recognition) {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    recognition.stop();
+                    recognition.start();
+                }
+            }
+        });
+
+        closeVoiceModal.addEventListener('click', fecharModalVoz);
+
+        function fecharModalVoz() {
+            voiceModal.classList.remove('active');
+            if (recognition) {
+                recognition.stop();
+            }
+        }
+
+        /* --- LÓGICA DE PESQUISA POR IMAGEM E VÍDEO (IA NO NAVEGADOR) --- */
+        
+        // Modal Imagem
+        btnImage.addEventListener('click', () => {
+            fabContainer.classList.remove('active');
+            imageModal.classList.add('active');
+        });
+
+        closeImageModal.addEventListener('click', fecharModalImagem);
+
+        imageFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                imageFileNameSpan.textContent = e.target.files[0].name;
+                imageUrlInput.value = '';
+            }
+        });
+
+        // Modal Vídeo
+        btnVideo.addEventListener('click', () => {
+            fabContainer.classList.remove('active');
+            videoModal.classList.add('active');
+        });
+
+        closeVideoModal.addEventListener('click', fecharModalVideo);
+
+        videoFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                videoFileNameSpan.textContent = e.target.files[0].name;
+                videoUrlInput.value = '';
+            }
+        });
+
+        // Analisa imagem/frame diretamente via IA
+        async function analisarImagem(origemSrc, isVideo = false) {
+            const loadingElem = isVideo ? videoLoadingStatus : imageLoadingStatus;
+            loadingElem.style.display = 'block';
+
+            try {
+                if (!classifier && window.pipeline) {
+                    classifier = await window.pipeline('image-classification', 'Xenova/vit-base-patch16-224');
+                }
+
+                let src = origemSrc;
+                if (origemSrc instanceof File) {
+                    src = URL.createObjectURL(origemSrc);
+                }
+
+                const output = await classifier(src);
+
+                if (output && output.length > 0) {
+                    const label = output[0].label.split(',')[0];
+                    executarBusca(label);
+                } else {
+                    alert("Não foi possível identificar objetos na mídia.");
+                }
+            } catch (error) {
+                console.error("Erro na detecção:", error);
+                if (origemSrc instanceof File) {
+                    const queryText = origemSrc.name.replace(/\.[^/.]+$/, "");
+                    executarBusca(queryText);
+                } else {
+                    alert("Erro ao processar o ficheiro. Verifique se o formato ou URL é válido.");
+                }
+            } finally {
+                loadingElem.style.display = 'none';
+                if (isVideo) fecharModalVideo(); else fecharModalImagem();
+            }
+        }
+
+        // Função para extrair uma frame do vídeo
+        function processarVideoEAnalisar(origemVideo) {
+            videoLoadingStatus.style.display = 'block';
+
+            const video = document.createElement('video');
+            video.crossOrigin = 'anonymous';
+            video.muted = true;
+
+            if (origemVideo instanceof File) {
+                video.src = URL.createObjectURL(origemVideo);
+            } else {
+                video.src = origemVideo;
+            }
+
+            video.onloadeddata = () => {
+                video.currentTime = 1; // Avança 1 segundo para evitar frame preta
+            };
+
+            video.onseeked = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth || 320;
+                canvas.height = video.videoHeight || 240;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const frameDataUrl = canvas.toDataURL('image/jpeg');
+                analisarImagem(frameDataUrl, true);
+            };
+
+            video.onerror = () => {
+                if (origemVideo instanceof File) {
+                    const queryText = origemVideo.name.replace(/\.[^/.]+$/, "");
+                    executarBusca(queryText);
+                    fecharModalVideo();
+                } else {
+                    alert("Erro ao carregar o vídeo. Verifique o formato ou permissões CORS.");
+                    videoLoadingStatus.style.display = 'none';
+                }
+            };
+        }
+
+        // Eventos dos Botões de Submissão
+        btnSearchImage.addEventListener('click', () => {
+            const urlValue = imageUrlInput.value.trim();
+            const file = imageFileInput.files[0];
+
+            if (urlValue !== '') {
+                analisarImagem(urlValue, false);
+            } else if (file) {
+                analisarImagem(file, false);
+            } else {
+                alert("Por favor, insira o URL de uma imagem ou selecione um ficheiro.");
+            }
+        });
+
+        btnSearchVideo.addEventListener('click', () => {
+            const urlValue = videoUrlInput.value.trim();
+            const file = videoFileInput.files[0];
+
+            if (urlValue !== '') {
+                processarVideoEAnalisar(urlValue);
+            } else if (file) {
+                processarVideoEAnalisar(file);
+            } else {
+                alert("Por favor, insira o URL de um vídeo ou selecione um ficheiro.");
+            }
+        });
+
+        function fecharModalImagem() {
+            imageModal.classList.remove('active');
+            imageUrlInput.value = '';
+            imageFileInput.value = '';
+            imageFileNameSpan.textContent = 'Escolher do dispositivo';
+            imageLoadingStatus.style.display = 'none';
+        }
+
+        function fecharModalVideo() {
+            videoModal.classList.remove('active');
+            videoUrlInput.value = '';
+            videoFileInput.value = '';
+            videoFileNameSpan.textContent = 'Escolher do dispositivo';
+            videoLoadingStatus.style.display = 'none';
+        }
+
+        /* --- FUNÇÃO PARA INSERIR E DISPARAR A BUSCA NO GOOGLE --- */
+        function executarBusca(texto) {
+            const searchInput = document.querySelector('input.gsc-input');
+            const searchButton = document.querySelector('button.gsc-search-button-v2');
+
+            if (searchInput) {
+                searchInput.value = texto;
+                
+                const event = new Event('input', { bubbles: true });
+                searchInput.dispatchEvent(event);
+
+                if (searchButton) {
+                    searchButton.click();
+                }
+            } else {
+                console.error("Campo de busca ainda não carregou.");
+            }
+        }
+    </script>
   
 </body>
 </html>
