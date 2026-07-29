@@ -1,178 +1,1527 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Em Breve</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista de Carrosséis - iTunes API</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    /* --- VARIÁVEIS DE CORES --- */
+    :root {
+      --bg-color: #fcfcfc;
+      --card-bg: #ffffff;
+      --text-color: #2b2b2b;
+      --primary-violet: #8a2be2;
+      --violet-hover: #7a1cd1;
+      --violet-light: #f3e8ff;
+      --shadow-light: rgba(138, 43, 226, 0.1);
+      --shadow-strong: rgba(138, 43, 226, 0.25);
+    }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #0d0614;
-            color: #ffffff;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            text-align: center;
-            position: relative;
-        }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-        .container {
-            padding: 2rem;
-            z-index: 10;
-            max-width: 600px;
-        }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
 
-        /* Título Principal com Brilho Pulsante */
-        h1 {
-            font-size: 3.5rem;
-            font-weight: 800;
-            letter-spacing: 3px;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            background: linear-gradient(135deg, #ffffff 20%, #c084fc 50%, #ffffff 80%);
-            background-size: 200% auto;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: textShine 3s ease-in-out infinite alternate, glowPulse 2s ease-in-out infinite alternate;
-        }
+    /* --- BARRA DE BUSCA --- */
+    .search-container {
+      position: relative;
+      width: 100%;
+      max-width: 600px;
+      margin-bottom: 50px;
+      display: flex;
+      align-items: center;
+    }
 
-        /* Subtítulo Fluido com Efeito Blur na Entrada */
-        p {
-            font-size: 1.25rem;
-            color: #e9d5ff;
-            margin-bottom: 45px;
-            letter-spacing: 0.5px;
-            opacity: 0;
-            animation: blurIn 1.2s ease-out 0.3s forwards;
-        }
+    .search-input {
+      width: 100%;
+      padding: 16px 50px 16px 24px;
+      font-size: 1rem;
+      color: var(--text-color);
+      background-color: var(--card-bg);
+      border: 2px solid #e0e0e0;
+      border-radius: 50px;
+      outline: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+      transition: all 0.3s ease;
+    }
 
-        /* Barra de Carregamento Dupla */
-        .loader-container {
-            width: 280px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 20px;
-            margin: 0 auto;
-            overflow: hidden;
-            position: relative;
-            box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
-        }
+    .search-input:hover {
+      border-color: #c4b5fd;
+      box-shadow: 0 6px 16px var(--shadow-light);
+    }
 
-        .loader-bar {
-            width: 60%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, #a855f7, #ffffff, #a855f7, transparent);
-            position: absolute;
-            left: -100%;
-            border-radius: 20px;
-            animation: loading 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-        }
+    .search-input:focus {
+      border-color: var(--primary-violet);
+      box-shadow: 0 0 0 4px var(--violet-light), 0 8px 20px var(--shadow-strong);
+    }
 
-        /* Animações CSS */
-        @keyframes textShine {
-            0% { background-position: 0% center; }
-            100% { background-position: 200% center; }
-        }
+    .clear-btn {
+      position: absolute;
+      right: 16px;
+      background: none;
+      border: none;
+      color: #999;
+      font-size: 1.2rem;
+      cursor: pointer;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s ease;
+      outline: none;
+    }
 
-        @keyframes glowPulse {
-            0% { filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.4)); }
-            100% { filter: drop-shadow(0 0 25px rgba(168, 85, 247, 0.8)); }
-        }
+    .clear-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
 
-        @keyframes blurIn {
-            0% {
-                opacity: 0;
-                filter: blur(10px);
-                transform: translateY(10px);
-            }
-            100% {
-                opacity: 0.9;
-                filter: blur(0);
-                transform: translateY(0);
-            }
-        }
+    .clear-btn:hover {
+      background-color: var(--violet-light);
+      color: var(--primary-violet);
+    }
 
-        @keyframes loading {
-            0% { left: -60%; }
-            100% { left: 100%; }
-        }
+    .clear-btn:focus {
+      box-shadow: 0 0 0 2px var(--primary-violet);
+      color: var(--primary-violet);
+    }
 
-        /* Orbes e Fundo Dinâmico */
-        .orbs {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            overflow: hidden;
-            z-index: 1;
-        }
+    #carousels-container {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
 
-        .orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(90px);
-            animation: float 10s ease-in-out infinite alternate;
-        }
+    .carousel-section {
+      width: 100%;
+      max-width: 1100px;
+      margin-bottom: 40px;
+    }
 
-        .orb-1 {
-            width: 380px;
-            height: 380px;
-            top: -100px;
-            left: -100px;
-            background: rgba(168, 85, 247, 0.25);
-        }
+    .carousel-title {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+      color: var(--text-color);
+      border-left: 4px solid var(--primary-violet);
+      padding-left: 12px;
+    }
 
-        .orb-2 {
-            width: 450px;
-            height: 450px;
-            bottom: -150px;
-            right: -150px;
-            background: rgba(126, 34, 206, 0.2);
-            animation-duration: 14s;
-        }
+    .carousel-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
 
-        .orb-3 {
-            width: 200px;
-            height: 200px;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.05);
-            animation-duration: 6s;
-        }
+    .carousel-track {
+      display: flex;
+      gap: 20px;
+      overflow-x: auto;
+      scroll-behavior: smooth;
+      padding: 15px 5px;
+      scrollbar-width: none;
+    }
 
-        @keyframes float {
-            0% { transform: translateY(0px) scale(1); }
-            50% { transform: translateY(-20px) scale(1.05); }
-            100% { transform: translateY(200px) scale(0.95); }
-        }
-    </style>
+    .carousel-track::-webkit-scrollbar {
+      display: none;
+    }
+
+    .card {
+      min-width: 240px;
+      max-width: 240px;
+      background-color: var(--card-bg);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #f0f0f0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      cursor: pointer;
+      outline: none;
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+
+    .card img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+    }
+
+    .card-content {
+      padding: 16px;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 12px 24px var(--shadow-strong);
+      border-color: var(--violet-light);
+    }
+
+    .card:focus {
+      border-color: var(--primary-violet);
+      box-shadow: 0 0 0 3px var(--violet-light), 0 12px 24px var(--shadow-strong);
+    }
+
+    .nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background-color: var(--card-bg);
+      color: var(--primary-violet);
+      border: 2px solid var(--violet-light);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 10;
+      font-size: 1.2rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+      outline: none;
+    }
+
+    .nav-btn.prev { left: -20px; }
+    .nav-btn.next { right: -20px; }
+
+    .nav-btn:hover {
+      background-color: var(--primary-violet);
+      color: #ffffff;
+      border-color: var(--primary-violet);
+    }
+
+    .nav-btn:focus {
+      box-shadow: 0 0 0 3px var(--violet-light);
+    }
+
+    /* MODAL PRINCIPAL */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #ffffff;
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      box-sizing: border-box;
+      transition: transform 0.2s ease-out;
+    }
+
+    .modal-overlay::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: var(--modal-bg, none);
+      background-size: cover;
+      background-position: center;
+      filter: blur(25px);
+      opacity: 0.35;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-header {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+      width: 100%;
+      background-color: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(10px);
+      border-bottom: 2px solid var(--primary-violet);
+      box-shadow: 0 2px 10px rgba(138, 43, 226, 0.08);
+      z-index: 10;
+      touch-action: none;
+      padding: 16px 32px;
+    }
+
+    .modal-drag-indicator {
+      display: none;
+      width: 40px;
+      height: 4px;
+      background-color: #cbd5e1;
+      border-radius: 2px;
+      margin-bottom: 8px;
+    }
+
+    .modal-header-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .modal-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .modal-badge {
+      background-color: var(--violet-light);
+      color: var(--primary-violet);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    .modal-title {
+      font-weight: 700;
+      color: #4c1d95;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 19px;
+    }
+
+    .modal-close-btn {
+      background: #f3f4f6;
+      border: none;
+      font-weight: bold;
+      color: #6b7280;
+      cursor: pointer;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      font-size: 22px;
+    }
+
+    .modal-close-btn:hover {
+      background-color: var(--primary-violet);
+      color: #ffffff;
+      transform: rotate(90deg);
+    }
+
+    .modal-body {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      width: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      line-height: 1.7;
+      color: #374151;
+      padding: 32px;
+      max-width: 900px;
+      margin: 0 auto;
+      scrollbar-width: thin;
+      scrollbar-color: #c4b5fd #f3f4f6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .modal-body::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .modal-body::-webkit-scrollbar-thumb {
+      background-color: #c4b5fd;
+      border-radius: 4px;
+    }
+
+    .player-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 420px;
+      margin-bottom: 30px;
+    }
+
+    .player-cover {
+      width: 100%;
+      max-width: 300px;
+      height: 300px;
+      border-radius: 20px;
+      object-fit: cover;
+      margin-bottom: 24px;
+      box-shadow: 0 12px 28px rgba(138, 43, 226, 0.2);
+    }
+
+    .player-info {
+      width: 100%;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .player-song-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #2b2b2b;
+      margin-bottom: 6px;
+    }
+
+    .player-artist-name {
+      font-size: 1rem;
+      color: #6b7280;
+    }
+
+    .progress-container {
+      width: 100%;
+      margin-bottom: 24px;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: #e5e7eb;
+      border-radius: 3px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .progress-bar-fill {
+      width: 0%;
+      height: 100%;
+      background-color: var(--primary-violet);
+      transition: width 0.1s linear;
+    }
+
+    .time-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-top: 8px;
+    }
+
+    .play-btn {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background-color: var(--primary-violet);
+      color: #ffffff;
+      border: none;
+      font-size: 1.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease, background-color 0.2s ease;
+      outline: none;
+      box-shadow: 0 8px 20px rgba(138, 43, 226, 0.3);
+    }
+
+    .play-btn:hover {
+      transform: scale(1.08);
+      background-color: var(--violet-hover);
+    }
+
+    .action-buttons-container {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 12px 6px 20px 6px;
+      justify-content: flex-start;
+      align-items: center;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .action-buttons-container::-webkit-scrollbar {
+      display: none;
+    }
+
+    .action-btn {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: var(--primary-violet);
+      border: 1px solid rgba(138, 43, 226, 0.2);
+      padding: 6px 14px;
+      border-radius: 100px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      outline: none;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .action-btn i {
+      font-size: 0.85rem;
+      transition: transform 0.2s ease;
+    }
+
+    .action-btn:hover {
+      background-color: var(--primary-violet);
+      color: #ffffff;
+      border-color: var(--primary-violet);
+      box-shadow: 0 6px 16px var(--shadow-strong);
+      transform: translateY(-2px);
+    }
+
+    .action-btn:hover i {
+      transform: scale(1.1);
+    }
+
+    .action-btn:active {
+      transform: translateY(-1px) scale(0.97);
+      box-shadow: 0 3px 8px var(--shadow-light);
+    }
+
+    .action-btn:focus-visible {
+      box-shadow: 0 0 0 3px var(--violet-light), 0 6px 16px var(--shadow-strong);
+      border-color: var(--primary-violet);
+    }
+
+    /* ESTILOS DOS MENUS FLUTUANTES (POPOVER) */
+    .info-popover {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(138, 43, 226, 0.25);
+      border-radius: 16px;
+      padding: 16px;
+      width: 280px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      z-index: 99;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+      transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
+      pointer-events: none;
+    }
+
+    .info-popover.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .info-popover-header {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--primary-violet);
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .info-popover-item {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+    }
+
+    .info-popover-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .info-popover-label {
+      font-weight: 600;
+      color: #6b7280;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+    }
+
+    .info-popover-value {
+      color: #2b2b2b;
+      font-weight: 500;
+      word-break: break-word;
+    }
+
+    .info-popover-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      color: var(--primary-violet);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.82rem;
+    }
+
+    .info-popover-link:hover {
+      text-decoration: underline;
+    }
+
+    /* ESTILOS ESPECÍFICOS DO MENU DE STREAMING VERTICAL */
+    .streaming-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .streaming-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(243, 232, 255, 0.4);
+      border: 1px solid rgba(138, 43, 226, 0.12);
+      text-decoration: none;
+      color: #2b2b2b;
+      font-weight: 600;
+      font-size: 0.88rem;
+      transition: all 0.2s ease;
+    }
+
+    .streaming-item:hover {
+      background: var(--primary-violet);
+      color: #ffffff;
+      border-color: var(--primary-violet);
+      transform: translateX(4px);
+    }
+
+    .streaming-item i {
+      font-size: 1.1rem;
+      width: 22px;
+      text-align: center;
+    }
+
+    .streaming-item-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* SUBMODAL DE LETRAS - OCUPANDO TODO O ESPAÇO DA TELA */
+    .lyrics-submodal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(100%);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .lyrics-submodal.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .lyrics-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 32px;
+      border-bottom: 1px solid rgba(138, 43, 226, 0.15);
+      background: rgba(255, 255, 255, 0.9);
+      flex-shrink: 0;
+    }
+
+    .lyrics-header-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--primary-violet);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .lyrics-close-btn {
+      background: #f3f4f6;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-size: 1.3rem;
+      color: #6b7280;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    .lyrics-close-btn:hover {
+      background-color: var(--primary-violet);
+      color: #ffffff;
+      transform: rotate(90deg);
+    }
+
+    .lyrics-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 40px 24px;
+      text-align: center;
+      font-size: 1.2rem;
+      line-height: 2.2;
+      color: #2b2b2b;
+      max-width: 800px;
+      margin: 0 auto;
+      width: 100%;
+      scrollbar-width: thin;
+      scrollbar-color: #c4b5fd #f3f4f6;
+    }
+
+    .lyrics-content p {
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+
+    .lyrics-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--primary-violet);
+      gap: 16px;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    .tiktok-tabs-container {
+      width: 100%;
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .tiktok-tabs-header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 32px;
+      width: 100%;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+    }
+
+    .tiktok-tab {
+      background: none;
+      border: none;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #9ca3af;
+      cursor: pointer;
+      position: relative;
+      padding: 8px 4px;
+      transition: color 0.2s ease;
+      outline: none;
+    }
+
+    .tiktok-tab:hover {
+      color: var(--text-color);
+    }
+
+    .tiktok-tab.active {
+      color: var(--primary-violet);
+      font-weight: 700;
+    }
+
+    .tiktok-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -11px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: var(--primary-violet);
+      border-radius: 3px 3px 0 0;
+    }
+
+    .tiktok-tab-content {
+      width: 100%;
+      display: none;
+    }
+
+    .tiktok-tab-content.active {
+      display: block;
+    }
+
+    @media (max-width: 767px) {
+      .modal-header {
+        padding: 8px 16px 12px 16px;
+      }
+
+      .modal-drag-indicator {
+        display: block;
+      }
+
+      .modal-title {
+        font-size: 15px;
+      }
+
+      .modal-close-btn {
+        display: none !important;
+      }
+
+      .modal-body {
+        padding: 20px 16px 40px 16px;
+      }
+
+      .action-buttons-container {
+        justify-content: flex-start;
+      }
+
+      .lyrics-header {
+        padding: 16px 20px;
+      }
+
+      .lyrics-content {
+        font-size: 1.05rem;
+        padding: 24px 16px;
+      }
+    }
+  </style>
 </head>
 <body>
 
-    <div class="orbs">
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
-    </div>
+  <div class="search-container">
+    <input type="text" id="searchInput" class="search-input" placeholder="Pesquisar..." aria-label="Pesquisar">
+    <button id="clearBtn" class="clear-btn" aria-label="Limpar pesquisa">&times;</button>
+  </div>
 
-    <div class="container">
-        <h1>Em Breve</h1>
-        <p>Algo extraordinário está sendo construído.</p>
-        
-        <div class="loader-container">
-            <div class="loader-bar"></div>
+  <div id="carousels-container"></div>
+
+  <div id="articleModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-header">
+      <div class="modal-drag-indicator"></div>
+      <div class="modal-header-content">
+        <div class="modal-header-left">
+          <span class="modal-badge">Música</span>
+          <h2 id="modalTitle" class="modal-title">Prévia da Música</h2>
         </div>
+        <button id="closeModalBtn" class="modal-close-btn" aria-label="Fechar Modal">&times;</button>
+      </div>
     </div>
+    
+    <div id="modalBody" class="modal-body"></div>
+  </div>
 
+  <audio id="audioPlayer"></audio>
+
+  <script>
+    const musicThemes = [
+      'Pop',
+      'Rock',
+      'Hip-Hop',
+      'Sertanejo',
+      'Electronic',
+      'Indie',
+      'Jazz',
+      'Classical',
+      'Reggae',
+      'R&B'
+    ];
+
+    function scrollCarousel(button, distance) {
+      const wrapper = button.parentElement;
+      const track = wrapper.querySelector('.carousel-track');
+      track.scrollBy({
+        left: distance,
+        behavior: 'smooth'
+      });
+    }
+
+    function createCarousels() {
+      const container = document.getElementById('carousels-container');
+      
+      musicThemes.forEach((theme, index) => {
+        const section = document.createElement('section');
+        section.className = 'carousel-section';
+        
+        section.innerHTML = `
+          <h2 class="carousel-title">${theme}</h2>
+          <div class="carousel-wrapper">
+            <button class="nav-btn prev" onclick="scrollCarousel(this, -260)" aria-label="Anterior">&#10094;</button>
+            <div class="carousel-track" id="track-${index}"></div>
+            <button class="nav-btn next" onclick="scrollCarousel(this, 260)" aria-label="Próximo">&#10095;</button>
+          </div>
+        `;
+
+        container.appendChild(section);
+        fetchCarouselData(theme, `track-${index}`);
+      });
+    }
+
+    async function fetchCarouselData(theme, trackId) {
+      const track = document.getElementById(trackId);
+      try {
+        const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(theme)}&entity=song&limit=10`);
+        const data = await response.json();
+
+        track.innerHTML = '';
+
+        data.results.forEach(song => {
+          const highResImg = song.artworkUrl100 ? song.artworkUrl100.replace('100x100bb', '600x600bb') : '';
+
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.setAttribute('tabindex', '0');
+
+          card.innerHTML = `
+            <img src="${highResImg}" alt="${song.trackName}">
+            <div class="card-content">
+              <h3 class="card-title">${song.trackName}</h3>
+            </div>
+          `;
+
+          const openPreview = () => openArticleModal({
+            title: song.trackName,
+            artist: song.artistName,
+            artistId: song.artistId,
+            album: song.collectionName || 'Não Informado',
+            genre: song.primaryGenreName || 'Gênero não catalogado',
+            releaseDate: song.releaseDate ? new Date(song.releaseDate).toLocaleDateString('pt-BR') : 'Desconhecida',
+            price: song.trackPrice ? `$${song.trackPrice} ${song.currency}` : 'Grátis / Não disponível',
+            artistViewUrl: song.artistViewUrl,
+            trackViewUrl: song.trackViewUrl,
+            cover: highResImg,
+            previewUrl: song.previewUrl
+          });
+
+          card.addEventListener('click', openPreview);
+          card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') openPreview();
+          });
+
+          track.appendChild(card);
+        });
+      } catch (error) {
+        console.error(`Erro ao carregar dados do tema ${theme}:`, error);
+      }
+    }
+
+    /* ==========================================================================
+       LÓGICA DO MODAL
+       ========================================================================== */
+    const articleModal = document.getElementById('articleModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const audioPlayer = document.getElementById('audioPlayer');
+
+    function openArticleModal(songData) {
+      modalTitle.textContent = songData.title;
+
+      articleModal.style.setProperty('--modal-bg', `url('${songData.cover}')`);
+
+      const queryTerm = encodeURIComponent(`${songData.title} ${songData.artist}`);
+      const ytMusicUrl = `https://music.youtube.com/search?q=${queryTerm}`;
+      const deezerUrl = `https://www.deezer.com/search/${queryTerm}`;
+      const appleMusicUrl = songData.trackViewUrl || `https://music.apple.com/br/search?term=${queryTerm}`;
+
+      modalBody.innerHTML = `
+        <div class="player-container">
+          <img class="player-cover" src="${songData.cover}" alt="${songData.title}">
+          <div class="player-info">
+            <h3 class="player-song-title">${songData.title}</h3>
+            <p class="player-artist-name">${songData.artist}</p>
+          </div>
+          <div class="progress-container">
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <div class="time-info">
+              <span id="currentTime">0:00</span>
+              <span>0:30</span>
+            </div>
+          </div>
+          <button id="playPauseBtn" class="play-btn">&#10074;&#10074;</button>
+        </div>
+
+        <div class="action-buttons-container">
+          <button class="action-btn" id="infoBtn"><i class="fa-solid fa-circle-info"></i> Informações</button>
+          <button class="action-btn" id="artistBtn"><i class="fa-solid fa-user"></i> Sobre o Artista</button>
+          <button class="action-btn" id="lyricsBtn"><i class="fa-solid fa-quote-right"></i> Letra</button>
+          <button class="action-btn" id="listenBtn"><i class="fa-solid fa-circle-play"></i> Ouvir Toda</button>
+        </div>
+
+        <div class="info-popover" id="infoPopover">
+          <div class="info-popover-header">
+            <i class="fa-solid fa-circle-info"></i> Detalhes da Faixa
+          </div>
+          <div class="info-popover-item">
+            <span class="info-popover-label">Álbum</span>
+            <span class="info-popover-value">${songData.album}</span>
+          </div>
+          <div class="info-popover-item">
+            <span class="info-popover-label">Gênero</span>
+            <span class="info-popover-value">${songData.genre}</span>
+          </div>
+          <div class="info-popover-item">
+            <span class="info-popover-label">Lançamento</span>
+            <span class="info-popover-value">${songData.releaseDate}</span>
+          </div>
+          <div class="info-popover-item">
+            <span class="info-popover-label">Preço (iTunes)</span>
+            <span class="info-popover-value">${songData.price}</span>
+          </div>
+        </div>
+
+        <div class="info-popover" id="artistPopover">
+          <div class="info-popover-header">
+            <i class="fa-solid fa-user"></i> Sobre o Artista
+          </div>
+          <div class="info-popover-item">
+            <span class="info-popover-label">Nome</span>
+            <span class="info-popover-value">${songData.artist}</span>
+          </div>
+          <div class="info-popover-item">
+            <span class="info-popover-label">Gênero Principal</span>
+            <span class="info-popover-value" id="artistPopoverGenre">${songData.genre}</span>
+          </div>
+          <div class="info-popover-item" id="artistPopoverLinkContainer">
+            <span class="info-popover-label">Apple Music</span>
+            ${songData.artistViewUrl 
+              ? `<a href="${songData.artistViewUrl}" target="_blank" class="info-popover-link"><i class="fa-solid fa-arrow-up-right-from-square"></i> Ver no Apple Music</a>`
+              : `<span class="info-popover-value">Perfil não disponível</span>`}
+          </div>
+        </div>
+
+        <div class="info-popover" id="listenPopover">
+          <div class="info-popover-header">
+            <i class="fa-solid fa-circle-play"></i> Ouvir Completa em
+          </div>
+          <div class="streaming-list">
+            <a href="${ytMusicUrl}" target="_blank" class="streaming-item">
+              <div class="streaming-item-left">
+                <i class="fa-brands fa-youtube" style="color: #ff0000;"></i>
+                <span>YouTube Music</span>
+              </div>
+              <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem; opacity: 0.6;"></i>
+            </a>
+            <a href="${appleMusicUrl}" target="_blank" class="streaming-item">
+              <div class="streaming-item-left">
+                <i class="fa-brands fa-apple" style="color: #000000;"></i>
+                <span>Apple Music / iTunes</span>
+              </div>
+              <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem; opacity: 0.6;"></i>
+            </a>
+            <a href="${deezerUrl}" target="_blank" class="streaming-item">
+              <div class="streaming-item-left">
+                <i class="fa-brands fa-deezer" style="color: #a238ff;"></i>
+                <span>Deezer</span>
+              </div>
+              <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem; opacity: 0.6;"></i>
+            </a>
+          </div>
+        </div>
+
+        <div class="lyrics-submodal" id="lyricsSubmodal">
+          <div class="lyrics-header">
+            <div class="lyrics-header-title">
+              <i class="fa-solid fa-quote-right"></i> Letra: ${songData.title}
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="lyrics-close-btn" id="closeMainModalFromLyricsBtn" title="Fechar o Modal Principal" style="background: var(--violet-light); color: var(--primary-violet);">&times;</button>
+              <button class="lyrics-close-btn" id="closeLyricsBtn" aria-label="Fechar Letra">&times;</button>
+            </div>
+          </div>
+          <div class="lyrics-content" id="lyricsContent">
+            <div class="lyrics-loading">
+              <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+              <span>Buscando letra...</span>
+            </div>
+          </div>
+        </div>
+
+        <section class="tiktok-tabs-container">
+          <div class="tiktok-tabs-header">
+            <button class="tiktok-tab active" data-target="tab-artist">Mais do Artista</button>
+            <button class="tiktok-tab" data-target="tab-related">Relacionados</button>
+          </div>
+
+          <div id="tab-artist" class="tiktok-tab-content active">
+            <div class="carousel-wrapper">
+              <button class="nav-btn prev" onclick="scrollCarousel(this, -260)" aria-label="Anterior">&#10094;</button>
+              <div class="carousel-track" id="modal-artist-track"></div>
+              <button class="nav-btn next" onclick="scrollCarousel(this, 260)" aria-label="Próximo">&#10095;</button>
+            </div>
+          </div>
+
+          <div id="tab-related" class="tiktok-tab-content">
+            <div class="carousel-wrapper">
+              <button class="nav-btn prev" onclick="scrollCarousel(this, -260)" aria-label="Anterior">&#10094;</button>
+              <div class="carousel-track" id="modal-related-track"></div>
+              <button class="nav-btn next" onclick="scrollCarousel(this, 260)" aria-label="Próximo">&#10095;</button>
+            </div>
+          </div>
+        </section>
+      `;
+
+      articleModal.style.transform = 'translateY(0)';
+      articleModal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+
+      fetchCarouselData(songData.artist, 'modal-artist-track');
+      fetchCarouselData('Hits', 'modal-related-track');
+
+      if (songData.artistId) {
+        fetch(`https://itunes.apple.com/lookup?id=${songData.artistId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.results && data.results[0]) {
+              const artistInfo = data.results[0];
+              const genreElem = document.getElementById('artistPopoverGenre');
+              const linkContainer = document.getElementById('artistPopoverLinkContainer');
+              
+              if (genreElem && artistInfo.primaryGenreName) {
+                genreElem.textContent = artistInfo.primaryGenreName;
+              }
+              if (linkContainer && artistInfo.artistLinkUrl) {
+                linkContainer.innerHTML = `
+                  <span class="info-popover-label">Apple Music</span>
+                  <a href="${artistInfo.artistLinkUrl}" target="_blank" class="info-popover-link">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Ver no Apple Music
+                  </a>
+                `;
+              }
+            }
+          })
+          .catch(err => console.error("Erro ao buscar detalhes do artista:", err));
+      }
+
+      const infoBtn = document.getElementById('infoBtn');
+      const artistBtn = document.getElementById('artistBtn');
+      const listenBtn = document.getElementById('listenBtn');
+      const lyricsBtn = document.getElementById('lyricsBtn');
+
+      const infoPopover = document.getElementById('infoPopover');
+      const artistPopover = document.getElementById('artistPopover');
+      const listenPopover = document.getElementById('listenPopover');
+      const lyricsSubmodal = document.getElementById('lyricsSubmodal');
+      const closeLyricsBtn = document.getElementById('closeLyricsBtn');
+      const closeMainModalFromLyricsBtn = document.getElementById('closeMainModalFromLyricsBtn');
+      const lyricsContent = document.getElementById('lyricsContent');
+
+      function updatePopoverPosition(btn, popover) {
+        if (!btn || !popover) return;
+        const btnRect = btn.getBoundingClientRect();
+        const bodyRect = modalBody.getBoundingClientRect();
+
+        const topPosition = (btnRect.bottom - bodyRect.top + modalBody.scrollTop) + 8;
+        const leftPosition = (btnRect.left - bodyRect.left + modalBody.scrollLeft);
+
+        popover.style.top = `${topPosition}px`;
+        popover.style.left = `${leftPosition}px`;
+      }
+
+      function hideAllPopovers() {
+        infoPopover.classList.remove('active');
+        artistPopover.classList.remove('active');
+        listenPopover.classList.remove('active');
+      }
+
+      infoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isActive = infoPopover.classList.contains('active');
+        hideAllPopovers();
+        if (!isActive) {
+          updatePopoverPosition(infoBtn, infoPopover);
+          infoPopover.classList.add('active');
+        }
+      });
+
+      artistBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isActive = artistPopover.classList.contains('active');
+        hideAllPopovers();
+        if (!isActive) {
+          updatePopoverPosition(artistBtn, artistPopover);
+          artistPopover.classList.add('active');
+        }
+      });
+
+      listenBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isActive = listenPopover.classList.contains('active');
+        hideAllPopovers();
+        if (!isActive) {
+          updatePopoverPosition(listenBtn, listenPopover);
+          listenPopover.classList.add('active');
+        }
+      });
+
+      async function fetchLyrics(artist, track) {
+        lyricsContent.innerHTML = `
+          <div class="lyrics-loading">
+            <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+            <span>Buscando letra...</span>
+          </div>
+        `;
+
+        try {
+          const response = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(track)}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.plainLyrics) {
+              lyricsContent.innerHTML = data.plainLyrics.split('\n').map(line => `<p>${line || '&nbsp;'}</p>`).join('');
+              return;
+            }
+          }
+
+          const fallbackRes = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(track)}`);
+          if (fallbackRes.ok) {
+            const fallbackData = await fallbackRes.json();
+            if (fallbackData.lyrics) {
+              lyricsContent.innerHTML = fallbackData.lyrics.split('\n').map(line => `<p>${line || '&nbsp;'}</p>`).join('');
+              return;
+            }
+          }
+
+          lyricsContent.innerHTML = `<p style="color: #6b7280; padding-top: 40px;">Letra não encontrada para esta música.</p>`;
+        } catch (err) {
+          lyricsContent.innerHTML = `<p style="color: #ef4444; padding-top: 40px;">Não foi possível carregar a letra no momento.</p>`;
+        }
+      }
+
+      lyricsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        hideAllPopovers();
+        lyricsSubmodal.classList.add('active');
+        fetchLyrics(songData.artist, songData.title);
+      });
+
+      closeLyricsBtn.addEventListener('click', () => {
+        lyricsSubmodal.classList.remove('active');
+      });
+
+      closeMainModalFromLyricsBtn.addEventListener('click', () => {
+        lyricsSubmodal.classList.remove('active');
+        closeModal();
+      });
+
+      modalBody.addEventListener('scroll', () => {
+        if (infoPopover.classList.contains('active')) updatePopoverPosition(infoBtn, infoPopover);
+        if (artistPopover.classList.contains('active')) updatePopoverPosition(artistBtn, artistPopover);
+        if (listenPopover.classList.contains('active')) updatePopoverPosition(listenBtn, listenPopover);
+      });
+
+      const closePopoversOnClickOutside = (e) => {
+        if (
+          infoPopover && !infoPopover.contains(e.target) && e.target !== infoBtn &&
+          artistPopover && !artistPopover.contains(e.target) && e.target !== artistBtn &&
+          listenPopover && !listenPopover.contains(e.target) && e.target !== listenBtn
+        ) {
+          hideAllPopovers();
+        }
+      };
+
+      document.addEventListener('click', closePopoversOnClickOutside);
+
+      const tabs = modalBody.querySelectorAll('.tiktok-tab');
+      const contents = modalBody.querySelectorAll('.tiktok-tab-content');
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => t.classList.remove('active'));
+          contents.forEach(c => c.classList.remove('active'));
+
+          tab.classList.add('active');
+          const targetId = tab.getAttribute('data-target');
+          modalBody.querySelector(`#${targetId}`).classList.add('active');
+        });
+      });
+
+      audioPlayer.src = songData.previewUrl;
+      audioPlayer.play();
+
+      const playPauseBtn = document.getElementById('playPauseBtn');
+      playPauseBtn.addEventListener('click', () => {
+        if (audioPlayer.paused) {
+          audioPlayer.play();
+          playPauseBtn.innerHTML = '&#10074;&#10074;';
+        } else {
+          audioPlayer.pause();
+          playPauseBtn.innerHTML = '&#9654;';
+        }
+      });
+    }
+
+    function closeModal() {
+      articleModal.classList.remove('open');
+      articleModal.style.transform = '';
+      articleModal.style.removeProperty('--modal-bg');
+      document.body.style.overflow = '';
+      modalBody.innerHTML = '';
+      
+      audioPlayer.pause();
+      audioPlayer.currentTime = 0;
+      
+      modalBody.scrollTop = 0;
+    }
+
+    closeModalBtn.addEventListener('click', closeModal);
+
+    audioPlayer.addEventListener('timeupdate', () => {
+      const progressBarFill = document.getElementById('progressBarFill');
+      const currentTimeElem = document.getElementById('currentTime');
+
+      if (audioPlayer.duration && progressBarFill && currentTimeElem) {
+        const percent = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+        progressBarFill.style.width = `${percent}%`;
+
+        const currentMins = Math.floor(audioPlayer.currentTime / 60);
+        const currentSecs = Math.floor(audioPlayer.currentTime % 60).toString().padStart(2, '0');
+        currentTimeElem.textContent = `${currentMins}:${currentSecs}`;
+      }
+    });
+
+    audioPlayer.addEventListener('ended', () => {
+      const playPauseBtn = document.getElementById('playPauseBtn');
+      const progressBarFill = document.getElementById('progressBarFill');
+      if (playPauseBtn) playPauseBtn.innerHTML = '&#9654;';
+      if (progressBarFill) progressBarFill.style.width = '0%';
+    });
+
+    let startY = 0;
+    let currentY = 0;
+    let isSwiping = false;
+
+    articleModal.addEventListener('touchstart', (e) => {
+      if (window.innerWidth >= 768) return;
+      const lyricsSubmodal = document.getElementById('lyricsSubmodal');
+      if (lyricsSubmodal && lyricsSubmodal.classList.contains('active')) return;
+      const isHeader = e.target.closest('.modal-header');
+      if (isHeader || modalBody.scrollTop === 0) {
+        startY = e.touches[0].clientY;
+        isSwiping = true;
+        articleModal.style.transition = 'none';
+      }
+    }, { passive: true });
+
+    articleModal.addEventListener('touchmove', (e) => {
+      if (!isSwiping) return;
+      currentY = e.touches[0].clientY;
+      const diffY = currentY - startY;
+
+      if (diffY > 0) {
+        articleModal.style.transform = `translateY(${diffY}px)`;
+      } else {
+        isSwiping = false;
+        articleModal.style.transform = 'translateY(0)';
+      }
+    }, { passive: true });
+
+    articleModal.addEventListener('touchend', () => {
+      if (!isSwiping) return;
+      isSwiping = false;
+
+      const diffY = currentY - startY;
+      articleModal.style.transition = 'transform 0.2s ease-out';
+
+      if (diffY > 120) {
+        articleModal.style.transform = `translateY(100%)`;
+        setTimeout(closeModal, 200);
+      } else {
+        articleModal.style.transform = 'translateY(0)';
+      }
+
+      startY = 0;
+      currentY = 0;
+    });
+
+    const searchInput = document.getElementById('searchInput');
+    const clearBtn = document.getElementById('clearBtn');
+    let searchDebounceTimeout = null;
+
+    async function fetchSearchFromAPI(query) {
+      let searchSection = document.getElementById('search-results-section');
+      
+      if (!searchSection) {
+        searchSection = document.createElement('section');
+        searchSection.id = 'search-results-section';
+        searchSection.className = 'carousel-section';
+        const container = document.getElementById('carousels-container');
+        container.insertBefore(searchSection, container.firstChild);
+      }
+
+      searchSection.style.display = '';
+      searchSection.innerHTML = `
+        <h2 class="carousel-title">Resultados da Busca na API: "${query}"</h2>
+        <div class="carousel-wrapper">
+          <button class="nav-btn prev" onclick="scrollCarousel(this, -260)" aria-label="Anterior">&#10094;</button>
+          <div class="carousel-track" id="search-track"></div>
+          <button class="nav-btn next" onclick="scrollCarousel(this, 260)" aria-label="Próximo">&#10095;</button>
+        </div>
+      `;
+
+      const track = document.getElementById('search-track');
+      track.innerHTML = '<p style="padding: 15px; color: #6b7280;">Buscando na API do iTunes...</p>';
+
+      try {
+        const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=10`);
+        const data = await response.json();
+
+        track.innerHTML = '';
+
+        if (!data.results || data.results.length === 0) {
+          track.innerHTML = '<p style="padding: 15px; color: #6b7280;">Nenhum resultado encontrado na API.</p>';
+          return;
+        }
+
+        data.results.forEach(song => {
+          const highResImg = song.artworkUrl100 ? song.artworkUrl100.replace('100x100bb', '600x600bb') : '';
+
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.setAttribute('tabindex', '0');
+
+          card.innerHTML = `
+            <img src="${highResImg}" alt="${song.trackName}">
+            <div class="card-content">
+              <h3 class="card-title">${song.trackName}</h3>
+            </div>
+          `;
+
+          const openPreview = () => openArticleModal({
+            title: song.trackName,
+            artist: song.artistName,
+            artistId: song.artistId,
+            album: song.collectionName || 'Não Informado',
+            genre: song.primaryGenreName || 'Gênero não catalogado',
+            releaseDate: song.releaseDate ? new Date(song.releaseDate).toLocaleDateString('pt-BR') : 'Desconhecida',
+            price: song.trackPrice ? `$${song.trackPrice} ${song.currency}` : 'Grátis / Não disponível',
+            artistViewUrl: song.artistViewUrl,
+            trackViewUrl: song.trackViewUrl,
+            cover: highResImg,
+            previewUrl: song.previewUrl
+          });
+
+          card.addEventListener('click', openPreview);
+          card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') openPreview();
+          });
+
+          track.appendChild(card);
+        });
+      } catch (error) {
+        track.innerHTML = '<p style="padding: 15px; color: #ef4444;">Erro ao buscar dados na API.</p>';
+      }
+    }
+
+    function filterCards() {
+      const query = searchInput.value.toLowerCase().trim();
+      const cards = document.querySelectorAll('.carousel-section:not(#search-results-section) .card');
+      const sections = document.querySelectorAll('.carousel-section:not(#search-results-section)');
+      const searchSection = document.getElementById('search-results-section');
+
+      clearTimeout(searchDebounceTimeout);
+
+      if (query !== '') {
+        clearBtn.classList.add('visible');
+      } else {
+        clearBtn.classList.remove('visible');
+        if (searchSection) searchSection.style.display = 'none';
+      }
+
+      let hasMatches = false;
+
+      cards.forEach(card => {
+        const title = card.querySelector('.card-title')?.textContent.toLowerCase() || '';
+        if (query !== '' && title.includes(query)) {
+          card.style.display = '';
+          hasMatches = true;
+        } else if (query === '') {
+          card.style.display = '';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      sections.forEach(section => {
+        const visibleCards = section.querySelectorAll('.card:not([style*="display: none"])');
+        if (query !== '' && visibleCards.length === 0) {
+          section.style.display = 'none';
+        } else {
+          section.style.display = '';
+        }
+      });
+
+      if (query !== '' && !hasMatches) {
+        searchDebounceTimeout = setTimeout(() => {
+          fetchSearchFromAPI(query);
+        }, 500);
+      } else {
+        if (searchSection) searchSection.style.display = 'none';
+      }
+    }
+
+    searchInput.addEventListener('input', filterCards);
+
+    clearBtn.addEventListener('click', () => {
+      clearTimeout(searchDebounceTimeout);
+      searchInput.value = '';
+      filterCards();
+      searchInput.focus();
+    });
+
+    document.addEventListener('DOMContentLoaded', createCarousels);
+  </script>
 </body>
 </html>
