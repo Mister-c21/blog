@@ -741,6 +741,59 @@
       font-size: 1.1rem;
     }
 
+    /* CONTAINER DOS BOTÕES FLUTUANTES (FABS) NA SESSÃO DE LETRA */
+    .lyrics-fab-container {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10001;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .fab-btn {
+      height: 48px;
+      padding: 0 20px;
+      border-radius: 24px;
+      background-color: var(--primary-violet);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 6px 20px var(--shadow-strong);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+      outline: none;
+      white-space: nowrap;
+    }
+
+    .fab-btn:hover {
+      background-color: var(--violet-hover);
+      transform: scale(1.05);
+      box-shadow: 0 8px 25px var(--shadow-strong);
+    }
+
+    .fab-btn:active {
+      transform: scale(0.95);
+    }
+
+    .fab-btn.secondary {
+      background-color: #f3f4f6;
+      color: var(--primary-violet);
+      border: 2px solid var(--violet-light);
+    }
+
+    .fab-btn.secondary:hover {
+      background-color: var(--violet-light);
+      color: var(--primary-violet);
+    }
+
     .tiktok-tabs-container {
       width: 100%;
       margin-top: 10px;
@@ -833,7 +886,19 @@
 
       .lyrics-content {
         font-size: 1.05rem;
-        padding: 24px 16px;
+        padding: 24px 16px 90px 16px;
+      }
+
+      .lyrics-fab-container {
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 90%;
+      }
+      
+      .fab-btn {
+        font-size: 0.8rem;
+        padding: 0 12px;
+        height: 42px;
       }
     }
   </style>
@@ -1077,16 +1142,24 @@
             <div class="lyrics-header-title">
               <i class="fa-solid fa-quote-right"></i> Letra: ${songData.title}
             </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="lyrics-close-btn" id="closeMainModalFromLyricsBtn" title="Fechar o Modal Principal" style="background: var(--violet-light); color: var(--primary-violet);">&times;</button>
-              <button class="lyrics-close-btn" id="closeLyricsBtn" aria-label="Fechar Letra">&times;</button>
-            </div>
+            <button class="lyrics-close-btn" id="closeLyricsBtn" aria-label="Fechar Letra">&times;</button>
           </div>
           <div class="lyrics-content" id="lyricsContent">
             <div class="lyrics-loading">
               <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
               <span>Buscando letra...</span>
             </div>
+          </div>
+          <div class="lyrics-fab-container">
+            <button class="fab-btn secondary" id="copyLyricsBtn" title="Copiar Letra" aria-label="Copiar Letra">
+              <i class="fa-solid fa-copy"></i> Copiar Letra
+            </button>
+            <button class="fab-btn secondary" id="translateLyricsBtn" title="Traduzir Letra" aria-label="Traduzir Letra">
+              <i class="fa-solid fa-language"></i> Traduzir Letra
+            </button>
+            <button class="fab-btn" id="backToPlayBtn" title="Voltar para o Play" aria-label="Voltar para o Play">
+              <i class="fa-solid fa-arrow-down"></i> Voltar para o Play
+            </button>
           </div>
         </div>
 
@@ -1156,7 +1229,9 @@
       const listenPopover = document.getElementById('listenPopover');
       const lyricsSubmodal = document.getElementById('lyricsSubmodal');
       const closeLyricsBtn = document.getElementById('closeLyricsBtn');
-      const closeMainModalFromLyricsBtn = document.getElementById('closeMainModalFromLyricsBtn');
+      const backToPlayBtn = document.getElementById('backToPlayBtn');
+      const copyLyricsBtn = document.getElementById('copyLyricsBtn');
+      const translateLyricsBtn = document.getElementById('translateLyricsBtn');
       const lyricsContent = document.getElementById('lyricsContent');
 
       function updatePopoverPosition(btn, popover) {
@@ -1207,6 +1282,8 @@
         }
       });
 
+      let rawLyricsText = "";
+
       async function fetchLyrics(artist, track) {
         lyricsContent.innerHTML = `
           <div class="lyrics-loading">
@@ -1214,13 +1291,15 @@
             <span>Buscando letra...</span>
           </div>
         `;
+        rawLyricsText = "";
 
         try {
           const response = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(track)}`);
           if (response.ok) {
             const data = await response.json();
             if (data.plainLyrics) {
-              lyricsContent.innerHTML = data.plainLyrics.split('\n').map(line => `<p>${line || '&nbsp;'}</p>`).join('');
+              rawLyricsText = data.plainLyrics;
+              lyricsContent.innerHTML = rawLyricsText.split('\n').map(line => `<p>${line || '&nbsp;'}</p>`).join('');
               return;
             }
           }
@@ -1229,7 +1308,8 @@
           if (fallbackRes.ok) {
             const fallbackData = await fallbackRes.json();
             if (fallbackData.lyrics) {
-              lyricsContent.innerHTML = fallbackData.lyrics.split('\n').map(line => `<p>${line || '&nbsp;'}</p>`).join('');
+              rawLyricsText = fallbackData.lyrics;
+              lyricsContent.innerHTML = rawLyricsText.split('\n').map(line => `<p>${line || '&nbsp;'}</p>`).join('');
               return;
             }
           }
@@ -1251,9 +1331,105 @@
         lyricsSubmodal.classList.remove('active');
       });
 
-      closeMainModalFromLyricsBtn.addEventListener('click', () => {
+      backToPlayBtn.addEventListener('click', () => {
         lyricsSubmodal.classList.remove('active');
-        closeModal();
+      });
+
+      copyLyricsBtn.addEventListener('click', () => {
+        if (!rawLyricsText) {
+          alert('Não há letra para copiar.');
+          return;
+        }
+        navigator.clipboard.writeText(rawLyricsText).then(() => {
+          const originalHTML = copyLyricsBtn.innerHTML;
+          copyLyricsBtn.innerHTML = `<i class="fa-solid fa-check"></i> Copiado!`;
+          setTimeout(() => {
+            copyLyricsBtn.innerHTML = originalHTML;
+          }, 2000);
+        }).catch(err => {
+          console.error('Erro ao copiar letra:', err);
+        });
+      });
+
+      // Correção da Tradução utilizando o modelo Helsinki-NLP (sem problemas de tokenização/parâmetros restritos do NLLB)
+      translateLyricsBtn.addEventListener('click', async () => {
+        if (!rawLyricsText) {
+          alert('Aguarde a letra carregar antes de traduzir.');
+          return;
+        }
+
+        const targetLang = prompt("Digite o código do idioma de destino (ex: 'pt' para português, 'es' para espanhol, 'fr' para francês):", "pt");
+        if (!targetLang) return;
+
+        const langCode = targetLang.toLowerCase().trim();
+        // Usando modelo multilingue padrão da comunidade Helsinki-NLP (Helsinki-NLP/opus-mt-tc-big-en-max) ou genérico por par
+        const modelName = langCode === 'es' ? 'Helsinki-NLP/opus-mt-en-es' : 
+                          langCode === 'fr' ? 'Helsinki-NLP/opus-mt-en-fr' : 
+                          'Helsinki-NLP/opus-mt-en-roa'; // fallback genérico românico/português
+
+        const originalBtnHTML = translateLyricsBtn.innerHTML;
+        translateLyricsBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Traduzindo...`;
+        translateLyricsBtn.disabled = true;
+
+        try {
+          // Dividindo a letra em blocos menores para evitar estouro de limite de tamanho em requisições serverless públicas
+          const linhas = rawLyricsText.split('\n');
+          const blocos = [];
+          let blocoAtual = "";
+
+          for (let linha of linhas) {
+            if ((blocoAtual + "\n" + linha).length > 400) {
+              blocos.push(blocoAtual);
+              blocoAtual = linha;
+            } else {
+              blocoAtual = blocoAtual ? blocoAtual + "\n" + linha : linha;
+            }
+          }
+          if (blocoAtual) blocos.push(blocoAtual);
+
+          let textoTraduzidoFinal = "";
+
+          for (let bloco of blocos) {
+            if (!bloco.trim()) {
+              textoTraduzidoFinal += "\n";
+              continue;
+            }
+
+            const response = await fetch(`https://api-inference.huggingface.co/models/${modelName}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({ inputs: bloco })
+            });
+
+            const result = await response.json();
+
+            if (result && Array.isArray(result) && result[0] && result[0].translation_text) {
+              textoTraduzidoFinal += result[0].translation_text + "\n";
+            } else if (result && result.translation_text) {
+              textoTraduzidoFinal += result.translation_text + "\n";
+            } else if (result && result.error) {
+              throw new Error(result.error);
+            } else {
+              textoTraduzidoFinal += bloco + "\n";
+            }
+          }
+
+          if (textoTraduzidoFinal.trim()) {
+            rawLyricsText = textoTraduzidoFinal.trim();
+            lyricsContent.innerHTML = rawLyricsText.split('\n').map(line => `<p>${line || '&nbsp;'}</p>`).join('');
+          } else {
+            throw new Error("Falha ao processar tradução.");
+          }
+
+        } catch (error) {
+          console.error("Erro na tradução via Hugging Face:", error);
+          alert("Não foi possível traduzir no momento. Tente novamente mais tarde.");
+        } finally {
+          translateLyricsBtn.innerHTML = originalBtnHTML;
+          translateLyricsBtn.disabled = false;
+        }
       });
 
       modalBody.addEventListener('scroll', () => {
