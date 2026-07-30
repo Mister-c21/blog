@@ -1,321 +1,182 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ferramentas</title>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    :root {
-      --bg-color: #f8f9fa;
-      --card-bg: #ffffff;
-      --primary-violet: #7c3aed;
-      --primary-violet-hover: #6d28d9;
-      --primary-light: #f5f3ff;
-      --text-dark: #1e293b;
-      --text-muted: #64748b;
-      --border-color: #e2e8f0;
-      --nav-size: 65px;
-      --sidebar-width: 240px;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top Tab Bar com Iframes</title>
+    <style>
+        /* Reseta margens e define fontes */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
+        /* Container principal da Top Tab Bar */
+        .tiktok-tab-container {
+            width: 100%;
+            background-color: #ffffff;
+            border-bottom: 1px solid #efefef;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
 
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
+        /* Lista horizontal com rolagem */
+        .tiktok-tab-list {
+            display: flex;
+            list-style: none;
+            overflow-x: auto;
+            white-space: nowrap;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            padding: 0 16px;
+            gap: 24px;
+        }
 
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-dark);
-      display: flex;
-      flex-direction: column;
-    }
+        .tiktok-tab-list::-webkit-scrollbar {
+            display: none;
+        }
 
-    /* --- NAVEGAÇÃO (Mobile First: Bottom Tabbar) --- */
-    .navbar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      height: var(--nav-size);
-      background-color: var(--card-bg);
-      border-top: 1px solid var(--border-color);
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      z-index: 1000;
-    }
+        /* Estilo individual de cada aba */
+        .tiktok-tab-item {
+            position: relative;
+            padding: 14px 0;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #8a8a8a;
+            transition: color 0.3s ease;
+        }
 
-    .logo {
-      display: none; /* Escondido no mobile */
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: var(--primary-violet);
-      padding: 0 20px;
-      margin-bottom: 20px;
-    }
+        /* Estado da aba ativa */
+        .tiktok-tab-item.active {
+            color: #161823;
+        }
 
-    .nav-list {
-      display: flex;
-      width: 100%;
-      justify-content: space-around;
-      list-style: none;
-    }
+        /* Indicador animado em violeta */
+        .tiktok-tab-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background-color: #8A2BE2; /* Violeta */
+            border-radius: 2px 2px 0 0;
+        }
 
-    .nav-item a {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-decoration: none;
-      color: var(--text-muted);
-      font-size: 0.75rem;
-      gap: 4px;
-      padding: 8px 12px;
-      border-radius: 12px;
-      position: relative;
-      /* Transição super fluida e elástica */
-      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
+        .tiktok-tab-item:hover {
+            color: #161823;
+        }
 
-    /* Efeito ao passar o mouse */
-    .nav-item a:hover {
-      color: var(--primary-violet);
-      background-color: var(--primary-light);
-      transform: translateY(-2px);
-    }
+        /* Container e estilo dos iframes */
+        .tab-content-container {
+            width: 100%;
+            height: calc(100vh - 53px); /* Ocupa o restante da tela abaixo da barra */
+            position: relative;
+            overflow: hidden; /* Garante que os iframes deslizando para fora não gerem scroll na página */
+        }
 
-    /* Efeito Ativo Fluido e Atraente */
-    .nav-item a.active {
-      color: var(--primary-violet);
-      background-color: var(--primary-light);
-      font-weight: 600;
-      transform: scale(1.06) translateY(-2px);
-      box-shadow: 0 6px 16px rgba(124, 58, 237, 0.18);
-    }
+        .tab-iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            
+            /* Configuração do slide estilo React Navigation */
+            display: block;
+            visibility: hidden;
+            transform: translateX(100%);
+            transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+            will-change: transform;
+        }
 
-    /* Animação suave no ícone ao ativar */
-    .nav-item a i {
-      width: 24px;
-      height: 24px;
-      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
+        /* Mostra e posiciona o iframe ativo */
+        .tab-iframe.active {
+            visibility: visible;
+            transform: translateX(0);
+        }
 
-    .nav-item a.active i {
-      transform: scale(1.15) rotate(-3deg);
-    }
-
-    /* Controla a exibição dos ícones no mobile/desktop */
-    .icon-desktop {
-      display: none;
-    }
-
-    /* --- CONTEÚDO PRINCIPAL --- */
-    .main-wrapper {
-      flex: 1;
-      width: 100%;
-      height: calc(100vh - var(--nav-size));
-      display: flex;
-    }
-
-    .feed {
-      width: 100%;
-      height: 100%;
-      max-width: none;
-      padding: 0;
-    }
-
-    /* Transição suave de fade e escala ao carregar o iframe */
-    .feed-iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      display: block;
-      transition: opacity 0.3s ease, transform 0.3s ease;
-      opacity: 1;
-      transform: scale(1);
-    }
-
-    .feed-iframe.changing {
-      opacity: 0;
-      transform: scale(0.99);
-    }
-
-    /* Cards do Feed */
-    .post-card {
-      background-color: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-    }
-
-    .post-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-
-    .avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background-color: var(--primary-violet);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-    }
-
-    .user-info h4 {
-      font-size: 0.95rem;
-    }
-
-    .user-info span {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    .post-content {
-      font-size: 0.95rem;
-      line-height: 1.5;
-      margin-bottom: 15px;
-    }
-
-    .post-actions {
-      display: flex;
-      gap: 20px;
-      border-top: 1px solid var(--border-color);
-      padding-top: 12px;
-      color: var(--text-muted);
-    }
-
-    .action-btn {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 0.85rem;
-    }
-
-    .action-btn:hover {
-      color: var(--primary-violet);
-    }
-
-    /* --- LAYOUT DESKTOP (Sidebar) --- */
-    @media (min-width: 768px) {
-      body {
-        flex-direction: row;
-      }
-
-      .navbar {
-        position: sticky;
-        top: 0;
-        left: 0;
-        width: var(--sidebar-width);
-        height: 100vh;
-        flex-direction: column;
-        justify-content: flex-start;
-        padding-top: 30px;
-        border-top: none;
-        border-right: 1px solid var(--border-color);
-      }
-
-      .logo {
-        display: block;
-      }
-
-      .nav-list {
-        flex-direction: column;
-        gap: 8px;
-        padding: 0 12px;
-      }
-
-      .nav-item a {
-        flex-direction: row;
-        font-size: 1rem;
-        gap: 12px;
-        padding: 12px 16px;
-        border-radius: 12px;
-      }
-
-      .nav-item a.active {
-        transform: translateX(6px);
-      }
-
-      .main-wrapper {
-        height: 100vh;
-      }
-    }
-  </style>
+        /* Classe auxiliar para quando o iframe vai para a esquerda (passado) */
+        .tab-iframe.exit-left {
+            visibility: visible;
+            transform: translateX(-100%);
+        }
+    </style>
 </head>
 <body>
 
-  <nav class="navbar">
-    <ul class="nav-list">
-      <li class="nav-item">
-        <a href="#" data-src="Tols/Index.html" class="active">
-          <i data-lucide="wrench"></i>
-          <span>Ferramentas</span>
-        </a>
-      </li>
-      <li class="nav-item">
-        <a href="#" data-src="./Options/ia.html">
-          <i data-lucide="bot"></i>
-          <span>IA</span>
-        </a>
-      </li>
-    </ul>
-  </nav>
+    <nav class="tiktok-tab-container">
+        <ul class="tiktok-tab-list">
+            <li class="tiktok-tab-item active" data-target="iframe-calculadora" data-index="0">Calculadora</li>
+            <li class="tiktok-tab-item" data-target="iframe-mapas" data-index="1">Mapas</li>
+            <li class="tiktok-tab-item" data-target="iframe-tradutor" data-index="2">Tradutor</li>
+            <li class="tiktok-tab-item" data-target="iframe-calendario" data-index="3">Calendário</li>
+            <li class="tiktok-tab-item" data-target="iframe-scrapbook" data-index="4">Scrapbook</li>
+        </ul>
+    </nav>
 
-  <div class="main-wrapper">
-    <main class="feed">
-      
-      <iframe src="Tols/Index.html" class="feed-iframe" title="Conteúdo do Feed"></iframe>
+    <div class="tab-content-container">
+        <iframe id="iframe-calculadora" class="tab-iframe active" src="calculadora.html"></iframe>
+        <iframe id="iframe-mapas" class="tab-iframe" src="mapas.html"></iframe>
+        <iframe id="iframe-tradutor" class="tab-iframe" src="tradutor.html"></iframe>
+        <iframe id="iframe-calendario" class="tab-iframe" src="calendario.html"></iframe>
+        <iframe id="iframe-scrapbook" class="tab-iframe" src="scrapbook.html"></iframe>
+    </div>
 
-    </main>
-  </div>
-
-  <script>
-    lucide.createIcons();
-
-    const feedIframe = document.querySelector('.feed-iframe');
-    const navLinks = document.querySelectorAll('.nav-list a');
-    
-    navLinks.forEach(link => {
-      link.addEventListener('click', (e) => {
-        e.preventDefault();
+    <script>
+        const tabs = document.querySelectorAll('.tiktok-tab-item');
+        const iframes = document.querySelectorAll('.tab-iframe');
         
-        if (link.classList.contains('active')) return;
+        let currentIndex = 0;
 
-        // Remove 'active' de todos os itens e adiciona ao clicado
-        document.querySelectorAll('.nav-list a').forEach(item => item.classList.remove('active'));
-        link.classList.add('active');
-        
-        // Transição suave do iframe (dissolvência)
-        const newSrc = link.getAttribute('data-src');
-        if (newSrc) {
-          feedIframe.classList.add('changing');
-          setTimeout(() => {
-            feedIframe.src = newSrc;
-            feedIframe.classList.remove('changing');
-          }, 200);
-        }
-      });
-    });
-  </script>
+        tabs.forEach((tab, index) => {
+            tab.addEventListener('click', () => {
+                if (index === currentIndex) return; // Não faz nada se clicar na mesma aba
+
+                const targetId = tab.getAttribute('data-target');
+                const targetIframe = document.getElementById(targetId);
+                const currentIframe = iframes[currentIndex];
+
+                // Remove classes ativas de todas as abas
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                // Direção da animação baseada na ordem das abas (igual ao React Navigation)
+                const movingRight = index > currentIndex;
+
+                // Prepara a posição inicial do novo iframe antes de entrar em cena
+                targetIframe.style.transition = 'none';
+                targetIframe.classList.remove('exit-left');
+                targetIframe.classList.remove('active');
+                targetIframe.style.transform = movingRight ? 'translateX(100%)' : 'translateX(-100%)';
+                
+                // Força o reflow para aplicar o estilo imediato
+                void targetIframe.offsetWidth;
+
+                // Restaura a transição suave
+                targetIframe.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.35s';
+                currentIframe.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.35s';
+
+                // Anima a saída da aba atual e a entrada da nova aba
+                if (movingRight) {
+                    currentIframe.classList.add('exit-left');
+                } else {
+                    currentIframe.style.transform = 'translateX(100%)';
+                }
+                currentIframe.classList.remove('active');
+
+                targetIframe.classList.add('active');
+                targetIframe.style.transform = 'translateX(0)';
+
+                currentIndex = index;
+            });
+        });
+    </script>
+
 </body>
 </html>
