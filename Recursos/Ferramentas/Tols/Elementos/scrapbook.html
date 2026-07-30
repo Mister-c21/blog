@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scrapbook Digital com Menu Flutuante</title>
+    <title>Scrapbook Digital Estilo Shuffles</title>
     <style>
         * {
             box-sizing: border-box;
@@ -60,19 +60,67 @@
             box-shadow: inset 0 2px 8px rgba(0,0,0,0.02);
         }
 
-        /* Elementos Flutuantes no Scrapbook */
+        /* Elementos Flutuantes do Scrapbook */
         .scrap-item {
             position: absolute;
-            cursor: move;
+            cursor: grab;
             user-select: none;
             padding: 6px;
             border-radius: 6px;
-            transition: box-shadow 0.2s;
+            touch-action: none;
+            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.2s ease;
         }
 
-        .scrap-item:hover {
-            box-shadow: 0 4px 12px rgba(138, 43, 226, 0.25);
-            outline: 1px dashed #8a2be2;
+        .scrap-item.is-dragging {
+            transition: none !important;
+            cursor: grabbing;
+            z-index: 1000;
+        }
+
+        .scrap-item:hover, .scrap-item.selected {
+            box-shadow: 0 8px 20px rgba(138, 43, 226, 0.3);
+            outline: 1.5px dashed #8a2be2;
+        }
+
+        /* Barra de Ferramentas Individual do Item (Estilo Shuffles) */
+        .item-tools {
+            position: absolute;
+            top: -42px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.8);
+            background: #8a2be2;
+            border-radius: 24px;
+            padding: 4px 10px;
+            display: none;
+            gap: 8px;
+            z-index: 10;
+            white-space: nowrap;
+            opacity: 0;
+            box-shadow: 0 4px 12px rgba(138, 43, 226, 0.3);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .scrap-item.selected .item-tools,
+        .scrap-item:hover .item-tools {
+            display: flex;
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+
+        .item-tool-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 0.8rem;
+            cursor: pointer;
+            padding: 2px 5px;
+            font-weight: bold;
+            transition: transform 0.15s ease;
+        }
+
+        .item-tool-btn:hover {
+            color: #ffd700;
+            transform: scale(1.2);
         }
 
         .scrap-text {
@@ -92,7 +140,6 @@
             padding: 6px 6px 20px 6px;
             border: 1px solid #e6d5f5;
             box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-            transform: rotate(-3deg);
         }
 
         .scrap-frame img {
@@ -103,7 +150,7 @@
             display: block;
         }
 
-        /* MENU FLUTUANTE DE BOTÕES (Floating Action Buttons) */
+        /* MENU FLUTUANTE DE BOTÕES (FAB) */
         .floating-menu {
             position: absolute;
             bottom: 25px;
@@ -128,7 +175,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            transition: transform 0.3s ease, background-color 0.2s;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s;
         }
 
         .fab-main:hover {
@@ -141,14 +188,14 @@
             gap: 8px;
             opacity: 0;
             visibility: hidden;
-            transform: translateY(10px);
-            transition: all 0.3s ease;
+            transform: translateY(15px) scale(0.95);
+            transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .floating-menu.active .fab-options {
             opacity: 1;
             visibility: visible;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
         }
 
         .floating-menu.active .fab-main {
@@ -169,20 +216,21 @@
             align-items: center;
             gap: 6px;
             white-space: nowrap;
-            transition: background 0.2s, color 0.2s;
+            transition: background 0.2s, color 0.2s, transform 0.15s;
         }
 
         .fab-btn:hover {
             background-color: #f9f5fd;
             border-color: #8a2be2;
+            transform: translateX(-3px);
         }
 
-        /* Modal / Caixa Flutuante de Entrada */
+        /* Modais */
         .input-modal {
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%) scale(0.9);
+            transform: translate(-50%, -50%) scale(0.85);
             background: #ffffff;
             border: 2px solid #e6d5f5;
             padding: 15px;
@@ -193,10 +241,13 @@
             flex-direction: column;
             gap: 10px;
             width: 80%;
+            opacity: 0;
+            transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .input-modal.active {
             display: flex;
+            opacity: 1;
             transform: translate(-50%, -50%) scale(1);
         }
 
@@ -224,6 +275,11 @@
             font-size: 0.85rem;
             cursor: pointer;
             border: none;
+            transition: transform 0.15s ease;
+        }
+
+        .modal-buttons button:hover {
+            transform: scale(1.05);
         }
 
         .btn-cancel {
@@ -242,27 +298,57 @@
     <div class="scrapbook-container">
         <div class="header">
             <h2>Scrapbook Criativo</h2>
-            <p>Use o menu flutuante para customizar</p>
+            <p>Toque e arraste os elementos livremente</p>
         </div>
 
         <div class="scrapbook-canvas" id="canvas">
-            <div class="scrap-item scrap-frame" style="top: 20px; left: 20px;" onmousedown="startDrag(event)">
+            <div class="scrap-item scrap-frame" style="top: 20px; left: 20px; transform: rotate(-3deg) scale(1);" onmousedown="startDrag(event)" ontouchstart="startDrag(event)">
+                <div class="item-tools">
+                    <button class="item-tool-btn" onclick="resizeItem(event, 0.1)" title="Aumentar">🔍+</button>
+                    <button class="item-tool-btn" onclick="resizeItem(event, -0.1)" title="Diminuir">🔍-</button>
+                    <button class="item-tool-btn" onclick="rotateItem(event, 15)" title="Girar">🔄</button>
+                    <button class="item-tool-btn" onclick="deleteItem(event)" title="Excluir">❌</button>
+                </div>
                 <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80" alt="Exemplo">
             </div>
-            <div class="scrap-item scrap-text" style="top: 150px; left: 140px; color: #8a2be2;" onmousedown="startDrag(event)">
+            <div class="scrap-item scrap-text" style="top: 150px; left: 140px; color: #8a2be2; transform: rotate(0deg) scale(1);" onmousedown="startDrag(event)" ontouchstart="startDrag(event)">
+                <div class="item-tools">
+                    <button class="item-tool-btn" onclick="resizeItem(event, 0.1)" title="Aumentar">🔍+</button>
+                    <button class="item-tool-btn" onclick="resizeItem(event, -0.1)" title="Diminuir">🔍-</button>
+                    <button class="item-tool-btn" onclick="rotateItem(event, 15)" title="Girar">🔄</button>
+                    <button class="item-tool-btn" onclick="deleteItem(event)" title="Excluir">❌</button>
+                </div>
                 Memórias ✨
             </div>
-            <div class="scrap-item scrap-sticker" style="top: 220px; left: 20px;" onmousedown="startDrag(event)">
+            <div class="scrap-item scrap-sticker" style="top: 220px; left: 20px; transform: rotate(0deg) scale(1);" onmousedown="startDrag(event)" ontouchstart="startDrag(event)">
+                <div class="item-tools">
+                    <button class="item-tool-btn" onclick="resizeItem(event, 0.1)" title="Aumentar">🔍+</button>
+                    <button class="item-tool-btn" onclick="resizeItem(event, -0.1)" title="Diminuir">🔍-</button>
+                    <button class="item-tool-btn" onclick="rotateItem(event, 15)" title="Girar">🔄</button>
+                    <button class="item-tool-btn" onclick="deleteItem(event)" title="Excluir">❌</button>
+                </div>
                 💜
             </div>
         </div>
 
         <div class="floating-menu" id="floating-menu">
             <div class="fab-options">
-                <button class="fab-btn" onclick="clearCanvas()">🗑️ Limpar</button>
-                <button class="fab-btn" onclick="addStickerItem()">⭐ Adesivo</button>
-                <button class="fab-btn" onclick="addPhotoFrame()">📷 Foto</button>
-                <button class="fab-btn" onclick="openTextModal()">✍️ Texto</button>
+                <button class="fab-btn" onclick="clearCanvas()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    Limpar
+                </button>
+                <button class="fab-btn" onclick="addStickerItem()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    Adesivo
+                </button>
+                <button class="fab-btn" onclick="openPhotoModal()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    Foto
+                </button>
+                <button class="fab-btn" onclick="openTextModal()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    Texto
+                </button>
             </div>
             <button class="fab-main" onclick="toggleMenu()">+</button>
         </div>
@@ -275,6 +361,15 @@
                 <button class="btn-confirm" onclick="confirmAddText()">Adicionar</button>
             </div>
         </div>
+
+        <div class="input-modal" id="photo-modal">
+            <span style="font-size: 0.9rem; font-weight: 600; color: #2d2d2d;">Adicionar Foto por URL</span>
+            <input type="text" id="modal-photo-input" placeholder="Cole o link da imagem aqui...">
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closePhotoModal()">Cancelar</button>
+                <button class="btn-confirm" onclick="confirmAddPhoto()">Adicionar</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -282,6 +377,8 @@
         const floatingMenu = document.getElementById('floating-menu');
         const textModal = document.getElementById('text-modal');
         const modalTextInput = document.getElementById('modal-text-input');
+        const photoModal = document.getElementById('photo-modal');
+        const modalPhotoInput = document.getElementById('modal-photo-input');
 
         function toggleMenu() {
             floatingMenu.classList.toggle('active');
@@ -298,6 +395,17 @@
             modalTextInput.value = '';
         }
 
+        function createItemTools() {
+            return `
+                <div class="item-tools">
+                    <button class="item-tool-btn" onclick="resizeItem(event, 0.1)" title="Aumentar">🔍+</button>
+                    <button class="item-tool-btn" onclick="resizeItem(event, -0.1)" title="Diminuir">🔍-</button>
+                    <button class="item-tool-btn" onclick="rotateItem(event, 15)" title="Girar">🔄</button>
+                    <button class="item-tool-btn" onclick="deleteItem(event)" title="Excluir">❌</button>
+                </div>
+            `;
+        }
+
         function confirmAddText() {
             const textVal = modalTextInput.value.trim();
             if (!textVal) return;
@@ -307,11 +415,43 @@
             div.style.top = '100px';
             div.style.left = '100px';
             div.style.color = '#8a2be2';
-            div.innerText = textVal;
+            div.style.transform = 'rotate(0deg) scale(1)';
+            div.innerHTML = createItemTools() + textVal;
             div.setAttribute('onmousedown', 'startDrag(event)');
+            div.setAttribute('ontouchstart', 'startDrag(event)');
             
             canvas.appendChild(div);
             closeTextModal();
+        }
+
+        function openPhotoModal() {
+            toggleMenu();
+            photoModal.classList.add('active');
+            modalPhotoInput.focus();
+        }
+
+        function closePhotoModal() {
+            photoModal.classList.remove('active');
+            modalPhotoInput.value = '';
+        }
+
+        function confirmAddPhoto() {
+            const imgUrl = modalPhotoInput.value.trim();
+            if (!imgUrl) return;
+
+            const randomRot = Math.floor(Math.random() * 12) - 6;
+
+            const div = document.createElement('div');
+            div.className = 'scrap-item scrap-frame';
+            div.style.top = '60px';
+            div.style.left = '160px';
+            div.style.transform = `rotate(${randomRot}deg) scale(1)`;
+            div.innerHTML = createItemTools() + `<img src="${imgUrl}" alt="Foto Scrapbook">`;
+            div.setAttribute('onmousedown', 'startDrag(event)');
+            div.setAttribute('ontouchstart', 'startDrag(event)');
+
+            canvas.appendChild(div);
+            closePhotoModal();
         }
 
         function addStickerItem() {
@@ -323,29 +463,10 @@
             div.className = 'scrap-item scrap-sticker';
             div.style.top = '140px';
             div.style.left = '150px';
-            div.innerText = randomSticker;
+            div.style.transform = 'rotate(0deg) scale(1)';
+            div.innerHTML = createItemTools() + randomSticker;
             div.setAttribute('onmousedown', 'startDrag(event)');
-
-            canvas.appendChild(div);
-        }
-
-        function addPhotoFrame() {
-            toggleMenu();
-            const sampleImages = [
-                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
-                "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
-                "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80"
-            ];
-            const randomImg = sampleImages[Math.floor(Math.random() * sampleImages.length)];
-            const randomRot = Math.floor(Math.random() * 12) - 6;
-
-            const div = document.createElement('div');
-            div.className = 'scrap-item scrap-frame';
-            div.style.top = '60px';
-            div.style.left = '160px';
-            div.style.transform = `rotate(${randomRot}deg)`;
-            div.innerHTML = `<img src="${randomImg}" alt="Foto Scrapbook">`;
-            div.setAttribute('onmousedown', 'startDrag(event)');
+            div.setAttribute('ontouchstart', 'startDrag(event)');
 
             canvas.appendChild(div);
         }
@@ -355,40 +476,103 @@
             canvas.innerHTML = '';
         }
 
-        // Sistema de Arrastar Elementos (Drag and Drop)
+        function getTransformValues(el) {
+            let transform = el.style.transform;
+            let rot = 0;
+            let scale = 1;
+            
+            if (transform.includes('rotate')) {
+                let rotMatch = transform.match(/rotate\((-?\d+([.]\d+)?)deg\)/);
+                if (rotMatch) rot = parseFloat(rotMatch[1]);
+            }
+            if (transform.includes('scale')) {
+                let scaleMatch = transform.match(/scale\((-?\d+([.]\d+)?)\)/);
+                if (scaleMatch) scale = parseFloat(scaleMatch[1]);
+            }
+            return { rot, scale };
+        }
+
+        function resizeItem(e, amount) {
+            e.stopPropagation();
+            const item = e.currentTarget.closest('.scrap-item');
+            let { rot, scale } = getTransformValues(item);
+            
+            scale += amount;
+            if (scale < 0.4) scale = 0.4;
+            if (scale > 2.5) scale = 2.5;
+            
+            item.style.transform = `rotate(${rot}deg) scale(${scale.toFixed(2)})`;
+        }
+
+        function rotateItem(e, angle) {
+            e.stopPropagation();
+            const item = e.currentTarget.closest('.scrap-item');
+            let { rot, scale } = getTransformValues(item);
+            
+            rot += angle;
+            item.style.transform = `rotate(${rot}deg) scale(${scale})`;
+        }
+
+        function deleteItem(e) {
+            e.stopPropagation();
+            const item = e.currentTarget.closest('.scrap-item');
+            item.remove();
+        }
+
+        // Sistema de Arrastar com Fluidez (Compatível com Mouse e Toque em tempo real)
         let activeItem = null;
-        let offsetX = 0, offsetY = 0;
+        let startX = 0, startY = 0;
+        let initialLeft = 0, initialTop = 0;
 
         function startDrag(e) {
+            if (e.target.closest('.item-tools')) return;
+
             activeItem = e.currentTarget;
-            const rect = activeItem.getBoundingClientRect();
+            document.querySelectorAll('.scrap-item').forEach(el => el.classList.remove('selected'));
+            activeItem.classList.add('selected');
+            activeItem.classList.add('is-dragging');
 
-            offsetX = e.clientX - rect.left;
-            offsetY = e.clientY - rect.top;
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
 
-            document.addEventListener('mousemove', onDrag);
-            document.addEventListener('mouseup', stopDrag);
+            startX = clientX;
+            startY = clientY;
+
+            initialLeft = parseFloat(activeItem.style.left) || 0;
+            initialTop = parseFloat(activeItem.style.top) || 0;
+
+            window.addEventListener('mousemove', onDrag, { passive: false });
+            window.addEventListener('mouseup', stopDrag);
+            window.addEventListener('touchmove', onDrag, { passive: false });
+            window.addEventListener('touchend', stopDrag);
+            
             e.preventDefault();
         }
 
         function onDrag(e) {
             if (!activeItem) return;
-            const canvasRect = canvas.getBoundingClientRect();
 
-            let x = e.clientX - canvasRect.left - offsetX;
-            let y = e.clientY - canvasRect.top - offsetY;
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
 
-            if (x < 0) x = 0;
-            if (y < 0) y = 0;
+            const dx = clientX - startX;
+            const dy = clientY - startY;
 
-            activeItem.style.left = x + 'px';
-            activeItem.style.top = y + 'px';
+            activeItem.style.left = (initialLeft + dx) + 'px';
+            activeItem.style.top = (initialTop + dy) + 'px';
+            
+            e.preventDefault();
         }
 
         function stopDrag() {
-            activeItem = null;
-            document.removeEventListener('mousemove', onDrag);
-            document.removeEventListener('mouseup', stopDrag);
+            if (activeItem) {
+                activeItem.classList.remove('is-dragging');
+                activeItem = null;
+            }
+            window.removeEventListener('mousemove', onDrag);
+            window.removeEventListener('mouseup', stopDrag);
+            window.removeEventListener('touchmove', onDrag);
+            window.removeEventListener('touchend', stopDrag);
         }
     </script>
 </body>
