@@ -76,6 +76,7 @@
             width: 100%;
             height: calc(100vh - 53px); /* Ocupa o restante da tela abaixo da barra */
             position: relative;
+            overflow: hidden; /* Garante que os iframes deslizando para fora não gerem scroll na página */
         }
 
         .tab-iframe {
@@ -85,12 +86,25 @@
             width: 100%;
             height: 100%;
             border: none;
-            display: none; /* Ocultos por padrão */
+            
+            /* Configuração do slide estilo React Navigation */
+            display: block;
+            visibility: hidden;
+            transform: translateX(100%);
+            transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+            will-change: transform;
         }
 
-        /* Mostra apenas o iframe ativo */
+        /* Mostra e posiciona o iframe ativo */
         .tab-iframe.active {
-            display: block;
+            visibility: visible;
+            transform: translateX(0);
+        }
+
+        /* Classe auxiliar para quando o iframe vai para a esquerda (passado) */
+        .tab-iframe.exit-left {
+            visibility: visible;
+            transform: translateX(-100%);
         }
     </style>
 </head>
@@ -98,12 +112,11 @@
 
     <nav class="tiktok-tab-container">
         <ul class="tiktok-tab-list">
-            <li class="tiktok-tab-item active" data-target="iframe-calculadora">Calculadora</li>
-            <li class="tiktok-tab-item" data-target="iframe-mapas">Mapas</li>
-            <li class="tiktok-tab-item" data-target="iframe-tradutor">Tradutor</li>
-            <li class="tiktok-tab-item" data-target="iframe-calendario">Calendário</li>
-            <li class="tiktok-tab-item" data-target="iframe-clima">Clima</li>
-            <li class="tiktok-tab-item" data-target="iframe-scrapbook">Scrapbook</li>
+            <li class="tiktok-tab-item active" data-target="iframe-calculadora" data-index="0">Calculadora</li>
+            <li class="tiktok-tab-item" data-target="iframe-mapas" data-index="1">Mapas</li>
+            <li class="tiktok-tab-item" data-target="iframe-tradutor" data-index="2">Tradutor</li>
+            <li class="tiktok-tab-item" data-target="iframe-calendario" data-index="3">Calendário</li>
+            <li class="tiktok-tab-item" data-target="iframe-scrapbook" data-index="4">Scrapbook</li>
         </ul>
     </nav>
 
@@ -112,29 +125,55 @@
         <iframe id="iframe-mapas" class="tab-iframe" src="mapas.html"></iframe>
         <iframe id="iframe-tradutor" class="tab-iframe" src="tradutor.html"></iframe>
         <iframe id="iframe-calendario" class="tab-iframe" src="calendario.html"></iframe>
-        <iframe id="iframe-clima" class="tab-iframe" src="clima.html"></iframe>
         <iframe id="iframe-scrapbook" class="tab-iframe" src="scrapbook.html"></iframe>
     </div>
 
     <script>
         const tabs = document.querySelectorAll('.tiktok-tab-item');
         const iframes = document.querySelectorAll('.tab-iframe');
+        
+        let currentIndex = 0;
 
-        tabs.forEach(tab => {
+        tabs.forEach((tab, index) => {
             tab.addEventListener('click', () => {
-                // Remove a classe 'active' de todas as abas e iframes
-                tabs.forEach(t => t.classList.remove('active'));
-                iframes.forEach(f => f.classList.remove('active'));
+                if (index === currentIndex) return; // Não faz nada se clicar na mesma aba
 
-                // Adiciona a classe 'active' na aba clicada
-                tab.classList.add('active');
-
-                // Pega o ID correspondente e ativa o iframe respectivo
                 const targetId = tab.getAttribute('data-target');
                 const targetIframe = document.getElementById(targetId);
-                if (targetIframe) {
-                    targetIframe.classList.add('active');
+                const currentIframe = iframes[currentIndex];
+
+                // Remove classes ativas de todas as abas
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                // Direção da animação baseada na ordem das abas (igual ao React Navigation)
+                const movingRight = index > currentIndex;
+
+                // Prepara a posição inicial do novo iframe antes de entrar em cena
+                targetIframe.style.transition = 'none';
+                targetIframe.classList.remove('exit-left');
+                targetIframe.classList.remove('active');
+                targetIframe.style.transform = movingRight ? 'translateX(100%)' : 'translateX(-100%)';
+                
+                // Força o reflow para aplicar o estilo imediato
+                void targetIframe.offsetWidth;
+
+                // Restaura a transição suave
+                targetIframe.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.35s';
+                currentIframe.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.35s';
+
+                // Anima a saída da aba atual e a entrada da nova aba
+                if (movingRight) {
+                    currentIframe.classList.add('exit-left');
+                } else {
+                    currentIframe.style.transform = 'translateX(100%)';
                 }
+                currentIframe.classList.remove('active');
+
+                targetIframe.classList.add('active');
+                targetIframe.style.transform = 'translateX(0)';
+
+                currentIndex = index;
             });
         });
     </script>
