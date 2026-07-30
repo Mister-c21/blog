@@ -47,7 +47,6 @@
             font-size: 16px;
             font-weight: 600;
             color: #8a8a8a;
-            transition: color 0.3s ease;
         }
 
         /* Estado da aba ativa */
@@ -55,7 +54,7 @@
             color: #161823;
         }
 
-        /* Indicador animado em violeta */
+        /* Indicador em violeta */
         .tiktok-tab-item.active::after {
             content: '';
             position: absolute;
@@ -71,12 +70,12 @@
             color: #161823;
         }
 
-        /* Container e estilo dos iframes */
+        /* Container dos iframes */
         .tab-content-container {
             width: 100%;
-            height: calc(100vh - 53px); /* Ocupa o restante da tela abaixo da barra */
+            height: calc(100vh - 53px);
             position: relative;
-            overflow: hidden; /* Garante que os iframes deslizando para fora não gerem scroll na página */
+            overflow: hidden;
         }
 
         .tab-iframe {
@@ -86,25 +85,11 @@
             width: 100%;
             height: 100%;
             border: none;
-            
-            /* Configuração do slide estilo React Navigation */
-            display: block;
-            visibility: hidden;
-            transform: translateX(100%);
-            transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
-            will-change: transform;
+            display: none;
         }
 
-        /* Mostra e posiciona o iframe ativo */
         .tab-iframe.active {
-            visibility: visible;
-            transform: translateX(0);
-        }
-
-        /* Classe auxiliar para quando o iframe vai para a esquerda (passado) */
-        .tab-iframe.exit-left {
-            visibility: visible;
-            transform: translateX(-100%);
+            display: block;
         }
     </style>
 </head>
@@ -140,42 +125,18 @@
 
         tabs.forEach((tab, index) => {
             tab.addEventListener('click', () => {
-                if (index === currentIndex) return; // Não faz nada se clicar na mesma aba
+                if (index === currentIndex) return;
 
                 const targetId = tab.getAttribute('data-target');
                 const targetIframe = document.getElementById(targetId);
-                const currentIframe = iframes[currentIndex];
 
-                // Remove classes ativas de todas as abas
+                // Remove classes ativas
                 tabs.forEach(t => t.classList.remove('active'));
+                iframes.forEach(frame => frame.classList.remove('active'));
+
+                // Ativa a nova aba e iframe
                 tab.classList.add('active');
-
-                // Direção da animação baseada na ordem das abas (igual ao React Navigation)
-                const movingRight = index > currentIndex;
-
-                // Prepara a posição inicial do novo iframe antes de entrar em cena
-                targetIframe.style.transition = 'none';
-                targetIframe.classList.remove('exit-left');
-                targetIframe.classList.remove('active');
-                targetIframe.style.transform = movingRight ? 'translateX(100%)' : 'translateX(-100%)';
-                
-                // Força o reflow para aplicar o estilo imediato
-                void targetIframe.offsetWidth;
-
-                // Restaura a transição suave
-                targetIframe.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.35s';
-                currentIframe.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.35s';
-
-                // Anima a saída da aba atual e a entrada da nova aba
-                if (movingRight) {
-                    currentIframe.classList.add('exit-left');
-                } else {
-                    currentIframe.style.transform = 'translateX(100%)';
-                }
-                currentIframe.classList.remove('active');
-
                 targetIframe.classList.add('active');
-                targetIframe.style.transform = 'translateX(0)';
 
                 currentIndex = index;
             });
