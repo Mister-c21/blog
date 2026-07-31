@@ -1,1 +1,343 @@
-g
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendário Funcional</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f3f0f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .calendar-container {
+            background-color: #ffffff;
+            width: 380px;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(128, 0, 128, 0.15);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .calendar-header h2 {
+            font-size: 1.2rem;
+            color: #2d2d2d;
+            font-weight: 600;
+        }
+
+        .nav-btn {
+            background-color: #f4ecfc;
+            border: 1px solid #e6d5f5;
+            color: #8a2be2;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn:hover {
+            background-color: #8a2be2;
+            color: #ffffff;
+            border-color: #8a2be2;
+        }
+
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-weight: 600;
+            color: #b0a8b9;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+        }
+
+        .days-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .day {
+            aspect-ratio: 1;
+            background-color: #ffffff;
+            border: 1px solid transparent;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.95rem;
+            color: #333333;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .day:hover {
+            background-color: #f9f5fd;
+            border-color: #8a2be2;
+            color: #8a2be2;
+        }
+
+        .day.inactive {
+            color: #d1cbd6;
+        }
+
+        .day.today {
+            background-color: #f4ecfc;
+            color: #8a2be2;
+            font-weight: bold;
+            border-color: #e6d5f5;
+        }
+
+        .day.selected {
+            background-color: #8a2be2;
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        .events-section {
+            margin-top: 20px;
+            border-top: 1px solid #e6d5f5;
+            padding-top: 15px;
+        }
+
+        .events-section h3 {
+            font-size: 1rem;
+            color: #2d2d2d;
+            margin-bottom: 10px;
+        }
+
+        .event-input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .event-input-group input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #e6d5f5;
+            border-radius: 8px;
+            outline: none;
+            font-size: 0.9rem;
+            color: #333333;
+        }
+
+        .event-input-group input:focus {
+            border-color: #8a2be2;
+        }
+
+        .event-input-group button {
+            background-color: #8a2be2;
+            color: #ffffff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .event-input-group button:hover {
+            background-color: #7b22d0;
+        }
+
+        .events-list {
+            max-height: 120px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .event-item {
+            background-color: #f9f5fd;
+            border-left: 3px solid #8a2be2;
+            padding: 6px 10px;
+            font-size: 0.85rem;
+            color: #333333;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .event-item span {
+            cursor: pointer;
+            color: #b0a8b9;
+            font-size: 0.9rem;
+        }
+        .event-item span:hover {
+            color: #8a2be2;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="calendar-container">
+        <div class="calendar-header">
+            <button class="nav-btn" onclick="changeMonth(-1)">&#10094;</button>
+            <h2 id="month-year"></h2>
+            <button class="nav-btn" onclick="changeMonth(1)">&#10095;</button>
+        </div>
+
+        <div class="weekdays">
+            <div>Dom</div>
+            <div>Seg</div>
+            <div>Ter</div>
+            <div>Qua</div>
+            <div>Qui</div>
+            <div>Sex</div>
+            <div>Sáb</div>
+        </div>
+
+        <div class="days-grid" id="days-grid"></div>
+
+        <div class="events-section">
+            <h3 id="selected-date-title">Eventos</h3>
+            <div class="event-input-group">
+                <input type="text" id="event-input" placeholder="Adicionar compromisso...">
+                <button onclick="addEvent()">Adicionar</button>
+            </div>
+            <div class="events-list" id="events-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const months = [
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ];
+
+        let date = new Date();
+        let currYear = date.getFullYear();
+        let currMonth = date.getMonth();
+        let selectedDateKey = formatDateKey(currYear, currMonth, date.getDate());
+
+        let events = JSON.parse(localStorage.getItem('calendar_events')) || {};
+
+        const monthYearElement = document.getElementById('month-year');
+        const daysGridElement = document.getElementById('days-grid');
+        const selectedDateTitle = document.getElementById('selected-date-title');
+        const eventInput = document.getElementById('event-input');
+        const eventsList = document.getElementById('events-list');
+
+        function formatDateKey(y, m, d) {
+            return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        }
+
+        function renderCalendar() {
+            let firstDayIndex = new Date(currYear, currMonth, 1).getDay();
+            let lastDay = new Date(currYear, currMonth + 1, 0).getDate();
+            let prevLastDay = new Date(currYear, currMonth, 0).getDate();
+
+            monthYearElement.innerText = `${months[currMonth]} ${currYear}`;
+            let daysHTML = "";
+
+            for (let x = firstDayIndex; x > 0; x--) {
+                let dayNum = prevLastDay - x + 1;
+                daysHTML += `<div class="day inactive">${dayNum}</div>`;
+            }
+
+            let today = new Date();
+            for (let i = 1; i <= lastDay; i++) {
+                let key = formatDateKey(currYear, currMonth, i);
+                let isToday = (i === today.getDate() && currMonth === today.getMonth() && currYear === today.getFullYear()) ? "today" : "";
+                let isSelected = (key === selectedDateKey) ? "selected" : "";
+                
+                daysHTML += `<div class="day ${isToday} ${isSelected}" onclick="selectDate(${currYear}, ${currMonth}, ${i})">${i}</div>`;
+            }
+
+            let nextDays = 7 - ((firstDayIndex + lastDay) % 7);
+            if (nextDays < 7) {
+                for (let j = 1; j <= nextDays; j++) {
+                    daysHTML += `<div class="day inactive">${j}</div>`;
+                }
+            }
+
+            daysGridElement.innerHTML = daysHTML;
+            updateEventsList();
+        }
+
+        function changeMonth(direction) {
+            currMonth += direction;
+            if (currMonth > 11) {
+                currMonth = 0;
+                currYear++;
+            } else if (currMonth < 0) {
+                currMonth = 11;
+                currYear--;
+            }
+            renderCalendar();
+        }
+
+        function selectDate(y, m, d) {
+            selectedDateKey = formatDateKey(y, m, d);
+            renderCalendar();
+        }
+
+        function updateEventsList() {
+            selectedDateTitle.innerText = `Eventos para ${selectedDateKey.split('-').reverse().join('/')}`;
+            let dayEvents = events[selectedDateKey] || [];
+            let html = "";
+            if (dayEvents.length === 0) {
+                html = `<div style="font-size: 0.85rem; color: #b0a8b9; text-align: center; padding: 5px;">Nenhum evento</div>`;
+            } else {
+                dayEvents.forEach((event, index) => {
+                    html += `
+                        <div class="event-item">
+                            <span>${event}</span>
+                            <span onclick="deleteEvent('${selectedDateKey}', ${index})">&times;</span>
+                        </div>
+                    `;
+                });
+            }
+            eventsList.innerHTML = html;
+        }
+
+        function addEvent() {
+            let text = eventInput.value.trim();
+            if (!text) return;
+            if (!events[selectedDateKey]) {
+                events[selectedDateKey] = [];
+            }
+            events[selectedDateKey].push(text);
+            localStorage.setItem('calendar_events', JSON.stringify(events));
+            eventInput.value = "";
+            updateEventsList();
+        }
+
+        function deleteEvent(dateKey, index) {
+            events[dateKey].splice(index, 1);
+            if (events[dateKey].length === 0) {
+                delete events[dateKey];
+            }
+            localStorage.setItem('calendar_events', JSON.stringify(events));
+            updateEventsList();
+        }
+
+        renderCalendar();
+    </script>
+</body>
+</html>
