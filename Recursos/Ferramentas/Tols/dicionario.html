@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Dicionário multilíngue baseado na Wikipédia">
+    <title>Dicionário Web Multilíngue</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .word { font-feature-settings: "kern" 1, "liga" 1, "tnum" 1; }
+        .definition-card:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body class="bg-white text-slate-900 min-h-screen flex flex-col items-center justify-start p-4 sm:p-8">
+
+    <div class="w-full max-w-2xl bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-8 mt-6">
+        
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl sm:text-4xl font-bold text-slate-900 flex items-center gap-3">
+                    <i class="fa-solid fa-book-open text-violet-600"></i>
+                    Dicionário Web
+                </h1>
+                <p class="text-slate-500 text-sm mt-1">Baseado no Dicionário Aberto</p>
+            </div>
+        </div>
+
+        <div class="relative flex gap-2 mb-8">
+            <div class="flex-1 relative">
+                <input 
+                    type="text" 
+                    id="wordInput" 
+                    placeholder="Digite uma palavra ou termo..." 
+                    class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-5 pr-20 py-4 text-lg text-slate-900 focus:outline-none focus:border-violet-600 transition-all shadow-inner"
+                    autocomplete="off"
+                    spellcheck="false"
+                    onkeypress="handleKeyPress(event)"
+                >
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    <button onclick="startVoiceSearch()" 
+                            id="voiceBtn"
+                            title="Pesquisar por voz"
+                            class="text-slate-400 hover:text-violet-600 transition-colors p-1">
+                        <i class="fa-solid fa-microphone text-lg"></i>
+                    </button>
+                    <button onclick="clearInput()" 
+                            id="clearBtn"
+                            class="hidden text-slate-400 hover:text-slate-600 p-1">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <button 
+                onclick="searchWord()" 
+                class="bg-violet-600 hover:bg-violet-500 active:bg-violet-700 text-white font-semibold px-8 py-4 rounded-2xl transition-all flex items-center gap-3 shadow-lg shadow-violet-500/30"
+            >
+                <i class="fa-solid fa-search"></i>
+                <span>Buscar</span>
+            </button>
+        </div>
+
+        <div id="loader" class="hidden text-center py-16">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-slate-100 mb-4">
+                <i class="fa-solid fa-spinner fa-spin text-3xl text-violet-600"></i>
+            </div>
+            <p class="text-slate-500">Buscando no Dicionário Aberto...</p>
+        </div>
+
+        <div id="results" class="hidden space-y-8">
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200 pb-6">
+                <div>
+                    <h2 id="resultWord" class="word text-4xl sm:text-5xl font-bold text-slate-900 tracking-tight"></h2>
+                    <span id="resultPhonetic" class="text-violet-600 font-mono text-lg"></span>
+                </div>
+                <button onclick="speakResults()" 
+                        id="audioDescBtn"
+                        class="self-start sm:self-auto bg-slate-100 hover:bg-violet-50 text-slate-700 hover:text-violet-700 border border-slate-200 px-4 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-volume-high text-violet-600"></i>
+                    <span>Ouvir Audiodescrição</span>
+                </button>
+            </div>
+
+            <div>
+                <h3 class="text-lg font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-list-ul text-violet-600"></i>
+                    Definições
+                </h3>
+                <div id="definitionsList" class="space-y-6"></div>
+            </div>
+        </div>
+
+        <div id="errorMessage" class="hidden text-center py-16">
+            <i class="fa-solid fa-magnifying-glass text-5xl text-slate-300 mb-6"></i>
+            <p id="errorText" class="text-xl text-slate-600 font-medium"></p>
+            <p class="text-slate-400 mt-2 text-sm">Artigo não encontrado ou palavra inválida</p>
+        </div>
+    </div>
+
+    <script>
+        let currentDefinitionsText = '';
+
+        function clearInput() {
+            document.getElementById('wordInput').value = '';
+            document.getElementById('clearBtn').classList.add('hidden');
+            document.getElementById('wordInput').focus();
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') searchWord();
+        }
+
+        document.getElementById('wordInput').addEventListener('input', function() {
+            document.getElementById('clearBtn').classList.toggle('hidden', this.value.trim() === '');
+        });
+
+        function startVoiceSearch() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert('Seu navegador não suporta pesquisa por voz.');
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'pt-BR';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            const voiceBtn = document.getElementById('voiceBtn');
+            voiceBtn.classList.add('text-violet-600', 'animate-pulse');
+
+            recognition.onresult = (event) => {
+                const speechResult = event.results[0][0].transcript.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").trim();
+                document.getElementById('wordInput').value = speechResult;
+                document.getElementById('clearBtn').classList.remove('hidden');
+                voiceBtn.classList.remove('text-violet-600', 'animate-pulse');
+                searchWord();
+            };
+
+            recognition.onerror = () => {
+                voiceBtn.classList.remove('text-violet-600', 'animate-pulse');
+            };
+
+            recognition.onend = () => {
+                voiceBtn.classList.remove('text-violet-600', 'animate-pulse');
+            };
+
+            recognition.start();
+        }
+
+        function speakResults() {
+            if (!('speechSynthesis' in window)) {
+                alert('Seu navegador não suporta recursos de fala.');
+                return;
+            }
+
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(currentDefinitionsText);
+            utterance.lang = 'pt-BR';
+            utterance.rate = 1.0;
+
+            const audioBtn = document.getElementById('audioDescBtn');
+            const icon = audioBtn.querySelector('i');
+            
+            icon.className = 'fa-solid fa-spinner fa-spin text-violet-600';
+
+            utterance.onend = () => {
+                icon.className = 'fa-solid fa-volume-high text-violet-600';
+            };
+
+            utterance.onerror = () => {
+                icon.className = 'fa-solid fa-volume-high text-violet-600';
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        async function searchWord() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+            let word = document.getElementById('wordInput').value.trim();
+            if (!word) return;
+
+            // Normaliza para minúsculo (funciona com maiúsculas e minúsculas)
+            word = word.toLowerCase();
+
+            const loader = document.getElementById('loader');
+            const results = document.getElementById('results');
+            const errorMessage = document.getElementById('errorMessage');
+
+            loader.classList.remove('hidden');
+            results.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+
+            try {
+                const data = await fetchDictionaryEntry(word);
+                
+                if (!data || !Array.isArray(data) || data.length === 0) {
+                    throw new Error('not_found');
+                }
+
+                renderMainDefinition(word, data);
+
+                loader.classList.add('hidden');
+                results.classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Erro:", error);
+                loader.classList.add('hidden');
+                errorMessage.classList.remove('hidden');
+                document.getElementById('errorText').textContent = 
+                    `Não encontramos informações sobre "${word}". Tente outra palavra.`;
+            }
+        }
+
+        async function fetchDictionaryEntry(word) {
+            const url = `https://api.dicionario-aberto.net/word/${encodeURIComponent(word)}`;
+            const res = await fetch(url);
+            
+            if (!res.ok) throw new Error('not_found');
+            
+            return await res.json();
+        }
+
+        function renderMainDefinition(originalWord, data) {
+            // Mostra a palavra como o usuário digitou
+            document.getElementById('resultWord').textContent = originalWord;
+            document.getElementById('resultPhonetic').textContent = '';
+
+            const definitionsList = document.getElementById('definitionsList');
+            definitionsList.innerHTML = '';
+
+            let spokenParts = [`Resultado da pesquisa para a palavra ${originalWord}.`];
+
+            data.forEach((item, index) => {
+                let cleanText = 'Sem conteúdo disponível.';
+                if (item.xml) {
+                    cleanText = item.xml
+                        .replace(/<\/?[^>]+(>|$)/g, "")
+                        .replace(/\n+/g, '<br><br>');
+                }
+
+                const plainTextMeaning = cleanText.replace(/<br\s*[\/]?>/gi, ' ');
+                spokenParts.push(`Significado ${index + 1}: ${plainTextMeaning}`);
+
+                const card = document.createElement('div');
+                card.className = "definition-card bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-4";
+                card.innerHTML = `
+                    <div class="prose text-slate-800 leading-relaxed">
+                        <span class="text-xs text-violet-600 font-semibold block mb-2">Significado ${index + 1}</span>
+                        ${cleanText}
+                    </div>
+                `;
+                definitionsList.appendChild(card);
+            });
+
+            currentDefinitionsText = spokenParts.join(' ');
+        }
+
+        window.onload = () => document.getElementById('wordInput').focus();
+    </script>
+</body>
+</html>
