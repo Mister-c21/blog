@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enciclopédia Wiki</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --primary-text: #2d2d2d;
+            --violet: #7b2cbf;
+            --violet-light: #9d4edd;
+            --violet-glow: rgba(123, 44, 191, 0.25);
+            --gray-light: #f8f9fa;
+            --border-color: #e0e0e0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--primary-text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Barra de Busca Estilizada */
+        .search-box {
+            position: relative;
+            width: 100%;
+            margin-bottom: 30px;
+            margin-top: 10px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 16px 115px 16px 24px;
+            font-size: 1.1rem;
+            color: var(--primary-text);
+            background-color: var(--bg-color);
+            border: 2px solid var(--border-color);
+            border-radius: 50px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:hover {
+            border-color: var(--violet-light);
+        }
+
+        .search-input:focus {
+            border-color: var(--violet);
+            box-shadow: 0 0 15px var(--violet-glow);
+        }
+
+        .search-actions {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .search-action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            transition: background-color 0.2s, color 0.2s;
+            position: relative;
+        }
+
+        .search-action-btn:hover {
+            background-color: var(--gray-light);
+            color: var(--violet);
+        }
+
+        #clearSearchBtn {
+            display: none;
+        }
+
+        .search-action-btn.listening {
+            color: #e63946;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        /* Resultados da Busca */
+        #results {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .result-card {
+            background-color: var(--gray-light);
+            border-left: 4px solid var(--violet);
+            padding: 20px;
+            border-radius: 8px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+        }
+
+        .result-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            background-color: #fff;
+        }
+
+        .result-title {
+            font-size: 1.25rem;
+            color: var(--violet);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .result-snippet {
+            font-size: 0.95rem;
+            color: var(--primary-text);
+            line-height: 1.5;
+        }
+
+        .loading, .no-results {
+            text-align: center;
+            color: #6c757d;
+            font-size: 1.1rem;
+            margin-top: 20px;
+        }
+
+        /* Estilos do Modal de Preview em Tela Cheia */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #fff;
+            width: 100vw;
+            height: 100vh;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: modalFadeIn 0.3s ease;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            background-color: #fff;
+        }
+
+        .modal-title {
+            font-size: 1.6rem;
+            color: var(--violet);
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6c757d;
+            transition: color 0.2s;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            background-color: var(--gray-light);
+            color: var(--violet);
+        }
+
+        .modal-body {
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .modal-img-container {
+            width: 100%;
+            max-height: 350px;
+            display: flex;
+            justify-content: center;
+            background-color: var(--gray-light);
+            border-radius: 12px;
+            overflow: hidden;
+            padding: 10px;
+        }
+
+        .modal-img-container img {
+            max-width: 100%;
+            max-height: 330px;
+            object-fit: contain;
+        }
+
+        .modal-text {
+            font-size: 1.1rem;
+            color: var(--primary-text);
+            line-height: 1.8;
+        }
+
+        .modal-footer {
+            padding: 20px 30px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            background-color: #fff;
+        }
+
+        .wiki-link-btn {
+            background-color: var(--violet);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+        }
+
+        .wiki-link-btn:hover {
+            background-color: var(--violet-light);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="search-box">
+            <input 
+                type="text" 
+                id="searchInput" 
+                class="search-input" 
+                placeholder="O que você deseja pesquisar hoje?..." 
+                autocomplete="off"
+            >
+            <div class="search-actions">
+                <button type="button" id="clearSearchBtn" class="search-action-btn" title="Limpar busca">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <button type="button" id="voiceSearchBtn" class="search-action-btn" title="Pesquisar por voz">
+                    <i class="fa-solid fa-microphone"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <div id="wikiModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div id="modalTitle" class="modal-title">Título</div>
+                <button type="button" id="modalCloseBtn" class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="modalImgContainer" class="modal-img-container" style="display: none;">
+                    <img id="modalImg" src="" alt="Imagem do artigo">
+                </div>
+                <div id="modalText" class="modal-text">Carregando detalhes...</div>
+            </div>
+            <div class="modal-footer">
+                <a id="modalWikiLink" href="#" target="_blank" class="wiki-link-btn">Ver artigo completo na Wikipédia</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const resultsContainer = document.getElementById('results');
+        const voiceSearchBtn = document.getElementById('voiceSearchBtn');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        
+        // Elementos do Modal
+        const wikiModal = document.getElementById('wikiModal');
+        const modalCloseBtn = document.getElementById('modalCloseBtn');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalText = document.getElementById('modalText');
+        const modalImgContainer = document.getElementById('modalImgContainer');
+        const modalImg = document.getElementById('modalImg');
+        const modalWikiLink = document.getElementById('modalWikiLink');
+
+        let timeoutId;
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            if (query.length > 0) {
+                clearSearchBtn.style.display = 'flex';
+            } else {
+                clearSearchBtn.style.display = 'none';
+            }
+            triggerSearch(query);
+        });
+
+        clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearSearchBtn.style.display = 'none';
+            resultsContainer.innerHTML = '';
+            searchInput.focus();
+        });
+
+        function triggerSearch(query) {
+            clearTimeout(timeoutId);
+
+            if (query === '') {
+                resultsContainer.innerHTML = '';
+                return;
+            }
+
+            resultsContainer.innerHTML = '<div class="loading">Buscando na enciclopédia...</div>';
+
+            timeoutId = setTimeout(() => {
+                fetchWikipedia(query);
+            }, 400);
+        }
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            
+            recognition.lang = 'pt-BR';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            voiceSearchBtn.addEventListener('click', () => {
+                try {
+                    recognition.start();
+                    voiceSearchBtn.classList.add('listening');
+                    searchInput.placeholder = 'Ouvindo...';
+                } catch (e) {
+                    recognition.stop();
+                }
+            });
+
+            recognition.addEventListener('result', (e) => {
+                const speechResult = e.results[0][0].transcript;
+                searchInput.value = speechResult;
+                clearSearchBtn.style.display = 'flex';
+                triggerSearch(speechResult);
+            });
+
+            recognition.addEventListener('speechend', () => {
+                recognition.stop();
+                voiceSearchBtn.classList.remove('listening');
+                searchInput.placeholder = 'O que você deseja pesquisar hoje?...';
+            });
+
+            recognition.addEventListener('error', () => {
+                voiceSearchBtn.classList.remove('listening');
+                searchInput.placeholder = 'O que você deseja pesquisar hoje?...';
+            });
+        } else {
+            voiceSearchBtn.style.display = 'none';
+        }
+
+        async function fetchWikipedia(query) {
+            const endpoint = `https://pt.wikipedia.org/w/api.php?action=query&list=search&prop=info&inprop=url&utf8=&format=json&origin=*&srsearch=${encodeURIComponent(query)}`;
+
+            try {
+                const response = await fetch(endpoint);
+                const data = await response.json();
+                const results = data.query.search;
+
+                displayResults(results);
+            } catch (error) {
+                resultsContainer.innerHTML = '<div class="no-results">Ocorreu um erro ao buscar os dados. Tente novamente.</div>';
+            }
+        }
+
+        function displayResults(results) {
+            resultsContainer.innerHTML = '';
+
+            if (results.length === 0) {
+                resultsContainer.innerHTML = '<div class="no-results">Nenhum resultado encontrado.</div>';
+                return;
+            }
+
+            results.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'result-card';
+
+                card.innerHTML = `
+                    <div class="result-title">${item.title}</div>
+                    <div class="result-snippet">${item.snippet}...</div>
+                `;
+
+                card.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    openWikiModal(item.title, item.pageid);
+                });
+
+                resultsContainer.appendChild(card);
+            });
+        }
+
+        async function openWikiModal(title, pageid) {
+            wikiModal.classList.add('active');
+            modalTitle.textContent = title;
+            modalText.textContent = 'Carregando detalhes e imagem do artigo...';
+            modalImgContainer.style.display = 'none';
+            modalImg.src = '';
+            modalWikiLink.href = `https://pt.wikipedia.org/?curid=${pageid}`;
+
+            const detailEndpoint = `https://pt.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro&explaintext&piprop=original|thumbnail&pithumbsize=600&titles=${encodeURIComponent(title)}&format=json&origin=*`;
+
+            try {
+                const response = await fetch(detailEndpoint);
+                const data = await response.json();
+                const pages = data.query.pages;
+                const pageIdKey = Object.keys(pages)[0];
+                const pageData = pages[pageIdKey];
+
+                if (pageData) {
+                    if (pageData.extract) {
+                        modalText.textContent = pageData.extract;
+                    } else {
+                        modalText.textContent = 'Nenhum resumo disponível para este artigo.';
+                    }
+
+                    const imageUrl = pageData.original?.source || pageData.thumbnail?.source;
+                    if (imageUrl) {
+                        modalImg.src = imageUrl;
+                        modalImgContainer.style.display = 'flex';
+                    } else {
+                        modalImgContainer.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                modalText.textContent = 'Não foi possível carregar o conteúdo detalhado do artigo.';
+            }
+        }
+
+        function closeWikiModal() {
+            wikiModal.classList.remove('active');
+        }
+
+        modalCloseBtn.addEventListener('click', closeWikiModal);
+        wikiModal.addEventListener('click', (e) => {
+            if (e.target === wikiModal) {
+                closeWikiModal();
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeWikiModal();
+            }
+        });
+    </script>
+</body>
+</html>
