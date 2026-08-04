@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+ <style>
+ :root {
+ --bg-color: #f4f3f8;
+ --panel-color: #ffffff;
+ --panel-2: #eceaf3;
+ --text-color: #1f1b2c;
+ --text-muted: #736b8c;
+ --accent-color: #7c3aed; /* Violeta principal */
+ --accent-hover: #6d28d9;
+ --danger: #ef4444;
+ --danger-hover: #dc2626;
+ --border: #dcd7e8;
+ }
+
+ * {
+ box-sizing: border-box;
+ margin: 0;
+ padding: 0;
+ }
+
+ body {
+ font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+ background-color: var(--bg-color);
+ color: var(--text-color);
+ min-height: 100vh;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ padding: 16px;
+ user-select: none;
+ }
+
+ .main-wrapper {
+ display: flex;
+ gap: 16px;
+ flex-wrap: wrap;
+ justify-content: center;
+ max-width: 1400px;
+ width: 100%;
+ align-items: flex-start;
+ margin-top: 10px;
+ }
+
+ .panel {
+ background: var(--panel-color);
+ border-radius: 12px;
+ padding: 16px;
+ box-shadow: 0 10px 30px rgba(124, 58, 237, 0.08);
+ border: 1px solid var(--border);
+ }
+
+ .tools-panel {
+ width: 280px;
+ display: flex;
+ flex-direction: column;
+ gap: 14px;
+ }
+
+ .canvas-panel {
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ gap: 12px;
+ }
+
+ .section-title {
+ font-size: 0.7rem;
+ text-transform: uppercase;
+ letter-spacing: 1.2px;
+ color: var(--text-muted);
+ margin-bottom: 6px;
+ font-weight: 600;
+ }
+
+ .tool-grid {
+ display: grid;
+ grid-template-columns: 1fr 1fr;
+ gap: 6px;
+ }
+
+ button, .btn {
+ background: var(--panel-2);
+ color: var(--text-color);
+ border: 1px solid var(--border);
+ padding: 8px 10px;
+ border-radius: 8px;
+ cursor: pointer;
+ font-size: 0.82rem;
+ font-weight: 500;
+ transition: all 0.2s ease;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ gap: 6px;
+ }
+
+ button:hover, .btn:hover {
+ background: #e2daf0;
+ border-color: var(--accent-color);
+ transform: translateY(-1px);
+ }
+
+ button:active {
+ transform: translateY(0);
+ }
+
+ button.active {
+ background: var(--accent-color);
+ border-color: var(--accent-color);
+ color: white;
+ box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.3);
+ }
+
+ button.danger {
+ background: rgba(239, 68, 68, 0.1);
+ border-color: rgba(239, 68, 68, 0.3);
+ color: #ef4444;
+ }
+
+ button.danger:hover {
+ background: var(--danger);
+ border-color: var(--danger);
+ color: white;
+ }
+
+ .color-row {
+ display: flex;
+ align-items: center;
+ gap: 10px;
+ }
+
+ input[type="color"] {
+ -webkit-appearance: none;
+ border: none;
+ width: 40px;
+ height: 40px;
+ border-radius: 50%;
+ cursor: pointer;
+ background: none;
+ overflow: hidden;
+ box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+ }
+
+ input[type="color"]::-webkit-color-swatch-wrapper {
+ padding: 0;
+ }
+
+ input[type="color"]::-webkit-color-swatch {
+ border: 2px solid var(--border);
+ border-radius: 50%;
+ }
+
+ .palette {
+ display: flex;
+ flex-wrap: wrap;
+ gap: 5px;
+ }
+
+ .swatch {
+ width: 24px;
+ height: 24px;
+ border-radius: 6px;
+ cursor: pointer;
+ border: 1px solid var(--border);
+ transition: transform 0.15s, border-color 0.15s;
+ }
+
+ .swatch:hover {
+ transform: scale(1.15);
+ border-color: var(--accent-color);
+ }
+
+ .recent-colors {
+ display: flex;
+ gap: 5px;
+ flex-wrap: wrap;
+ }
+
+ select, input[type="range"] {
+ background: var(--panel-2);
+ color: var(--text-color);
+ border: 1px solid var(--border);
+ border-radius: 6px;
+ padding: 6px 10px;
+ font-size: 0.85rem;
+ outline: none;
+ transition: border-color 0.2s;
+ }
+
+ select:focus, input[type="range"]:focus {
+ border-color: var(--accent-color);
+ }
+
+ label {
+ font-size: 0.85rem;
+ display: flex;
+ align-items: center;
+ gap: 8px;
+ color: var(--text-color);
+ cursor: pointer;
+ }
+
+ input[type="checkbox"] {
+ accent-color: var(--accent-color);
+ width: 16px;
+ height: 16px;
+ cursor: pointer;
+ }
+
+ #pixel-canvas {
+ display: grid;
+ background-color: #ffffff;
+ border: 4px solid var(--panel-2);
+ border-radius: 8px;
+ box-shadow: 0 12px 40px rgba(124, 58, 237, 0.15);
+ image-rendering: pixelated;
+ overflow: hidden;
+ }
+
+ .pixel {
+ box-sizing: border-box;
+ background-color: #ffffff;
+ }
+
+ .pixel.show-grid {
+ border: 1px solid rgba(0,0,0,0.06);
+ }
+
+ .status-bar {
+ font-size: 0.8rem;
+ color: var(--text-muted);
+ display: flex;
+ gap: 15px;
+ flex-wrap: wrap;
+ justify-content: center;
+ background: var(--panel-2);
+ padding: 8px 14px;
+ border-radius: 8px;
+ border: 1px solid var(--border);
+ width: 100%;
+ }
+
+ .shortcuts {
+ font-size: 0.75rem;
+ color: var(--text-muted);
+ line-height: 1.5;
+ margin-top: 4px;
+ background: #ffffff;
+ padding: 8px;
+ border-radius: 8px;
+ border: 1px solid var(--border);
+ }
+
+ .row {
+ display: flex;
+ gap: 8px;
+ align-items: center;
+ flex-wrap: wrap;
+ }
+
+ .slider-group {
+ display: flex;
+ flex-direction: column;
+ gap: 6px;
+ width: 100%;
+ }
+
+ input[type="range"] {
+ width: 100%;
+ padding: 0;
+ accent-color: var(--accent-color);
+ cursor: pointer;
+ }
+
+ .export-btns {
+ display: flex;
+ flex-direction: column;
+ gap: 6px;
+ }
+
+ /* --- MOBILE TABBAR & FLYOUT MENUS (Branco & Violeta) --- */
+ .mobile-tabbar {
+ display: none;
+ }
+ .mobile-flyout {
+ display: none;
+ }
+
+ @media (max-width: 900px) {
+ body {
+ padding: 4px;
+ align-items: stretch;
+ padding-bottom: 75px;
+ }
+
+ .main-wrapper {
+ flex-direction: column;
+ gap: 8px;
+ align-items: center;
+ width: 100%;
+ margin-top: 0;
+ }
+
+ .tools-panel {
+ display: none;
+ }
+
+ .mobile-flyout {
+ display: none;
+ position: fixed;
+ bottom: 65px;
+ left: 12px;
+ right: 12px;
+ background: var(--panel-color);
+ border: 1px solid var(--border);
+ border-radius: 12px;
+ padding: 14px;
+ box-shadow: 0 -8px 25px rgba(124, 58, 237, 0.15);
+ z-index: 1000;
+ flex-direction: column;
+ gap: 10px;
+ max-height: 55vh;
+ overflow-y: auto;
+ animation: flyoutUp 0.2s ease-out;
+ }
+
+ .mobile-flyout.active {
+ display: flex;
+ }
+
+ @keyframes flyoutUp {
+ from { transform: translateY(20px); opacity: 0; }
+ to { transform: translateY(0); opacity: 1; }
+ }
+
+ .mobile-tabbar {
+ display: flex;
+ position: fixed;
+ bottom: 10px;
+ left: 10px;
+ right: 10px;
+ background: var(--panel-color);
+ border: 1px solid var(--border);
+ border-radius: 14px;
+ padding: 6px;
+ justify-content: space-around;
+ align-items: center;
+ z-index: 1100;
+ box-shadow: 0 6px 20px rgba(124, 58, 237, 0.15);
+ backdrop-filter: blur(8px);
+ }
+
+ .tab-btn {
+ background: transparent;
+ border: none;
+ color: var(--text-muted);
+ font-size: 0.75rem;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ gap: 3px;
+ padding: 6px 10px;
+ border-radius: 8px;
+ cursor: pointer;
+ transition: color 0.15s, background 0.15s;
+ }
+
+ .tab-btn i {
+ font-size: 1.1rem;
+ }
+
+ .tab-btn.active {
+ color: var(--accent-color);
+ background: rgba(124, 58, 237, 0.1);
+ }
+
+ .canvas-panel {
+ order: 1;
+ width: 100%;
+ background: var(--panel-color);
+ padding: 10px;
+ border-radius: 8px;
+ border: 1px solid var(--border);
+ align-items: center;
+ overflow-x: auto;
+ }
+
+ #pixel-canvas {
+ max-width: 100%;
+ touch-action: none;
+ }
+ }
+ </style>
+</head>
+<body>
+
+ <div class="main-wrapper">
+ <div class="panel tools-panel" id="desktopToolsPanel">
+ <div>
+ <div class="section-title">Ferramentas</div>
+ <div class="tool-grid">
+ <button id="btnPencil" class="active" onclick="setTool('pencil')" title="Lápis (P)"><i class="fa-solid fa-pencil"></i> Lápis</button>
+ <button id="btnEraser" onclick="setTool('eraser')" title="Borracha (E)"><i class="fa-solid fa-eraser"></i> Borracha</button>
+ <button id="btnFill" onclick="setTool('fill')" title="Balde (B)"><i class="fa-solid fa-fill-drip"></i> Balde</button>
+ <button id="btnEyedropper" onclick="setTool('eyedropper')" title="Conta-gotas (I)"><i class="fa-solid fa-eye-dropper"></i> Conta-gotas</button>
+ <button id="btnLine" onclick="setTool('line')" title="Linha (L)"><i class="fa-solid fa-slash"></i> Linha</button>
+ <button id="btnRect" onclick="setTool('rect')" title="Retângulo (R)"><i class="fa-regular fa-square"></i> Retângulo</button>
+ <button id="btnCircle" onclick="setTool('circle')" title="Círculo (C)"><i class="fa-regular fa-circle"></i> Círculo</button>
+ </div>
+ </div>
+
+ <div>
+ <div class="section-title">Cor</div>
+ <div class="color-row">
+ <input type="color" id="colorPicker" value="#000000">
+ <div style="flex:1">
+ <div class="section-title" style="margin-bottom:4px">Recentes</div>
+ <div class="recent-colors" id="recentColors"></div>
+ </div>
+ </div>
+ <div class="section-title" style="margin-top:10px">Paleta</div>
+ <div class="palette" id="palette"></div>
+ </div>
+
+ <div>
+ <div class="section-title">Pincel</div>
+ <div class="row">
+ <label>Tamanho:
+ <select id="brushSize">
+ <option value="1">1×1</option>
+ <option value="2">2×2</option>
+ <option value="3">3×3</option>
+ <option value="4">4×4</option>
+ </select>
+ </label>
+ </div>
+ </div>
+
+ <div>
+ <div class="section-title">Grade & Zoom</div>
+ <div class="row" style="margin-bottom:8px">
+ <label>Tamanho:
+ <select id="gridSize" onchange="changeGridSize()">
+ <option value="8">8×8</option>
+ <option value="16">16×16</option>
+ <option value="24" selected>24×24</option>
+ <option value="32">32×32</option>
+ <option value="48">48×48</option>
+ <option value="64">64×64</option>
+ </select>
+ </label>
+ </div>
+ <div class="slider-group">
+ <label>Zoom: <span id="zoomValue">20</span>px</label>
+ <input type="range" id="pixelSize" min="8" max="40" value="20" oninput="updatePixelSize()">
+ </div>
+ <div class="row" style="margin-top:8px">
+ <label><input type="checkbox" id="showGrid" checked onchange="toggleGrid()"> Mostrar grade</label>
+ </div>
+ </div>
+
+ <div>
+ <div class="section-title">Simetria</div>
+ <div class="tool-grid">
+ <button id="symNone" class="active" onclick="setSymmetry('none')">Nenhuma</button>
+ <button id="symH" onclick="setSymmetry('h')">Horizontal</button>
+ <button id="symV" onclick="setSymmetry('v')">Vertical</button>
+ <button id="symBoth" onclick="setSymmetry('both')">Ambos</button>
+ </div>
+ </div>
+
+ <div>
+ <div class="section-title">Ações</div>
+ <div class="tool-grid">
+ <button onclick="undo()" title="Ctrl+Z"><i class="fa-solid fa-rotate-left"></i> Undo</button>
+ <button onclick="redo()" title="Ctrl+Y"><i class="fa-solid fa-rotate-right"></i> Redo</button>
+ <button class="danger" onclick="clearCanvas()"><i class="fa-solid fa-xmark"></i> Limpar</button>
+ <button onclick="invertColors()"><i class="fa-solid fa-right-left"></i> Inverter</button>
+ </div>
+ </div>
+
+ <div>
+ <div class="section-title">Exportar / Importar</div>
+ <div class="export-btns">
+ <button onclick="exportPNG()"><i class="fa-solid fa-download"></i> Exportar PNG</button>
+ <button onclick="exportJSON()"><i class="fa-solid fa-floppy-disk"></i> Salvar JSON</button>
+ <button onclick="document.getElementById('importFile').click()"><i class="fa-solid fa-upload"></i> Carregar JSON</button>
+ <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+ </div>
+ </div>
+
+ <div class="shortcuts">
+ <strong>Atalhos:</strong><br>
+ P Lápis • E Borracha • B Balde • I Conta-gotas<br>
+ L Linha • R Retângulo • C Círculo<br>
+ Ctrl+Z Undo • Ctrl+Y Redo • [ ] Tamanho pincel
+ </div>
+ </div>
+
+ <div class="panel canvas-panel">
+ <div id="pixel-canvas"></div>
+ <div class="status-bar">
+ <span id="statusTool">Ferramenta: Lápis</span>
+ <span id="statusPos">Pos: -</span>
+ <span id="statusSize">24×24</span>
+ </div>
+ </div>
+ </div>
+
+ <div class="mobile-flyout" id="flyoutTools">
+ <div class="section-title">Ferramentas</div>
+ <div class="tool-grid">
+ <button id="mBtnPencil" class="active" onclick="setTool('pencil'); closeFlyouts();"><i class="fa-solid fa-pencil"></i> Lápis</button>
+ <button id="mBtnEraser" onclick="setTool('eraser'); closeFlyouts();"><i class="fa-solid fa-eraser"></i> Borracha</button>
+ <button id="mBtnFill" onclick="setTool('fill'); closeFlyouts();"><i class="fa-solid fa-fill-drip"></i> Balde</button>
+ <button id="mBtnEyedropper" onclick="setTool('eyedropper'); closeFlyouts();"><i class="fa-solid fa-eye-dropper"></i> Conta-gotas</button>
+ <button id="mBtnLine" onclick="setTool('line'); closeFlyouts();"><i class="fa-solid fa-slash"></i> Linha</button>
+ <button id="mBtnRect" onclick="setTool('rect'); closeFlyouts();"><i class="fa-regular fa-square"></i> Retângulo</button>
+ <button id="mBtnCircle" onclick="setTool('circle'); closeFlyouts();"><i class="fa-regular fa-circle"></i> Círculo</button>
+ </div>
+ </div>
+
+ <div class="mobile-flyout" id="flyoutColor">
+ <div class="section-title">Cor & Paleta</div>
+ <div class="color-row">
+ <input type="color" id="mColorPicker" value="#000000" oninput="colorPicker.value = this.value; addRecentColor(this.value)">
+ <div style="flex:1">
+ <div class="section-title" style="margin-bottom:4px">Recentes</div>
+ <div class="recent-colors" id="mRecentColors"></div>
+ </div>
+ </div>
+ <div class="section-title" style="margin-top:8px">Paleta Rápida</div>
+ <div class="palette" id="mPalette"></div>
+ </div>
+
+ <div class="mobile-flyout" id="flyoutSettings">
+ <div class="section-title">Pincel & Grade</div>
+ <div class="row" style="margin-bottom:6px">
+ <label>Tamanho Pincel:
+ <select id="mBrushSize" onchange="brushSizeSelect.value = this.value">
+ <option value="1">1×1</option>
+ <option value="2">2×2</option>
+ <option value="3">3×3</option>
+ <option value="4">4×4</option>
+ </select>
+ </label>
+ </div>
+ <div class="row" style="margin-bottom:6px">
+ <label>Tamanho Grade:
+ <select id="mGridSize" onchange="gridSizeSelect.value = this.value; changeGridSize()">
+ <option value="8">8×8</option>
+ <option value="16">16×16</option>
+ <option value="24" selected>24×24</option>
+ <option value="32">32×32</option>
+ <option value="48">48×48</option>
+ <option value="64">64×64</option>
+ </select>
+ </label>
+ </div>
+ <div class="slider-group">
+ <label>Zoom: <span id="mZoomValue">20</span>px</label>
+ <input type="range" id="mPixelSize" min="8" max="40" value="20" oninput="pixelSizeInput.value = this.value; updatePixelSize(); document.getElementById('mZoomValue').textContent = this.value;">
+ </div>
+ <div class="row" style="margin-top:6px">
+ <label><input type="checkbox" id="mShowGrid" checked onchange="showGridCheckbox.checked = this.checked; toggleGrid()"> Mostrar grade</label>
+ </div>
+ </div>
+
+ <div class="mobile-flyout" id="flyoutActions">
+ <div class="section-title">Ações & Arquivo</div>
+ <div class="tool-grid" style="margin-bottom:8px">
+ <button onclick="undo(); closeFlyouts();"><i class="fa-solid fa-rotate-left"></i> Undo</button>
+ <button onclick="redo(); closeFlyouts();"><i class="fa-solid fa-rotate-right"></i> Redo</button>
+ <button class="danger" onclick="clearCanvas(); closeFlyouts();"><i class="fa-solid fa-xmark"></i> Limpar</button>
+ <button onclick="invertColors(); closeFlyouts();"><i class="fa-solid fa-right-left"></i> Inverter</button>
+ </div>
+ <div class="export-btns">
+ <button onclick="exportPNG()"><i class="fa-solid fa-download"></i> Exportar PNG</button>
+ <button onclick="exportJSON()"><i class="fa-solid fa-floppy-disk"></i> Salvar JSON</button>
+ <button onclick="document.getElementById('mImportFile').click()"><i class="fa-solid fa-upload"></i> Carregar JSON</button>
+ <input type="file" id="mImportFile" accept=".json" style="display:none" onchange="importJSON(event)">
+ </div>
+ </div>
+
+ <nav class="mobile-tabbar" id="mobileTabBar">
+ <button class="tab-btn active" id="tabBtnTools" onclick="toggleFlyout('flyoutTools')">
+ <i class="fa-solid fa-pencil"></i> Ferramentas
+ </button>
+ <button class="tab-btn" id="tabBtnColor" onclick="toggleFlyout('flyoutColor')">
+ <i class="fa-solid fa-palette"></i> Cores
+ </button>
+ <button class="tab-btn" id="tabBtnSettings" onclick="toggleFlyout('flyoutSettings')">
+ <i class="fa-solid fa-gear"></i> Ajustes
+ </button>
+ <button class="tab-btn" id="tabBtnActions" onclick="toggleFlyout('flyoutActions')">
+ <i class="fa-solid fa-bolt"></i> Ações
+ </button>
+ </nav>
+
+ <script>
+ // ====================== ESTADO ======================
+ const canvas = document.getElementById('pixel-canvas');
+ const colorPicker = document.getElementById('colorPicker');
+ const brushSizeSelect = document.getElementById('brushSize');
+ const gridSizeSelect = document.getElementById('gridSize');
+ const pixelSizeInput = document.getElementById('pixelSize');
+ const showGridCheckbox = document.getElementById('showGrid');
+
+ let currentTool = 'pencil';
+ let isDrawing = false;
+ let startX = -1, startY = -1;
+ let gridSize = 24;
+ let pixelSize = 20;
+ let symmetry = 'none';
+ let showGrid = true;
+
+ // Histórico
+ let history = [];
+ let historyIndex = -1;
+ const MAX_HISTORY = 50;
+
+ // Cores recentes
+ let recentColors = ['#000000', '#ffffff', '#7c3aed', '#a78bfa', '#cbd5e1'];
+
+ // Dados dos pixels (array 2D de cores)
+ let pixels = [];
+
+ // Preview temporário (para linha/retângulo/círculo)
+ let previewPixels = null;
+
+ // ====================== PALETA ======================
+ const defaultPalette = [
+ '#000000', '#ffffff', '#7c3aed', '#a78bfa',
+ '#4c1d95', '#6d28d9', '#8b5cf6', '#c4b5fd',
+ '#ede9fe', '#f8fafc', '#f1f5f9', '#e2e8f0',
+ '#cbd5e1', '#94a3b8', '#64748b', '#475569',
+ '#334155', '#1e293b', '#0f172a', '#ffffff'
+ ];
+
+ function initPalette() {
+ const container = document.getElementById('palette');
+ const mContainer = document.getElementById('mPalette');
+ 
+ defaultPalette.forEach(color => {
+ const swatch = document.createElement('div');
+ swatch.className = 'swatch';
+ swatch.style.backgroundColor = color;
+ swatch.onclick = () => {
+ colorPicker.value = color;
+ document.getElementById('mColorPicker').value = color;
+ addRecentColor(color);
+ };
+ container.appendChild(swatch);
+
+ const swatchM = swatch.cloneNode(true);
+ swatchM.onclick = () => {
+ colorPicker.value = color;
+ document.getElementById('mColorPicker').value = color;
+ addRecentColor(color);
+ closeFlyouts();
+ };
+ mContainer.appendChild(swatchM);
+ });
+ updateRecentColors();
+ }
+
+ function addRecentColor(color) {
+ recentColors = recentColors.filter(c => c !== color);
+ recentColors.unshift(color);
+ if (recentColors.length > 8) recentColors.pop();
+ updateRecentColors();
+ }
+
+ function updateRecentColors() {
+ const container = document.getElementById('recentColors');
+ const mContainer = document.getElementById('mRecentColors');
+ container.innerHTML = '';
+ mContainer.innerHTML = '';
+
+ recentColors.forEach(color => {
+ const swatch = document.createElement('div');
+ swatch.className = 'swatch';
+ swatch.style.backgroundColor = color;
+ swatch.onclick = () => {
+ colorPicker.value = color;
+ document.getElementById('mColorPicker').value = color;
+ };
+ container.appendChild(swatch);
+
+ const swatchM = swatch.cloneNode(true);
+ swatchM.onclick = () => {
+ colorPicker.value = color;
+ document.getElementById('mColorPicker').value = color;
+ closeFlyouts();
+ };
+ mContainer.appendChild(swatchM);
+ });
+ }
+
+ // ====================== CONTROLE DE FLYOUTS MOBILE ======================
+ function toggleFlyout(flyoutId) {
+ const flyouts = ['flyoutTools', 'flyoutColor', 'flyoutSettings', 'flyoutActions'];
+ const buttons = ['tabBtnTools', 'tabBtnColor', 'tabBtnSettings', 'tabBtnActions'];
+ 
+ const targetFlyout = document.getElementById(flyoutId);
+ const isActive = targetFlyout.classList.contains('active');
+
+ flyouts.forEach(id => document.getElementById(id).classList.remove('active'));
+ buttons.forEach(id => document.getElementById(id).classList.remove('active'));
+
+ if (!isActive) {
+ targetFlyout.classList.add('active');
+ const mapBtn = {
+ flyoutTools: 'tabBtnTools',
+ flyoutColor: 'tabBtnColor',
+ flyoutSettings: 'tabBtnSettings',
+ flyoutActions: 'tabBtnActions'
+ };
+ document.getElementById(mapBtn[flyoutId]).classList.add('active');
+ }
+ }
+
+ function closeFlyouts() {
+ const flyouts = ['flyoutTools', 'flyoutColor', 'flyoutSettings', 'flyoutActions'];
+ const buttons = ['tabBtnTools', 'tabBtnColor', 'tabBtnSettings', 'tabBtnActions'];
+ flyouts.forEach(id => document.getElementById(id).classList.remove('active'));
+ buttons.forEach(id => document.getElementById(id).classList.remove('active'));
+ }
+
+ // ====================== FERRAMENTAS ======================
+ function setTool(tool) {
+ currentTool = tool;
+ document.querySelectorAll('.tool-grid button').forEach(b => b.classList.remove('active'));
+ const btnMap = {
+ pencil: ['btnPencil', 'mBtnPencil'],
+ eraser: ['btnEraser', 'mBtnEraser'],
+ fill: ['btnFill', 'mBtnFill'],
+ eyedropper: ['btnEyedropper', 'mBtnEyedropper'],
+ line: ['btnLine', 'mBtnLine'],
+ rect: ['btnRect', 'mBtnRect'],
+ circle: ['btnCircle', 'mBtnCircle']
+ };
+ if (btnMap[tool]) {
+ btnMap[tool].forEach(id => {
+ const el = document.getElementById(id);
+ if (el) el.classList.add('active');
+ });
+ }
+
+ const names = {
+ pencil: 'Lápis', eraser: 'Borracha', fill: 'Balde',
+ eyedropper: 'Conta-gotas', line: 'Linha',
+ rect: 'Retângulo', circle: 'Círculo'
+ };
+ document.getElementById('statusTool').textContent = `Ferramenta: ${names[tool]}`;
+ }
+
+ function setSymmetry(mode) {
+ symmetry = mode;
+ ['symNone', 'symH', 'symV', 'symBoth'].forEach(id => {
+ document.getElementById(id).classList.remove('active');
+ });
+ const map = { none: 'symNone', h: 'symH', v: 'symV', both: 'symBoth' };
+ document.getElementById(map[mode]).classList.add('active');
+ }
+
+ // ====================== GRADE ======================
+ function createGrid(size) {
+ gridSize = size;
+ pixels = Array.from({ length: size }, () => Array(size).fill('#ffffff'));
+ history = [];
+ historyIndex = -1;
+ saveState();
+
+ renderCanvas();
+ document.getElementById('statusSize').textContent = `${size}×${size}`;
+ }
+
+ function renderCanvas() {
+ canvas.innerHTML = '';
+ canvas.style.gridTemplateColumns = `repeat(${gridSize}, ${pixelSize}px)`;
+ canvas.style.gridTemplateRows = `repeat(${gridSize}, ${pixelSize}px)`;
+
+ for (let y = 0; y < gridSize; y++) {
+ for (let x = 0; x < gridSize; x++) {
+ const pixel = document.createElement('div');
+ pixel.className = 'pixel' + (showGrid ? ' show-grid' : '');
+ pixel.style.width = pixelSize + 'px';
+ pixel.style.height = pixelSize + 'px';
+ pixel.style.backgroundColor = pixels[y][x];
+ pixel.dataset.x = x;
+ pixel.dataset.y = y;
+
+ pixel.addEventListener('mousedown', (e) => {
+ e.preventDefault();
+ isDrawing = true;
+ startX = x;
+ startY = y;
+ handleDraw(x, y, true);
+ });
+
+ pixel.addEventListener('touchstart', (e) => {
+ e.preventDefault();
+ isDrawing = true;
+ startX = x;
+ startY = y;
+ handleDraw(x, y, true);
+ }, {passive: false});
+
+ pixel.addEventListener('mouseenter', () => {
+ document.getElementById('statusPos').textContent = `Pos: ${x},${y}`;
+ if (isDrawing) handleDraw(x, y, false);
+ });
+
+ pixel.addEventListener('touchmove', (e) => {
+ e.preventDefault();
+ const touch = e.touches[0];
+ const target = document.elementFromPoint(touch.clientX, touch.clientY);
+ if (target && target.dataset && target.dataset.x !== undefined) {
+ const tx = parseInt(target.dataset.x);
+ const ty = parseInt(target.dataset.y);
+ document.getElementById('statusPos').textContent = `Pos: ${tx},${ty}`;
+ if (isDrawing) handleDraw(tx, ty, false);
+ }
+ }, {passive: false});
+
+ canvas.appendChild(pixel);
+ }
+ }
+ }
+
+ function updatePixelSize() {
+ pixelSize = parseInt(pixelSizeInput.value);
+ document.getElementById('zoomValue').textContent = pixelSize;
+ renderCanvas();
+ }
+
+ function toggleGrid() {
+ showGrid = showGridCheckbox.checked;
+ renderCanvas();
+ }
+
+ function changeGridSize() {
+ if (confirm('Mudar o tamanho da grade apagará o desenho atual. Continuar?')) {
+ createGrid(parseInt(gridSizeSelect.value));
+ } else {
+ gridSizeSelect.value = gridSize;
+ }
+ }
+
+ // ====================== DESENHO ======================
+ function handleDraw(x, y, isStart) {
+ const color = currentTool === 'eraser' ? '#ffffff' : colorPicker.value;
+ const brush = parseInt(brushSizeSelect.value);
+
+ if (currentTool === 'eyedropper') {
+ colorPicker.value = pixels[y][x];
+ document.getElementById('mColorPicker').value = pixels[y][x];
+ addRecentColor(pixels[y][x]);
+ setTool('pencil');
+ return;
+ }
+
+ if (currentTool === 'fill') {
+ floodFill(x, y, pixels[y][x], color);
+ saveState();
+ renderCanvas();
+ return;
+ }
+
+ if (['line', 'rect', 'circle'].includes(currentTool)) {
+ if (isStart) {
+ previewPixels = pixels.map(row => [...row]);
+ }
+ pixels = previewPixels.map(row => [...row]);
+ if (currentTool === 'line') drawLine(startX, startY, x, y, color, brush);
+ if (currentTool === 'rect') drawRect(startX, startY, x, y, color, brush);
+ if (currentTool === 'circle') drawCircle(startX, startY, x, y, color, brush);
+ renderCanvas();
+ return;
+ }
+
+ paintBrush(x, y, color, brush);
+ applySymmetry(x, y, color, brush);
+ renderCanvas();
+ }
+
+ function paintBrush(cx, cy, color, size) {
+ const half = Math.floor(size / 2);
+ for (let dy = 0; dy < size; dy++) {
+ for (let dx = 0; dx < size; dx++) {
+ const px = cx - half + dx;
+ const py = cy - half + dy;
+ if (px >= 0 && px < gridSize && py >= 0 && py < gridSize) {
+ pixels[py][px] = color;
+ }
+ }
+ }
+ }
+
+ function applySymmetry(x, y, color, brush) {
+ if (symmetry === 'h' || symmetry === 'both') {
+ paintBrush(gridSize - 1 - x, y, color, brush);
+ }
+ if (symmetry === 'v' || symmetry === 'both') {
+ paintBrush(x, gridSize - 1 - y, color, brush);
+ }
+ if (symmetry === 'both') {
+ paintBrush(gridSize - 1 - x, gridSize - 1 - y, color, brush);
+ }
+ }
+
+ function drawLine(x0, y0, x1, y1, color, brush) {
+ const dx = Math.abs(x1 - x0);
+ const dy = Math.abs(y1 - y0);
+ const sx = x0 < x1 ? 1 : -1;
+ const sy = y0 < y1 ? 1 : -1;
+ let err = dx - dy;
+
+ while (true) {
+ paintBrush(x0, y0, color, brush);
+ applySymmetry(x0, y0, color, brush);
+ if (x0 === x1 && y0 === y1) break;
+ const e2 = 2 * err;
+ if (e2 > -dy) { err -= dy; x0 += sx; }
+ if (e2 < dx) { err += dx; y0 += sy; }
+ }
+ }
+
+ function drawRect(x0, y0, x1, y1, color, brush) {
+ const minX = Math.min(x0, x1);
+ const maxX = Math.max(x0, x1);
+ const minY = Math.min(y0, y1);
+ const maxY = Math.max(y0, y1);
+
+ for (let x = minX; x <= maxX; x++) {
+ paintBrush(x, minY, color, brush);
+ paintBrush(x, maxY, color, brush);
+ applySymmetry(x, minY, color, brush);
+ applySymmetry(x, maxY, color, brush);
+ }
+ for (let y = minY; y <= maxY; y++) {
+ paintBrush(minX, y, color, brush);
+ paintBrush(maxX, y, color, brush);
+ applySymmetry(minX, y, color, brush);
+ applySymmetry(maxX, y, color, brush);
+ }
+ }
+
+ function drawCircle(x0, y0, x1, y1, color, brush) {
+ const radius = Math.round(Math.hypot(x1 - x0, y1 - y0));
+ let x = radius;
+ let y = 0;
+ let err = 0;
+
+ while (x >= y) {
+ const points = [
+ [x0 + x, y0 + y], [x0 + y, y0 + x],
+ [x0 - y, y0 + x], [x0 - x, y0 + y],
+ [x0 - x, y0 - y], [x0 - y, y0 - x],
+ [x0 + y, y0 - x], [x0 + x, y0 - y]
+ ];
+ points.forEach(([px, py]) => {
+ if (px >= 0 && px < gridSize && py >= 0 && py < gridSize) {
+ paintBrush(px, py, color, brush);
+ applySymmetry(px, py, color, brush);
+ }
+ });
+ y++;
+ if (err <= 0) err += 2 * y + 1;
+ if (err > 0) { x--; err -= 2 * x + 1; }
+ }
+ }
+
+ function floodFill(startX, startY, targetColor, fillColor) {
+ if (targetColor === fillColor) return;
+ const stack = [[startX, startY]];
+ const visited = new Set();
+
+ while (stack.length) {
+ const [x, y] = stack.pop();
+ const key = `${x},${y}`;
+ if (visited.has(key)) continue;
+ if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) continue;
+ if (pixels[y][x] !== targetColor) continue;
+
+ visited.add(key);
+ pixels[y][x] = fillColor;
+
+ stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+ }
+ }
+
+ // ====================== HISTÓRICO ======================
+ function saveState() {
+ history = history.slice(0, historyIndex + 1);
+ history.push(pixels.map(row => [...row]));
+ if (history.length > MAX_HISTORY) history.shift();
+ else historyIndex++;
+ }
+
+ function undo() {
+ if (historyIndex > 0) {
+ historyIndex--;
+ pixels = history[historyIndex].map(row => [...row]);
+ renderCanvas();
+ }
+ }
+
+ function redo() {
+ if (historyIndex < history.length - 1) {
+ historyIndex++;
+ pixels = history[historyIndex].map(row => [...row]);
+ renderCanvas();
+ }
+ }
+
+ // ====================== AÇÕES ======================
+ function clearCanvas() {
+ if (confirm('Limpar todo o canvas?')) {
+ pixels = Array.from({ length: gridSize }, () => Array(gridSize).fill('#ffffff'));
+ saveState();
+ renderCanvas();
+ }
+ }
+
+ function invertColors() {
+ for (let y = 0; y < gridSize; y++) {
+ for (let x = 0; x < gridSize; x++) {
+ const hex = pixels[y][x].replace('#', '');
+ const r = 255 - parseInt(hex.substring(0, 2), 16);
+ const g = 255 - parseInt(hex.substring(2, 4), 16);
+ const b = 255 - parseInt(hex.substring(4, 6), 16);
+ pixels[y][x] = '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+ }
+ }
+ saveState();
+ renderCanvas();
+ }
+
+ // ====================== EXPORT / IMPORT ======================
+ function exportPNG() {
+ const exportCanvas = document.createElement('canvas');
+ exportCanvas.width = gridSize;
+ exportCanvas.height = gridSize;
+ const ctx = exportCanvas.getContext('2d');
+
+ for (let y = 0; y < gridSize; y++) {
+ for (let x = 0; x < gridSize; x++) {
+ ctx.fillStyle = pixels[y][x];
+ ctx.fillRect(x, y, 1, 1);
+ }
+ }
+
+ const link = document.createElement('a');
+ link.download = `pixel-art-${gridSize}x${gridSize}.png`;
+ link.href = exportCanvas.toDataURL('image/png');
+ link.click();
+ }
+
+ function exportJSON() {
+ const data = {
+ size: gridSize,
+ pixels: pixels
+ };
+ const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+ const link = document.createElement('a');
+ link.download = `pixel-art-${gridSize}x${gridSize}.json`;
+ link.href = URL.createObjectURL(blob);
+ link.click();
+ }
+
+ function importJSON(event) {
+ const file = event.target.files[0];
+ if (!file) return;
+ const reader = new FileReader();
+ reader.onload = (e) => {
+ try {
+ const data = JSON.parse(e.target.result);
+ if (data.size && data.pixels) {
+ gridSize = data.size;
+ gridSizeSelect.value = gridSize;
+ pixels = data.pixels;
+ history = [];
+ historyIndex = -1;
+ saveState();
+ renderCanvas();
+ document.getElementById('statusSize').textContent = `${gridSize}×${gridSize}`;
+ }
+ } catch (err) {
+ alert('Arquivo JSON inválido');
+ }
+ };
+ reader.readAsText(file);
+ event.target.value = '';
+ }
+
+ // ====================== EVENTOS GLOBAIS ======================
+ window.addEventListener('mouseup', () => {
+ if (isDrawing) {
+ if (['line', 'rect', 'circle'].includes(currentTool)) {
+ saveState();
+ } else if (currentTool === 'pencil' || currentTool === 'eraser') {
+ saveState();
+ }
+ }
+ isDrawing = false;
+ previewPixels = null;
+ });
+
+ window.addEventListener('touchend', () => {
+ if (isDrawing) {
+ if (['line', 'rect', 'circle'].includes(currentTool)) {
+ saveState();
+ } else if (currentTool === 'pencil' || currentTool === 'eraser') {
+ saveState();
+ }
+ }
+ isDrawing = false;
+ previewPixels = null;
+ });
+
+ window.addEventListener('keydown', (e) => {
+ if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+ const key = e.key.toLowerCase();
+ if (key === 'p') setTool('pencil');
+ if (key === 'e') setTool('eraser');
+ if (key === 'b') setTool('fill');
+ if (key === 'i') setTool('eyedropper');
+ if (key === 'l') setTool('line');
+ if (key === 'r') setTool('rect');
+ if (key === 'c') setTool('circle');
+
+ if (e.ctrlKey && key === 'z') { e.preventDefault(); undo(); }
+ if (e.ctrlKey && key === 'y') { e.preventDefault(); redo(); }
+
+ if (key === '[') {
+ const s = parseInt(brushSizeSelect.value);
+ if (s > 1) brushSizeSelect.value = s - 1;
+ }
+ if (key === ']') {
+ const s = parseInt(brushSizeSelect.value);
+ if (s < 4) brushSizeSelect.value = s + 1;
+ }
+ });
+
+ document.addEventListener('dragstart', e => e.preventDefault());
+
+ colorPicker.addEventListener('change', () => {
+ addRecentColor(colorPicker.value);
+ });
+
+ // ====================== INICIALIZAÇÃO ======================
+ initPalette();
+ createGrid(24);
+ </script>
+</body>
+</html>
