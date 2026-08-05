@@ -188,21 +188,37 @@
           <div class="bg-violet-50/60 border border-violet-100 rounded-2xl p-4 flex flex-col gap-3">
             <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Etapa de Seleção de Plano e Pagamento</h4>
             
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="plansContainer">
               <label class="card-option p-3 bg-white border border-gray-200 rounded-xl flex flex-col gap-1 text-center cursor-pointer">
                 <input type="radio" name="adValue" value="bronze" onchange="checkPaymentStatus()" class="accent-violet-600 mb-1">
-                <span class="text-xs font-bold text-gray-800">Bronze (R$ 29)</span>
+                <span class="text-xs font-bold text-gray-800" id="planBronzeLabel">Bronze (R$ 29)</span>
                 <span class="text-[10px] text-gray-500">1 semana de exibição</span>
               </label>
               <label class="card-option p-3 bg-white border border-gray-200 rounded-xl flex flex-col gap-1 text-center cursor-pointer">
                 <input type="radio" name="adValue" value="prata" onchange="checkPaymentStatus()" class="accent-violet-600 mb-1">
-                <span class="text-xs font-bold text-gray-800">Prata (R$ 59)</span>
+                <span class="text-xs font-bold text-gray-800" id="planPrataLabel">Prata (R$ 59)</span>
                 <span class="text-[10px] text-gray-500">2 semanas em destaque</span>
               </label>
               <label class="card-option p-3 bg-white border border-gray-200 rounded-xl flex flex-col gap-1 text-center cursor-pointer">
                 <input type="radio" name="adValue" value="ouro" onchange="checkPaymentStatus()" class="accent-violet-600 mb-1">
-                <span class="text-xs font-bold text-gray-800">Ouro (R$ 99)</span>
+                <span class="text-xs font-bold text-gray-800" id="planOuroLabel">Ouro (R$ 99)</span>
                 <span class="text-[10px] text-gray-500">1 mês prioridade máxima</span>
+              </label>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-xl p-3 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-fuchsia-100 flex items-center justify-center text-fuchsia-600">
+                  <i class="fa-solid fa-rocket text-base"></i>
+                </div>
+                <div>
+                  <h5 class="text-xs font-bold text-gray-800">Boost no Anúncio</h5>
+                  <p class="text-[10px] text-gray-500">Aumente o alcance em até 3x (+20% no valor do plano)</p>
+                </div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="boostCheckbox" onchange="checkPaymentStatus()" class="sr-only peer">
+                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
               </label>
             </div>
 
@@ -326,12 +342,29 @@
       isPaid = false;
       document.querySelectorAll('input[name="adValue"]').forEach(el => el.checked = false);
       document.querySelectorAll('input[name="paymentMethod"]').forEach(el => el.checked = false);
+      document.getElementById('boostCheckbox').checked = false;
       updateFormActivation();
 
       const isToolCategory = categoryPath.startsWith("Ferramentas") || categoryPath.startsWith("Ferramenta de Criação/Arte/Mídia");
       const isAppCategory = categoryPath.startsWith("Apps");
       const isGameCategory = categoryPath.startsWith("Jogos");
       const isStreamingCategory = categoryPath.startsWith("Canal de Streaming");
+      const isAffiliateCategory = categoryPath.startsWith("Afiliado");
+
+      // Atualizar valores dos planos (80% mais barato para Afiliado e Canal de Streaming)
+      const planBronzeLabel = document.getElementById('planBronzeLabel');
+      const planPrataLabel = document.getElementById('planPrataLabel');
+      const planOuroLabel = document.getElementById('planOuroLabel');
+
+      if (isStreamingCategory || isAffiliateCategory) {
+        planBronzeLabel.textContent = "Bronze (R$ 5,80)";
+        planPrataLabel.textContent = "Prata (R$ 11,80)";
+        planOuroLabel.textContent = "Ouro (R$ 19,80)";
+      } else {
+        planBronzeLabel.textContent = "Bronze (R$ 29)";
+        planPrataLabel.textContent = "Prata (R$ 59)";
+        planOuroLabel.textContent = "Ouro (R$ 99)";
+      }
 
       if (isToolCategory) {
         standardFields.style.display = 'none';
@@ -437,9 +470,23 @@
       }, 300);
     }
 
+    function getPlanBasePrice(planValue, isDiscounted) {
+      if (isDiscounted) {
+        if (planValue === 'bronze') return 5.80;
+        if (planValue === 'prata') return 11.80;
+        if (planValue === 'ouro') return 19.80;
+      } else {
+        if (planValue === 'bronze') return 29.00;
+        if (planValue === 'prata') return 59.00;
+        if (planValue === 'ouro') return 99.00;
+      }
+      return 0;
+    }
+
     function checkPaymentStatus() {
       const selectedValue = document.querySelector('input[name="adValue"]:checked');
       const selectedMethod = document.querySelector('input[name="paymentMethod"]:checked');
+      const boostChecked = document.getElementById('boostCheckbox').checked;
       const payBtn = document.getElementById('payBtn');
       const paymentStatusText = document.getElementById('paymentStatusText');
 
@@ -451,9 +498,17 @@
       }
 
       if (selectedValue && selectedMethod) {
+        const categoryPath = document.getElementById('formCategoryTag').textContent;
+        const isDiscounted = categoryPath.startsWith("Canal de Streaming") || categoryPath.startsWith("Afiliado");
+        let basePrice = getPlanBasePrice(selectedValue.value, isDiscounted);
+        
+        if (boostChecked) {
+          basePrice *= 1.20;
+        }
+
         payBtn.disabled = false;
         payBtn.className = "px-4 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold cursor-pointer transition-all";
-        paymentStatusText.textContent = `Plano (${selectedValue.value.toUpperCase()}) via ${methodName}. Pronto para pagar.`;
+        paymentStatusText.textContent = `Plano (${selectedValue.value.toUpperCase()})${boostChecked ? ' com Boost' : ''} • Total: R$ ${basePrice.toFixed(2).replace('.', ',')} via ${methodName}.`;
         paymentStatusText.className = "text-xs font-medium text-violet-700";
       } else if (selectedValue && !selectedMethod) {
         paymentStatusText.textContent = "Falta selecionar a forma de pagamento (Pix, Crédito ou Débito).";
