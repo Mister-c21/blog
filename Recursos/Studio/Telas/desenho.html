@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #f4f3f8;
+            --panel-color: #ffffff;
+            --panel-2: #eceaf3;
+            --text-color: #1f1b2c;
+            --text-muted: #736b8c;
+            --accent-color: #7c3aed; /* Violeta principal */
+            --accent-hover: #6d28d9;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --border: #dcd7e8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* --- DESIGN DESKTOP --- */
+        
+        /* Barra Lateral Esquerda: Ferramentas */
+        .sidebar {
+            width: 70px;
+            background-color: var(--panel-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 0;
+            gap: 15px;
+            border-right: 1px solid var(--border);
+            z-index: 10;
+            box-shadow: 2px 0 10px rgba(124, 58, 237, 0.04);
+        }
+
+        .tool-btn {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            width: 45px;
+            height: 45px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover {
+            background-color: #e2daf0;
+            color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .tool-btn.active {
+            background-color: var(--accent-color);
+            color: #ffffff;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.3);
+        }
+
+        .tool-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Área Principal */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            height: 100vh;
+        }
+
+        /* Topbar / Barra Superior */
+        .topbar {
+            height: 50px;
+            background-color: var(--panel-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .topbar-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: relative;
+        }
+
+        .topbar label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: 2px solid var(--border); border-radius: 50%; }
+
+        input[type="range"] {
+            accent-color: var(--accent-color);
+            cursor: pointer;
+        }
+
+        .action-btn {
+            background-color: var(--panel-2);
+            color: var(--text-color);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: #e2daf0;
+            border-color: var(--accent-color);
+        }
+
+        .action-btn.primary {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+            color: #ffffff;
+        }
+
+        .action-btn.primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        /* Menu Flutuante de Exportação (Baixar) */
+        .export-menu {
+            position: absolute;
+            right: 0;
+            top: 45px;
+            background-color: var(--panel-color);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 200;
+            box-shadow: 0 10px 30px rgba(124, 58, 237, 0.12);
+            width: 220px;
+        }
+
+        .export-menu.open {
+            display: flex;
+        }
+
+        .export-menu h4 {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 6px;
+        }
+
+        .export-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .export-group label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .export-group select {
+            background-color: var(--panel-2);
+            border: 1px solid var(--border);
+            color: var(--text-color);
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .export-group select:focus {
+            border-color: var(--accent-color);
+        }
+
+        /* Tela de Desenho (Canvas Container) */
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--bg-color);
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        /* Envoltório para sobrepor os canvases das camadas */
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 12px 40px rgba(124, 58, 237, 0.1);
+            background-color: #ffffff;
+            border: 4px solid var(--panel-2);
+            border-radius: 8px;
+        }
+
+        .canvas-wrapper canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        /* Painel Direito: Camadas */
+        .panels-sidebar {
+            width: 240px;
+            background-color: var(--panel-color);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            gap: 15px;
+        }
+
+        .panel-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .layers-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            max-height: calc(100vh - 160px);
+        }
+
+        .layer-item {
+            background-color: var(--panel-2);
+            padding: 8px 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+            color: var(--text-color);
+        }
+
+        .layer-item.active {
+            border-color: var(--accent-color);
+            background-color: #e2daf0;
+            font-weight: 600;
+        }
+
+        .layer-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .layer-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .layer-btn:hover { color: var(--accent-color); }
+
+        /* Menu Flutuante de Adição de Elementos */
+        .elements-menu {
+            position: absolute;
+            left: 85px;
+            bottom: 15px;
+            background-color: var(--panel-color);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(124, 58, 237, 0.12);
+            width: 260px;
+        }
+
+        .elements-menu.open {
+            display: flex;
+        }
+
+        .elements-menu h4 {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 6px;
+        }
+
+        .elements-menu .shape-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .elements-menu .shape-btn {
+            background-color: var(--panel-2);
+            border: 1px solid var(--border);
+            color: var(--text-color);
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .elements-menu .shape-btn:hover {
+            background-color: #e2daf0;
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .elements-menu .upload-section {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .elements-menu .upload-section label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .elements-menu input[type="text"] {
+            background-color: var(--panel-2);
+            border: 1px solid var(--border);
+            color: var(--text-color);
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            outline: none;
+        }
+
+        .elements-menu input[type="text"]:focus {
+            border-color: var(--accent-color);
+        }
+
+        .mobile-toggle-btn {
+            display: none;
+        }
+
+        /* --- DESIGN MOBILE (Telas menores que 768px) --- */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            /* Transformando o bottom tabbar em um menu flutuante */
+            .sidebar {
+                width: 92%;
+                max-width: 400px;
+                height: 55px;
+                flex-direction: row;
+                justify-content: center;
+                gap: 10px;
+                padding: 0 10px;
+                border: 1px solid var(--border);
+                border-radius: 30px; /* Bordas arredondadas estilo pílula */
+                position: fixed;
+                bottom: 15px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 1000;
+                background-color: rgba(255, 255, 255, 0.9); /* Fundo translúcido branco */
+                backdrop-filter: blur(10px); /* Efeito borrado elegante */
+                box-shadow: 0 8px 25px rgba(124, 58, 237, 0.15); /* Sombra para dar destaque de flutuação */
+            }
+
+            .tool-btn {
+                width: 38px;
+                height: 38px;
+                font-size: 0.95rem;
+            }
+
+            .main-content {
+                height: 100vh; /* Ocupa a tela inteira já que a barra agora flutua por cima */
+                order: 1;
+            }
+
+            .topbar {
+                height: auto;
+                padding: 8px 10px;
+                gap: 8px;
+                justify-content: center;
+            }
+
+            .topbar-group {
+                gap: 8px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .topbar label {
+                font-size: 0.75rem;
+            }
+
+            /* Painel lateral de camadas vira uma gaveta flutuante oculta por padrão */
+            .panels-sidebar {
+                position: absolute;
+                right: 0;
+                top: 50px;
+                width: 220px;
+                height: calc(100% - 50px);
+                background-color: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(5px);
+                z-index: 20;
+                transform: translateX(100%);
+                transition: transform 0.3s ease-in-out;
+                order: 2;
+                box-shadow: -5px 0 20px rgba(124, 58, 237, 0.15);
+            }
+
+            .panels-sidebar.open {
+                transform: translateX(0);
+            }
+
+            .elements-menu {
+                left: 10px;
+                bottom: 80px; /* Ajustado para não colidir com o menu flutuante */
+                width: calc(100% - 20px);
+            }
+
+            .export-menu {
+                right: 10px;
+                top: 55px;
+                width: calc(100% - 20px);
+            }
+
+            .canvas-wrapper {
+                width: 100%;
+                height: 100%;
+                border-radius: 0;
+                border: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <button class="tool-btn active" title="Pincel / Lápis" onclick="setTool('brush')"><i class="fa-solid fa-pencil"></i></button>
+        <button class="tool-btn" title="Aerógrafo" onclick="setTool('airbrush')"><i class="fa-solid fa-spray-can"></i></button>
+        <button class="tool-btn" title="Borracha" onclick="setTool('eraser')"><i class="fa-solid fa-eraser"></i></button>
+        <button class="tool-btn" title="Adicionar Elementos" onclick="toggleElementsMenu()"><i class="fa-solid fa-shapes"></i></button>
+        <button class="tool-btn" title="Desfazer (Anterior)" id="undoBtn" onclick="undoAction()" disabled><i class="fa-solid fa-rotate-left"></i></button>
+        <button class="tool-btn" title="Refazer (Posterior)" id="redoBtn" onclick="redoAction()" disabled><i class="fa-solid fa-rotate-right"></i></button>
+        <button class="tool-btn mobile-layers-btn" title="Camadas" onclick="toggleMobileLayers()"><i class="fa-solid fa-layer-group"></i></button>
+    </div>
+
+    <div class="elements-menu" id="elementsMenu">
+        <h4>Formas Geométricas</h4>
+        <div class="shape-grid">
+            <button class="shape-btn" title="Círculo" onclick="addShape('circle')"><i class="fa-solid fa-circle"></i></button>
+            <button class="shape-btn" title="Triângulo" onclick="addShape('triangle')"><i class="fa-solid fa-play" style="transform: rotate(-90deg);"></i></button>
+            <button class="shape-btn" title="Quadrado" onclick="addShape('square')"><i class="fa-solid fa-square"></i></button>
+            <button class="shape-btn" title="Estrela" onclick="addShape('star')"><i class="fa-solid fa-star"></i></button>
+        </div>
+        
+        <h4>Imagem de Fundo</h4>
+        <div class="upload-section">
+            <label>Arquivo do Dispositivo:</label>
+            <input type="file" id="imageFileInput" accept="image/*" onchange="loadBackgroundImageFile(event)" style="font-size:0.8rem; color:var(--text-muted);">
+            
+            <label>Ou URL da Imagem:</label>
+            <div style="display: flex; gap: 6px;">
+                <input type="text" id="imageUrlInput" placeholder="https://exemplo.com/imagem.jpg" style="flex:1;">
+                <button class="action-btn primary" onclick="loadBackgroundImageUrl()">Aplicar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="topbar">
+            <div class="topbar-group">
+                <label>Cor:</label>
+                <input type="color" id="colorPicker" value="#7c3aed" onchange="updateColor(this.value)">
+                
+                <label>Tam:</label>
+                <input type="range" id="brushSize" min="1" max="100" value="5" oninput="updateSize(this.value)">
+                <span id="sizeVal" style="font-size:0.8rem; width:22px; color:var(--text-muted);">5px</span>
+
+                <label>Opa:</label>
+                <input type="range" id="brushOpacity" min="10" max="100" value="100" oninput="updateOpacity(this.value)">
+            </div>
+
+            <div class="topbar-group" style="position: relative;">
+                <button class="action-btn" onclick="clearCanvas()">Limpar</button>
+                <button class="action-btn" onclick="toggleExportMenu()">Baixar</button>
+                <button class="action-btn primary" onclick="shareCanvas()">Compartilhar</button>
+
+                <div class="export-menu" id="exportMenu">
+                    <h4>Opções de Download</h4>
+                    <div class="export-group">
+                        <label>Extensão:</label>
+                        <select id="exportFormat">
+                            <option value="image/png">PNG (.png)</option>
+                            <option value="image/jpeg">JPEG (.jpg)</option>
+                            <option value="image/webp">WEBP (.webp)</option>
+                        </select>
+                    </div>
+                    <div class="export-group">
+                        <label>Resolução:</label>
+                        <select id="exportResolution">
+                            <option value="1">Comum (Atual da Tela)</option>
+                            <option value="2">HD (Alta Resolução 2x)</option>
+                            <option value="4">4K (Ultra HD 4x)</option>
+                        </select>
+                    </div>
+                    <button class="action-btn primary" style="margin-top: 5px;" onclick="executeDownload()">Baixar Imagem</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <div class="canvas-wrapper" id="canvasWrapper">
+                </div>
+        </div>
+    </div>
+
+    <div class="panels-sidebar" id="panelsSidebar">
+        <div class="panel-title">Camadas</div>
+        <div class="layers-list" id="layersList">
+            </div>
+        <button class="action-btn" style="margin-top:auto;" onclick="addNewLayer()">+ Nova Camada</button>
+    </div>
+
+    <script>
+        const wrapper = document.getElementById('canvasWrapper');
+        const layersListEl = document.getElementById('layersList');
+        const panelsSidebar = document.getElementById('panelsSidebar');
+        const elementsMenu = document.getElementById('elementsMenu');
+        const exportMenu = document.getElementById('exportMenu');
+        const undoBtn = document.getElementById('undoBtn');
+        const redoBtn = document.getElementById('redoBtn');
+        
+        let width = wrapper.clientWidth;
+        let height = wrapper.clientHeight;
+
+        let layers = [];
+        let activeLayerId = null;
+
+        let isDrawing = false;
+        let currentTool = 'brush';
+        let currentColor = '#7c3aed';
+        let brushSize = 5;
+        let brushOpacity = 1.0;
+        let lastX = 0;
+        let lastY = 0;
+
+        addNewLayer('Camada 1 (Fundo)', true);
+
+        window.addEventListener('resize', () => {
+            const newWidth = wrapper.clientWidth;
+            const newHeight = wrapper.clientHeight;
+            if (newWidth !== width || newHeight !== height) {
+                layers.forEach(layer => {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = width;
+                    tempCanvas.height = height;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(layer.canvas, 0, 0);
+
+                    layer.canvas.width = newWidth;
+                    layer.canvas.height = newHeight;
+                    layer.ctx.fillStyle = '#ffffff';
+                    layer.ctx.fillRect(0, 0, newWidth, newHeight);
+                    layer.ctx.drawImage(tempCanvas, 0, 0);
+                    layer.ctx.lineCap = 'round';
+                    layer.ctx.lineJoin = 'round';
+                });
+                width = newWidth;
+                height = newHeight;
+                layers.forEach(layer => saveLayerState(layer));
+            }
+        });
+
+        function toggleMobileLayers() {
+            panelsSidebar.classList.toggle('open');
+            elementsMenu.classList.remove('open');
+            exportMenu.classList.remove('open');
+        }
+
+        function toggleElementsMenu() {
+            elementsMenu.classList.toggle('open');
+            panelsSidebar.classList.remove('open');
+            exportMenu.classList.remove('open');
+        }
+
+        function toggleExportMenu() {
+            exportMenu.classList.toggle('open');
+            panelsSidebar.classList.remove('open');
+            elementsMenu.classList.remove('open');
+        }
+
+        function saveLayerState(layer) {
+            if (!layer.history) {
+                layer.history = [];
+                layer.historyIndex = -1;
+            }
+            layer.history = layer.history.slice(0, layer.historyIndex + 1);
+            
+            const snapshot = layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height);
+            layer.history.push(snapshot);
+            layer.historyIndex++;
+            updateHistoryButtons();
+        }
+
+        function updateHistoryButtons() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer || !layer.history) {
+                undoBtn.disabled = true;
+                redoBtn.disabled = true;
+                return;
+            }
+            undoBtn.disabled = layer.historyIndex <= 0;
+            redoBtn.disabled = layer.historyIndex >= layer.history.length - 1;
+        }
+
+        function undoAction() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer || !layer.history || layer.historyIndex <= 0) return;
+            layer.historyIndex--;
+            layer.ctx.putImageData(layer.history[layer.historyIndex], 0, 0);
+            updateHistoryButtons();
+        }
+
+        function redoAction() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer || !layer.history || layer.historyIndex >= layer.history.length - 1) return;
+            layer.historyIndex++;
+            layer.ctx.putImageData(layer.history[layer.historyIndex], 0, 0);
+            updateHistoryButtons();
+        }
+
+        function addNewLayer(name = null, isBackground = false) {
+            const id = 'layer_' + Date.now();
+            const layerName = name || `Camada ${layers.length + 1}`;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = wrapper.clientWidth;
+            canvas.height = wrapper.clientHeight;
+            canvas.id = id;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            wrapper.appendChild(canvas);
+
+            const newLayerObj = {
+                id: id,
+                name: layerName,
+                canvas: canvas,
+                ctx: ctx,
+                visible: true,
+                history: [],
+                historyIndex: -1
+            };
+
+            layers.push(newLayerObj);
+            saveLayerState(newLayerObj);
+
+            setActiveLayer(id);
+            updateLayersUI();
+        }
+
+        function setActiveLayer(id) {
+            activeLayerId = id;
+            layers.forEach((layer, index) => {
+                layer.canvas.style.zIndex = index;
+                if (layer.id === id) {
+                    layer.canvas.style.pointerEvents = layer.visible ? 'auto' : 'none';
+                } else {
+                    layer.canvas.style.pointerEvents = 'none';
+                }
+            });
+            updateLayersUI();
+            updateHistoryButtons();
+        }
+
+        function toggleLayerVisibility(id, e) {
+            e.stopPropagation();
+            const layer = layers.find(l => l.id === id);
+            if (layer) {
+                layer.visible = !layer.visible;
+                layer.canvas.style.display = layer.visible ? 'block' : 'none';
+                updateLayersUI();
+            }
+        }
+
+        function removeLayer(id, e) {
+            e.stopPropagation();
+            if (layers.length <= 1) {
+                alert('Você precisa ter pelo menos uma camada!');
+                return;
+            }
+            const index = layers.findIndex(l => l.id === id);
+            if (index !== -1) {
+                layers[index].canvas.remove();
+                layers.splice(index, 1);
+                setActiveLayer(layers[layers.length - 1].id);
+            }
+        }
+
+        function updateLayersUI() {
+            layersListEl.innerHTML = '';
+            [...layers].reverse().forEach(layer => {
+                const item = document.createElement('div');
+                item.className = `layer-item ${layer.id === activeLayerId ? 'active' : ''}`;
+                item.onclick = () => setActiveLayer(layer.id);
+
+                item.innerHTML = `
+                    <span>${layer.name}</span>
+                    <div class="layer-actions">
+                        <button class="layer-btn" onclick="toggleLayerVisibility('${layer.id}', event)">${layer.visible ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>'}</button>
+                        <button class="layer-btn" onclick="removeLayer('${layer.id}', event)"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `;
+                layersListEl.appendChild(item);
+            });
+        }
+
+        function getActiveContext() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            return layer ? layer.ctx : null;
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.sidebar .tool-btn:not(.mobile-layers-btn)').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        }
+
+        function updateColor(color) {
+            currentColor = color;
+        }
+
+        function updateSize(size) {
+            brushSize = size;
+            document.getElementById('sizeVal').innerText = size + 'px';
+        }
+
+        function updateOpacity(opacity) {
+            brushOpacity = opacity / 100;
+        }
+
+        function clearCanvas() {
+            if (confirm('Deseja limpar o conteúdo da camada ativa?')) {
+                const layer = layers.find(l => l.id === activeLayerId);
+                if (layer) {
+                    layer.ctx.fillStyle = '#ffffff';
+                    layer.ctx.fillRect(0, 0, wrapper.clientWidth, wrapper.clientHeight);
+                    saveLayerState(layer);
+                }
+            }
+        }
+
+        function addShape(shape) {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer) return;
+            const ctx = layer.ctx;
+
+            const w = wrapper.clientWidth;
+            const h = wrapper.clientHeight;
+            const cx = w / 2;
+            const cy = h / 2;
+            const size = Math.min(w, h) * 0.25;
+
+            ctx.fillStyle = currentColor;
+            ctx.strokeStyle = currentColor;
+            ctx.lineWidth = brushSize;
+            ctx.globalAlpha = brushOpacity;
+            ctx.globalCompositeOperation = 'source-over';
+
+            if (shape === 'circle') {
+                ctx.beginPath();
+                ctx.arc(cx, cy, size, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (shape === 'square') {
+                ctx.fillRect(cx - size, cy - size, size * 2, size * 2);
+            } else if (shape === 'triangle') {
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - size);
+                ctx.lineTo(cx + size, cy + size);
+                ctx.lineTo(cx - size, cy + size);
+                ctx.closePath();
+                ctx.fill();
+            } else if (shape === 'star') {
+                ctx.beginPath();
+                let spikes = 5;
+                let outerRadius = size;
+                let innerRadius = size / 2;
+                let rot = Math.PI / 2 * 3;
+                let x = cx;
+                let y = cy;
+                let step = Math.PI / spikes;
+
+                ctx.moveTo(cx, cy - outerRadius);
+                for (let i = 0; i < spikes; i++) {
+                    x = cx + Math.cos(rot) * outerRadius;
+                    y = cy + Math.sin(rot) * outerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
+
+                    x = cx + Math.cos(rot) * innerRadius;
+                    y = cy + Math.sin(rot) * innerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
+                }
+                ctx.lineTo(cx, cy - outerRadius);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            saveLayerState(layer);
+            elementsMenu.classList.remove('open');
+        }
+
+        function loadBackgroundImageFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                applyImageToActiveLayer(event.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function loadBackgroundImageUrl() {
+            const url = document.getElementById('imageUrlInput').value.trim();
+            if (!url) {
+                alert('Insira uma URL válida!');
+                return;
+            }
+            applyImageToActiveLayer(url);
+        }
+
+        function applyImageToActiveLayer(src) {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer) return;
+            const ctx = layer.ctx;
+
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                const w = wrapper.clientWidth;
+                const h = wrapper.clientHeight;
+                
+                ctx.globalAlpha = 1.0;
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.drawImage(img, 0, 0, w, h);
+                saveLayerState(layer);
+                elementsMenu.classList.remove('open');
+            };
+            img.onerror = function() {
+                alert('Não foi possível carregar a imagem. Verifique a URL ou arquivo.');
+            };
+            img.src = src;
+        }
+
+        function executeDownload() {
+            const format = document.getElementById('exportFormat').value;
+            const scale = parseInt(document.getElementById('exportResolution').value);
+
+            const baseW = wrapper.clientWidth;
+            const baseH = wrapper.clientHeight;
+
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = baseW * scale;
+            exportCanvas.height = baseH * scale;
+            const exportCtx = exportCanvas.getContext('2d');
+
+            exportCtx.fillStyle = '#ffffff';
+            exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+            layers.forEach(layer => {
+                if (layer.visible) {
+                    exportCtx.drawImage(layer.canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+                }
+            });
+
+            let extension = 'png';
+            if (format === 'image/jpeg') extension = 'jpg';
+            if (format === 'image/webp') extension = 'webp';
+
+            const link = document.createElement('a');
+            link.download = `sketchpad-arte.${extension}`;
+            link.href = exportCanvas.toDataURL(format, 0.95);
+            link.click();
+
+            exportMenu.classList.remove('open');
+        }
+
+        function shareCanvas() {
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = wrapper.clientWidth;
+            exportCanvas.height = wrapper.clientHeight;
+            const exportCtx = exportCanvas.getContext('2d');
+
+            exportCtx.fillStyle = '#ffffff';
+            exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+            layers.forEach(layer => {
+                if (layer.visible) {
+                    exportCtx.drawImage(layer.canvas, 0, 0);
+                }
+            });
+
+            exportCanvas.toBlob(async (blob) => {
+                const file = new File([blob], 'desenho.png', { type: 'image/png' });
+                const shareData = {
+                    title: 'Minha Arte',
+                    text: 'veja o meu desenho feito no LoreSpace.com.br',
+                    files: [file]
+                };
+
+                if (navigator.canShare && navigator.canShare(shareData)) {
+                    try {
+                        await navigator.share(shareData);
+                    } catch (error) {
+                        console.log('Compartilhamento cancelado ou falhou', error);
+                    }
+                } else {
+                    alert('Seu navegador não suporta compartilhamento direto de arquivos. Use o botão Baixar.');
+                }
+            }, 'image/png');
+        }
+
+        const wrapperEl = document.getElementById('canvasWrapper');
+
+        wrapperEl.addEventListener('mousedown', startDrawing);
+        wrapperEl.addEventListener('mousemove', draw);
+        wrapperEl.addEventListener('mouseup', stopDrawing);
+        wrapperEl.addEventListener('mouseout', stopDrawing);
+
+        wrapperEl.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            const rect = wrapperEl.getBoundingClientRect();
+            startDrawing({ offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top });
+            e.preventDefault();
+        }, { passive: false });
+
+        wrapperEl.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            const rect = wrapperEl.getBoundingClientRect();
+            draw({ offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top });
+            e.preventDefault();
+        }, { passive: false });
+
+        wrapperEl.addEventListener('touchend', (e) => {
+            stopDrawing();
+        });
+
+        function startDrawing(e) {
+            isDrawing = true;
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer) return;
+            const ctx = layer.ctx;
+
+            ctx.globalAlpha = brushOpacity;
+            ctx.lineWidth = brushSize;
+
+            if (currentTool === 'eraser') {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = '#ffffff';
+                ctx.fillStyle = '#ffffff';
+                ctx.globalAlpha = 1.0;
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = currentColor;
+            }
+
+            if (currentTool === 'airbrush') {
+                ctx.fillStyle = (currentTool === 'eraser') ? '#ffffff' : currentColor;
+                for (let i = 0; i < 10; i++) {
+                    const offsetX = (Math.random() - 0.5) * brushSize * 1.5;
+                    const offsetY = (Math.random() - 0.5) * brushSize * 1.5;
+                    ctx.beginPath();
+                    ctx.arc(e.offsetX + offsetX, e.offsetY + offsetY, brushSize / 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                [lastX, lastY] = [e.offsetX, e.offsetY];
+                return;
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+            ctx.closePath();
+
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+        }
+
+        function stopDrawing() {
+            if (isDrawing) {
+                isDrawing = false;
+                const layer = layers.find(l => l.id === activeLayerId);
+                if (layer) {
+                    saveLayerState(layer);
+                }
+            }
+        }
+    </script>
+</body>
+  </html>
