@@ -267,6 +267,23 @@
           <div class="flex flex-row gap-4 overflow-x-auto pb-2 custom-scroll snap-x" id="plansContainer"></div>
         </div>
 
+        <div id="customDaysWrapper" class="hidden bg-white/80 border border-violet-200 rounded-2xl p-4 animate-fade-in">
+          <label for="customDaysInput" class="block text-sm font-semibold text-gray-800 mb-2">
+            Quantos dias de anúncio você deseja?
+          </label>
+          <div class="flex items-center gap-3">
+            <input type="number"
+                   id="customDaysInput"
+                   min="1"
+                   max="365"
+                   value="20"
+                   class="w-32 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-800
+                          focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 outline-none transition-all duration-200 font-semibold"
+                   oninput="updateCustomDays(this.value)">
+            <span class="text-sm font-medium text-gray-600">dias (R$ 1,50 por dia)</span>
+          </div>
+        </div>
+
         <div>
           <h3 class="text-sm font-semibold text-gray-700 mb-3">Boost e Pagamento</h3>
           <div class="flex flex-row gap-4 overflow-x-auto pb-2 custom-scroll" id="boostContainer"></div>
@@ -320,16 +337,16 @@
     // ===================== STATE =====================
     const state = {
       selectedFile: null,
-      selectedPlan: 1,
+      selectedPlan: 0, // 0 = 15 dias, 1 = 1 mês, 2 = personalizado
+      customDaysValue: 20,
       boostActive: false,
       paymentDone: false,
     };
 
     const plans = [
-      { name: "Básico", price: 7, days: 3, durationLabel: "3 dias", popular: false, icon: "fa-layer-group" },
-      { name: "Padrão", price: 14, days: 6, durationLabel: "6 dias", popular: true, icon: "fa-star" },
-      { name: "Premium", price: 21, days: 9, durationLabel: "9 dias", popular: false, icon: "fa-crown" },
-      { name: "Máximo", price: 28, days: 14, durationLabel: "2 semanas", popular: false, icon: "fa-gem" }
+      { name: "Quinzenal", price: 20, days: 15, durationLabel: "15 dias", popular: false, icon: "fa-calendar-days" },
+      { name: "Mensal", price: 35, days: 30, durationLabel: "1 mês", popular: true, icon: "fa-calendar-check" },
+      { name: "Personalizado", price: 30, days: 20, durationLabel: "Personalizado", popular: false, icon: "fa-sliders" }
     ];
 
     const BOOST_RATE = 0.15;
@@ -353,6 +370,8 @@
       priceDisplay: $('#priceDisplay'),
       priceBreakdown: $('#priceBreakdown'),
       plansContainer: $('#plansContainer'),
+      customDaysWrapper: $('#customDaysWrapper'),
+      customDaysInput: $('#customDaysInput'),
       boostContainer: $('#boostContainer'),
       confirmBtn: $('#confirmBtn'),
       toastContainer: $('#toastContainer'),
@@ -468,16 +487,40 @@
 
     els.finalUrl.addEventListener('input', validateForm);
 
+    function getCurrentPlanPrice() {
+      if (state.selectedPlan === 2) {
+        // Preço dinâmico para personalizado (ex: R$ 1,50 por dia)
+        return state.customDaysValue * 1.50;
+      }
+      return plans[state.selectedPlan].price;
+    }
+
     function calculateTotal() {
       if (state.selectedPlan === null) return 0;
-      let total = plans[state.selectedPlan].price;
+      let total = getCurrentPlanPrice();
       if (state.boostActive) total += total * BOOST_RATE;
       return Math.round(total * 100) / 100;
+    }
+
+    function updateCustomDays(val) {
+      const parsed = parseInt(val);
+      state.customDaysValue = isNaN(parsed) || parsed < 1 ? 1 : parsed;
+      state.paymentDone = false;
+      els.pixQrContainer.classList.add('hidden');
+      renderPlans();
     }
 
     function renderPlans() {
       els.plansContainer.innerHTML = plans.map((plan, index) => {
         const isSelected = state.selectedPlan === index;
+        let displayPrice = plan.price;
+        let displayLabel = plan.durationLabel;
+
+        if (index === 2) {
+          displayPrice = state.customDaysValue * 1.50;
+          displayLabel = `${state.customDaysValue} dias`;
+        }
+
         return `
           <div role="button" tabindex="0" onclick="selectPlan(${index})"
                class="plan-card cursor-pointer p-5 rounded-2xl border-2 min-w-[200px] sm:min-w-[220px] flex-shrink-0 snap-start
@@ -488,16 +531,23 @@
               <span class="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center text-sm"><i class="fa-solid ${plan.icon}"></i></span>
               <h3 class="font-bold text-lg text-gray-900">${plan.name}</h3>
             </div>
-            <p class="text-3xl font-extrabold text-violet-600 my-3 tracking-tight">${formatCurrency(plan.price)}</p>
+            <p class="text-3xl font-extrabold text-violet-600 my-3 tracking-tight">${formatCurrency(displayPrice)}</p>
             <div class="mt-2 pt-3 border-t border-gray-100">
               <p class="text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Tempo da Campanha</p>
               <div class="inline-flex items-center gap-2 bg-violet-50 text-violet-700 text-sm font-semibold px-3 py-2 rounded-xl">
-                <i class="fa-regular fa-clock text-xs"></i> ${plan.durationLabel}
+                <i class="fa-regular fa-clock text-xs"></i> ${displayLabel}
               </div>
             </div>
           </div>
         `;
       }).join('');
+
+      // Mostra ou esconde o input customizado
+      if (state.selectedPlan === 2) {
+        els.customDaysWrapper.classList.remove('hidden');
+      } else {
+        els.customDaysWrapper.classList.add('hidden');
+      }
 
       const boostSelected = state.boostActive;
       const paid = state.paymentDone;
@@ -527,9 +577,17 @@
       `;
 
       els.priceDisplay.textContent = formatCurrency(calculateTotal());
+      
       const plan = plans[state.selectedPlan];
-      let breakdown = `Plano ${plan?.name || ''} · ${plan?.durationLabel || ''}: ${formatCurrency(plan?.price || 0)}`;
-      if (state.boostActive) breakdown += ` + Boost 15% (${formatCurrency((plan?.price || 0) * BOOST_RATE)})`;
+      let durationStr = plan.durationLabel;
+      let baseVal = plan.price;
+      if (state.selectedPlan === 2) {
+        durationStr = `${state.customDaysValue} dias`;
+        baseVal = getCurrentPlanPrice();
+      }
+
+      let breakdown = `Plano ${plan.name} · ${durationStr}: ${formatCurrency(baseVal)}`;
+      if (state.boostActive) breakdown += ` + Boost 15% (${formatCurrency(baseVal * BOOST_RATE)})`;
       els.priceBreakdown.textContent = breakdown;
 
       const canConfirm = state.selectedPlan !== null && state.paymentDone;
@@ -636,6 +694,7 @@
     window.simulateSuccessfulPayment = simulateSuccessfulPayment;
     window.closeModal = closeModal;
     window.confirmPlan = confirmPlan;
+    window.updateCustomDays = updateCustomDays;
 
     validateForm();
   </script>
