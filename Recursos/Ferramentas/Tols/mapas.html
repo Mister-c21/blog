@@ -9,6 +9,8 @@
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
           crossorigin=""/>
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
         * {
             margin: 0;
@@ -45,6 +47,10 @@
             max-width: 400px;
         }
 
+        .search-container i {
+            color: #6f42c1;
+        }
+
         .search-container input {
             border: none;
             background: transparent;
@@ -58,6 +64,170 @@
         #map {
             flex: 1;
             width: 100%;
+            position: relative;
+        }
+
+        /* FAB / Tab Bar / Sidebar Container */
+        .fab-container {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+        }
+
+        .fab-button {
+            width: 56px;
+            height: 56px;
+            background-color: rgba(111, 66, 193, 0.6);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        .fab-button:hover {
+            background-color: rgba(111, 66, 193, 0.9);
+            transform: scale(1.05);
+        }
+
+        .fab-container.active .fab-button {
+            background-color: #6f42c1;
+        }
+
+        /* Menu Padrão (Mobile: transforma-se em Tab Bar flutuante quando ativo) */
+        .fab-menu {
+            position: absolute;
+            bottom: 70px;
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: none;
+            flex-direction: column;
+            width: 200px;
+        }
+
+        .fab-container.active .fab-menu {
+            display: flex;
+        }
+
+        .fab-menu a {
+            padding: 12px 16px;
+            color: #333;
+            text-decoration: none;
+            font-size: 14px;
+            border-bottom: 1px solid #f1f1f1;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .fab-menu a:last-child {
+            border-bottom: none;
+        }
+
+        .fab-menu a:hover {
+            background-color: #f1f3f4;
+        }
+
+        /* Responsividade para Desktop: Transforma em Sidebar Fixa */
+        @media (min-width: 768px) {
+            .fab-container {
+                position: absolute;
+                top: 70px; /* Logo abaixo do header */
+                right: 20px;
+                bottom: auto;
+                width: 240px;
+            }
+
+            .fab-button {
+                display: none; /* Esconde o botão flutuante no desktop */
+            }
+
+            .fab-menu {
+                position: static;
+                display: flex !important; /* Sempre visível como sidebar */
+                width: 100%;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            }
+        }
+
+        /* Modal de Seleção de Motor de Busca */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 350px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 16px;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .search-engine-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .engine-btn {
+            padding: 10px;
+            border: 1px solid #ddd;
+            background: #f8f9fa;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+        }
+
+        .engine-btn:hover {
+            background: #f3eefa;
+            border-color: #6f42c1;
+            color: #6f42c1;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -65,27 +235,67 @@
 
     <header>
         <div class="search-container">
-            <span>📍</span>
+            <i class="fa-solid fa-location-dot"></i>
             <input type="text" placeholder="Pesquisar no OpenStreetMap..." id="searchInput">
         </div>
     </header>
 
-    <div id="map"></div>
+    <div id="map">
+        <div class="fab-container" id="fabContainer">
+            <div class="fab-menu" id="fabMenu">
+                <a href="#" id="webSearchTrigger"><i class="fa-solid fa-globe"></i> Ver na Web (Pesquisa)</a>
+                <a href="#" target="_blank" id="mapsLink"><i class="fa-solid fa-map"></i> Ver no Google Maps</a>
+            </div>
+            <button class="fab-button" id="fabBtn" title="Menu">
+                <i class="fa-solid fa-ellipsis-vertical" id="fabIcon"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="searchModal">
+        <div class="modal-content">
+            <h3>Escolha o motor de busca:</h3>
+            <div class="search-engine-options">
+                <button class="engine-btn" onclick="openWebSearch('google')">Google</button>
+                <button class="engine-btn" onclick="openWebSearch('bing')">Bing</button>
+                <button class="engine-btn" onclick="openWebSearch('duckduckgo')">DuckDuckGo</button>
+            </div>
+            <button class="modal-close" id="closeModal">Cancelar</button>
+        </div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
             crossorigin=""></script>
 
     <script>
-        // 1. Inicialização do mapa (Latitude, Longitude e Nível de Zoom inicial)
-        // Exemplo centrado na cidade de São Paulo (-23.5505, -46.6333)
-        const map = L.map('map').setView([-23.5505, -46.6333], 13);
+        // 1. Inicialização do mapa usando a geolocalização do usuário (com fallback para São Paulo)
+        const defaultLat = -23.5505;
+        const defaultLng = -46.6333;
+        
+        const map = L.map('map').setView([defaultLat, defaultLng], 13);
 
         // 2. Adição da camada de tiles gratuita mantida pela comunidade OpenStreetMap
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
+
+        // Tenta obter a localização atual do usuário
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                const userLat = position.coords.latitude;
+                const userLng = position.coords.longitude;
+                
+                // Centraliza o mapa na localização do usuário e adiciona marcador
+                map.setView([userLat, userLng], 14);
+                
+                const userMarker = L.marker([userLat, userLng]).addTo(map);
+                userMarker.bindPopup("<b>Você está aqui</b>").openPopup();
+            }, function(error) {
+                console.warn("Geolocalização negada ou indisponível. Usando localização padrão.", error);
+            });
+        }
 
         // 3. Adicionando marcadores de exemplo (pins)
         const markerSP = L.marker([-23.5505, -46.6333]).addTo(map);
@@ -94,9 +304,136 @@
         const markerAvenida = L.marker([-23.5618, -46.6565]).addTo(map);
         markerAvenida.bindPopup("<b>Avenida Paulista</b><br>Um dos principais cartões-postais da cidade.");
 
+        // Função para atualizar dinamicamente os links com base na posição atual do mapa
+        function updateMenuLinks() {
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+            
+            // Atualiza link do Google Maps com a coordenada e zoom exatos
+            const gmapsUrl = `https://www.google.com/maps/@${center.lat},${center.lng},${zoom}z`;
+            const mapsLinkEl = document.getElementById('mapsLink');
+            mapsLinkEl.href = gmapsUrl;
+            // Garante que abra em outra aba
+            mapsLinkEl.setAttribute('target', '_blank');
+        }
+
+        // Atualiza os links sempre que o mapa for movimentado ou o zoom alterado
+        map.on('moveend', updateMenuLinks);
+        map.on('zoomend', updateMenuLinks);
+        
+        // Chamada inicial para garantir os links corretos ao carregar
+        updateMenuLinks();
+
+        // Controle do botão FAB para abrir/fechar o menu no mobile
+        const fabContainer = document.getElementById('fabContainer');
+        const fabBtn = document.getElementById('fabBtn');
+        const fabIcon = document.getElementById('fabIcon');
+        const searchModal = document.getElementById('searchModal');
+        const webSearchTrigger = document.getElementById('webSearchTrigger');
+        const closeModal = document.getElementById('closeModal');
+
+        fabBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            fabContainer.classList.toggle('active');
+            
+            if (fabContainer.classList.contains('active')) {
+                fabIcon.className = "fa-solid fa-xmark";
+            } else {
+                fabIcon.className = "fa-solid fa-ellipsis-vertical";
+            }
+        });
+
+        // Abrir modal de pesquisa ao clicar em "Ver na Web"
+        webSearchTrigger.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (window.innerWidth < 768) {
+                fabContainer.classList.remove('active');
+                fabIcon.className = "fa-solid fa-ellipsis-vertical";
+            }
+            searchModal.classList.add('active');
+        });
+
+        // Fechar modal
+        closeModal.addEventListener('click', function() {
+            searchModal.classList.remove('active');
+        });
+
+        // Fechar modal ao clicar fora dele
+        searchModal.addEventListener('click', function(e) {
+            if (e.target === searchModal) {
+                searchModal.classList.remove('active');
+            }
+        });
+
+        // Função para abrir o motor de busca escolhido em outra aba usando o termo pesquisado ou as coordenadas atuais
+        function openWebSearch(engine) {
+            const queryInput = document.getElementById('searchInput').value.trim();
+            const center = map.getCenter();
+            
+            const searchTerm = queryInput !== "" ? queryInput : `Latitude ${center.lat.toFixed(4)}, Longitude ${center.lng.toFixed(4)}`;
+            
+            let searchUrl = '';
+            if (engine === 'google') {
+                searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchTerm)}`;
+            } else if (engine === 'bing') {
+                searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(searchTerm)}`;
+            } else if (engine === 'duckduckgo') {
+                searchUrl = `https://duckduckgo.com/?q=${encodeURIComponent(searchTerm)}`;
+            }
+
+            searchModal.classList.remove('active');
+            window.open(searchUrl, '_blank');
+        }
+
+        // Fecha o menu flutuante no mobile ao clicar em outro lugar
+        document.addEventListener('click', function(e) {
+            if (window.innerWidth < 768 && !fabContainer.contains(e.target)) {
+                fabContainer.classList.remove('active');
+                fabIcon.className = "fa-solid fa-ellipsis-vertical";
+            }
+        });
+
         // 4. Exemplo de evento de clique no mapa (mostra coordenadas no console)
         map.on('click', function(e) {
             console.log("Você clicou nas coordenadas: " + e.latlng.lat + ", " + e.latlng.lng);
+        });
+
+        // 5. Funcionalidade de Pesquisa usando Nominatim (OpenStreetMap)
+        const searchInput = document.getElementById('searchInput');
+        let searchMarker = null;
+
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const query = searchInput.value.trim();
+                if (!query) return;
+
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && data.length > 0) {
+                            const result = data[0];
+                            const lat = parseFloat(result.lat);
+                            const lon = parseFloat(result.lon);
+
+                            map.setView([lat, lon], 15);
+
+                            if (searchMarker) {
+                                map.removeLayer(searchMarker);
+                            }
+
+                            searchMarker = L.marker([lat, lon]).addTo(map);
+                            searchMarker.bindPopup(`<b>${result.display_name}</b>`).openPopup();
+                        } else {
+                            alert('Local não encontrado.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro na busca:', error);
+                        alert('Ocorreu um erro ao realizar a busca.');
+                    });
+            }
         });
     </script>
 </body>
