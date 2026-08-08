@@ -3,212 +3,716 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora Funcional</title>
+    <title>Calculadora Pro • Multi-Modo</title>
     <style>
+        :root {
+            --primary: #7c3aed;
+            --primary-dark: #6d28d9;
+            --primary-light: #a78bfa;
+            --bg: #f5f3ff;
+            --card: #ffffff;
+            --text: #1e1b4b;
+            --text-secondary: #6b7280;
+            --border: #e9d5ff;
+            --btn: #ffffff;
+            --btn-hover: #f5f3ff;
+            --shadow: 0 20px 40px -10px rgba(124, 58, 237, 0.18);
+            --radius: 18px;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0f0a1f;
+            --card: #1a1330;
+            --text: #f5f3ff;
+            --text-secondary: #a5b4fc;
+            --border: #3b2d6b;
+            --btn: #2a1f4d;
+            --btn-hover: #35285e;
+            --shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         body {
-            background-color: #f3f0f7;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            padding: 20px;
+            transition: background 0.3s ease;
         }
 
         .calculator {
-            background-color: #ffffff;
-            width: 320px;
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(128, 0, 128, 0.15);
+            background: var(--card);
+            width: 100%;
+            max-width: 380px;
+            padding: 22px;
+            border-radius: 28px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.3px;
+        }
+
+        .theme-toggle {
+            background: var(--btn);
+            border: 1px solid var(--border);
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.15rem;
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background: var(--btn-hover);
+            transform: scale(1.05);
+        }
+
+        .mode-selector select {
+            width: 100%;
+            padding: 11px 14px;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            background: var(--btn);
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+            margin-bottom: 14px;
+        }
+
+        .mode-selector select:focus {
+            border-color: var(--primary);
+        }
+
+        .mode-panel {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 14px;
+            animation: fadeIn 0.25s ease;
+        }
+
+        .mode-panel.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .mode-panel label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 3px;
+            display: block;
+        }
+
+        .mode-panel input,
+        .mode-panel select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--btn);
+            color: var(--text);
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        .mode-panel input:focus,
+        .mode-panel select:focus {
+            border-color: var(--primary);
+        }
+
+        .api-status {
+            font-size: 0.72rem;
+            color: var(--primary);
+            text-align: center;
+            font-weight: 500;
+            background: rgba(124, 58, 237, 0.08);
+            padding: 6px 10px;
+            border-radius: 8px;
         }
 
         .display {
-            background-color: #ffffff;
-            border: 2px solid #e6d5f5;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 20px;
+            background: linear-gradient(145deg, rgba(124, 58, 237, 0.06), transparent);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
             text-align: right;
-            min-height: 80px;
+            min-height: 92px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
         }
 
         .previous-operand {
-            color: #b0a8b9;
+            color: var(--text-secondary);
             font-size: 0.9rem;
-            min-height: 20px;
+            min-height: 22px;
             word-break: break-all;
+            opacity: 0.85;
         }
 
         .current-operand {
-            color: #2d2d2d;
-            font-size: 1.8rem;
-            font-weight: 600;
+            color: var(--text);
+            font-size: 2.1rem;
+            font-weight: 700;
             word-break: break-all;
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+        }
+
+        .memory-bar {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .memory-bar button {
+            flex: 1;
+            padding: 8px 0;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 8px;
+            background: var(--btn);
+            border: 1px solid var(--border);
+            color: var(--primary);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .memory-bar button:hover {
+            background: var(--btn-hover);
         }
 
         .buttons-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
+            gap: 9px;
         }
 
         button {
-            background-color: #ffffff;
-            border: 1px solid #e6d5f5;
-            border-radius: 10px;
-            padding: 15px;
-            font-size: 1.1rem;
-            font-weight: 500;
-            color: #333333;
+            background: var(--btn);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px 0;
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--text);
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
+            user-select: none;
         }
 
         button:hover {
-            background-color: #f9f5fd;
-            border-color: #8a2be2;
+            background: var(--btn-hover);
+            border-color: var(--primary-light);
         }
 
         button:active {
-            transform: scale(0.96);
+            transform: scale(0.94);
+        }
+
+        button:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
         }
 
         .btn-violet {
-            background-color: #8a2be2;
-            color: #ffffff;
-            border-color: #8a2be2;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
         }
 
         .btn-violet:hover {
-            background-color: #7b22d0;
-            border-color: #7b22d0;
+            background: linear-gradient(135deg, var(--primary-dark), #5b21b6);
+            transform: translateY(-1px);
         }
 
-        .btn-light-violet {
-            color: #8a2be2;
-            background-color: #f4ecfc;
-            border-color: #e6d5f5;
+        .btn-light {
+            color: var(--primary);
+            background: rgba(124, 58, 237, 0.1);
+            border-color: transparent;
         }
 
-        .btn-light-violet:hover {
-            background-color: #ebdff9;
+        .btn-light:hover {
+            background: rgba(124, 58, 237, 0.18);
         }
 
         .span-2 {
             grid-column: span 2;
         }
+
+        .history-panel {
+            margin-top: 16px;
+            max-height: 120px;
+            overflow-y: auto;
+            border-top: 1px solid var(--border);
+            padding-top: 12px;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .history-item {
+            font-size: 0.85rem;
+            padding: 5px 0;
+            color: var(--text-secondary);
+            border-bottom: 1px dashed var(--border);
+            cursor: pointer;
+        }
+
+        .history-item:hover {
+            color: var(--primary);
+        }
+
+        .clear-history {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-weight: 600;
+            padding: 0;
+        }
+
+        .refresh-btn {
+            font-size: 0.75rem;
+            margin-top: 4px;
+            padding: 6px;
+            width: 100%;
+            border-radius: 8px;
+            background: rgba(124, 58, 237, 0.1);
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        @media (max-width: 400px) {
+            .calculator {
+                padding: 16px;
+            }
+            .current-operand {
+                font-size: 1.8rem;
+            }
+            button {
+                padding: 14px 0;
+                font-size: 1.05rem;
+            }
+        }
     </style>
 </head>
 <body>
-
     <div class="calculator">
-        <div class="display">
+        <div class="header">
+            <div class="title">Calculadora Pro</div>
+            <button class="theme-toggle" id="theme-toggle" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
+        </div>
+
+        <div class="mode-selector">
+            <select id="calculator-mode" aria-label="Modo da calculadora">
+                <option value="standard">Padrão</option>
+                <option value="scientific">Científica</option>
+                <option value="interest">Juros</option>
+                <option value="precision">Precisão</option>
+                <option value="currency">Moeda</option>
+                <option value="crypto">Cripto</option>
+            </select>
+        </div>
+
+        <!-- Painéis -->
+        <div id="panel-interest" class="mode-panel">
+            <div>
+                <label>Capital Inicial (C)</label>
+                <input type="number" id="int-capital" placeholder="Ex: 1000" step="any">
+            </div>
+            <div>
+                <label>Taxa de Juros (% por período)</label>
+                <input type="number" id="int-rate" placeholder="Ex: 1.5" step="any">
+            </div>
+            <div>
+                <label>Tempo (períodos)</label>
+                <input type="number" id="int-time" placeholder="Ex: 12" step="any">
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button class="btn-violet" style="flex:1" onclick="calculateInterest(false)">Simples</button>
+                <button class="btn-violet" style="flex:1" onclick="calculateInterest(true)">Composto</button>
+            </div>
+        </div>
+
+        <div id="panel-precision" class="mode-panel">
+            <div>
+                <label>Casas Decimais</label>
+                <select id="precision-decimals">
+                    <option value="0">0 casas</option>
+                    <option value="1">1 casa</option>
+                    <option value="2" selected>2 casas</option>
+                    <option value="4">4 casas</option>
+                    <option value="6">6 casas</option>
+                    <option value="8">8 casas</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="panel-currency" class="mode-panel">
+            <div class="api-status" id="currency-status">Carregando cotações...</div>
+            <div>
+                <label>Converter</label>
+                <select id="currency-type">
+                    <option value="brl_usd">BRL → USD</option>
+                    <option value="usd_brl">USD → BRL</option>
+                    <option value="brl_eur">BRL → EUR</option>
+                    <option value="eur_brl">EUR → BRL</option>
+                </select>
+            </div>
+            <button class="btn-violet" onclick="convertCurrency()">Converter</button>
+            <button class="refresh-btn" onclick="fetchLiveRates()">↻ Atualizar cotações</button>
+        </div>
+
+        <div id="panel-crypto" class="mode-panel">
+            <div class="api-status" id="crypto-status">Carregando cotações...</div>
+            <div>
+                <label>Converter</label>
+                <select id="crypto-type">
+                    <option value="btc_brl">BTC → BRL</option>
+                    <option value="brl_btc">BRL → BTC</option>
+                    <option value="eth_brl">ETH → BRL</option>
+                    <option value="brl_eth">BRL → ETH</option>
+                </select>
+            </div>
+            <button class="btn-violet" onclick="convertCrypto()">Converter</button>
+            <button class="refresh-btn" onclick="fetchLiveRates()">↻ Atualizar cotações</button>
+        </div>
+
+        <div class="display" aria-live="polite">
             <div class="previous-operand" id="previous-operand"></div>
             <div class="current-operand" id="current-operand">0</div>
         </div>
-        <div class="buttons-grid">
-            <button class="btn-light-violet" onclick="clearCalculator()">C</button>
-            <button class="btn-light-violet" onclick="deleteDigit()">DEL</button>
-            <button class="btn-light-violet" onclick="appendOperation('%')">%</button>
-            <button class="btn-violet" onclick="appendOperation('/')">÷</button>
 
-            <button onclick="appendNumber('7')">7</button>
-            <button onclick="appendNumber('8')">8</button>
-            <button onclick="appendNumber('9')">9</button>
-            <button class="btn-violet" onclick="appendOperation('*')">×</button>
+        <div class="memory-bar">
+            <button onclick="memoryClear()" title="Limpar memória">MC</button>
+            <button onclick="memoryRecall()" title="Recuperar memória">MR</button>
+            <button onclick="memoryAdd()" title="Somar à memória">M+</button>
+            <button onclick="memorySub()" title="Subtrair da memória">M-</button>
+        </div>
 
-            <button onclick="appendNumber('4')">4</button>
-            <button onclick="appendNumber('5')">5</button>
-            <button onclick="appendNumber('6')">6</button>
-            <button class="btn-violet" onclick="appendOperation('-')">-</button>
+        <div class="buttons-grid" id="buttons-grid" role="grid"></div>
 
-            <button onclick="appendNumber('1')">1</button>
-            <button onclick="appendNumber('2')">2</button>
-            <button onclick="appendNumber('3')">3</button>
-            <button class="btn-violet" onclick="appendOperation('+')">+</button>
-
-            <button onclick="appendNumber('0')" class="span-2">0</button>
-            <button onclick="appendNumber('.')">.</button>
-            <button class="btn-violet" onclick="compute()">=</button>
+        <div class="history-panel" id="history-panel">
+            <div class="history-header">
+                <span>Histórico</span>
+                <button class="clear-history" onclick="clearHistory()">Limpar</button>
+            </div>
+            <div id="history-list"></div>
         </div>
     </div>
 
     <script>
-        const previousOperandElement = document.getElementById('previous-operand');
-        const currentOperandElement = document.getElementById('current-operand');
-
+        // ==================== ESTADO ====================
         let currentOperand = '0';
         let previousOperand = '';
         let operation = undefined;
+        let shouldResetScreen = false;
+        let memory = 0;
+        let history = [];
 
-        function updateDisplay() {
-            currentOperandElement.innerText = currentOperand;
-            if (operation != null) {
-                previousOperandElement.innerText = `${previousOperand} ${operation}`;
-            } else {
-                previousOperandElement.innerText = '';
+        const previousOperandElement = document.getElementById('previous-operand');
+        const currentOperandElement = document.getElementById('current-operand');
+        const buttonsGrid = document.getElementById('buttons-grid');
+        const modeSelect = document.getElementById('calculator-mode');
+        const historyList = document.getElementById('history-list');
+
+        let exchangeRates = { usd: 5.00, eur: 5.50 };
+        let cryptoRates = { btc: 350000, eth: 18000 };
+
+        // ==================== TEMA ====================
+        const themeToggle = document.getElementById('theme-toggle');
+        const savedTheme = localStorage.getItem('calc-theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+        themeToggle.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('calc-theme', next);
+            themeToggle.textContent = next === 'dark' ? '☀️' : '🌙';
+        });
+
+        // ==================== BOTÕES ====================
+        const buttonLayouts = {
+            standard: [
+                { text: 'C', class: 'btn-light', action: 'clear' },
+                { text: '⌫', class: 'btn-light', action: 'delete' },
+                { text: '%', class: 'btn-light', action: 'percent' },
+                { text: '÷', class: 'btn-violet', action: 'op', value: '/' },
+                { text: '7', action: 'num', value: '7' },
+                { text: '8', action: 'num', value: '8' },
+                { text: '9', action: 'num', value: '9' },
+                { text: '×', class: 'btn-violet', action: 'op', value: '*' },
+                { text: '4', action: 'num', value: '4' },
+                { text: '5', action: 'num', value: '5' },
+                { text: '6', action: 'num', value: '6' },
+                { text: '−', class: 'btn-violet', action: 'op', value: '-' },
+                { text: '1', action: 'num', value: '1' },
+                { text: '2', action: 'num', value: '2' },
+                { text: '3', action: 'num', value: '3' },
+                { text: '+', class: 'btn-violet', action: 'op', value: '+' },
+                { text: '±', class: 'btn-light', action: 'negate' },
+                { text: '0', action: 'num', value: '0' },
+                { text: '.', action: 'num', value: '.' },
+                { text: '=', class: 'btn-violet', action: 'equals' }
+            ],
+            scientific: [
+                { text: 'C', class: 'btn-light', action: 'clear' },
+                { text: '⌫', class: 'btn-light', action: 'delete' },
+                { text: 'π', class: 'btn-light', action: 'const', value: Math.PI },
+                { text: 'e', class: 'btn-light', action: 'const', value: Math.E },
+                { text: 'sin', class: 'btn-light', action: 'func', value: 'sin' },
+                { text: 'cos', class: 'btn-light', action: 'func', value: 'cos' },
+                { text: 'tan', class: 'btn-light', action: 'func', value: 'tan' },
+                { text: '÷', class: 'btn-violet', action: 'op', value: '/' },
+                { text: 'log', class: 'btn-light', action: 'func', value: 'log' },
+                { text: 'ln', class: 'btn-light', action: 'func', value: 'ln' },
+                { text: 'xʸ', class: 'btn-light', action: 'op', value: '^' },
+                { text: '×', class: 'btn-violet', action: 'op', value: '*' },
+                { text: '√', class: 'btn-light', action: 'func', value: 'sqrt' },
+                { text: 'x²', class: 'btn-light', action: 'func', value: 'sqr' },
+                { text: '1/x', class: 'btn-light', action: 'func', value: 'inv' },
+                { text: '−', class: 'btn-violet', action: 'op', value: '-' },
+                { text: '7', action: 'num', value: '7' },
+                { text: '8', action: 'num', value: '8' },
+                { text: '9', action: 'num', value: '9' },
+                { text: '+', class: 'btn-violet', action: 'op', value: '+' },
+                { text: '4', action: 'num', value: '4' },
+                { text: '5', action: 'num', value: '5' },
+                { text: '6', action: 'num', value: '6' },
+                { text: '=', class: 'btn-violet', action: 'equals' },
+                { text: '1', action: 'num', value: '1' },
+                { text: '2', action: 'num', value: '2' },
+                { text: '3', action: 'num', value: '3' },
+                { text: '0', action: 'num', value: '0' },
+                { text: '.', action: 'num', value: '.' },
+                { text: '±', class: 'btn-light', action: 'negate' }
+            ],
+            interest: [
+                { text: 'C', class: 'btn-light span-2', action: 'clear' },
+                { text: '⌫', class: 'btn-light span-2', action: 'delete' }
+            ],
+            precision: [
+                { text: 'C', class: 'btn-light', action: 'clear' },
+                { text: '⌫', class: 'btn-light', action: 'delete' },
+                { text: '%', class: 'btn-light', action: 'percent' },
+                { text: '÷', class: 'btn-violet', action: 'op', value: '/' },
+                { text: '7', action: 'num', value: '7' },
+                { text: '8', action: 'num', value: '8' },
+                { text: '9', action: 'num', value: '9' },
+                { text: '×', class: 'btn-violet', action: 'op', value: '*' },
+                { text: '4', action: 'num', value: '4' },
+                { text: '5', action: 'num', value: '5' },
+                { text: '6', action: 'num', value: '6' },
+                { text: '−', class: 'btn-violet', action: 'op', value: '-' },
+                { text: '1', action: 'num', value: '1' },
+                { text: '2', action: 'num', value: '2' },
+                { text: '3', action: 'num', value: '3' },
+                { text: '+', class: 'btn-violet', action: 'op', value: '+' },
+                { text: '±', class: 'btn-light', action: 'negate' },
+                { text: '0', action: 'num', value: '0' },
+                { text: '.', action: 'num', value: '.' },
+                { text: '=', class: 'btn-violet', action: 'equals' }
+            ],
+            currency: [
+                { text: 'C', class: 'btn-light', action: 'clear' },
+                { text: '⌫', class: 'btn-light', action: 'delete' },
+                { text: '7', action: 'num', value: '7' },
+                { text: '8', action: 'num', value: '8' },
+                { text: '9', action: 'num', value: '9' },
+                { text: '4', action: 'num', value: '4' },
+                { text: '5', action: 'num', value: '5' },
+                { text: '6', action: 'num', value: '6' },
+                { text: '1', action: 'num', value: '1' },
+                { text: '2', action: 'num', value: '2' },
+                { text: '3', action: 'num', value: '3' },
+                { text: '0', action: 'num', value: '0' },
+                { text: '.', action: 'num', value: '.' },
+                { text: '00', class: 'btn-light', action: 'num', value: '00' }
+            ],
+            crypto: [
+                { text: 'C', class: 'btn-light', action: 'clear' },
+                { text: '⌫', class: 'btn-light', action: 'delete' },
+                { text: '7', action: 'num', value: '7' },
+                { text: '8', action: 'num', value: '8' },
+                { text: '9', action: 'num', value: '9' },
+                { text: '4', action: 'num', value: '4' },
+                { text: '5', action: 'num', value: '5' },
+                { text: '6', action: 'num', value: '6' },
+                { text: '1', action: 'num', value: '1' },
+                { text: '2', action: 'num', value: '2' },
+                { text: '3', action: 'num', value: '3' },
+                { text: '0', action: 'num', value: '0' },
+                { text: '.', action: 'num', value: '.' },
+                { text: '00', class: 'btn-light', action: 'num', value: '00' }
+            ]
+        };
+
+        function renderButtons(mode) {
+            buttonsGrid.innerHTML = '';
+            const layout = buttonLayouts[mode] || buttonLayouts.standard;
+
+            layout.forEach(btn => {
+                const el = document.createElement('button');
+                el.textContent = btn.text;
+                if (btn.class) el.className = btn.class;
+                el.setAttribute('aria-label', btn.text);
+
+                el.addEventListener('click', () => handleButton(btn));
+                buttonsGrid.appendChild(el);
+            });
+        }
+
+        function handleButton(btn) {
+            switch (btn.action) {
+                case 'num': appendNumber(btn.value); break;
+                case 'op': appendOperation(btn.value); break;
+                case 'equals': compute(); break;
+                case 'clear': clearCalculator(); break;
+                case 'delete': deleteDigit(); break;
+                case 'percent': percent(); break;
+                case 'negate': negate(); break;
+                case 'func': applyFunction(btn.value); break;
+                case 'const': appendConstant(btn.value); break;
             }
         }
 
+        // ==================== LÓGICA PRINCIPAL ====================
+        function updateDisplay() {
+            let displayVal = currentOperand;
+
+            if (modeSelect.value === 'precision' && !isNaN(parseFloat(currentOperand)) && currentOperand !== '') {
+                const decimals = parseInt(document.getElementById('precision-decimals').value);
+                displayVal = parseFloat(currentOperand).toFixed(decimals);
+            }
+
+            // Formatação legível
+            if (!isNaN(displayVal) && displayVal !== '' && !displayVal.includes('e')) {
+                const num = parseFloat(displayVal);
+                if (Math.abs(num) >= 1e9 || (Math.abs(num) < 1e-6 && num !== 0)) {
+                    displayVal = num.toExponential(6);
+                }
+            }
+
+            currentOperandElement.textContent = displayVal;
+            previousOperandElement.textContent = operation != null ? `${formatNumber(previousOperand)} ${getOpSymbol(operation)}` : '';
+        }
+
+        function formatNumber(n) {
+            if (isNaN(n)) return n;
+            return parseFloat(n).toLocaleString('pt-BR', { maximumFractionDigits: 10 });
+        }
+
+        function getOpSymbol(op) {
+            return { '/': '÷', '*': '×', '-': '−', '+': '+', '^': '^', '%': '%' }[op] || op;
+        }
+
         function appendNumber(number) {
-            if (number === '.' && currentOperand.includes('.')) return;
-            if (currentOperand === '0' && number !== '.') {
-                currentOperand = number;
+            if (shouldResetScreen) {
+                currentOperand = number === '.' ? '0.' : number;
+                shouldResetScreen = false;
             } else {
-                currentOperand += number;
+                if (number === '.' && currentOperand.includes('.')) return;
+                if (currentOperand === '0' && number !== '.') {
+                    currentOperand = number;
+                } else {
+                    currentOperand += number;
+                }
             }
             updateDisplay();
         }
 
         function appendOperation(op) {
             if (currentOperand === '') return;
-            if (previousOperand !== '') {
-                compute();
-            }
+            if (previousOperand !== '') compute(false);
             operation = op;
             previousOperand = currentOperand;
-            currentOperand = '';
+            shouldResetScreen = true;
             updateDisplay();
         }
 
-        function compute() {
-            let computation;
+        function compute(addToHistory = true) {
             const prev = parseFloat(previousOperand);
             const current = parseFloat(currentOperand);
             if (isNaN(prev) || isNaN(current)) return;
 
+            let result;
             switch (operation) {
-                case '+':
-                    computation = prev + current;
+                case '+': result = prev + current; break;
+                case '-': result = prev - current; break;
+                case '*': result = prev * current; break;
+                case '/': 
+                    if (current === 0) {
+                        currentOperand = 'Erro ÷0';
+                        operation = undefined;
+                        previousOperand = '';
+                        updateDisplay();
+                        return;
+                    }
+                    result = prev / current; 
                     break;
-                case '-':
-                    computation = prev - current;
-                    break;
-                case '*':
-                    computation = prev * current;
-                    break;
-                case '/':
-                    computation = prev / current;
-                    break;
-                case '%':
-                    computation = (prev / 100) * current;
-                    break;
-                default:
-                    return;
+                case '^': result = Math.pow(prev, current); break;
+                case '%': result = (prev / 100) * current; break;
+                default: return;
             }
 
-            currentOperand = computation.toString();
+            if (addToHistory) {
+                addToHistory(`${formatNumber(prev)} ${getOpSymbol(operation)} ${formatNumber(current)} = ${formatNumber(result)}`);
+            }
+
+            currentOperand = result.toString();
             operation = undefined;
             previousOperand = '';
+            shouldResetScreen = true;
             updateDisplay();
         }
 
@@ -216,18 +720,238 @@
             currentOperand = '0';
             previousOperand = '';
             operation = undefined;
+            shouldResetScreen = false;
             updateDisplay();
         }
 
         function deleteDigit() {
-            if (currentOperand === '0') return;
-            if (currentOperand.length === 1) {
+            if (shouldResetScreen) return;
+            if (currentOperand.length === 1 || (currentOperand.length === 2 && currentOperand.startsWith('-'))) {
                 currentOperand = '0';
             } else {
                 currentOperand = currentOperand.slice(0, -1);
             }
             updateDisplay();
         }
+
+        function percent() {
+            const val = parseFloat(currentOperand);
+            if (isNaN(val)) return;
+            currentOperand = (val / 100).toString();
+            updateDisplay();
+        }
+
+        function negate() {
+            if (currentOperand === '0') return;
+            currentOperand = currentOperand.startsWith('-') 
+                ? currentOperand.slice(1) 
+                : '-' + currentOperand;
+            updateDisplay();
+        }
+
+        function applyFunction(func) {
+            const val = parseFloat(currentOperand);
+            if (isNaN(val)) return;
+
+            let result;
+            switch (func) {
+                case 'sin': result = Math.sin(val * Math.PI / 180); break;
+                case 'cos': result = Math.cos(val * Math.PI / 180); break;
+                case 'tan': result = Math.tan(val * Math.PI / 180); break;
+                case 'log': result = Math.log10(val); break;
+                case 'ln':  result = Math.log(val); break;
+                case 'sqrt': result = Math.sqrt(val); break;
+                case 'sqr': result = val * val; break;
+                case 'inv': 
+                    if (val === 0) { currentOperand = 'Erro'; updateDisplay(); return; }
+                    result = 1 / val; 
+                    break;
+            }
+
+            if (isNaN(result) || !isFinite(result)) {
+                currentOperand = 'Erro';
+            } else {
+                addToHistory(`${func}(${formatNumber(val)}) = ${formatNumber(result)}`);
+                currentOperand = result.toString();
+            }
+            shouldResetScreen = true;
+            updateDisplay();
+        }
+
+        function appendConstant(value) {
+            currentOperand = value.toString();
+            shouldResetScreen = true;
+            updateDisplay();
+        }
+
+        // ==================== MEMÓRIA ====================
+        function memoryClear() { memory = 0; }
+        function memoryRecall() { 
+            currentOperand = memory.toString(); 
+            shouldResetScreen = true;
+            updateDisplay(); 
+        }
+        function memoryAdd() { 
+            const val = parseFloat(currentOperand);
+            if (!isNaN(val)) memory += val; 
+        }
+        function memorySub() { 
+            const val = parseFloat(currentOperand);
+            if (!isNaN(val)) memory -= val; 
+        }
+
+        // ==================== HISTÓRICO ====================
+        function addToHistory(entry) {
+            history.unshift(entry);
+            if (history.length > 20) history.pop();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            historyList.innerHTML = history.map(h => 
+                `<div class="history-item" onclick="useHistory('${h.split('=')[1]?.trim() || ''}')">${h}</div>`
+            ).join('');
+        }
+
+        function useHistory(val) {
+            if (!val || val === 'undefined') return;
+            currentOperand = val.replace(/\./g, '').replace(',', '.');
+            shouldResetScreen = true;
+            updateDisplay();
+        }
+
+        function clearHistory() {
+            history = [];
+            renderHistory();
+        }
+
+        // ==================== MODOS ESPECIAIS ====================
+        function changeMode() {
+            const mode = modeSelect.value;
+            document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+
+            if (mode === 'interest') document.getElementById('panel-interest').classList.add('active');
+            else if (mode === 'precision') document.getElementById('panel-precision').classList.add('active');
+            else if (mode === 'currency') document.getElementById('panel-currency').classList.add('active');
+            else if (mode === 'crypto') document.getElementById('panel-crypto').classList.add('active');
+
+            renderButtons(mode);
+            clearCalculator();
+        }
+
+        modeSelect.addEventListener('change', changeMode);
+        document.getElementById('precision-decimals')?.addEventListener('change', updateDisplay);
+
+        function calculateInterest(compound = false) {
+            const capital = parseFloat(document.getElementById('int-capital').value);
+            const rate = parseFloat(document.getElementById('int-rate').value);
+            const time = parseFloat(document.getElementById('int-time').value);
+
+            if (isNaN(capital) || isNaN(rate) || isNaN(time)) {
+                currentOperand = 'Erro';
+            } else {
+                let montante;
+                if (compound) {
+                    montante = capital * Math.pow(1 + rate / 100, time);
+                } else {
+                    montante = capital * (1 + (rate / 100) * time);
+                }
+                currentOperand = montante.toFixed(2);
+                addToHistory(`${compound ? 'JC' : 'JS'}: ${formatNumber(capital)} → ${formatNumber(montante)}`);
+            }
+            updateDisplay();
+        }
+
+        function convertCurrency() {
+            const val = parseFloat(currentOperand);
+            const type = document.getElementById('currency-type').value;
+            if (isNaN(val)) {
+                currentOperand = 'Erro';
+                updateDisplay();
+                return;
+            }
+
+            let result = 0;
+            if (type === 'brl_usd') result = val / exchangeRates.usd;
+            else if (type === 'usd_brl') result = val * exchangeRates.usd;
+            else if (type === 'brl_eur') result = val / exchangeRates.eur;
+            else if (type === 'eur_brl') result = val * exchangeRates.eur;
+
+            currentOperand = result.toFixed(4);
+            addToHistory(`Moeda: ${formatNumber(val)} → ${formatNumber(result)}`);
+            updateDisplay();
+        }
+
+        function convertCrypto() {
+            const val = parseFloat(currentOperand);
+            const type = document.getElementById('crypto-type').value;
+            if (isNaN(val)) {
+                currentOperand = 'Erro';
+                updateDisplay();
+                return;
+            }
+
+            let result = 0;
+            if (type === 'btc_brl') result = val * cryptoRates.btc;
+            else if (type === 'brl_btc') result = val / cryptoRates.btc;
+            else if (type === 'eth_brl') result = val * cryptoRates.eth;
+            else if (type === 'brl_eth') result = val / cryptoRates.eth;
+
+            currentOperand = result.toFixed(8);
+            addToHistory(`Cripto: ${formatNumber(val)} → ${formatNumber(result)}`);
+            updateDisplay();
+        }
+
+        // ==================== API ====================
+        async function fetchLiveRates() {
+            document.getElementById('currency-status').textContent = 'Atualizando...';
+            document.getElementById('crypto-status').textContent = 'Atualizando...';
+
+            try {
+                const res = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL');
+                const data = await res.json();
+                if (data.USDBRL && data.EURBRL) {
+                    exchangeRates.usd = parseFloat(data.USDBRL.bid);
+                    exchangeRates.eur = parseFloat(data.EURBRL.bid);
+                    document.getElementById('currency-status').textContent = 
+                        `USD R$ ${exchangeRates.usd.toFixed(2)} | EUR R$ ${exchangeRates.eur.toFixed(2)}`;
+                }
+            } catch {
+                document.getElementById('currency-status').textContent = 'Offline • valores padrão';
+            }
+
+            try {
+                const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=brl');
+                const data = await res.json();
+                if (data.bitcoin && data.ethereum) {
+                    cryptoRates.btc = data.bitcoin.brl;
+                    cryptoRates.eth = data.ethereum.brl;
+                    document.getElementById('crypto-status').textContent = 
+                        `BTC R$ ${cryptoRates.btc.toLocaleString('pt-BR')} | ETH R$ ${cryptoRates.eth.toLocaleString('pt-BR')}`;
+                }
+            } catch {
+                document.getElementById('crypto-status').textContent = 'Offline • valores padrão';
+            }
+        }
+
+        // ==================== TECLADO ====================
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            if (e.key >= '0' && e.key <= '9' || e.key === '.') appendNumber(e.key);
+            if (e.key === '+' || e.key === '-') appendOperation(e.key);
+            if (e.key === '*') appendOperation('*');
+            if (e.key === '/') { e.preventDefault(); appendOperation('/'); }
+            if (e.key === 'Enter' || e.key === '=') { e.preventDefault(); compute(); }
+            if (e.key === 'Backspace') deleteDigit();
+            if (e.key === 'Escape') clearCalculator();
+            if (e.key === '%') percent();
+        });
+
+        // ==================== INICIALIZAÇÃO ====================
+        renderButtons('standard');
+        fetchLiveRates();
+        updateDisplay();
     </script>
 </body>
 </html>
