@@ -132,6 +132,8 @@
             box-sizing: border-box;
             transition: bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1);
             margin-bottom: 20px;
+            max-height: 80vh;
+            overflow-y: auto;
         }
         .engine-drawer-menu.active {
             bottom: 0;
@@ -164,6 +166,21 @@
             padding: 10px 5px; 
             color: var(--primary-color); 
             outline: none; 
+        }
+
+        .clear-search-btn {
+            color: var(--primary-color);
+            margin-left: 6px;
+            font-size: 0.9rem;
+            padding: 6px;
+            flex-shrink: 0;
+            cursor: pointer;
+            display: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .clear-search-btn:hover {
+            opacity: 0.8;
+            transform: scale(1.1);
         }
 
         .wiki-btn {
@@ -295,6 +312,103 @@
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); backdrop-filter: blur(5px); z-index: 2000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
         .modal { width: 100%; max-width: 350px; background: white; padding: 25px; border-radius: 25px; border: 1px solid var(--glass-border); text-align: center; color: var(--primary-color); box-shadow: 0 10px 30px rgba(0,0,0,0.2); box-sizing: border-box; }
         
+        /* Modal de buscador personalizado (simplificado) */
+        .custom-engine-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(6px);
+            z-index: 30000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .custom-engine-modal.active {
+            display: flex;
+        }
+        .custom-engine-box {
+            width: 100%;
+            max-width: 380px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+            border: 1px solid var(--glass-border);
+            box-sizing: border-box;
+        }
+        .custom-engine-box h3 {
+            margin: 0 0 8px 0;
+            color: var(--primary-color);
+            font-size: 1.25rem;
+            text-align: center;
+        }
+        .custom-engine-box p {
+            margin: 0 0 18px 0;
+            font-size: 0.85rem;
+            color: #666;
+            text-align: center;
+            line-height: 1.4;
+        }
+        .custom-engine-input {
+            width: 100%;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            outline: none;
+            box-sizing: border-box;
+            color: #333;
+            transition: border-color 0.2s;
+        }
+        .custom-engine-input:focus {
+            border-color: var(--primary-color);
+        }
+        .custom-hint {
+            font-size: 0.78rem;
+            color: #888;
+            margin-bottom: 16px;
+            text-align: left;
+        }
+        .custom-engine-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .custom-engine-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 14px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .custom-engine-btn:active {
+            transform: scale(0.97);
+        }
+        .custom-engine-btn.primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        .custom-engine-btn.secondary {
+            background: #f0f0f0;
+            color: #555;
+        }
+        .custom-engine-btn.danger {
+            background: #ffebee;
+            color: #c62828;
+            margin-top: 10px;
+            width: 100%;
+        }
+
         .tabbar { 
             position: fixed; 
             bottom: 20px; 
@@ -610,6 +724,8 @@
             </button>
             <input type="text" id="main-search" placeholder="Pergunte ao LoreSpace..." class="search-input" onkeypress="handleSearch(event)">
             
+            <i id="clear-search-btn" class="fas fa-xmark clear-search-btn" title="Limpar busca" onclick="clearSearchInput()"></i>
+
             <a href="./pages/More/Wiki/Index.html" class="wiki-btn" title="Ir para a Wiki">
                 <i class="fa-brands fa-wikipedia-w"></i>
             </a>
@@ -652,6 +768,32 @@
         <div class="engine-menu-option" data-value="imagem" onclick="selectEngine('imagem', 'Imagem')">Imagem <i class="fas fa-check" style="display:none;"></i></div>
         <div class="engine-menu-option" data-value="noticias" onclick="selectEngine('noticias', 'Notícias')">Notícias <i class="fas fa-check" style="display:none;"></i></div>
         <div class="engine-menu-option" data-value="comunidade" onclick="selectEngine('comunidade', 'Comunidade')">Comunidade <i class="fas fa-check" style="display:none;"></i></div>
+        
+        <!-- Opção Personalizado -->
+        <div class="engine-menu-option" data-value="custom" id="custom-engine-option" onclick="handleCustomEngineClick()">
+            <span id="custom-engine-label">Personalizado</span>
+            <i class="fas fa-check" style="display:none;"></i>
+        </div>
+    </div>
+
+    <!-- Modal simplificado: pede apenas a URL padrão -->
+    <div id="custom-engine-modal" class="custom-engine-modal">
+        <div class="custom-engine-box">
+            <h3 id="custom-modal-title">Buscador Personalizado</h3>
+            <p>Digite apenas a URL padrão do buscador<br>(ex: bing.com, duckduckgo.com)</p>
+            
+            <input type="text" id="custom-engine-url" class="custom-engine-input" placeholder="Ex: bing.com">
+            <div class="custom-hint">O sistema monta a URL de busca automaticamente.</div>
+            
+            <div class="custom-engine-actions">
+                <button class="custom-engine-btn secondary" onclick="closeCustomEngineModal()">Cancelar</button>
+                <button class="custom-engine-btn primary" onclick="saveCustomEngine()">Salvar</button>
+            </div>
+            
+            <button id="delete-custom-btn" class="custom-engine-btn danger" style="display:none;" onclick="deleteCustomEngine()">
+                <i class="fas fa-trash-alt"></i> Excluir este buscador
+            </button>
+        </div>
     </div>
 
     <div id="recursos-modal" class="recursos-slide-modal">
@@ -755,8 +897,8 @@
         });
 
         let activeSearchEngine = 'lorespace';
+        let customEngine = null; // { name: string, urlTemplate: string }
 
-        // Mensagens próprias para cada motor de busca
         const enginePlaceholders = {
             'lorespace': 'Pergunte ao LoreSpace',
             'web': 'Pesquise na Web (Google)...',
@@ -764,8 +906,100 @@
             'video': 'Procure vídeos no YouTube...',
             'imagem': 'Busque imagens e referências...',
             'noticias': 'Pesquise as últimas notícias...',
-            'comunidade': 'Pergunte à comunidade...'
+            'comunidade': 'Pergunte à comunidade...',
+            'custom': 'Buscar no motor personalizado...'
         };
+
+        // ===== Engenharias de URL conhecidas =====
+        const knownSearchPatterns = {
+            'google.com': 'https://www.google.com/search?q=%s',
+            'www.google.com': 'https://www.google.com/search?q=%s',
+            'bing.com': 'https://www.bing.com/search?q=%s',
+            'www.bing.com': 'https://www.bing.com/search?q=%s',
+            'duckduckgo.com': 'https://duckduckgo.com/?q=%s',
+            'www.duckduckgo.com': 'https://duckduckgo.com/?q=%s',
+            'yahoo.com': 'https://search.yahoo.com/search?p=%s',
+            'www.yahoo.com': 'https://search.yahoo.com/search?p=%s',
+            'search.yahoo.com': 'https://search.yahoo.com/search?p=%s',
+            'ecosia.org': 'https://www.ecosia.org/search?q=%s',
+            'www.ecosia.org': 'https://www.ecosia.org/search?q=%s',
+            'startpage.com': 'https://www.startpage.com/sp/search?query=%s',
+            'www.startpage.com': 'https://www.startpage.com/sp/search?query=%s',
+            'yandex.com': 'https://yandex.com/search/?text=%s',
+            'www.yandex.com': 'https://yandex.com/search/?text=%s',
+            'brave.com': 'https://search.brave.com/search?q=%s',
+            'search.brave.com': 'https://search.brave.com/search?q=%s',
+            'qwant.com': 'https://www.qwant.com/?q=%s',
+            'www.qwant.com': 'https://www.qwant.com/?q=%s',
+            'baidu.com': 'https://www.baidu.com/s?wd=%s',
+            'www.baidu.com': 'https://www.baidu.com/s?wd=%s'
+        };
+
+        function buildSearchUrl(input) {
+            // Limpa a entrada do usuário
+            let domain = input.trim().toLowerCase()
+                .replace(/^https?:\/\//, '')
+                .replace(/^www\./, '')
+                .replace(/\/.*$/, '')
+                .trim();
+
+            if (!domain) return null;
+
+            // Tenta padrões conhecidos
+            const fullDomain = domain;
+            const withWww = 'www.' + domain;
+
+            if (knownSearchPatterns[fullDomain]) {
+                return knownSearchPatterns[fullDomain];
+            }
+            if (knownSearchPatterns[withWww]) {
+                return knownSearchPatterns[withWww];
+            }
+            if (knownSearchPatterns[domain]) {
+                return knownSearchPatterns[domain];
+            }
+
+            // Padrão genérico para a maioria dos buscadores
+            return `https://www.${domain}/search?q=%s`;
+        }
+
+        function extractNameFromDomain(input) {
+            let domain = input.trim().toLowerCase()
+                .replace(/^https?:\/\//, '')
+                .replace(/^www\./, '')
+                .replace(/\/.*$/, '')
+                .trim();
+
+            // Capitaliza a primeira letra
+            if (!domain) return 'Personalizado';
+            return domain.charAt(0).toUpperCase() + domain.slice(1).split('.')[0];
+        }
+
+        // ===== Carregar buscador personalizado =====
+        function loadCustomEngine() {
+            try {
+                const saved = localStorage.getItem('lorespace_custom_engine');
+                if (saved) {
+                    customEngine = JSON.parse(saved);
+                    updateCustomEngineUI();
+                }
+            } catch (e) {
+                customEngine = null;
+            }
+        }
+
+        function updateCustomEngineUI() {
+            const label = document.getElementById('custom-engine-label');
+            const deleteBtn = document.getElementById('delete-custom-btn');
+            
+            if (customEngine && customEngine.name) {
+                label.innerText = customEngine.name;
+                if (deleteBtn) deleteBtn.style.display = 'block';
+            } else {
+                label.innerText = 'Personalizado';
+                if (deleteBtn) deleteBtn.style.display = 'none';
+            }
+        }
 
         function openEngineMenu() {
             document.getElementById('engine-menu-overlay').classList.add('active');
@@ -780,11 +1014,13 @@
         function selectEngine(value, label) {
             activeSearchEngine = value;
             document.getElementById('current-engine-text').innerText = label;
+            
             document.querySelectorAll('.engine-menu-option').forEach(option => {
                 option.classList.remove('selected');
                 const checkIcon = option.querySelector('.fa-check');
                 if (checkIcon) checkIcon.style.display = 'none';
             });
+            
             const selectedOption = document.querySelector(`.engine-menu-option[data-value="${value}"]`);
             if (selectedOption) {
                 selectedOption.classList.add('selected');
@@ -792,9 +1028,112 @@
                 if (checkIcon) checkIcon.style.display = 'block';
             }
             
-            // Define a mensagem personalizada do motor selecionado (ou "Pergunte ao LoreSpace" se for lorespace)
             document.getElementById('main-search').placeholder = enginePlaceholders[value] || `Buscar no ${label}...`;
             closeEngineMenu();
+        }
+
+        // ===== Lógica do buscador personalizado =====
+        function handleCustomEngineClick() {
+            if (customEngine && customEngine.name && customEngine.urlTemplate) {
+                selectEngine('custom', customEngine.name);
+                closeEngineMenu();
+            } else {
+                openCustomEngineModal();
+            }
+        }
+
+        function openCustomEngineModal() {
+            closeEngineMenu();
+            
+            const modal = document.getElementById('custom-engine-modal');
+            const title = document.getElementById('custom-modal-title');
+            const urlInput = document.getElementById('custom-engine-url');
+            const deleteBtn = document.getElementById('delete-custom-btn');
+            
+            if (customEngine && customEngine.originalInput) {
+                title.innerText = 'Editar Buscador';
+                urlInput.value = customEngine.originalInput;
+                deleteBtn.style.display = 'block';
+            } else {
+                title.innerText = 'Novo Buscador Personalizado';
+                urlInput.value = '';
+                deleteBtn.style.display = 'none';
+            }
+            
+            modal.classList.add('active');
+            setTimeout(() => urlInput.focus(), 100);
+        }
+
+        function closeCustomEngineModal() {
+            document.getElementById('custom-engine-modal').classList.remove('active');
+        }
+
+        function saveCustomEngine() {
+            const input = document.getElementById('custom-engine-url').value.trim();
+            
+            if (!input) {
+                alert('Por favor, informe a URL do buscador (ex: bing.com)');
+                return;
+            }
+            
+            const urlTemplate = buildSearchUrl(input);
+            if (!urlTemplate) {
+                alert('URL inválida. Tente novamente (ex: bing.com)');
+                return;
+            }
+            
+            const name = extractNameFromDomain(input);
+            
+            customEngine = {
+                name: name,
+                urlTemplate: urlTemplate,
+                originalInput: input
+            };
+            
+            localStorage.setItem('lorespace_custom_engine', JSON.stringify(customEngine));
+            
+            updateCustomEngineUI();
+            selectEngine('custom', name);
+            closeCustomEngineModal();
+        }
+
+        function deleteCustomEngine() {
+            if (!confirm('Tem certeza que deseja excluir este buscador personalizado?')) return;
+            
+            customEngine = null;
+            localStorage.removeItem('lorespace_custom_engine');
+            
+            updateCustomEngineUI();
+            
+            if (activeSearchEngine === 'custom') {
+                selectEngine('lorespace', 'LoreSpace');
+            }
+            
+            closeCustomEngineModal();
+        }
+
+        // Clique com botão direito abre o modal de edição
+        document.getElementById('custom-engine-option').addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            openCustomEngineModal();
+        });
+
+        // Lógica de controle do botão de limpar busca
+        const searchInput = document.getElementById('main-search');
+        const clearBtn = document.getElementById('clear-search-btn');
+
+        searchInput.addEventListener('input', function() {
+            if (this.value.trim().length > 0) {
+                clearBtn.style.display = 'flex';
+            } else {
+                clearBtn.style.display = 'none';
+            }
+        });
+
+        function clearSearchInput() {
+            searchInput.value = '';
+            clearBtn.style.display = 'none';
+            searchInput.focus();
         }
 
         function expandTabbar(event) {
@@ -836,13 +1175,42 @@
             const encodedTerm = encodeURIComponent(term);
 
             switch(engine) {
-                case 'web': url = `https://www.google.com/search?q=${encodedTerm}`; window.open(url, '_blank'); break;
-                case 'music': url = `https://music.youtube.com/search?q=${encodedTerm}`; window.open(url, '_blank'); break;
-                case 'video': url = `https://www.youtube.com/results?search_query=${encodedTerm}`; window.open(url, '_blank'); break;
-                case 'imagem': url = `https://br.pinterest.com/search/pins/?q=${encodedTerm}`; window.open(url, '_blank'); break;
-                case 'noticias': url = `https://www.google.com/search?q=${encodedTerm}&tbm=nws`; window.open(url, '_blank'); break;
-                case 'comunidade': url = `https://www.reddit.com/search/?q=${encodedTerm}`; window.open(url, '_blank'); break;
-                default: openDetail(term); break;
+                case 'web': 
+                    url = `https://www.google.com/search?q=${encodedTerm}`; 
+                    window.open(url, '_blank'); 
+                    break;
+                case 'music': 
+                    url = `https://music.youtube.com/search?q=${encodedTerm}`; 
+                    window.open(url, '_blank'); 
+                    break;
+                case 'video': 
+                    url = `https://www.youtube.com/results?search_query=${encodedTerm}`; 
+                    window.open(url, '_blank'); 
+                    break;
+                case 'imagem': 
+                    url = `https://br.pinterest.com/search/pins/?q=${encodedTerm}`; 
+                    window.open(url, '_blank'); 
+                    break;
+                case 'noticias': 
+                    url = `https://www.google.com/search?q=${encodedTerm}&tbm=nws`; 
+                    window.open(url, '_blank'); 
+                    break;
+                case 'comunidade': 
+                    url = `https://www.reddit.com/search/?q=${encodedTerm}`; 
+                    window.open(url, '_blank'); 
+                    break;
+                case 'custom':
+                    if (customEngine && customEngine.urlTemplate) {
+                        url = customEngine.urlTemplate.replace('%s', encodedTerm);
+                        window.open(url, '_blank');
+                    } else {
+                        alert('Nenhum buscador personalizado configurado.');
+                        openCustomEngineModal();
+                    }
+                    break;
+                default: 
+                    openDetail(term); 
+                    break;
             }
         }
 
@@ -1065,6 +1433,9 @@
             }
             touchStartY = 0; touchMoveY = 0;
         });
+
+        // Inicializa
+        loadCustomEngine();
     </script>
 </body>
 </html>
