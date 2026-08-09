@@ -510,7 +510,6 @@
             flex-shrink: 0;
         }
 
-        /* Botão hambúrguer (só mobile) */
         .ai-hamburger-btn {
             display: none;
             background: #f1f3f4;
@@ -604,7 +603,6 @@
             color: var(--primary-color);
         }
 
-        /* Overlay para fechar a sidebar no mobile */
         .ai-sidebar-overlay {
             display: none;
             position: absolute;
@@ -619,7 +617,6 @@
             display: block;
         }
 
-        /* ===== MOBILE: Sidebar vira menu flutuante ===== */
         @media (max-width: 768px) {
             .ai-sidebar {
                 position: absolute;
@@ -647,7 +644,6 @@
                 width: 260px;
             }
         }
-        /* ==================== FIM DO CHAT ==================== */
 
         .spotify-card { display: flex; align-items: center; padding: 10px; border-radius: 12px; transition: background 0.3s; margin-bottom: 8px; cursor: pointer; box-sizing: border-box; max-width: 100%; overflow: hidden; }
         .spotify-card:hover { background: rgba(138, 43, 226, 0.05); }
@@ -1731,7 +1727,7 @@
             } catch (e) { content.innerHTML = "Erro na busca."; }
         }
 
-        // ==================== CHAT DE IA + SIDEBAR (Qwen2.5-0.5B via WebLLM) ====================
+        // ==================== CHAT DE IA OTIMIZADO (Qwen2.5-0.5B via WebLLM) ====================
         let isAiResponding = false;
         let activeAiMode = 'bate-papo';
         let currentChatId = null;
@@ -1740,6 +1736,7 @@
         let isModelLoading = false;
         let isModelReady = false;
 
+        // Modelo ultra otimizado para carregamento veloz em WebGPU
         const SELECTED_MODEL = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
 
         function getSystemPrompt() {
@@ -1771,9 +1768,13 @@
             isModelLoading = true;
 
             try {
+                // Configuração OTIMIZADA com appConfig usando cache local nativo para evitar re-download
                 mlcEngine = await window.CreateMLCEngine(SELECTED_MODEL, {
                     initProgressCallback: (report) => {
                         if (progressCallback) progressCallback(report);
+                    },
+                    appConfig: {
+                        useIndexedDBCache: true // Ativa cache veloz local
                     }
                 });
                 isModelReady = true;
@@ -1815,7 +1816,7 @@
             const messagesContainer = document.getElementById('ai-chat-messages');
             if (messagesContainer) {
                 messagesContainer.innerHTML = `
-                    <div class="ai-msg assistant">Olá! Sou o <strong>LoreSpace AI</strong> (Qwen2.5-0.5B rodando no seu navegador). Em que posso te ajudar hoje?</div>
+                    <div class="ai-msg assistant">Olá! Sou o <strong>LoreSpace AI</strong> (Qwen2.5-0.5B otimizado no seu navegador). Em que posso te ajudar hoje?</div>
                 `;
             }
 
@@ -2015,7 +2016,7 @@
 
                     <div class="ai-chat-container">
                         <div id="ai-chat-messages" class="ai-chat-messages">
-                            <div class="ai-msg assistant">Olá! Sou o <strong>LoreSpace AI</strong>. Preparando o modelo Qwen2.5-0.5B no seu navegador...</div>
+                            <div class="ai-msg assistant">Olá! Sou o <strong>LoreSpace AI</strong>. Inicializando o motor de IA otimizado...</div>
                         </div>
 
                         <div class="ai-chat-options" id="ai-chat-options">
@@ -2029,7 +2030,7 @@
                             <button class="ai-hamburger-btn" onclick="toggleAiSidebar()" title="Conversas">
                                 <i class="fas fa-bars"></i>
                             </button>
-                            <input type="text" id="ai-chat-input-field" class="ai-chat-input" placeholder="Aguarde o modelo carregar..." onkeypress="handleAiChatKey(event)" autocomplete="off" disabled>
+                            <input type="text" id="ai-chat-input-field" class="ai-chat-input" placeholder="Aguarde o carregamento..." onkeypress="handleAiChatKey(event)" autocomplete="off" disabled>
                             <button class="ai-send-btn" id="ai-send-btn" onclick="sendAiMessage()" disabled>
                                 <i class="fas fa-paper-plane"></i>
                             </button>
@@ -2041,7 +2042,6 @@
             createNewAiChat(true);
             renderAiSidebar();
 
-            // Inicia o carregamento do modelo
             loadModelAndEnableChat(initialTerm);
         }
 
@@ -2053,7 +2053,7 @@
             const progressMsg = document.createElement('div');
             progressMsg.className = 'ai-msg assistant';
             progressMsg.id = 'model-progress-msg';
-            progressMsg.innerHTML = 'Baixando e carregando <strong>Qwen2.5-0.5B-Instruct</strong> no seu navegador...<br><small>Isso só acontece na primeira vez (depois fica em cache).</small>';
+            progressMsg.innerHTML = 'Verificando cache e carregando <strong>Qwen2.5-0.5B-Instruct</strong>...<br><small>Nas próximas vezes, carregará instantaneamente via IndexedDB.</small>';
             messagesContainer.appendChild(progressMsg);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
@@ -2061,11 +2061,11 @@
                 await initWebLLM((report) => {
                     const pct = Math.round((report.progress || 0) * 100);
                     const text = report.text || '';
-                    progressMsg.innerHTML = `Carregando modelo: <strong>${pct}%</strong><br><small>${text}</small>`;
+                    progressMsg.innerHTML = `Carregando pesos: <strong>${pct}%</strong><br><small>${text}</small>`;
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 });
 
-                progressMsg.innerHTML = 'Modelo <strong>Qwen2.5-0.5B</strong> pronto! Pode conversar.';
+                progressMsg.innerHTML = 'Modelo <strong>Qwen2.5-0.5B</strong> pronto e otimizado! Pode enviar sua mensagem.';
                 
                 if (input) {
                     input.disabled = false;
@@ -2081,7 +2081,7 @@
                     }, 300);
                 }
             } catch (err) {
-                progressMsg.innerHTML = `Erro ao carregar o modelo:<br><strong>${err.message}</strong><br><small>Use Chrome ou Edge atualizado com WebGPU habilitado.</small>`;
+                progressMsg.innerHTML = `Erro ao carregar o modelo otimizado:<br><strong>${err.message}</strong><br><small>Certifique-se de usar um navegador compatível com WebGPU.</small>`;
                 if (input) input.disabled = true;
                 if (btn) btn.disabled = true;
             }
