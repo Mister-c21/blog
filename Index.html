@@ -310,7 +310,7 @@
         .list-item i { margin-right: 15px; font-size: 1.2rem; flex-shrink: 0; }
         .list-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-        /* Estilos do botão de atalho transformado em ícone puro, fixado na extremidade superior direita */
+        /* Botão de atalho em formato de ícone fixado na extremidade superior direita */
         .pwa-install-fab {
             position: fixed;
             top: 20px;
@@ -365,6 +365,8 @@
             border: 1px solid var(--glass-border);
             box-sizing: border-box;
             text-align: center;
+            max-height: 90vh;
+            overflow-y: auto;
         }
         .custom-engine-box h3 {
             margin: 0 0 8px 0;
@@ -372,14 +374,14 @@
             font-size: 1.25rem;
         }
         .custom-engine-box p {
-            margin: 0 0 18px 0;
+            margin: 0 0 15px 0;
             font-size: 0.85rem;
             color: #666;
             line-height: 1.4;
         }
         .custom-engine-input {
             width: 100%;
-            padding: 12px 14px;
+            padding: 10px 14px;
             margin-bottom: 12px;
             border: 1px solid #ddd;
             border-radius: 12px;
@@ -388,14 +390,16 @@
             box-sizing: border-box;
             color: #333;
             transition: border-color 0.2s;
+            background: #fff;
         }
         .custom-engine-input:focus {
             border-color: var(--primary-color);
         }
+        
         .pwa-preview-container {
-            width: 90px;
-            height: 90px;
-            margin: 0 auto 15px auto;
+            width: 85px;
+            height: 85px;
+            margin: 0 auto 12px auto;
             border-radius: 20px;
             overflow: hidden;
             border: 2px dashed var(--primary-color);
@@ -410,11 +414,63 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            transition: filter 0.2s ease;
         }
+
+        .filter-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 15px;
+            text-align: left;
+            background: rgba(138, 43, 226, 0.03);
+            padding: 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(138, 43, 226, 0.1);
+        }
+        .filter-controls label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            display: flex;
+            justify-content: space-between;
+        }
+        .filter-controls input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: var(--primary-color);
+        }
+
+        .src-options-grid {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            margin-bottom: 15px;
+            scrollbar-width: thin;
+        }
+        .src-option-thumb {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            object-fit: cover;
+            flex-shrink: 0;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .src-option-thumb:hover {
+            transform: scale(1.05);
+        }
+        .src-option-thumb.selected {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 8px rgba(138, 43, 226, 0.4);
+        }
+
         .custom-engine-actions {
             display: flex;
             gap: 10px;
-            margin-top: 8px;
+            margin-top: 4px;
         }
         .custom-engine-btn {
             flex: 1;
@@ -836,17 +892,28 @@
     <div id="pwa-install-modal" class="custom-engine-modal">
         <div class="custom-engine-box">
             <h3>Adicionar à Tela Inicial</h3>
-            <p>Personalize a imagem/logo do ícone do atalho abaixo antes de fixar:</p>
+            <p>Escolha a logo, ajuste filtros e cores antes de fixar:</p>
             
+            <div class="src-options-grid" id="src-options-container">
+                </div>
+
             <div class="pwa-preview-container" title="Prévia do Ícone">
                 <img id="pwa-icon-preview" src="/src/Favico.png" alt="Logo do Atalho">
             </div>
 
-            <input type="file" id="pwa-image-input" class="custom-engine-input" accept="image/*" onchange="previewCustomIcon(event)" style="display:none;">
-            
-            <button class="custom-engine-btn secondary" onclick="document.getElementById('pwa-image-input').click()" style="margin-bottom: 12px; width: 100%;">
-                <i class="fas fa-upload"></i> Escolher Nova Logo
-            </button>
+            <div class="filter-controls">
+                <label><span>Brilho</span> <span id="val-brightness">100%</span></label>
+                <input type="range" id="filter-brightness" min="0" max="200" value="100" oninput="updateLogoFilters()">
+                
+                <label><span>Contraste</span> <span id="val-contrast">100%</span></label>
+                <input type="range" id="filter-contrast" min="0" max="200" value="100" oninput="updateLogoFilters()">
+                
+                <label><span>Matiz (Cor)</span> <span id="val-hue">0°</span></label>
+                <input type="range" id="filter-hue" min="0" max="360" value="0" oninput="updateLogoFilters()">
+                
+                <label><span>Saturação</span> <span id="val-saturate">100%</span></label>
+                <input type="range" id="filter-saturate" min="0" max="300" value="100" oninput="updateLogoFilters()">
+            </div>
             
             <div class="custom-engine-actions">
                 <button class="custom-engine-btn secondary" onclick="closePwaModal()">Cancelar</button>
@@ -948,7 +1015,13 @@
         let activeSearchEngine = 'web';
         let customEngine = null;
         let deferredPrompt = null;
-        let customSelectedIconBase64 = null;
+        
+        // Lista de opções disponíveis no diretório src (padrão + extras)
+        const availableSrcLogos = [
+            "/src/Favico.png",
+            // Adicione URLs adicionais de imagens na pasta src aqui se houver:
+            // "/src/LogoAlt.png"
+        ];
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
@@ -956,6 +1029,8 @@
         });
 
         function openPwaModal() {
+            renderSrcOptions();
+            resetFilters();
             document.getElementById('pwa-install-modal').classList.add('active');
         }
 
@@ -963,37 +1038,99 @@
             document.getElementById('pwa-install-modal').classList.remove('active');
         }
 
-        function previewCustomIcon(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    customSelectedIconBase64 = e.target.result;
-                    document.getElementById('pwa-icon-preview').src = customSelectedIconBase64;
-                }
-                reader.readAsDataURL(file);
-            }
+        function renderSrcOptions() {
+            const container = document.getElementById('src-options-container');
+            container.innerHTML = '';
+            
+            availableSrcLogos.forEach((srcPath, index) => {
+                const img = document.createElement('img');
+                img.src = srcPath;
+                img.className = 'src-option-thumb' + (index === 0 ? ' selected' : '');
+                img.alt = 'Opção de Logo';
+                img.onclick = () => selectSrcLogo(srcPath, img);
+                container.appendChild(img);
+            });
+        }
+
+        function selectSrcLogo(srcPath, thumbElement) {
+            document.querySelectorAll('.src-option-thumb').forEach(el => el.classList.remove('selected'));
+            thumbElement.classList.add('selected');
+            document.getElementById('pwa-icon-preview').src = srcPath;
+        }
+
+        function updateLogoFilters() {
+            const b = document.getElementById('filter-brightness').value;
+            const c = document.getElementById('filter-contrast').value;
+            const h = document.getElementById('filter-hue').value;
+            const s = document.getElementById('filter-saturate').value;
+
+            document.getElementById('val-brightness').innerText = b + '%';
+            document.getElementById('val-contrast').innerText = c + '%';
+            document.getElementById('val-hue').innerText = h + '°';
+            document.getElementById('val-saturate').innerText = s + '%';
+
+            const filterStr = `brightness(${b}%) contrast(${c}%) hue-rotate(${h}deg) saturate(${s}%)`;
+            document.getElementById('pwa-icon-preview').style.filter = filterStr;
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-brightness').value = 100;
+            document.getElementById('filter-contrast').value = 100;
+            document.getElementById('filter-hue').value = 0;
+            document.getElementById('filter-saturate').value = 100;
+            updateLogoFilters();
         }
 
         function triggerAddToHomeScreen() {
-            if (customSelectedIconBase64) {
-                document.querySelectorAll('link.icon, link[rel="shortcut icon"]').forEach(link => {
-                    link.href = customSelectedIconBase64;
-                });
-            }
+            const previewImg = document.getElementById('pwa-icon-preview');
+            const currentFilter = previewImg.style.filter;
+            const currentSrc = previewImg.src;
 
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('Usuário aceitou adicionar à tela inicial');
-                    }
-                    deferredPrompt = null;
+            // Cria um canvas para aplicar os filtros na imagem escolhida e gerar o resultado final com as alterações salvas
+            const canvas = document.createElement('canvas');
+            canvas.width = 192;
+            canvas.height = 192;
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.src = currentSrc;
+            
+            img.onload = function() {
+                ctx.filter = currentFilter;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const finalFilteredDataUrl = canvas.toDataURL('image/png');
+
+                document.querySelectorAll('link.icon, link[rel="shortcut icon"]').forEach(link => {
+                    link.href = finalFilteredDataUrl;
                 });
-            } else {
-                alert('Para adicionar à tela inicial, abra o menu do seu navegador (três pontinhos ou botão compartilhar) e selecione "Adicionar à Tela Inicial" ou "Instalar Aplicativo".');
-            }
-            closePwaModal();
+
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then((choiceResult) => {
+                        if (choiceResult.outcome === 'accepted') {
+                            console.log('Usuário aceitou adicionar à tela inicial');
+                        }
+                        deferredPrompt = null;
+                    });
+                } else {
+                    alert('Para adicionar à tela inicial, abra o menu do seu navegador (três pontinhos ou botão compartilhar) e selecione "Adicionar à Tela Inicial" ou "Instalar Aplicativo".');
+                }
+                closePwaModal();
+            };
+            
+            img.onerror = function() {
+                // Caso ocorra falha ao carregar via canvas, atualiza diretamente a tag link
+                document.querySelectorAll('link.icon, link[rel="shortcut icon"]').forEach(link => {
+                    link.href = currentSrc;
+                });
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt = null;
+                } else {
+                    alert('Atalho configurado com sucesso!');
+                }
+                closePwaModal();
+            };
         }
 
         const enginePlaceholders = {
@@ -1285,7 +1422,6 @@
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
 
-            // Controla a visibilidade do ícone de atalho: aparece apenas quando a view de busca ('view-feed') está ativa
             const pwaFab = document.getElementById('pwa-install-fab');
             if (viewId === 'view-feed') {
                 pwaFab.style.display = 'flex';
