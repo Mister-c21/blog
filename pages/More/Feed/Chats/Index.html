@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat - Violet</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg-color: #f8f9fa;
+      --card-bg: #ffffff;
+      --primary-violet: #7c3aed;
+      --primary-violet-hover: #6d28d9;
+      --primary-light: #f5f3ff;
+      --text-dark: #1e293b;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --nav-size: 55px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-dark);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* --- NAVEGAÇÃO --- */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: var(--nav-size);
+      background-color: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      z-index: 1000;
+    }
+
+    .logo {
+      display: flex;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--primary-violet);
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-list {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      list-style: none;
+      gap: 18px;
+    }
+
+    .nav-item a {
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 500;
+      gap: 4px;
+      padding: 6px 10px;
+      border-radius: 20px;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .nav-item a:hover {
+      color: var(--text-dark);
+    }
+
+    .nav-item a.active {
+      color: var(--primary-violet);
+      font-weight: 700;
+      text-shadow: 0 0 10px rgba(124, 58, 237, 0.2);
+    }
+
+    .nav-item a i {
+      display: none;
+      width: 18px;
+      height: 18px;
+    }
+
+    /* --- FAB BUTTON E MENU MOBILE --- */
+    .fab-container {
+      display: none;
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      z-index: 5;
+    }
+
+    .fab-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background-color: var(--primary-violet);
+      color: white;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+      cursor: pointer;
+      transition: transform 0.2s, background-color 0.2s;
+    }
+
+    .fab-btn:active {
+      transform: scale(0.92);
+    }
+
+    .fab-btn:hover {
+      background-color: var(--primary-violet-hover);
+    }
+
+    .fab-menu {
+      position: absolute;
+      bottom: 70px;
+      right: 0;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      list-style: none;
+      width: 200px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px) scale(0.95);
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      overflow: hidden;
+      z-index: 6;
+    }
+
+    .fab-menu.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0) scale(1);
+    }
+
+    .fab-menu li a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      text-decoration: none;
+      color: var(--text-dark);
+      font-size: 0.95rem;
+      font-weight: 500;
+      border-bottom: 1px solid var(--border-color);
+      transition: background 0.2s;
+    }
+
+    .fab-menu li:last-child a {
+      border-bottom: none;
+    }
+
+    .fab-menu li a:hover, .fab-menu li a.active {
+      background-color: var(--primary-light);
+      color: var(--primary-violet);
+    }
+
+    .fab-menu li a i {
+      width: 18px;
+      height: 18px;
+    }
+
+    .fab-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.2);
+      backdrop-filter: blur(2px);
+      z-index: 4;
+      display: none;
+    }
+
+    .fab-overlay.active {
+      display: block;
+    }
+
+    /* --- ÁREA DE CHAT --- */
+    .main-wrapper {
+      flex: 1;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      background-color: var(--card-bg);
+      padding-top: var(--nav-size);
+    }
+
+    .chat-container {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    .chat-sidebar {
+      width: 100%;
+      height: 100%;
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      background: var(--card-bg);
+      transition: transform 0.3s ease;
+      position: relative;
+    }
+
+    .chat-search {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .chat-search input {
+      width: 100%;
+      padding: 10px 36px 10px 14px; /* Espaço à direita para o botão de limpar */
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-color);
+      outline: none;
+      font-size: 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .chat-search input:focus {
+      border-color: var(--primary-violet);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
+    /* Botão de limpar barra de busca */
+    .clear-search-btn {
+      position: absolute;
+      right: 26px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      transition: color 0.2s;
+    }
+
+    .clear-search-btn:hover {
+      color: var(--text-dark);
+    }
+
+    .chat-list {
+      list-style: none;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .chat-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-color);
+      transition: background 0.2s;
+    }
+
+    .chat-item:hover {
+      background-color: var(--bg-color);
+    }
+
+    .chat-item.active {
+      background-color: var(--primary-light);
+    }
+
+    .chat-avatar {
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      background-color: var(--primary-violet);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .chat-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .chat-info-top {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .chat-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-dark);
+    }
+
+    .chat-time {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .chat-last-msg {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-window {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      height: 100%;
+      background: var(--bg-color);
+    }
+
+    .chat-header {
+      padding: 12px 20px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-dark);
+      padding: 4px;
+      margin-right: -4px;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scroll-behavior: smooth;
+    }
+
+    .message {
+      max-width: 70%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.received {
+      background-color: var(--card-bg);
+      align-self: flex-start;
+      border: 1px solid var(--border-color);
+    }
+
+    .message.sent {
+      background-color: var(--primary-violet);
+      color: white;
+      align-self: flex-end;
+    }
+
+    .chat-input-area {
+      padding: 12px 20px;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .chat-input-area input {
+      flex: 1;
+      padding: 10px 16px;
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      outline: none;
+      font-size: 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .chat-input-area input:focus {
+      border-color: var(--primary-violet);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
+    .send-btn {
+      background-color: var(--primary-violet);
+      color: white;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      flex-shrink: 0;
+    }
+
+    .send-btn:hover {
+      background-color: var(--primary-violet-hover);
+    }
+
+    .send-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* --- RESPONSIVIDADE --- */
+    @media (max-width: 767px) {
+      .navbar .nav-list {
+        display: none;
+      }
+      .fab-container {
+        display: block;
+      }
+
+      .chat-window.mobile-active {
+        display: flex;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 10;
+      }
+      .chat-sidebar.mobile-hidden {
+        display: none;
+      }
+    }
+
+    @media (min-width: 768px) {
+      .chat-sidebar {
+        width: 350px;
+      }
+
+      .chat-window {
+        display: flex;
+      }
+
+      .back-btn {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="logo">
+      <i data-lucide="message-circle"></i>
+      <span>Chat</span>
+    </div>
+    <ul class="nav-list">
+      <li class="nav-item">
+        <a href="#" class="active">
+          <i data-lucide="message-square"></i>
+          <span>Conversas</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#">
+          <i data-lucide="user-plus"></i>
+          <span>Adicionar</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#">
+          <i data-lucide="settings"></i>
+          <span>Ajustes</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <div class="main-wrapper">
+    <div class="chat-container">
+      <div class="chat-sidebar" id="chatSidebar">
+        <div class="fab-overlay" id="fabOverlay"></div>
+        <div class="fab-container">
+          <button class="fab-btn" id="fabBtn" aria-label="Menu de opções">
+            <i data-lucide="menu" style="width: 24px; height: 24px;"></i>
+          </button>
+          <ul class="fab-menu" id="fabMenu">
+            <li>
+              <a href="#" class="active">
+                <i data-lucide="message-square"></i>
+                <span>Conversas</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <i data-lucide="user-plus"></i>
+                <span>Adicionar</span>
+              </a>
+            </li>
+            <li>
+              <a href="#">
+                <i data-lucide="settings"></i>
+                <span>Ajustes</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="chat-search">
+          <input type="text" id="searchInput" placeholder="Pesquisar conversas...">
+          <button class="clear-search-btn" id="clearSearchBtn" aria-label="Limpar pesquisa">
+            <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+          </button>
+        </div>
+        <ul class="chat-list" id="chatList">
+          <li class="chat-item active" data-name="Ana Souza" data-initial="A" data-color="#7c3aed">
+            <div class="chat-avatar">A</div>
+            <div class="chat-info">
+              <div class="chat-info-top">
+                <span class="chat-name">Ana Souza</span>
+                <span class="chat-time">12:45</span>
+              </div>
+              <p class="chat-last-msg">Oi! Tudo bem com o projeto?</p>
+            </div>
+          </li>
+          <li class="chat-item" data-name="Carlos Lima" data-initial="C" data-color="#6d28d9">
+            <div class="chat-avatar" style="background-color: #6d28d9;">C</div>
+            <div class="chat-info">
+              <div class="chat-info-top">
+                <span class="chat-name">Carlos Lima</span>
+                <span class="chat-time">Ontem</span>
+              </div>
+              <p class="chat-last-msg">Combinado, nos falamos mais tarde.</p>
+            </div>
+          </li>
+          <li class="chat-item" data-name="Equipe Dev" data-initial="E" data-color="#8b5cf6">
+            <div class="chat-avatar" style="background-color: #8b5cf6;">E</div>
+            <div class="chat-info">
+              <div class="chat-info-top">
+                <span class="chat-name">Equipe Dev</span>
+                <span class="chat-time">Seg</span>
+              </div>
+              <p class="chat-last-msg">Nova atualização enviada ao repositório.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="chat-window" id="chatWindow">
+        <div class="chat-header">
+          <button class="back-btn" id="backBtn">
+            <i data-lucide="arrow-left" style="width: 20px; height: 20px;"></i>
+          </button>
+          <div class="chat-avatar" id="activeAvatar" style="width: 36px; height: 36px; font-size: 0.85rem;">A</div>
+          <span class="chat-name" id="activeName">Ana Souza</span>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+          <div class="message received">Olá! Como estão as coisas por aí?</div>
+          <div class="message sent">Tudo ótimo! Botão de limpar adicionado à barra de pesquisa de forma condicional.</div>
+          <div class="message received">Perfeito, ficou excelente!</div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" id="messageInput" placeholder="Digite sua mensagem...">
+          <button class="send-btn" id="sendBtn">
+            <i data-lucide="send" style="width: 18px; height: 18px;"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    const fabBtn = document.getElementById('fabBtn');
+    const fabMenu = document.getElementById('fabMenu');
+    const fabOverlay = document.getElementById('fabOverlay');
+
+    function toggleFabMenu() {
+      fabMenu.classList.toggle('active');
+      fabOverlay.classList.toggle('active');
+      
+      const isExpanded = fabMenu.classList.contains('active');
+      
+      fabBtn.innerHTML = '';
+      const newIcon = document.createElement('i');
+      newIcon.setAttribute('data-lucide', isExpanded ? 'x' : 'menu');
+      newIcon.style.width = '24px';
+      newIcon.style.height = '24px';
+      fabBtn.appendChild(newIcon);
+      lucide.createIcons();
+    }
+
+    fabBtn.addEventListener('click', toggleFabMenu);
+    fabOverlay.addEventListener('click', toggleFabMenu);
+
+    const chatItems = document.querySelectorAll('.chat-item');
+    const chatSidebar = document.getElementById('chatSidebar');
+    const chatWindow = document.getElementById('chatWindow');
+    const backBtn = document.getElementById('backBtn');
+    const activeName = document.getElementById('activeName');
+    const activeAvatar = document.getElementById('activeAvatar');
+    const chatMessages = document.getElementById('chatMessages');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const searchInput = document.getElementById('searchInput');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+
+    chatItems.forEach(item => {
+      item.addEventListener('click', () => {
+        chatItems.forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+
+        const name = item.getAttribute('data-name');
+        const initial = item.getAttribute('data-initial');
+        const color = item.getAttribute('data-color');
+
+        activeName.textContent = name;
+        activeAvatar.textContent = initial;
+        activeAvatar.style.backgroundColor = color;
+
+        if (window.innerWidth < 768) {
+          chatSidebar.classList.add('mobile-hidden');
+          chatWindow.classList.add('mobile-active');
+        }
+      });
+    });
+
+    backBtn.addEventListener('click', () => {
+      chatSidebar.classList.remove('mobile-hidden');
+      chatWindow.classList.remove('mobile-active');
+    });
+
+    function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text) return;
+
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'message sent';
+      messageDiv.textContent = text;
+      
+      chatMessages.appendChild(messageDiv);
+      messageInput.value = '';
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
+    });
+
+    // Lógica da barra de pesquisa e botão de limpar condicional
+    searchInput.addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase();
+      
+      // Controla a visibilidade do botão de limpar
+      if (term.length > 0) {
+        clearSearchBtn.style.display = 'flex';
+      } else {
+        clearSearchBtn.style.display = 'none';
+      }
+
+      // Filtra os itens da lista
+      chatItems.forEach(item => {
+        const name = item.querySelector('.chat-name').textContent.toLowerCase();
+        const lastMsg = item.querySelector('.chat-last-msg').textContent.toLowerCase();
+        if (name.includes(term) || lastMsg.includes(term)) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    });
+
+    // Evento para limpar a busca ao clicar no botão 'X'
+    clearSearchBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      clearSearchBtn.style.display = 'none';
+      chatItems.forEach(item => {
+        item.style.display = 'flex';
+      });
+      searchInput.focus();
+    });
+  </script>
+</body>
+</html>
