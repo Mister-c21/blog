@@ -1250,12 +1250,6 @@
         <div class="tab-item" onclick="showView('view-menu', event)"><i class="fas fa-bars"></i></div>
     </nav>
 
-    <script type="module">
-        import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm@0.2.79";
-        window.CreateMLCEngine = CreateMLCEngine;
-        window.webllmReady = true;
-    </script>
-
     <script>
         document.querySelectorAll('.sidebar-item').forEach(item => {
             item.addEventListener('click', function() {
@@ -1727,17 +1721,13 @@
             } catch (e) { content.innerHTML = "Erro na busca."; }
         }
 
-        // ==================== CHAT DE IA OTIMIZADO (Qwen2.5-0.5B via WebLLM) ====================
+        // ==================== CHAT DE IA VIA HUGGING FACE API ====================
         let isAiResponding = false;
         let activeAiMode = 'bate-papo';
         let currentChatId = null;
         let currentMessages = [];
-        let mlcEngine = null;
-        let isModelLoading = false;
-        let isModelReady = false;
-
-        // Modelo ultra otimizado para carregamento veloz em WebGPU
-        const SELECTED_MODEL = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
+        const HF_MODEL = "Qwen/Qwen2.5-Coder-32B-Instruct";
+        const HF_TOKEN = "";
 
         function getSystemPrompt() {
             const base = "Você é o LoreSpace AI, um assistente amigável, útil e conversacional. Responda sempre em português brasileiro de forma clara e natural.";
@@ -1753,45 +1743,13 @@
             }
         }
 
-        async function initWebLLM(progressCallback) {
-            if (mlcEngine) return mlcEngine;
-            if (isModelLoading) return null;
-
-            if (!window.CreateMLCEngine) {
-                throw new Error("WebLLM ainda não carregou. Aguarde alguns segundos e tente novamente.");
-            }
-
-            if (!navigator.gpu) {
-                throw new Error("Seu navegador não suporta WebGPU. Use Chrome ou Edge atualizado (versão 113+).");
-            }
-
-            isModelLoading = true;
-
-            try {
-                // Configuração OTIMIZADA com appConfig usando cache local nativo para evitar re-download
-                mlcEngine = await window.CreateMLCEngine(SELECTED_MODEL, {
-                    initProgressCallback: (report) => {
-                        if (progressCallback) progressCallback(report);
-                    },
-                    appConfig: {
-                        useIndexedDBCache: true // Ativa cache veloz local
-                    }
-                });
-                isModelReady = true;
-                return mlcEngine;
-            } catch (err) {
-                console.error("Erro ao carregar modelo:", err);
-                throw err;
-            } finally {
-                isModelLoading = false;
-            }
-        }
-
         function getSavedChats() {
             try {
                 const data = localStorage.getItem('lorespace_ai_chats');
-                return data ? JSON.parse(data) : [];
+                const parsed = data ? JSON.parse(data) : [];
+                return Array.isArray(parsed) ? parsed : [];
             } catch (e) {
+                localStorage.removeItem('lorespace_ai_chats');
                 return [];
             }
         }
@@ -1816,7 +1774,7 @@
             const messagesContainer = document.getElementById('ai-chat-messages');
             if (messagesContainer) {
                 messagesContainer.innerHTML = `
-                    <div class="ai-msg assistant">Olá! Sou o <strong>LoreSpace AI</strong> (Qwen2.5-0.5B otimizado no seu navegador). Em que posso te ajudar hoje?</div>
+                    <div class="ai-msg assistant">Olá! Sou o <strong>LoreSpace AI</strong> conectado via Hugging Face API. Em que posso te ajudar hoje?</div>
                 `;
             }
 
@@ -1914,13 +1872,7 @@
 
             const input = document.getElementById('ai-chat-input-field');
             if (input) {
-                const placeholders = {
-                    'personagens': 'Converse com um personagem...',
-                    'personalizado': 'Descreva o estilo que deseja...',
-                    'ensino-guiado': 'O que você quer aprender?',
-                    'bate-papo': 'Digite sua mensagem...'
-                };
-                input.placeholder = placeholders[activeAiMode] || 'Digite sua mensagem...';
+                input.placeholder = 'Digite sua mensagem...';
                 input.focus();
             }
 
@@ -2016,7 +1968,7 @@
 
                     <div class="ai-chat-container">
                         <div id="ai-chat-messages" class="ai-chat-messages">
-                            <div class="ai-msg assistant">Olá! Sou o <strong>LoreSpace AI</strong>. Inicializando o motor de IA otimizado...</div>
+                            <div class="ai-msg assistant">Olá! Sou o <strong>LoreSpace AI</strong> conectado via Hugging Face API. Em que posso te ajudar hoje?</div>
                         </div>
 
                         <div class="ai-chat-options" id="ai-chat-options">
@@ -2030,8 +1982,8 @@
                             <button class="ai-hamburger-btn" onclick="toggleAiSidebar()" title="Conversas">
                                 <i class="fas fa-bars"></i>
                             </button>
-                            <input type="text" id="ai-chat-input-field" class="ai-chat-input" placeholder="Aguarde o carregamento..." onkeypress="handleAiChatKey(event)" autocomplete="off" disabled>
-                            <button class="ai-send-btn" id="ai-send-btn" onclick="sendAiMessage()" disabled>
+                            <input type="text" id="ai-chat-input-field" class="ai-chat-input" placeholder="Digite sua mensagem..." onkeypress="handleAiChatKey(event)" autocomplete="off">
+                            <button class="ai-send-btn" id="ai-send-btn" onclick="sendAiMessage()">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
@@ -2042,48 +1994,11 @@
             createNewAiChat(true);
             renderAiSidebar();
 
-            loadModelAndEnableChat(initialTerm);
-        }
-
-        async function loadModelAndEnableChat(initialTerm) {
-            const messagesContainer = document.getElementById('ai-chat-messages');
-            const input = document.getElementById('ai-chat-input-field');
-            const btn = document.getElementById('ai-send-btn');
-
-            const progressMsg = document.createElement('div');
-            progressMsg.className = 'ai-msg assistant';
-            progressMsg.id = 'model-progress-msg';
-            progressMsg.innerHTML = 'Verificando cache e carregando <strong>Qwen2.5-0.5B-Instruct</strong>...<br><small>Nas próximas vezes, carregará instantaneamente via IndexedDB.</small>';
-            messagesContainer.appendChild(progressMsg);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-            try {
-                await initWebLLM((report) => {
-                    const pct = Math.round((report.progress || 0) * 100);
-                    const text = report.text || '';
-                    progressMsg.innerHTML = `Carregando pesos: <strong>${pct}%</strong><br><small>${text}</small>`;
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                });
-
-                progressMsg.innerHTML = 'Modelo <strong>Qwen2.5-0.5B</strong> pronto e otimizado! Pode enviar sua mensagem.';
-                
-                if (input) {
-                    input.disabled = false;
-                    input.placeholder = 'Digite sua mensagem...';
-                    input.focus();
-                }
-                if (btn) btn.disabled = false;
-
-                if (initialTerm && initialTerm.trim() !== '') {
-                    setTimeout(() => {
-                        appendAiMessage(initialTerm, 'user');
-                        generateAiResponse(initialTerm);
-                    }, 300);
-                }
-            } catch (err) {
-                progressMsg.innerHTML = `Erro ao carregar o modelo otimizado:<br><strong>${err.message}</strong><br><small>Certifique-se de usar um navegador compatível com WebGPU.</small>`;
-                if (input) input.disabled = true;
-                if (btn) btn.disabled = true;
+            if (initialTerm && initialTerm.trim() !== '') {
+                setTimeout(() => {
+                    appendAiMessage(initialTerm, 'user');
+                    generateAiResponse(initialTerm);
+                }, 300);
             }
         }
 
@@ -2095,16 +2010,7 @@
             activeAiMode = el.getAttribute('data-mode');
 
             const input = document.getElementById('ai-chat-input-field');
-            if (input) {
-                const placeholders = {
-                    'personagens': 'Converse com um personagem...',
-                    'personalizado': 'Descreva o estilo que deseja...',
-                    'ensino-guiado': 'O que você quer aprender?',
-                    'bate-papo': 'Digite sua mensagem...'
-                };
-                input.placeholder = placeholders[activeAiMode] || 'Digite sua mensagem...';
-                input.focus();
-            }
+            if (input) input.focus();
 
             if (currentChatId) updateCurrentChatInStorage();
         }
@@ -2154,24 +2060,17 @@
         }
 
         async function generateAiResponse(userText) {
-            if (!isModelReady || !mlcEngine) {
-                appendAiMessage("O modelo ainda não está pronto. Aguarde o carregamento.", 'assistant');
-                return;
-            }
-
             setAiLoading(true);
             showTypingIndicator();
 
             const messagesContainer = document.getElementById('ai-chat-messages');
-            let assistantDiv = null;
-            let fullReply = "";
 
             try {
                 const history = [
                     { role: "system", content: getSystemPrompt() }
                 ];
 
-                const recent = currentMessages.slice(-12);
+                const recent = currentMessages.slice(-10);
                 recent.forEach(m => {
                     history.push({
                         role: m.sender === 'user' ? 'user' : 'assistant',
@@ -2179,43 +2078,55 @@
                     });
                 });
 
-                const stream = await mlcEngine.chat.completions.create({
-                    messages: history,
-                    stream: true,
-                    temperature: 0.7,
-                    max_tokens: 512,
+                const headers = {
+                    "Content-Type": "application/json"
+                };
+                if (HF_TOKEN) {
+                    headers["Authorization"] = `Bearer ${HF_TOKEN}`;
+                }
+
+                const response = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL}/v1/chat/completions`, {
+                    method: "POST",
+                    headers: headers,
+                    body: JSON.stringify({
+                        model: HF_MODEL,
+                        messages: history,
+                        max_tokens: 512,
+                        temperature: 0.7,
+                        stream: false
+                    })
                 });
 
                 const typing = messagesContainer.querySelector('.ai-typing');
                 if (typing) typing.remove();
 
-                assistantDiv = document.createElement('div');
-                assistantDiv.className = 'ai-msg assistant';
-                assistantDiv.innerHTML = '';
-                messagesContainer.appendChild(assistantDiv);
-
-                for await (const chunk of stream) {
-                    const delta = chunk.choices[0]?.delta?.content || '';
-                    if (delta) {
-                        fullReply += delta;
-                        let html = fullReply
-                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/\n/g, '<br>');
-                        assistantDiv.innerHTML = html;
-                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                    }
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || `Erro HTTP: ${response.status}`);
                 }
 
-                currentMessages.push({ sender: 'assistant', text: fullReply });
+                const data = await response.json();
+                const replyText = data.choices?.[0]?.message?.content || "Desculpe, não consegui processar a resposta.";
+
+                let html = replyText
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\n/g, '<br>');
+
+                const assistantDiv = document.createElement('div');
+                assistantDiv.className = 'ai-msg assistant';
+                assistantDiv.innerHTML = html;
+                messagesContainer.appendChild(assistantDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+                currentMessages.push({ sender: 'assistant', text: html });
                 updateCurrentChatInStorage();
 
             } catch (err) {
                 console.error(err);
-                if (assistantDiv) {
-                    assistantDiv.innerHTML = `Erro ao gerar resposta: ${err.message}`;
-                } else {
-                    appendAiMessage(`Erro ao gerar resposta: ${err.message}`, 'assistant');
-                }
+                const typing = messagesContainer.querySelector('.ai-typing');
+                if (typing) typing.remove();
+                
+                appendAiMessage(`Erro ao conectar com a API do Hugging Face: ${err.message}. (Se o modelo estiver hibernando, tente novamente em instantes).`, 'assistant');
             } finally {
                 setAiLoading(false);
                 const input = document.getElementById('ai-chat-input-field');
@@ -2224,7 +2135,7 @@
         }
 
         function sendAiMessage() {
-            if (isAiResponding || !isModelReady) return;
+            if (isAiResponding) return;
 
             const inputField = document.getElementById('ai-chat-input-field');
             if (!inputField) return;
