@@ -20,6 +20,10 @@
       --danger-hover: #dc2626;
       --danger-light: #fef2f2;
       --nav-size: 55px;
+      /* Variáveis de Personalização Dinâmica */
+      --chat-sent-bg: #7c3aed;
+      --chat-sent-text: #ffffff;
+      --chat-bg-image: none;
     }
 
     * {
@@ -435,6 +439,61 @@
       line-height: 1.4;
     }
 
+    /* --- ESTILOS DO MODAL DE AJUSTES --- */
+    .settings-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .setting-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .setting-group label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+
+    .setting-group input[type="color"] {
+      -webkit-appearance: none;
+      border: none;
+      width: 100%;
+      height: 40px;
+      border-radius: 10px;
+      cursor: pointer;
+      background: none;
+      padding: 0;
+    }
+
+    .setting-group input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    .setting-group input[type="color"]::-webkit-color-swatch {
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+    }
+
+    .setting-group input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      outline: none;
+      font-size: 0.9rem;
+      background: var(--bg-color);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .setting-group input[type="text"]:focus {
+      border-color: var(--primary-violet);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
     /* --- ÁREA DE CHAT --- */
     .main-wrapper {
       flex: 1;
@@ -577,7 +636,10 @@
       flex-direction: column;
       flex: 1;
       height: 100%;
-      background: var(--bg-color);
+      background-color: var(--bg-color);
+      background-image: var(--chat-bg-image);
+      background-size: cover;
+      background-position: center;
     }
 
     .chat-window.desktop-open {
@@ -667,8 +729,8 @@
     }
 
     .message.sent {
-      background-color: var(--primary-violet);
-      color: white;
+      background-color: var(--chat-sent-bg);
+      color: var(--chat-sent-text);
       align-self: flex-end;
     }
 
@@ -776,7 +838,7 @@
         </a>
       </li>
       <li class="nav-item">
-        <a href="#">
+        <a href="#" id="settingsNavDesktop">
           <i data-lucide="settings"></i>
           <span>Ajustes</span>
         </a>
@@ -801,7 +863,7 @@
           </a>
         </li>
         <li>
-          <a href="#">
+          <a href="#" id="settingsNavMobile">
             <i data-lucide="settings"></i>
             <span>Ajustes</span>
           </a>
@@ -863,6 +925,38 @@
         <i data-lucide="smartphone"></i>
         <p>A leitura de QR Code utilizando a câmera está disponível apenas no aplicativo móvel (mobile).</p>
         <button class="modal-btn primary" id="backToOptionsFromNoticeBtn" style="width: 100%; margin-top: 10px;">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="add-friend-modal-overlay" id="settingsModalOverlay">
+    <div class="add-friend-modal">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="settings" style="width: 20px; height: 20px;"></i>
+          <span>Ajustes de Personalização</span>
+        </div>
+        <button class="modal-close-btn" id="settingsCloseBtn" aria-label="Fechar">
+          <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+        </button>
+      </div>
+      <div class="settings-form">
+        <div class="setting-group">
+          <label for="bubbleColorInput">Cor da bolha da mensagem (Enviada)</label>
+          <input type="color" id="bubbleColorInput" value="#7c3aed">
+        </div>
+        <div class="setting-group">
+          <label for="textColorInput">Cor do texto das mensagens</label>
+          <input type="color" id="textColorInput" value="#ffffff">
+        </div>
+        <div class="setting-group">
+          <label for="bgImageInput">Imagem de fundo do chat (URL)</label>
+          <input type="text" id="bgImageInput" placeholder="https://exemplo.com/imagem.jpg">
+        </div>
+        <div class="modal-actions" style="margin-top: 10px;">
+          <button class="modal-btn secondary" id="settingsCancelBtn">Cancelar</button>
+          <button class="modal-btn primary" id="settingsSaveBtn">Salvar Ajustes</button>
+        </div>
       </div>
     </div>
   </div>
@@ -988,7 +1082,7 @@
     mobileOverlay.addEventListener('click', toggleMobileMenu);
 
     mobileDropdownLinks.forEach(link => {
-      if(link.id !== 'addFriendNavMobile') {
+      if(link.id !== 'addFriendNavMobile' && link.id !== 'settingsNavMobile') {
         link.addEventListener('click', () => {
           if (mobileDropdown.classList.contains('active')) {
             toggleMobileMenu();
@@ -1062,7 +1156,6 @@
       if (e.target === addFriendModalOverlay) closeAddFriendModal();
     });
 
-    // Clicou em "Adicionar por Código"
     optionByCode.addEventListener('click', () => {
       modalMainTitle.textContent = "Adicionar por Código";
       modalOptionsView.style.display = "none";
@@ -1082,7 +1175,6 @@
       }
     });
 
-    // Clicou em "Ler QR Code"
     optionByQR.addEventListener('click', () => {
       const isMobileDevice = window.innerWidth < 768;
 
@@ -1119,6 +1211,57 @@
     backToOptionsFromNoticeBtn.addEventListener('click', resetModalViews);
 
 
+    // --- LÓGICA DO MODAL DE AJUSTES ---
+    const settingsNavDesktop = document.getElementById('settingsNavDesktop');
+    const settingsNavMobile = document.getElementById('settingsNavMobile');
+    const settingsModalOverlay = document.getElementById('settingsModalOverlay');
+    const settingsCloseBtn = document.getElementById('settingsCloseBtn');
+    const settingsCancelBtn = document.getElementById('settingsCancelBtn');
+    const settingsSaveBtn = document.getElementById('settingsSaveBtn');
+
+    const bubbleColorInput = document.getElementById('bubbleColorInput');
+    const textColorInput = document.getElementById('textColorInput');
+    const bgImageInput = document.getElementById('bgImageInput');
+
+    function openSettingsModal(e) {
+      if(e) e.preventDefault();
+      if (mobileDropdown.classList.contains('active')) {
+        toggleMobileMenu();
+      }
+      settingsModalOverlay.classList.add('active');
+    }
+
+    function closeSettingsModal() {
+      settingsModalOverlay.classList.remove('active');
+    }
+
+    settingsNavDesktop.addEventListener('click', openSettingsModal);
+    settingsNavMobile.addEventListener('click', openSettingsModal);
+    settingsCloseBtn.addEventListener('click', closeSettingsModal);
+    settingsCancelBtn.addEventListener('click', closeSettingsModal);
+    settingsModalOverlay.addEventListener('click', (e) => {
+      if (e.target === settingsModalOverlay) closeSettingsModal();
+    });
+
+    settingsSaveBtn.addEventListener('click', () => {
+      const bubbleColor = bubbleColorInput.value;
+      const textColor = textColorInput.value;
+      const bgUrl = bgImageInput.value.trim();
+
+      const root = document.documentElement;
+      root.style.setProperty('--chat-sent-bg', bubbleColor);
+      root.style.setProperty('--chat-sent-text', textColor);
+
+      if (bgUrl) {
+        root.style.setProperty('--chat-bg-image', `url('${bgUrl}')`);
+      } else {
+        root.style.setProperty('--chat-bg-image', 'none');
+      }
+
+      closeSettingsModal();
+    });
+
+
     // --- LÓGICA DE EXCLUSÃO DE CONTATO ---
     const deleteContactBtn = document.getElementById('deleteContactBtn');
     const deleteContactModalOverlay = document.getElementById('deleteContactModalOverlay');
@@ -1151,12 +1294,10 @@
         activeItem.remove();
         closeDeleteModal();
 
-        // Fecha o chat tanto no mobile quanto no desktop ao excluir o contato
         chatSidebar.classList.remove('mobile-hidden');
         chatWindow.classList.remove('mobile-active');
         chatWindow.classList.remove('desktop-open');
 
-        // Remove a seleção ativa dos chats restantes
         document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
 
         alert(`Contato "${contactName}" excluído com sucesso.`);
@@ -1177,7 +1318,6 @@
     const searchInput = document.getElementById('searchInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
 
-    // Função global para reatribuir o evento de clique nos itens de chat restantes
     function attachChatListeners() {
       document.querySelectorAll('.chat-item').forEach(item => {
         item.replaceWith(item.cloneNode(true));
