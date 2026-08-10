@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chat - Violet</title>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     :root {
       --bg-color: #f8f9fa;
@@ -15,6 +16,9 @@
       --text-dark: #1e293b;
       --text-muted: #64748b;
       --border-color: #e2e8f0;
+      --danger-color: #ef4444;
+      --danger-hover: #dc2626;
+      --danger-light: #fef2f2;
       --nav-size: 55px;
     }
 
@@ -84,6 +88,7 @@
       padding: 6px 10px;
       border-radius: 20px;
       transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      cursor: pointer;
     }
 
     .nav-item a:hover {
@@ -163,6 +168,7 @@
       font-weight: 500;
       border-bottom: 1px solid var(--border-color);
       transition: background 0.2s;
+      cursor: pointer;
     }
 
     .mobile-dropdown li:last-child a {
@@ -193,6 +199,240 @@
 
     .mobile-overlay.active {
       display: block;
+    }
+
+    /* --- MODAL / MENU FLUTUANTE DE ADICIONAR AMIGO --- */
+    .add-friend-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .add-friend-modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .add-friend-modal {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+      padding: 24px;
+      transform: scale(0.95) translateY(10px);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .add-friend-modal-overlay.active .add-friend-modal {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-close-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      border-radius: 50%;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .modal-close-btn:hover {
+      background-color: var(--bg-color);
+      color: var(--text-dark);
+    }
+
+    .modal-options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .add-option-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      background: var(--bg-color);
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+      width: 100%;
+    }
+
+    .add-option-card:hover {
+      border-color: var(--primary-violet);
+      background-color: var(--primary-light);
+    }
+
+    .add-option-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background-color: var(--primary-light);
+      color: var(--primary-violet);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .add-option-card:hover .add-option-icon {
+      background-color: var(--primary-violet);
+      color: white;
+    }
+
+    .add-option-info h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-bottom: 2px;
+    }
+
+    .add-option-info p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Sub-visualização de digitar código */
+    .code-input-container {
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .code-input-container input {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      outline: none;
+      font-size: 0.95rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .code-input-container input:focus {
+      border-color: var(--primary-violet);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background 0.2s;
+    }
+
+    .modal-btn.secondary {
+      background: var(--bg-color);
+      color: var(--text-dark);
+      border: 1px solid var(--border-color);
+    }
+
+    .modal-btn.secondary:hover {
+      background: var(--border-color);
+    }
+
+    .modal-btn.primary {
+      background: var(--primary-violet);
+      color: white;
+    }
+
+    .modal-btn.primary:hover {
+      background: var(--primary-violet-hover);
+    }
+
+    .modal-btn.danger {
+      background: var(--danger-color);
+      color: white;
+    }
+
+    .modal-btn.danger:hover {
+      background: var(--danger-hover);
+    }
+
+    /* Sub-visualização de Câmera para Leitura de QR Code */
+    .qr-scanner-container {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
+
+    #reader {
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+    
+    #reader video {
+      border-radius: 12px;
+    }
+
+    /* Aviso de restrição mobile */
+    .mobile-only-notice {
+      display: none;
+      text-align: center;
+      padding: 20px 0;
+      gap: 12px;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .mobile-only-notice i {
+      color: var(--text-muted);
+      width: 48px;
+      height: 48px;
+    }
+
+    .mobile-only-notice p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.4;
     }
 
     /* --- ÁREA DE CHAT --- */
@@ -340,13 +580,48 @@
       background: var(--bg-color);
     }
 
+    .chat-window.desktop-open {
+      display: flex;
+    }
+
     .chat-header {
       padding: 12px 20px;
       background: var(--card-bg);
       border-bottom: 1px solid var(--border-color);
       display: flex;
       align-items: center;
+      justify-content: space-between;
+    }
+
+    .chat-header-left {
+      display: flex;
+      align-items: center;
       gap: 12px;
+    }
+
+    .chat-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-action-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .icon-action-btn:hover {
+      background-color: var(--danger-light);
+      color: var(--danger-color);
     }
 
     .back-btn {
@@ -395,12 +670,6 @@
       background-color: var(--primary-violet);
       color: white;
       align-self: flex-end;
-    }
-
-    .message img {
-      max-width: 150px;
-      border-radius: 8px;
-      display: block;
     }
 
     .chat-input-area {
@@ -479,10 +748,6 @@
         width: 350px;
       }
 
-      .chat-window {
-        display: flex;
-      }
-
       .back-btn {
         display: none;
       }
@@ -505,7 +770,7 @@
         </a>
       </li>
       <li class="nav-item">
-        <a href="#">
+        <a href="#" id="addFriendNavDesktop">
           <i data-lucide="user-plus"></i>
           <span>Adicionar</span>
         </a>
@@ -530,7 +795,7 @@
           </a>
         </li>
         <li>
-          <a href="#">
+          <a href="#" id="addFriendNavMobile">
             <i data-lucide="user-plus"></i>
             <span>Adicionar</span>
           </a>
@@ -547,6 +812,82 @@
 
   <div class="mobile-overlay" id="mobileOverlay"></div>
 
+  <div class="add-friend-modal-overlay" id="addFriendModalOverlay">
+    <div class="add-friend-modal">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="user-plus" style="width: 20px; height: 20px;"></i>
+          <span id="modalMainTitle">Adicionar Amigo</span>
+        </div>
+        <button class="modal-close-btn" id="modalCloseBtn" aria-label="Fechar">
+          <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+        </button>
+      </div>
+
+      <div class="modal-options" id="modalOptionsView">
+        <button class="add-option-card" id="optionByCode">
+          <div class="add-option-icon">
+            <i data-lucide="hash" style="width: 20px; height: 20px;"></i>
+          </div>
+          <div class="add-option-info">
+            <h3>Adicionar por Código</h3>
+            <p>Digite o código de usuário do seu amigo</p>
+          </div>
+        </button>
+
+        <button class="add-option-card" id="optionByQR">
+          <div class="add-option-icon">
+            <i data-lucide="qr-code" style="width: 20px; height: 20px;"></i>
+          </div>
+          <div class="add-option-info">
+            <h3>Ler QR Code</h3>
+            <p>Use a câmera para escanear o código</p>
+          </div>
+        </button>
+      </div>
+
+      <div class="code-input-container" id="codeInputView">
+        <input type="text" id="friendCodeInput" placeholder="Ex: #VIOLET123">
+        <div class="modal-actions">
+          <button class="modal-btn secondary" id="backToOptionsBtn">Voltar</button>
+          <button class="modal-btn primary" id="submitCodeBtn">Adicionar</button>
+        </div>
+      </div>
+
+      <div class="qr-scanner-container" id="qrScannerView">
+        <div id="reader"></div>
+        <button class="modal-btn secondary" id="stopScannerBtn" style="width: 100%;">Cancelar Leitura</button>
+      </div>
+
+      <div class="mobile-only-notice" id="mobileOnlyNoticeView">
+        <i data-lucide="smartphone"></i>
+        <p>A leitura de QR Code utilizando a câmera está disponível apenas no aplicativo móvel (mobile).</p>
+        <button class="modal-btn primary" id="backToOptionsFromNoticeBtn" style="width: 100%; margin-top: 10px;">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="add-friend-modal-overlay" id="deleteContactModalOverlay">
+    <div class="add-friend-modal" style="text-align: center;">
+      <div class="modal-header" style="justify-content: center; position: relative;">
+        <div class="modal-title" style="color: var(--danger-color);">
+          <i data-lucide="user-x" style="width: 24px; height: 24px;"></i>
+          <span>Excluir Contato</span>
+        </div>
+        <button class="modal-close-btn" id="deleteModalCloseBtn" aria-label="Fechar" style="position: absolute; right: 0;">
+          <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+        </button>
+      </div>
+      <p id="deleteModalText" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 24px; line-height: 1.4;">
+        Tem certeza que deseja excluir esta conversa e remover o contato? Essa ação não pode ser desfeita.
+      </p>
+      <div class="modal-actions">
+        <button class="modal-btn secondary" id="cancelDeleteBtn">Cancelar</button>
+        <button class="modal-btn danger" id="confirmDeleteBtn">Excluir</button>
+      </div>
+    </div>
+  </div>
+
   <div class="main-wrapper">
     <div class="chat-container">
       <div class="chat-sidebar" id="chatSidebar">
@@ -557,7 +898,7 @@
           </button>
         </div>
         <ul class="chat-list" id="chatList">
-          <li class="chat-item active" data-name="Ana Souza" data-initial="A" data-color="#7c3aed">
+          <li class="chat-item" data-name="Ana Souza" data-initial="A" data-color="#7c3aed">
             <div class="chat-avatar">A</div>
             <div class="chat-info">
               <div class="chat-info-top">
@@ -592,15 +933,22 @@
 
       <div class="chat-window" id="chatWindow">
         <div class="chat-header">
-          <button class="back-btn" id="backBtn">
-            <i data-lucide="arrow-left" style="width: 20px; height: 20px;"></i>
-          </button>
-          <div class="chat-avatar" id="activeAvatar" style="width: 36px; height: 36px; font-size: 0.85rem;">A</div>
-          <span class="chat-name" id="activeName">Ana Souza</span>
+          <div class="chat-header-left">
+            <button class="back-btn" id="backBtn">
+              <i data-lucide="arrow-left" style="width: 20px; height: 20px;"></i>
+            </button>
+            <div class="chat-avatar" id="activeAvatar" style="width: 36px; height: 36px; font-size: 0.85rem;">A</div>
+            <span class="chat-name" id="activeName">Ana Souza</span>
+          </div>
+          <div class="chat-header-actions">
+            <button class="icon-action-btn" id="deleteContactBtn" title="Excluir Contato" aria-label="Excluir Contato">
+              <i data-lucide="user-x" style="width: 18px; height: 18px;"></i>
+            </button>
+          </div>
         </div>
         <div class="chat-messages" id="chatMessages">
           <div class="message received">Olá! Como estão as coisas por aí?</div>
-          <div class="message sent">Tudo ótimo! Interface ajustada sem o seletor de mídias.</div>
+          <div class="message sent">Tudo ótimo! Opção de exclusão de contato adicionada.</div>
           <div class="message received">Perfeito, ficou excelente!</div>
         </div>
         <div class="chat-input-area">
@@ -640,13 +988,183 @@
     mobileOverlay.addEventListener('click', toggleMobileMenu);
 
     mobileDropdownLinks.forEach(link => {
-      link.addEventListener('click', () => {
-        if (mobileDropdown.classList.contains('active')) {
-          toggleMobileMenu();
-        }
-      });
+      if(link.id !== 'addFriendNavMobile') {
+        link.addEventListener('click', () => {
+          if (mobileDropdown.classList.contains('active')) {
+            toggleMobileMenu();
+          }
+        });
+      }
     });
 
+    // --- LOGICA DO MODAL DE ADICIONAR AMIGO & QR SCANNER ---
+    const addFriendNavDesktop = document.getElementById('addFriendNavDesktop');
+    const addFriendNavMobile = document.getElementById('addFriendNavMobile');
+    const addFriendModalOverlay = document.getElementById('addFriendModalOverlay');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalMainTitle = document.getElementById('modalMainTitle');
+    
+    const modalOptionsView = document.getElementById('modalOptionsView');
+    const codeInputView = document.getElementById('codeInputView');
+    const qrScannerView = document.getElementById('qrScannerView');
+    const mobileOnlyNoticeView = document.getElementById('mobileOnlyNoticeView');
+
+    const optionByCode = document.getElementById('optionByCode');
+    const optionByQR = document.getElementById('optionByQR');
+    const backToOptionsBtn = document.getElementById('backToOptionsBtn');
+    const backToOptionsFromNoticeBtn = document.getElementById('backToOptionsFromNoticeBtn');
+    const stopScannerBtn = document.getElementById('stopScannerBtn');
+    const friendCodeInput = document.getElementById('friendCodeInput');
+    const submitCodeBtn = document.getElementById('submitCodeBtn');
+
+    let html5QrCodeScanner = null;
+
+    function openAddFriendModal(e) {
+      if(e) e.preventDefault();
+      if (mobileDropdown.classList.contains('active')) {
+        toggleMobileMenu();
+      }
+      resetModalViews();
+      addFriendModalOverlay.classList.add('active');
+    }
+
+    function closeAddFriendModal() {
+      stopScannerCamera();
+      addFriendModalOverlay.classList.remove('active');
+    }
+
+    function stopScannerCamera() {
+      if (html5QrCodeScanner) {
+        html5QrCodeScanner.stop().then(() => {
+          html5QrCodeScanner.clear();
+          html5QrCodeScanner = null;
+        }).catch(err => {
+          console.error("Erro ao parar a câmera:", err);
+          html5QrCodeScanner = null;
+        });
+      }
+    }
+
+    function resetModalViews() {
+      stopScannerCamera();
+      modalMainTitle.textContent = "Adicionar Amigo";
+      modalOptionsView.style.display = "flex";
+      codeInputView.style.display = "none";
+      qrScannerView.style.display = "none";
+      mobileOnlyNoticeView.style.display = "none";
+      friendCodeInput.value = "";
+    }
+
+    addFriendNavDesktop.addEventListener('click', openAddFriendModal);
+    addFriendNavMobile.addEventListener('click', openAddFriendModal);
+    modalCloseBtn.addEventListener('click', closeAddFriendModal);
+    addFriendModalOverlay.addEventListener('click', (e) => {
+      if (e.target === addFriendModalOverlay) closeAddFriendModal();
+    });
+
+    // Clicou em "Adicionar por Código"
+    optionByCode.addEventListener('click', () => {
+      modalMainTitle.textContent = "Adicionar por Código";
+      modalOptionsView.style.display = "none";
+      codeInputView.style.display = "flex";
+      friendCodeInput.focus();
+    });
+
+    backToOptionsBtn.addEventListener('click', resetModalViews);
+
+    submitCodeBtn.addEventListener('click', () => {
+      const code = friendCodeInput.value.trim();
+      if(code) {
+        alert(`Solicitação de amizade enviada para o código: ${code}`);
+        closeAddFriendModal();
+      } else {
+        alert('Por favor, digite um código válido.');
+      }
+    });
+
+    // Clicou em "Ler QR Code"
+    optionByQR.addEventListener('click', () => {
+      const isMobileDevice = window.innerWidth < 768;
+
+      if (isMobileDevice) {
+        modalMainTitle.textContent = "Ler QR Code";
+        modalOptionsView.style.display = "none";
+        qrScannerView.style.display = "flex";
+
+        if (!html5QrCodeScanner) {
+          html5QrCodeScanner = new Html5Qrcode("reader");
+          const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+          
+          html5QrCodeScanner.start(
+            { facingMode: "environment" }, 
+            config, 
+            (decodedText, decodedResult) => {
+              alert(`QR Code Lido com Sucesso!\nResultado: ${decodedText}`);
+              closeAddFriendModal();
+            },
+            (errorMessage) => {}
+          ).catch(err => {
+            alert("Não foi possível acessar a câmera do dispositivo. Verifique as permissões.");
+            resetModalViews();
+          });
+        }
+      } else {
+        modalMainTitle.textContent = "Ler QR Code";
+        modalOptionsView.style.display = "none";
+        mobileOnlyNoticeView.style.display = "flex";
+      }
+    });
+
+    stopScannerBtn.addEventListener('click', resetModalViews);
+    backToOptionsFromNoticeBtn.addEventListener('click', resetModalViews);
+
+
+    // --- LÓGICA DE EXCLUSÃO DE CONTATO ---
+    const deleteContactBtn = document.getElementById('deleteContactBtn');
+    const deleteContactModalOverlay = document.getElementById('deleteContactModalOverlay');
+    const deleteModalCloseBtn = document.getElementById('deleteModalCloseBtn');
+    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const deleteModalText = document.getElementById('deleteModalText');
+
+    function openDeleteModal() {
+      const currentName = activeName.textContent;
+      deleteModalText.textContent = `Tem certeza que deseja excluir o contato "${currentName}" e limpar esta conversa? Essa ação não pode ser desfeita.`;
+      deleteContactModalOverlay.classList.add('active');
+    }
+
+    function closeDeleteModal() {
+      deleteContactModalOverlay.classList.remove('active');
+    }
+
+    deleteContactBtn.addEventListener('click', openDeleteModal);
+    deleteModalCloseBtn.addEventListener('click', closeDeleteModal);
+    cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+    deleteContactModalOverlay.addEventListener('click', (e) => {
+      if (e.target === deleteContactModalOverlay) closeDeleteModal();
+    });
+
+    confirmDeleteBtn.addEventListener('click', () => {
+      const activeItem = document.querySelector('.chat-item.active');
+      if (activeItem) {
+        const contactName = activeName.textContent;
+        activeItem.remove();
+        closeDeleteModal();
+
+        // Fecha o chat tanto no mobile quanto no desktop ao excluir o contato
+        chatSidebar.classList.remove('mobile-hidden');
+        chatWindow.classList.remove('mobile-active');
+        chatWindow.classList.remove('desktop-open');
+
+        // Remove a seleção ativa dos chats restantes
+        document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+
+        alert(`Contato "${contactName}" excluído com sucesso.`);
+      }
+    });
+
+
+    // --- LÓGICA DO CHAT JÁ EXISTENTE ---
     const chatItems = document.querySelectorAll('.chat-item');
     const chatSidebar = document.getElementById('chatSidebar');
     const chatWindow = document.getElementById('chatWindow');
@@ -659,29 +1177,42 @@
     const searchInput = document.getElementById('searchInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
 
-    chatItems.forEach(item => {
-      item.addEventListener('click', () => {
-        chatItems.forEach(i => i.classList.remove('active'));
-        item.classList.add('active');
-
-        const name = item.getAttribute('data-name');
-        const initial = item.getAttribute('data-initial');
-        const color = item.getAttribute('data-color');
-
-        activeName.textContent = name;
-        activeAvatar.textContent = initial;
-        activeAvatar.style.backgroundColor = color;
-
-        if (window.innerWidth < 768) {
-          chatSidebar.classList.add('mobile-hidden');
-          chatWindow.classList.add('mobile-active');
-        }
+    // Função global para reatribuir o evento de clique nos itens de chat restantes
+    function attachChatListeners() {
+      document.querySelectorAll('.chat-item').forEach(item => {
+        item.replaceWith(item.cloneNode(true));
       });
-    });
+
+      document.querySelectorAll('.chat-item').forEach(item => {
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+
+          const name = item.getAttribute('data-name');
+          const initial = item.getAttribute('data-initial');
+          const color = item.getAttribute('data-color');
+
+          activeName.textContent = name;
+          activeAvatar.textContent = initial;
+          activeAvatar.style.backgroundColor = color;
+
+          if (window.innerWidth < 768) {
+            chatSidebar.classList.add('mobile-hidden');
+            chatWindow.classList.add('mobile-active');
+          } else {
+            chatWindow.classList.add('desktop-open');
+          }
+        });
+      });
+    }
+
+    attachChatListeners();
 
     backBtn.addEventListener('click', () => {
       chatSidebar.classList.remove('mobile-hidden');
       chatWindow.classList.remove('mobile-active');
+      chatWindow.classList.remove('desktop-open');
+      document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
     });
 
     function sendMessage() {
@@ -713,7 +1244,7 @@
         clearSearchBtn.style.display = 'none';
       }
 
-      chatItems.forEach(item => {
+      document.querySelectorAll('.chat-item').forEach(item => {
         const name = item.querySelector('.chat-name').textContent.toLowerCase();
         const lastMsg = item.querySelector('.chat-last-msg').textContent.toLowerCase();
         if (name.includes(term) || lastMsg.includes(term)) {
@@ -727,7 +1258,7 @@
     clearSearchBtn.addEventListener('click', () => {
       searchInput.value = '';
       clearSearchBtn.style.display = 'none';
-      chatItems.forEach(item => {
+      document.querySelectorAll('.chat-item').forEach(item => {
         item.style.display = 'flex';
       });
       searchInput.focus();
