@@ -191,6 +191,34 @@
             transform: scale(1.1);
         }
 
+        .voice-search-btn {
+            color: var(--primary-color);
+            margin-left: 8px;
+            font-size: 1.1rem;
+            padding: 5px;
+            flex-shrink: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            background: transparent;
+            border: none;
+            outline: none;
+            transition: opacity 0.2s ease, transform 0.2s ease, color 0.2s ease;
+        }
+        .voice-search-btn:hover {
+            opacity: 0.8;
+            transform: scale(1.1);
+        }
+        .voice-search-btn.listening {
+            color: #ff4d4d;
+            animation: pulse-voice 1.5s infinite;
+        }
+        @keyframes pulse-voice {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
         .wiki-btn {
             color: var(--primary-color);
             margin-left: 8px;
@@ -821,6 +849,10 @@
             
             <i id="clear-search-btn" class="fas fa-xmark clear-search-btn" title="Limpar busca" onclick="clearSearchInput()"></i>
 
+            <button id="voice-search-btn" class="voice-search-btn" title="Pesquisa por voz" onclick="toggleVoiceSearch()">
+                <i class="fas fa-microphone"></i>
+            </button>
+
             <a href="./pages/More/Wiki/Index.html" class="wiki-btn" title="Ir para a Wiki">
                 <i class="fa-brands fa-wikipedia-w"></i>
             </a>
@@ -892,7 +924,7 @@
         <div class="engine-menu-option" data-value="video" onclick="selectEngine('video', 'Vídeo')">Vídeo <i class="fas fa-check" style="display:none;"></i></div>
         <div class="engine-menu-option" data-value="imagem" onclick="selectEngine('imagem', 'Imagem')">Imagem <i class="fas fa-check" style="display:none;"></i></div>
         <div class="engine-menu-option" data-value="noticias" onclick="selectEngine('noticias', 'Notícias')">Notícias <i class="fas fa-check" style="display:none;"></i></div>
-        <div class="engine-menu-option" data-value="comunidade" onclick="selectEngine('comunidade', 'Comunidade')">Notícias <i class="fas fa-check" style="display:none;"></i></div>
+        <div class="engine-menu-option" data-value="comunidade" onclick="selectEngine('comunidade', 'Comunidade')">Comunidades <i class="fas fa-check" style="display:none;"></i></div>
         
         <div class="engine-menu-option" data-value="custom" id="custom-engine-option" onclick="handleCustomEngineClick()">
             <span id="custom-engine-label">Personalizado</span>
@@ -1392,6 +1424,49 @@
             e.preventDefault();
             openCustomEngineModal();
         });
+
+        // ======================================================
+        // PESQUISA POR VOZ (SPEECH RECOGNITION)
+        // ======================================================
+        function toggleVoiceSearch() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                alert('O seu navegador não suporta pesquisa por voz.');
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'pt-BR';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            const voiceBtn = document.getElementById('voice-search-btn');
+            const searchInputEl = document.getElementById('main-search');
+
+            recognition.onstart = function() {
+                voiceBtn.classList.add('listening');
+                searchInputEl.placeholder = 'Ouvindo...';
+            };
+
+            recognition.onresult = function(event) {
+                const speechResult = event.results[0][0].transcript;
+                searchInputEl.value = speechResult;
+                clearBtn.style.display = 'flex';
+                triggerSearch();
+            };
+
+            recognition.onerror = function(event) {
+                console.warn('Erro no reconhecimento de voz:', event.error);
+            };
+
+            recognition.onend = function() {
+                voiceBtn.classList.remove('listening');
+                searchInputEl.placeholder = enginePlaceholders[activeSearchEngine] || 'Pesquise...';
+            };
+
+            recognition.start();
+        }
 
         // ======================================================
         // BUSCA
