@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LoreSpace</title>
 
-    <!-- PWA / Install -->
+    <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#8a2be2">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -297,14 +297,17 @@
             box-shadow: 0 4px 15px rgba(138, 43, 226, 0.12);
             z-index: 1000;
             font-size: 1.1rem;
-            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.3s;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.3s, box-shadow 0.3s;
         }
         .pwa-install-fab:hover {
             transform: scale(1.08);
             background: rgba(255, 255, 255, 0.7);
         }
+        .pwa-install-fab.ready {
+            box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.4);
+        }
         .pwa-install-fab.installed {
-            opacity: 0.5;
+            opacity: 0.45;
             pointer-events: none;
         }
 
@@ -785,7 +788,7 @@
 </head>
 <body>
 
-    <button id="pwa-install-fab" class="pwa-install-fab" onclick="openPwaModal()" title="Adicionar à Tela Inicial">
+    <button id="pwa-install-fab" class="pwa-install-fab" onclick="openPwaModal()" title="Instalar como App">
         <i class="fas fa-mobile-screen-button"></i>
     </button>
 
@@ -857,8 +860,7 @@
             <h3>Adicionar à Tela Inicial</h3>
             <p>Escolha a logo, ajuste filtros e cores antes de instalar o app:</p>
             
-            <div class="src-options-grid" id="src-options-container">
-            </div>
+            <div class="src-options-grid" id="src-options-container"></div>
 
             <div class="pwa-preview-container" title="Prévia do Ícone">
                 <img id="pwa-icon-preview" src="/src/Favico.png" alt="Logo do Atalho">
@@ -947,23 +949,26 @@
     </nav>
 
     <script>
-        // ========== PWA MANIFEST DINÂMICO ==========
-        (function createManifest() {
+        // ======================================================
+        // PWA - MANIFEST + SERVICE WORKER
+        // ======================================================
+        (function setupPWA() {
             const manifest = {
                 name: "LoreSpace",
                 short_name: "LoreSpace",
                 description: "LoreSpace - Seu espaço de busca e recursos",
                 start_url: "./",
+                scope: "./",
                 display: "standalone",
                 background_color: "#f8f8ff",
                 theme_color: "#8a2be2",
-                orientation: "portrait-primary",
+                orientation: "any",
                 icons: [
                     {
                         src: "/src/Favico.png",
                         sizes: "192x192",
                         type: "image/png",
-                        purpose: "any maskable"
+                        purpose: "any"
                     },
                     {
                         src: "/src/Favico.png",
@@ -974,33 +979,40 @@
                 ]
             };
 
-            const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-            const manifestURL = URL.createObjectURL(blob);
+            const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+            const manifestURL = URL.createObjectURL(manifestBlob);
             const link = document.createElement('link');
             link.rel = 'manifest';
             link.href = manifestURL;
             document.head.appendChild(link);
+
+            // Service Worker mínimo (obrigatório para instalação)
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('install', event => {
+                        self.skipWaiting();
+                    });
+                    self.addEventListener('activate', event => {
+                        event.waitUntil(self.clients.claim());
+                    });
+                    self.addEventListener('fetch', event => {});
+                `;
+                const swBlob = new Blob([swCode], { type: 'application/javascript' });
+                const swURL = URL.createObjectURL(swBlob);
+
+                navigator.serviceWorker.register(swURL)
+                    .then(() => console.log('Service Worker registrado'))
+                    .catch(err => console.warn('Erro SW:', err));
+            }
         })();
 
-        // ========== RESTO DO CÓDIGO ORIGINAL ==========
-        document.querySelectorAll('.sidebar-item').forEach(item => {
-            item.addEventListener('click', function() {
-                document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
-
-        document.querySelectorAll('.tabbar .tab-item').forEach(item => {
-            item.addEventListener('click', function() {
-                document.querySelectorAll('.tabbar .tab-item').forEach(el => el.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
-
+        // ======================================================
+        // VARIÁVEIS GLOBAIS
+        // ======================================================
         let activeSearchEngine = 'web';
         let customEngine = null;
         let deferredPrompt = null;
-        
+
         const availableSrcLogos = [
             "/src/Favico.png",
             "/src/LogoAlt1.png",
@@ -1010,29 +1022,31 @@
             "/src/LogoAlt5.png"
         ];
 
-        // Captura o evento de instalação
+        // ======================================================
+        // EVENTOS DE INSTALAÇÃO PWA
+        // ======================================================
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            console.log('PWA instalável detectado');
-            // Mostra o botão se estiver escondido
             const fab = document.getElementById('pwa-install-fab');
-            if (fab) fab.style.display = 'flex';
+            if (fab) {
+                fab.classList.add('ready');
+                fab.title = 'Instalar LoreSpace como App';
+            }
         });
 
-        // Detecta se já está instalado
         window.addEventListener('appinstalled', () => {
-            console.log('LoreSpace instalado com sucesso!');
             deferredPrompt = null;
             const fab = document.getElementById('pwa-install-fab');
             if (fab) {
+                fab.classList.remove('ready');
                 fab.classList.add('installed');
                 fab.title = 'Já instalado';
             }
             closePwaModal();
         });
 
-        // Verifica se já está rodando como PWA
+        // Detecta se já está rodando como app
         if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
             const fab = document.getElementById('pwa-install-fab');
             if (fab) {
@@ -1041,19 +1055,13 @@
             }
         }
 
+        // ======================================================
+        // FUNÇÕES DO MODAL DE INSTALAÇÃO
+        // ======================================================
         function openPwaModal() {
             renderSrcOptions();
             resetFilters();
             document.getElementById('pwa-install-modal').classList.add('active');
-            
-            // Atualiza texto do botão conforme disponibilidade
-            const btn = document.getElementById('btn-install-pwa');
-            if (deferredPrompt) {
-                btn.innerText = 'Instalar App';
-                btn.disabled = false;
-            } else {
-                btn.innerText = 'Instalar App';
-            }
         }
 
         function closePwaModal() {
@@ -1108,7 +1116,7 @@
             const currentFilter = previewImg.style.filter || 'none';
             const currentSrc = previewImg.src;
 
-            // Aplica o filtro no ícone (visual)
+            // Tenta aplicar o filtro no ícone
             try {
                 const canvas = document.createElement('canvas');
                 canvas.width = 192;
@@ -1117,54 +1125,70 @@
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
                 img.src = currentSrc;
-                
+
                 await new Promise((resolve, reject) => {
                     img.onload = resolve;
                     img.onerror = reject;
                 });
 
                 ctx.filter = currentFilter;
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                const finalFilteredDataUrl = canvas.toDataURL('image/png');
+                ctx.drawImage(img, 0, 0, 192, 192);
+                const finalDataUrl = canvas.toDataURL('image/png');
 
-                // Atualiza os favicons temporariamente
                 document.querySelectorAll('link.icon, link[rel="shortcut icon"], link[rel="apple-touch-icon"]').forEach(link => {
-                    link.href = finalFilteredDataUrl;
+                    link.href = finalDataUrl;
                 });
             } catch (err) {
                 console.warn('Não foi possível processar o ícone filtrado:', err);
             }
 
-            // Dispara a instalação real
+            // Dispara a instalação nativa
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const choiceResult = await deferredPrompt.userChoice;
-                
+
                 if (choiceResult.outcome === 'accepted') {
-                    console.log('Usuário aceitou instalar o LoreSpace');
+                    console.log('Usuário aceitou a instalação');
                 } else {
                     console.log('Usuário recusou a instalação');
                 }
                 deferredPrompt = null;
                 closePwaModal();
             } else {
-                // Fallback quando o navegador não dispara beforeinstallprompt
-                // (Safari iOS, Firefox, ou já instalado)
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                 const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
                 if (isStandalone) {
                     alert('O LoreSpace já está instalado!');
                 } else if (isIOS) {
-                    alert('No iPhone/iPad:\n1. Toque no botão Compartilhar (quadrado com seta)\n2. Role e escolha "Adicionar à Tela de Início"');
+                    alert('No iPhone/iPad:\n\n1. Toque no botão Compartilhar (quadrado com seta para cima)\n2. Role para baixo e escolha "Adicionar à Tela de Início"');
                 } else {
-                    alert('Para instalar:\n• Chrome/Edge: use o menu ⋮ → "Instalar aplicativo" ou "Adicionar à tela inicial"\n• Ou aguarde o navegador liberar a instalação automática.');
+                    alert('Seu navegador ainda não liberou a instalação automática.\n\nTente recarregar a página ou use Chrome / Edge.');
                 }
                 closePwaModal();
             }
         }
 
-        // ========== CÓDIGO ORIGINAL (buscadores, views, etc.) ==========
+        // ======================================================
+        // SIDEBAR E TABBAR
+        // ======================================================
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        document.querySelectorAll('.tabbar .tab-item').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.tabbar .tab-item').forEach(el => el.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // ======================================================
+        // BUSCADORES
+        // ======================================================
         const enginePlaceholders = {
             'web': 'Pesquise na Web (Google)...',
             'video': 'Procure vídeos no YouTube...',
@@ -1207,18 +1231,8 @@
 
             if (!domain) return null;
 
-            const fullDomain = domain;
-            const withWww = 'www.' + domain;
-
-            if (knownSearchPatterns[fullDomain]) {
-                return knownSearchPatterns[fullDomain];
-            }
-            if (knownSearchPatterns[withWww]) {
-                return knownSearchPatterns[withWww];
-            }
-            if (knownSearchPatterns[domain]) {
-                return knownSearchPatterns[domain];
-            }
+            if (knownSearchPatterns[domain]) return knownSearchPatterns[domain];
+            if (knownSearchPatterns['www.' + domain]) return knownSearchPatterns['www.' + domain];
 
             return `https://www.${domain}/search?q=%s`;
         }
@@ -1374,15 +1388,14 @@
             openCustomEngineModal();
         });
 
+        // ======================================================
+        // BUSCA
+        // ======================================================
         const searchInput = document.getElementById('main-search');
         const clearBtn = document.getElementById('clear-search-btn');
 
         searchInput.addEventListener('input', function() {
-            if (this.value.trim().length > 0) {
-                clearBtn.style.display = 'flex';
-            } else {
-                clearBtn.style.display = 'none';
-            }
+            clearBtn.style.display = this.value.trim().length > 0 ? 'flex' : 'none';
         });
 
         function clearSearchInput() {
@@ -1391,6 +1404,52 @@
             searchInput.focus();
         }
 
+        function triggerSearch() {
+            const term = document.getElementById('main-search').value;
+            if (!term) return;
+
+            const encodedTerm = encodeURIComponent(term);
+            let url = '';
+
+            switch(activeSearchEngine) {
+                case 'web': 
+                    url = `https://www.google.com/search?q=${encodedTerm}`; 
+                    break;
+                case 'video': 
+                    url = `https://www.youtube.com/results?search_query=${encodedTerm}`; 
+                    break;
+                case 'imagem': 
+                    url = `https://br.pinterest.com/search/pins/?q=${encodedTerm}`; 
+                    break;
+                case 'noticias': 
+                    url = `https://www.google.com/search?q=${encodedTerm}&tbm=nws`; 
+                    break;
+                case 'comunidade': 
+                    url = `https://www.reddit.com/search/?q=${encodedTerm}`; 
+                    break;
+                case 'custom':
+                    if (customEngine && customEngine.urlTemplate) {
+                        url = customEngine.urlTemplate.replace('%s', encodedTerm);
+                    } else {
+                        alert('Nenhum buscador personalizado configurado.');
+                        openCustomEngineModal();
+                        return;
+                    }
+                    break;
+                default: 
+                    url = `https://www.google.com/search?q=${encodedTerm}`; 
+            }
+
+            window.open(url, '_blank');
+        }
+
+        function handleSearch(event) {
+            if (event.key === 'Enter') triggerSearch();
+        }
+
+        // ======================================================
+        // TABBAR
+        // ======================================================
         function expandTabbar(event) {
             const tabbar = document.getElementById('main-tabbar');
             if (!tabbar.classList.contains('expanded')) {
@@ -1401,54 +1460,12 @@
 
         function collapseTabbar(event) {
             if (event) event.stopPropagation();
-            const tabbar = document.getElementById('main-tabbar');
-            tabbar.classList.remove('expanded');
+            document.getElementById('main-tabbar').classList.remove('expanded');
         }
 
-        function triggerSearch() {
-            const term = document.getElementById('main-search').value;
-            const engine = activeSearchEngine;
-            if (!term) return;
-            let url = '';
-            const encodedTerm = encodeURIComponent(term);
-
-            switch(engine) {
-                case 'web': 
-                    url = `https://www.google.com/search?q=${encodedTerm}`; 
-                    window.open(url, '_blank'); 
-                    break;
-                case 'video': 
-                    url = `https://www.youtube.com/results?search_query=${encodedTerm}`; 
-                    window.open(url, '_blank'); 
-                    break;
-                case 'imagem': 
-                    url = `https://br.pinterest.com/search/pins/?q=${encodedTerm}`; 
-                    window.open(url, '_blank'); 
-                    break;
-                case 'noticias': 
-                    url = `https://www.google.com/search?q=${encodedTerm}&tbm=nws`; 
-                    window.open(url, '_blank'); 
-                    break;
-                case 'comunidade': 
-                    url = `https://www.reddit.com/search/?q=${encodedTerm}`; 
-                    window.open(url, '_blank'); 
-                    break;
-                case 'custom':
-                    if (customEngine && customEngine.urlTemplate) {
-                        url = customEngine.urlTemplate.replace('%s', encodedTerm);
-                        window.open(url, '_blank');
-                    } else {
-                        alert('Nenhum buscador personalizado configurado.');
-                        openCustomEngineModal();
-                    }
-                    break;
-                default: 
-                    url = `https://www.google.com/search?q=${encodedTerm}`; 
-                    window.open(url, '_blank'); 
-                    break;
-            }
-        }
-
+        // ======================================================
+        // VIEWS
+        // ======================================================
         function showView(viewId, event) {
             if (event) event.stopPropagation();
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -1462,8 +1479,9 @@
             }
         }
 
-        function handleSearch(event) { if (event.key === 'Enter') triggerSearch(); }
-
+        // ======================================================
+        // RECURSOS MODAL
+        // ======================================================
         const recursosModal = document.getElementById('recursos-modal');
         const modalHeader = document.getElementById('recursos-modal-header');
         const recursosIframe = document.getElementById('recursos-iframe');
@@ -1476,12 +1494,14 @@
             recursosModal.style.top = '';
             recursosModal.style.transition = 'top 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
             title.innerText = recursoNome;
+
             const paginasRecursos = { 
                 'anunciar': './Recursos/Anunciar/Index.html',
                 'studio': './Recursos/Studio/Index.html',
                 'noticias': './Recursos/Noticias/Index.html',
                 'ferramentas': './Recursos/Ferramentas/Index.html',
             };
+
             recursosIframe.src = paginasRecursos[recursoNome.toLowerCase()] || '404.html';
             recursosModal.classList.add('active');
             document.body.style.overflow = 'hidden'; 
@@ -1509,19 +1529,24 @@
             if (deltaY > 0) recursosModal.style.top = `${deltaY}px`;
         }, { passive: true });
 
-        modalHeader.addEventListener('touchend', (e) => {
+        modalHeader.addEventListener('touchend', () => {
             if (!isDragging || window.innerWidth >= 992) return;
             isDragging = false;
             const deltaY = touchMoveY - touchStartY;
             const triggerThreshold = window.innerHeight * 0.20; 
-            if (deltaY > triggerThreshold) closeRecursoModal();
-            else {
+            if (deltaY > triggerThreshold) {
+                closeRecursoModal();
+            } else {
                 recursosModal.style.transition = 'top 0.3s ease-out';
                 recursosModal.style.top = '0px';
             }
-            touchStartY = 0; touchMoveY = 0;
+            touchStartY = 0;
+            touchMoveY = 0;
         });
 
+        // ======================================================
+        // INICIALIZAÇÃO
+        // ======================================================
         loadCustomEngine();
     </script>
 </body>
