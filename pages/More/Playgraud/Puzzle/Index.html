@@ -29,10 +29,9 @@
             font-size: 0.8rem;
             outline: none;
             background-color: var(--primary-color);
-            /* Configurações padrão para a imagem de fundo */
             background-size: cover;
             background-position: center;
-            background-blend-mode: multiply; /* Ajuda a misturar a imagem com a cor roxa */
+            background-blend-mode: multiply;
         }
         
         .gx-mod-card:hover, .gx-mod-card:focus { transform: scale(1.05); filter: brightness(1.2); z-index: 10; }
@@ -66,11 +65,8 @@
     <main class="py-10">
         <h1 class="text-center text-2xl font-bold text-[var(--primary-color)] mb-8">Escolha seu Puzzle</h1>
         
-        <div class="promo-grid">
-            <div class="gx-mod-card" tabindex="0" onclick="openModal('./quebra-cabeca/quebra-cabeca.html')" style="background-image: url('Src/Quebra_Cabeça.png');">
-                <i class="fas fa-puzzle-piece"></i> <span>QUEBRA-CABEÇA</span>
+        <div id="promoGrid" class="promo-grid">
             </div>
-        </div>
     </main>
 
     <div id="modalContainer">
@@ -78,7 +74,56 @@
         <iframe id="modalIframe" class="w-full h-full border-none" src=""></iframe>
     </div>
 
+    <script src="jogos-data.js"></script>
+
     <script>
+        function carregarJogos() {
+            const grid = document.getElementById('promoGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            if (typeof jogosArray === 'undefined') {
+                console.error("O arquivo jogos-data.js não foi carregado corretamente.");
+                return;
+            }
+
+            jogosArray.forEach(jogo => {
+                const card = document.createElement('div');
+                card.className = 'gx-mod-card';
+                card.setAttribute('tabindex', '0');
+                card.setAttribute('onclick', `openModal('${jogo.url}')`);
+                
+                let domain = '';
+                try {
+                    domain = new URL(jogo.url, window.location.href).hostname;
+                    const googleLogoUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+                    
+                    if (jogo.bgImage && jogo.bgImage.trim() !== "") {
+                        card.style.backgroundImage = `url('${jogo.bgImage}')`;
+                    } else {
+                        card.style.backgroundImage = `url('${googleLogoUrl}')`;
+                    }
+                } catch (e) {
+                    card.style.backgroundImage = `none`;
+                }
+
+                let tituloFinal = jogo.titulo;
+                if (!tituloFinal || tituloFinal.trim() === "") {
+                    let pathSegment = jogo.url.split('/').pop().replace('.html', '').replace('.php', '');
+                    tituloFinal = pathSegment ? pathSegment.replace(/[-_]/g, ' ').toUpperCase() : domain.toUpperCase();
+                }
+
+                card.innerHTML = `
+                    <i class="${jogo.icone || 'fas fa-gamepad'}"></i> 
+                    <span>${tituloFinal}</span>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', carregarJogos);
+
         function openModal(url) {
             const modal = document.getElementById('modalContainer');
             const iframe = document.getElementById('modalIframe');
