@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LoreSpace</title>
+
+    <!-- PWA / Install -->
+    <meta name="theme-color" content="#8a2be2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LoreSpace">
+    <link rel="apple-touch-icon" href="/src/Favico.png">
+
     <link class="icon" type="image/png" href="/src/Favico.png" sizes="32x32">
     <link rel="shortcut icon" href="/src/Favico.png">
     <link class="icon" type="image/svg+xml" href="/src/Favico.png">
@@ -293,6 +302,10 @@
         .pwa-install-fab:hover {
             transform: scale(1.08);
             background: rgba(255, 255, 255, 0.7);
+        }
+        .pwa-install-fab.installed {
+            opacity: 0.5;
+            pointer-events: none;
         }
 
         .custom-engine-modal {
@@ -772,7 +785,7 @@
 </head>
 <body>
 
-    <button id="pwa-install-fab" class="pwa-install-fab" onclick="openPwaModal()" title="Adicionar Atalho">
+    <button id="pwa-install-fab" class="pwa-install-fab" onclick="openPwaModal()" title="Adicionar à Tela Inicial">
         <i class="fas fa-mobile-screen-button"></i>
     </button>
 
@@ -842,7 +855,7 @@
     <div id="pwa-install-modal" class="custom-engine-modal">
         <div class="custom-engine-box">
             <h3>Adicionar à Tela Inicial</h3>
-            <p>Escolha a logo, ajuste filtros e cores antes de fixar:</p>
+            <p>Escolha a logo, ajuste filtros e cores antes de instalar o app:</p>
             
             <div class="src-options-grid" id="src-options-container">
             </div>
@@ -867,7 +880,7 @@
             
             <div class="custom-engine-actions">
                 <button class="custom-engine-btn secondary" onclick="closePwaModal()">Cancelar</button>
-                <button class="custom-engine-btn primary" onclick="triggerAddToHomeScreen()">Adicionar</button>
+                <button class="custom-engine-btn primary" id="btn-install-pwa" onclick="triggerAddToHomeScreen()">Instalar App</button>
             </div>
         </div>
     </div>
@@ -878,7 +891,7 @@
         <div class="engine-menu-option" data-value="video" onclick="selectEngine('video', 'Vídeo')">Vídeo <i class="fas fa-check" style="display:none;"></i></div>
         <div class="engine-menu-option" data-value="imagem" onclick="selectEngine('imagem', 'Imagem')">Imagem <i class="fas fa-check" style="display:none;"></i></div>
         <div class="engine-menu-option" data-value="noticias" onclick="selectEngine('noticias', 'Notícias')">Notícias <i class="fas fa-check" style="display:none;"></i></div>
-        <div class="engine-menu-option" data-value="comunidade" onclick="selectEngine('comunidade', 'Comunidade')">Notícias <i class="fas fa-check" style="display:none;"></i></div>
+        <div class="engine-menu-option" data-value="comunidade" onclick="selectEngine('comunidade', 'Comunidade')">Comunidade <i class="fas fa-check" style="display:none;"></i></div>
         
         <div class="engine-menu-option" data-value="custom" id="custom-engine-option" onclick="handleCustomEngineClick()">
             <span id="custom-engine-label">Personalizado</span>
@@ -934,6 +947,42 @@
     </nav>
 
     <script>
+        // ========== PWA MANIFEST DINÂMICO ==========
+        (function createManifest() {
+            const manifest = {
+                name: "LoreSpace",
+                short_name: "LoreSpace",
+                description: "LoreSpace - Seu espaço de busca e recursos",
+                start_url: "./",
+                display: "standalone",
+                background_color: "#f8f8ff",
+                theme_color: "#8a2be2",
+                orientation: "portrait-primary",
+                icons: [
+                    {
+                        src: "/src/Favico.png",
+                        sizes: "192x192",
+                        type: "image/png",
+                        purpose: "any maskable"
+                    },
+                    {
+                        src: "/src/Favico.png",
+                        sizes: "512x512",
+                        type: "image/png",
+                        purpose: "any maskable"
+                    }
+                ]
+            };
+
+            const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+            const manifestURL = URL.createObjectURL(blob);
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = manifestURL;
+            document.head.appendChild(link);
+        })();
+
+        // ========== RESTO DO CÓDIGO ORIGINAL ==========
         document.querySelectorAll('.sidebar-item').forEach(item => {
             item.addEventListener('click', function() {
                 document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
@@ -961,15 +1010,50 @@
             "/src/LogoAlt5.png"
         ];
 
+        // Captura o evento de instalação
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
+            console.log('PWA instalável detectado');
+            // Mostra o botão se estiver escondido
+            const fab = document.getElementById('pwa-install-fab');
+            if (fab) fab.style.display = 'flex';
         });
+
+        // Detecta se já está instalado
+        window.addEventListener('appinstalled', () => {
+            console.log('LoreSpace instalado com sucesso!');
+            deferredPrompt = null;
+            const fab = document.getElementById('pwa-install-fab');
+            if (fab) {
+                fab.classList.add('installed');
+                fab.title = 'Já instalado';
+            }
+            closePwaModal();
+        });
+
+        // Verifica se já está rodando como PWA
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+            const fab = document.getElementById('pwa-install-fab');
+            if (fab) {
+                fab.classList.add('installed');
+                fab.title = 'Já instalado';
+            }
+        }
 
         function openPwaModal() {
             renderSrcOptions();
             resetFilters();
             document.getElementById('pwa-install-modal').classList.add('active');
+            
+            // Atualiza texto do botão conforme disponibilidade
+            const btn = document.getElementById('btn-install-pwa');
+            if (deferredPrompt) {
+                btn.innerText = 'Instalar App';
+                btn.disabled = false;
+            } else {
+                btn.innerText = 'Instalar App';
+            }
         }
 
         function closePwaModal() {
@@ -1021,68 +1105,66 @@
 
         async function triggerAddToHomeScreen() {
             const previewImg = document.getElementById('pwa-icon-preview');
-            const currentFilter = previewImg.style.filter;
+            const currentFilter = previewImg.style.filter || 'none';
             const currentSrc = previewImg.src;
 
-            const canvas = document.createElement('canvas');
-            canvas.width = 192;
-            canvas.height = 192;
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.src = currentSrc;
-            
-            img.onload = async function() {
+            // Aplica o filtro no ícone (visual)
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 192;
+                canvas.height = 192;
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.src = currentSrc;
+                
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                });
+
                 ctx.filter = currentFilter;
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 const finalFilteredDataUrl = canvas.toDataURL('image/png');
 
-                document.querySelectorAll('link.icon, link[rel="shortcut icon"]').forEach(link => {
+                // Atualiza os favicons temporariamente
+                document.querySelectorAll('link.icon, link[rel="shortcut icon"], link[rel="apple-touch-icon"]').forEach(link => {
                     link.href = finalFilteredDataUrl;
                 });
+            } catch (err) {
+                console.warn('Não foi possível processar o ícone filtrado:', err);
+            }
 
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const choiceResult = await deferredPrompt.userChoice;
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('Usuário aceitou adicionar à tela inicial');
-                    }
-                    deferredPrompt = null;
-                } else if ('getInstalledRelatedApps' in navigator) {
-                    try {
-                        const relatedApps = await navigator.getInstalledRelatedApps();
-                        if (relatedApps.length > 0) {
-                            console.log('App já instalado.');
-                        } else {
-                            alert('Para instalar, use a opção "Adicionar à Tela Inicial" ou "Instalar Aplicativo" no menu do seu navegador.');
-                        }
-                    } catch (err) {
-                        alert('Para instalar, use a opção "Adicionar à Tela Inicial" ou "Instalar Aplicativo" no menu do seu navegador.');
-                    }
+            // Dispara a instalação real
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const choiceResult = await deferredPrompt.userChoice;
+                
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('Usuário aceitou instalar o LoreSpace');
                 } else {
-                    alert('Para instalar, use a opção "Adicionar à Tela Inicial" ou "Instalar Aplicativo" no menu do seu navegador.');
+                    console.log('Usuário recusou a instalação');
+                }
+                deferredPrompt = null;
+                closePwaModal();
+            } else {
+                // Fallback quando o navegador não dispara beforeinstallprompt
+                // (Safari iOS, Firefox, ou já instalado)
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+                if (isStandalone) {
+                    alert('O LoreSpace já está instalado!');
+                } else if (isIOS) {
+                    alert('No iPhone/iPad:\n1. Toque no botão Compartilhar (quadrado com seta)\n2. Role e escolha "Adicionar à Tela de Início"');
+                } else {
+                    alert('Para instalar:\n• Chrome/Edge: use o menu ⋮ → "Instalar aplicativo" ou "Adicionar à tela inicial"\n• Ou aguarde o navegador liberar a instalação automática.');
                 }
                 closePwaModal();
-            };
-            
-            img.onerror = async function() {
-                document.querySelectorAll('link.icon, link[rel="shortcut icon"]').forEach(link => {
-                    link.href = currentSrc;
-                });
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const choiceResult = await deferredPrompt.userChoice;
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('Usuário aceitou adicionar à tela inicial');
-                    }
-                    deferredPrompt = null;
-                } else {
-                    alert('Para instalar, use a opção "Adicionar à Tela Inicial" ou "Instalar Aplicativo" no menu do seu navegador.');
-                }
-                closePwaModal();
-            };
+            }
         }
 
+        // ========== CÓDIGO ORIGINAL (buscadores, views, etc.) ==========
         const enginePlaceholders = {
             'web': 'Pesquise na Web (Google)...',
             'video': 'Procure vídeos no YouTube...',
