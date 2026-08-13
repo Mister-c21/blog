@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cotações - Estilo MSN</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #ffffff;
+      --secondary: #7C3AED;
+      --secondary-light: #A78BFA;
+      --text: #1F2937;
+      --text-light: #6B7280;
+      --card: #ffffff;
+      --border: #E5E7EB;
+      --shadow: 0 4px 20px rgba(124, 58, 237, 0.08);
+      --green: #10B981;
+      --red: #EF4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--primary);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--secondary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-right { text-align: right; }
+    .header-right h1 { font-size: 1.4rem; font-weight: 600; }
+    .header-right p { color: var(--text-light); font-size: 0.9rem; }
+
+    .section-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 30px 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 18px;
+      background: var(--secondary);
+      border-radius: 2px;
+    }
+
+    .indices {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .index-card, .stock-card {
+      background: var(--card);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+
+    .index-card:hover, .stock-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--secondary-light);
+    }
+
+    .index-card .name, .stock-name {
+      font-size: 0.9rem;
+      color: var(--text-light);
+      margin-bottom: 6px;
+    }
+
+    .index-card .price, .stock-price {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .change {
+      font-size: 0.95rem;
+      font-weight: 500;
+      margin-top: 4px;
+    }
+
+    .up { color: var(--green); }
+    .down { color: var(--red); }
+
+    .stocks {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+
+    .stock-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 20px;
+    }
+
+    .stock-symbol { font-weight: 600; font-size: 1.05rem; }
+
+    .loading, .error {
+      text-align: center;
+      padding: 50px 20px;
+      color: var(--text-light);
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--secondary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .note {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-light);
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .note a { color: var(--secondary); text-decoration: none; font-weight: 500; }
+
+    @media (max-width: 600px) {
+      header { flex-direction: column; gap: 12px; text-align: center; }
+      .header-right { text-align: center; }
+      .indices { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">📈 Cotações</div>
+      <div class="header-right">
+        <h1>Mercado ao Vivo</h1>
+        <p id="datetime">Carregando...</p>
+      </div>
+    </header>
+
+    <div id="content">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Buscando cotações em tempo real...</p>
+      </div>
+    </div>
+
+    <div class="note">
+      Dados em tempo real via <a href="https://finnhub.io" target="_blank">Finnhub</a> + <a href="https://www.coingecko.com" target="_blank">CoinGecko</a><br>
+      Atualiza automaticamente a cada 60 segundos
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // COLE SUA CHAVE DO FINNHUB AQUI
+    // ============================================
+    const FINNHUB_API_KEY = "d9v5529r01qv408j5b8gd9v5529r01qv408j5b90";   // ← substitua pela sua chave
+    // ============================================
+
+    // Símbolos que vamos buscar
+    const indices = [
+      { symbol: "SPY", name: "S&P 500 (SPY)" },
+      { symbol: "QQQ", name: "Nasdaq 100 (QQQ)" },
+      { symbol: "DIA", name: "Dow Jones (DIA)" },
+      { symbol: "IWM", name: "Russell 2000" }
+    ];
+
+    const stocks = [
+      { symbol: "AAPL", name: "Apple" },
+      { symbol: "MSFT", name: "Microsoft" },
+      { symbol: "NVDA", name: "NVIDIA" },
+      { symbol: "AMZN", name: "Amazon" },
+      { symbol: "GOOGL", name: "Alphabet" },
+      { symbol: "TSLA", name: "Tesla" },
+      { symbol: "META", name: "Meta" },
+      { symbol: "BRK.B", name: "Berkshire Hathaway" }
+    ];
+
+    // Função para buscar cotação no Finnhub
+    async function getQuote(symbol) {
+      const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Erro ao buscar ${symbol}`);
+      return await res.json();
+    }
+
+    // Função para buscar criptomoedas (CoinGecko - sem chave)
+    async function getCrypto() {
+      const url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,binancecoin&vs_currencies=usd&include_24hr_change=true";
+      const res = await fetch(url);
+      return await res.json();
+    }
+
+    function formatPrice(price) {
+      return price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function formatChange(change) {
+      const sign = change >= 0 ? "+" : "";
+      return `${sign}${change.toFixed(2)}%`;
+    }
+
+    async function loadData() {
+      const content = document.getElementById("content");
+
+      // Verifica se a chave foi colocada
+      if (FINNHUB_API_KEY === "SUA_CHAVE_AQUI" || !FINNHUB_API_KEY) {
+        content.innerHTML = `
+          <div class="error">
+            <h3 style="color:var(--secondary);margin-bottom:12px">Chave da API necessária</h3>
+            <p>1. Acesse <a href="https://finnhub.io" target="_blank" style="color:var(--secondary)">finnhub.io</a></p>
+            <p>2. Crie uma conta gratuita e copie a API Key</p>
+            <p>3. Cole a chave no código (procure por FINNHUB_API_KEY)</p>
+          </div>
+        `;
+        return;
+      }
+
+      try {
+        // Busca tudo em paralelo
+        const [quotesIndices, quotesStocks, crypto] = await Promise.all([
+          Promise.all(indices.map(i => getQuote(i.symbol))),
+          Promise.all(stocks.map(s => getQuote(s.symbol))),
+          getCrypto()
+        ]);
+
+        // Renderiza Índices
+        let indicesHTML = indices.map((item, i) => {
+          const q = quotesIndices[i];
+          const change = q.dp || 0;
+          const isUp = change >= 0;
+          return `
+            <div class="index-card">
+              <div class="name">${item.name}</div>
+              <div class="price">$${formatPrice(q.c)}</div>
+              <div class="change ${isUp ? 'up' : 'down'}">
+                ${isUp ? '▲' : '▼'} ${formatChange(change)}
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        // Adiciona Bitcoin como índice
+        const btc = crypto.bitcoin;
+        indicesHTML += `
+          <div class="index-card">
+            <div class="name">Bitcoin</div>
+            <div class="price">$${formatPrice(btc.usd)}</div>
+            <div class="change ${btc.usd_24h_change >= 0 ? 'up' : 'down'}">
+              ${btc.usd_24h_change >= 0 ? '▲' : '▼'} ${formatChange(btc.usd_24h_change)}
+            </div>
+          </div>
+        `;
+
+        // Renderiza Ações
+        let stocksHTML = stocks.map((item, i) => {
+          const q = quotesStocks[i];
+          const change = q.dp || 0;
+          const isUp = change >= 0;
+          return `
+            <div class="stock-card">
+              <div>
+                <div class="stock-symbol">${item.symbol}</div>
+                <div class="stock-name">${item.name}</div>
+              </div>
+              <div style="text-align:right">
+                <div class="stock-price">$${formatPrice(q.c)}</div>
+                <div class="change ${isUp ? 'up' : 'down'}">
+                  ${isUp ? '▲' : '▼'} ${formatChange(change)}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        // Adiciona mais criptos
+        const cryptos = [
+          { id: "ethereum", symbol: "ETH", name: "Ethereum" },
+          { id: "solana", symbol: "SOL", name: "Solana" },
+          { id: "binancecoin", symbol: "BNB", name: "BNB" }
+        ];
+
+        cryptos.forEach(c => {
+          const data = crypto[c.id];
+          const change = data.usd_24h_change || 0;
+          const isUp = change >= 0;
+          stocksHTML += `
+            <div class="stock-card">
+              <div>
+                <div class="stock-symbol">${c.symbol}</div>
+                <div class="stock-name">${c.name}</div>
+              </div>
+              <div style="text-align:right">
+                <div class="stock-price">$${formatPrice(data.usd)}</div>
+                <div class="change ${isUp ? 'up' : 'down'}">
+                  ${isUp ? '▲' : '▼'} ${formatChange(change)}
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        // Atualiza a data
+        const now = new Date();
+        document.getElementById("datetime").textContent = now.toLocaleString("pt-BR", {
+          weekday: "long", day: "numeric", month: "long",
+          hour: "2-digit", minute: "2-digit"
+        });
+
+        content.innerHTML = `
+          <div class="section-title">Principais Índices & Bitcoin</div>
+          <div class="indices">${indicesHTML}</div>
+
+          <div class="section-title">Ações & Criptomoedas</div>
+          <div class="stocks">${stocksHTML}</div>
+        `;
+
+      } catch (err) {
+        content.innerHTML = `
+          <div class="error">
+            <p>Erro ao carregar cotações.</p>
+            <p style="font-size:0.9rem;margin-top:10px">${err.message}</p>
+            <p style="margin-top:15px;font-size:0.85rem">Verifique se a chave do Finnhub está correta.</p>
+          </div>
+        `;
+      }
+    }
+
+    // Carrega pela primeira vez
+    loadData();
+
+    // Atualiza a cada 60 segundos
+    setInterval(loadData, 60000);
+  </script>
+</body>
+</html>
