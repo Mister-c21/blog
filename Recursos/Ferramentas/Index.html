@@ -48,6 +48,7 @@
             font-size: 16px;
             font-weight: 600;
             color: #8a8a8a;
+            user-select: none;
         }
 
         /* Estado da aba ativa */
@@ -69,6 +70,51 @@
 
         .tiktok-tab-item:hover {
             color: #161823;
+        }
+
+        /* Estilos específicos para o Dropdown "Outros" */
+        .dropdown-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Usamos position: fixed para evitar corte pelo overflow-x */
+        .dropdown-menu {
+            display: none;
+            position: fixed;
+            background-color: #ffffff;
+            min-width: 180px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.15);
+            border: 1px solid #efefef;
+            border-radius: 8px;
+            padding: 8px 0;
+            z-index: 9999;
+            list-style: none;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #8a8a8a;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f8f8f8;
+            color: #161823;
+        }
+
+        .dropdown-item.active {
+            color: #8A2BE2;
+            font-weight: 600;
+            background-color: #f0e6fa;
         }
 
         /* Container dos iframes */
@@ -98,14 +144,26 @@
 
     <nav class="tiktok-tab-container">
         <ul class="tiktok-tab-list">
-            <li class="tiktok-tab-item active" data-target="iframe-calculadora" data-index="0">Calculadora</li>
-            <li class="tiktok-tab-item" data-target="iframe-mapas" data-index="1">Mapas</li>
-            <li class="tiktok-tab-item" data-target="iframe-tradutor" data-index="2">Tradutor</li>
-            <li class="tiktok-tab-item" data-target="iframe-calendario" data-index="3">Calendário</li>
-            <li class="tiktok-tab-item" data-target="iframe-signo" data-index="4">Signo</li>
-            <li class="tiktok-tab-item" data-target="iframe-numerologia" data-index="5">Numerologia</li>
-            <li class="tiktok-tab-item" data-target="iframe-dicionario" data-index="6">Dicionário</li>
-            <li class="tiktok-tab-item" data-target="iframe-enciclopedia" data-index="7">Enciclopédia</li>
+            <li class="tiktok-tab-item active" data-target="iframe-calculadora">Calculadora</li>
+            <li class="tiktok-tab-item" data-target="iframe-mapas">Mapas</li>
+            <li class="tiktok-tab-item" data-target="iframe-tradutor">Tradutor</li>
+            <li class="tiktok-tab-item" data-target="iframe-calendario">Calendário</li>
+            <li class="tiktok-tab-item" data-target="iframe-signo">Signo</li>
+            <li class="tiktok-tab-item" data-target="iframe-numerologia">Numerologia</li>
+            <li class="tiktok-tab-item" data-target="iframe-dicionario">Dicionário</li>
+            <li class="tiktok-tab-item" data-target="iframe-enciclopedia">Enciclopédia</li>
+            
+            <li class="tiktok-tab-item" id="dropdown-parent">
+                <div class="dropdown-toggle" id="dropdown-btn">
+                    <span>Outros</span>
+                    <i class="fa-solid fa-chevron-down" style="font-size: 12px;"></i>
+                </div>
+                <ul class="dropdown-menu" id="dropdown-menu">
+                    <li class="dropdown-item" data-target="iframe-clima">Clima</li>
+                    <li class="dropdown-item" data-target="iframe-cotacao">Cotação</li>
+                    <li class="dropdown-item" data-target="iframe-placares">Placares</li>
+                </ul>
+            </li>
         </ul>
     </nav>
 
@@ -118,33 +176,86 @@
         <iframe id="iframe-numerologia" class="tab-iframe" src="Tols/Numerologia.html"></iframe>
         <iframe id="iframe-dicionario" class="tab-iframe" src="Tols/dicionario.html"></iframe>
         <iframe id="iframe-enciclopedia" class="tab-iframe" src="Tols/enciclopedia.html"></iframe>
+        
+        <iframe id="iframe-clima" class="tab-iframe" src="Tols/clima.html"></iframe>
+        <iframe id="iframe-cotacao" class="tab-iframe" src="Tols/cotacao.html"></iframe>
+        <iframe id="iframe-placares" class="tab-iframe" src="Tols/placares.html"></iframe>
     </div>
 
     <script>
-        const tabs = document.querySelectorAll('.tiktok-tab-item');
+        const tabs = document.querySelectorAll('.tiktok-tab-item:not(#dropdown-parent)');
+        const dropdownItems = document.querySelectorAll('.dropdown-item');
         const iframes = document.querySelectorAll('.tab-iframe');
         
-        let currentIndex = 0;
+        const dropdownBtn = document.getElementById('dropdown-btn');
+        const dropdownMenu = document.getElementById('dropdown-menu');
+        const dropdownParent = document.getElementById('dropdown-parent');
 
-        // Lógica da Top Tab Bar principal
-        tabs.forEach((tab, index) => {
-            tab.addEventListener('click', () => {
-                if (index === currentIndex && tab.classList.contains('active')) return;
+        // Limpa seleções ativas
+        function clearActiveStates() {
+            tabs.forEach(t => t.classList.remove('active'));
+            dropdownItems.forEach(d => d.classList.remove('active'));
+            dropdownParent.classList.remove('active');
+            iframes.forEach(frame => frame.classList.remove('active'));
+        }
 
-                const targetId = tab.getAttribute('data-target');
-                const targetIframe = document.getElementById(targetId);
-
-                // Remove classes ativas das abas e dos iframes
-                tabs.forEach(t => t.classList.remove('active'));
-                iframes.forEach(frame => frame.classList.remove('active'));
-
-                // Ativa a aba clicada e o iframe correspondente
-                tab.classList.add('active');
+        // Ativa o iframe selecionado
+        function activateIframe(targetId) {
+            const targetIframe = document.getElementById(targetId);
+            if (targetIframe) {
                 targetIframe.classList.add('active');
+            }
+        }
 
-                currentIndex = index;
+        // Clique nas abas comuns
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                clearActiveStates();
+                tab.classList.add('active');
+                
+                const targetId = tab.getAttribute('data-target');
+                activateIframe(targetId);
+                
+                dropdownMenu.classList.remove('show');
             });
         });
+
+        // Toggle do Dropdown + Posicionamento Dinâmico
+        dropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            const isShowing = dropdownMenu.classList.contains('show');
+            
+            if (!isShowing) {
+                // Calcula a posição do botão na tela para colar o menu logo abaixo dele
+                const rect = dropdownBtn.getBoundingClientRect();
+                dropdownMenu.style.top = `${rect.bottom + 6}px`;
+                dropdownMenu.style.left = `${rect.left}px`;
+                dropdownMenu.classList.add('show');
+            } else {
+                dropdownMenu.classList.remove('show');
+            }
+        });
+
+        // Clique nos itens do Dropdown
+        dropdownItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                clearActiveStates();
+
+                item.classList.add('active');
+                dropdownParent.classList.add('active');
+
+                const targetId = item.getAttribute('data-target');
+                activateIframe(targetId);
+
+                dropdownMenu.classList.remove('show');
+            });
+        });
+
+        // Fecha o menu ao clicar fora ou rolar a página
+        window.addEventListener('click', () => dropdownMenu.classList.remove('show'));
+        window.addEventListener('resize', () => dropdownMenu.classList.remove('show'));
     </script>
 
 </body>
