@@ -105,6 +105,7 @@
       display: flex;
       flex-direction: column;
       background: var(--card-bg);
+      z-index: 2;
     }
 
     .chat-search {
@@ -272,15 +273,38 @@
       text-overflow: ellipsis;
     }
 
+    /* CHAT WINDOW COM CAMADA DE BACKGROUND BORRADA */
     .chat-window {
       display: none;
       flex-direction: column;
       flex: 1;
       height: 100%;
       background-color: var(--bg-color);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Camada para a imagem borrada */
+    .chat-window::before {
+      content: '';
+      position: absolute;
+      top: -30px;
+      left: -30px;
+      right: -30px;
+      bottom: -30px;
       background-image: var(--chat-bg-image);
       background-size: cover;
       background-position: center;
+      filter: blur(24px) brightness(0.88);
+      z-index: 0;
+      transition: background-image 0.3s ease-in-out;
+    }
+
+    .chat-header,
+    .chat-messages,
+    .chat-input-area {
+      position: relative;
+      z-index: 1;
     }
 
     .chat-window.desktop-open {
@@ -289,7 +313,7 @@
 
     .chat-header {
       padding: 16px 24px;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.85);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--border-strong);
@@ -337,7 +361,8 @@
     }
 
     .message.received {
-      background-color: var(--card-bg);
+      background-color: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
       align-self: flex-start;
       border: 1px solid var(--border-strong);
       border-top-left-radius: 4px;
@@ -353,7 +378,7 @@
 
     .chat-input-area {
       padding: 16px 24px;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.85);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border-top: 1px solid var(--border-strong);
@@ -369,7 +394,7 @@
       border: 1px solid var(--border-strong);
       outline: none;
       font-size: 0.95rem;
-      background: var(--bg-color);
+      background: rgba(255, 255, 255, 0.9);
     }
 
     .send-btn {
@@ -509,7 +534,9 @@
           const li = document.createElement('li');
           li.className = 'chat-item';
           li.setAttribute('data-name', anime.title);
-          li.setAttribute('data-img', anime.images.jpg.image_url);
+          
+          const animeCoverUrl = anime.images.jpg.large_image_url || anime.images.jpg.image_url;
+          li.setAttribute('data-img', animeCoverUrl);
 
           const genreList = anime.genres.map(g => g.name).slice(0, 2).join(', ');
 
@@ -533,6 +560,9 @@
             activeName.textContent = anime.title;
             activeAvatarImg.src = anime.images.jpg.image_url;
 
+            // Define a capa do anime como imagem de fundo borrada do chat
+            chatWindow.style.setProperty('--chat-bg-image', `url("${animeCoverUrl}")`);
+
             if (window.innerWidth < 768) {
               chatSidebar.classList.add('mobile-hidden');
               chatWindow.classList.add('mobile-active');
@@ -549,6 +579,8 @@
             li.classList.add('active');
             activeName.textContent = anime.title;
             activeAvatarImg.src = anime.images.jpg.image_url;
+            chatWindow.style.setProperty('--chat-bg-image', `url("${animeCoverUrl}")`);
+            
             if (window.innerWidth >= 768) {
               chatWindow.classList.add('desktop-open');
             }
