@@ -267,26 +267,14 @@
           <div class="flex flex-row gap-4 overflow-x-auto pb-2 custom-scroll snap-x" id="plansContainer"></div>
         </div>
 
-        <div id="customDaysWrapper" class="hidden bg-white/80 border border-violet-200 rounded-2xl p-4 animate-fade-in">
-          <label for="customDaysInput" class="block text-sm font-semibold text-gray-800 mb-2">
-            Quantos dias de anúncio você deseja?
-          </label>
-          <div class="flex items-center gap-3">
-            <input type="number"
-                   id="customDaysInput"
-                   min="1"
-                   max="365"
-                   value="20"
-                   class="w-32 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-800
-                          focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 outline-none transition-all duration-200 font-semibold"
-                   oninput="updateCustomDays(this.value)">
-            <span class="text-sm font-medium text-gray-600">dias (R$ 1,35 por dia)</span>
-          </div>
+        <div>
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Boost de Anúncio</h3>
+          <div class="flex flex-row gap-4 overflow-x-auto pb-2 custom-scroll" id="boostContainer"></div>
         </div>
 
         <div>
-          <h3 class="text-sm font-semibold text-gray-700 mb-3">Boost e Pagamento</h3>
-          <div class="flex flex-row gap-4 overflow-x-auto pb-2 custom-scroll" id="boostContainer"></div>
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Forma de Pagamento</h3>
+          <div class="flex flex-row gap-4 overflow-x-auto pb-2 custom-scroll" id="paymentMethodsContainer"></div>
         </div>
         
         <div id="pixQrContainer" class="hidden bg-white/80 border border-violet-200 rounded-2xl p-5 text-center animate-fade-in">
@@ -337,19 +325,26 @@
     // ===================== STATE =====================
     const state = {
       selectedFile: null,
-      selectedPlan: 0, // 0 = 15 dias, 1 = 1 mês, 2 = personalizado
-      customDaysValue: 20,
-      boostActive: false,
+      selectedPlan: 0, // 0 = Bronze, 1 = Prata, 2 = Ouro
+      selectedBoost: 0, // 0 (0%), 0.10 (10%), 0.20 (20%), 0.30 (30%), 0.40 (40%)
+      paymentMethod: null, // 'pix'
       paymentDone: false,
     };
 
     const plans = [
-      { name: "Quinzenal", price: 20, days: 15, durationLabel: "15 dias", popular: false, icon: "fa-calendar-days" },
-      { name: "Mensal", price: 35, days: 30, durationLabel: "1 mês", popular: true, icon: "fa-calendar-check" },
-      { name: "Personalizado", price: 30, days: 20, durationLabel: "Personalizado", popular: false, icon: "fa-sliders" }
+      { name: "Bronze", price: 80, days: 7, durationLabel: "1 semana", popular: false, icon: "fa-shield-halved", placements: ["Feed Principal", "Stories"] },
+      { name: "Prata", price: 140, days: 15, durationLabel: "15 dias", popular: false, icon: "fa-award", placements: ["Feed Principal", "Stories", "Aba Explorar"] },
+      { name: "Ouro", price: 200, days: 30, durationLabel: "1 mês", popular: true, icon: "fa-crown", placements: ["Feed Principal", "Stories", "Aba Explorar", "Rede de Parceiros"] }
     ];
 
-    const BOOST_RATE = 0.15;
+    const boostOptions = [
+      { rate: 0, label: "Sem Boost", desc: "Padrão" },
+      { rate: 0.10, label: "+10%", desc: "Boost leve" },
+      { rate: 0.20, label: "+20%", desc: "Boost médio" },
+      { rate: 0.30, label: "+30%", desc: "Boost alto" },
+      { rate: 0.40, label: "+40%", desc: "Boost máximo" }
+    ];
+
     const MAX_FILE_SIZE = 5 * 1024 * 1024;
     const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
@@ -370,9 +365,8 @@
       priceDisplay: $('#priceDisplay'),
       priceBreakdown: $('#priceBreakdown'),
       plansContainer: $('#plansContainer'),
-      customDaysWrapper: $('#customDaysWrapper'),
-      customDaysInput: $('#customDaysInput'),
       boostContainer: $('#boostContainer'),
+      paymentMethodsContainer: $('#paymentMethodsContainer'),
       confirmBtn: $('#confirmBtn'),
       toastContainer: $('#toastContainer'),
       pixQrContainer: $('#pixQrContainer'),
@@ -488,38 +482,25 @@
     els.finalUrl.addEventListener('input', validateForm);
 
     function getCurrentPlanPrice() {
-      if (state.selectedPlan === 2) {
-        // Preço dinâmico para personalizado alterado para R$ 1,35 por dia
-        return state.customDaysValue * 1.35;
-      }
       return plans[state.selectedPlan].price;
     }
 
     function calculateTotal() {
       if (state.selectedPlan === null) return 0;
       let total = getCurrentPlanPrice();
-      if (state.boostActive) total += total * BOOST_RATE;
+      if (state.selectedBoost > 0) total += total * state.selectedBoost;
       return Math.round(total * 100) / 100;
-    }
-
-    function updateCustomDays(val) {
-      const parsed = parseInt(val);
-      state.customDaysValue = isNaN(parsed) || parsed < 1 ? 1 : parsed;
-      state.paymentDone = false;
-      els.pixQrContainer.classList.add('hidden');
-      renderPlans();
     }
 
     function renderPlans() {
       els.plansContainer.innerHTML = plans.map((plan, index) => {
         const isSelected = state.selectedPlan === index;
-        let displayPrice = plan.price;
-        let displayLabel = plan.durationLabel;
 
-        if (index === 2) {
-          displayPrice = state.customDaysValue * 1.35;
-          displayLabel = `${state.customDaysValue} dias`;
-        }
+        const placementsList = plan.placements.map(p => `
+          <li class="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
+            <i class="fa-solid fa-check text-violet-500 text-[10px]"></i> ${p}
+          </li>
+        `).join('');
 
         return `
           <div role="button" tabindex="0" onclick="selectPlan(${index})"
@@ -531,63 +512,61 @@
               <span class="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center text-sm"><i class="fa-solid ${plan.icon}"></i></span>
               <h3 class="font-bold text-lg text-gray-900">${plan.name}</h3>
             </div>
-            <p class="text-3xl font-extrabold text-violet-600 my-3 tracking-tight">${formatCurrency(displayPrice)}</p>
+            <p class="text-3xl font-extrabold text-violet-600 my-3 tracking-tight">${formatCurrency(plan.price)}</p>
             <div class="mt-2 pt-3 border-t border-gray-100">
-              <p class="text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Tempo da Campanha</p>
-              <div class="inline-flex items-center gap-2 bg-violet-50 text-violet-700 text-sm font-semibold px-3 py-2 rounded-xl">
-                <i class="fa-regular fa-clock text-xs"></i> ${displayLabel}
-              </div>
+              <p class="text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Locais de Exibição</p>
+              <ul class="space-y-1">${placementsList}</ul>
             </div>
           </div>
         `;
       }).join('');
 
-      // Mostra ou esconde o input customizado
-      if (state.selectedPlan === 2) {
-        els.customDaysWrapper.classList.remove('hidden');
-      } else {
-        els.customDaysWrapper.classList.add('hidden');
-      }
-
-      const boostSelected = state.boostActive;
       const paid = state.paymentDone;
 
-      els.boostContainer.innerHTML = `
-        <div role="button" tabindex="0" onclick="toggleBoost()"
-             class="p-4 rounded-2xl border-2 cursor-pointer min-w-[160px] flex-shrink-0 text-center transition-all
-                    ${boostSelected ? 'selected-plan' : 'border-gray-200 bg-white hover:border-violet-300'}">
-          <div class="w-10 h-10 mx-auto mb-2 rounded-xl ${boostSelected ? 'bg-violet-100 text-violet-600' : 'bg-gray-100 text-gray-500'} flex items-center justify-center">
-            <i class="fa-solid fa-rocket text-sm"></i>
+      els.boostContainer.innerHTML = boostOptions.map(option => {
+        const isSelected = state.selectedBoost === option.rate;
+        return `
+          <div role="button" tabindex="0" onclick="selectBoost(${option.rate})"
+               class="p-4 rounded-2xl border-2 cursor-pointer min-w-[140px] flex-shrink-0 text-center transition-all
+                      ${isSelected ? 'selected-plan' : 'border-gray-200 bg-white hover:border-violet-300'}">
+            <div class="w-10 h-10 mx-auto mb-2 rounded-xl ${isSelected ? 'bg-violet-100 text-violet-600' : 'bg-gray-100 text-gray-500'} flex items-center justify-center">
+              <i class="fa-solid fa-rocket text-sm"></i>
+            </div>
+            <div class="font-bold text-sm text-gray-800">${option.label}</div>
+            <div class="text-xs text-gray-500 mt-1">${option.desc}</div>
           </div>
-          <div class="font-bold text-sm text-gray-800">Boost de Anúncio</div>
-          <div class="text-xs text-gray-500 mt-1">${boostSelected ? 'Ativado (+15%)' : 'Desativado'}</div>
-        </div>
+        `;
+      }).join('');
 
-        <div role="button" tabindex="0" onclick="simulatePixPayment()" id="payBtn"
-             class="p-4 rounded-2xl border-2 cursor-pointer min-w-[180px] flex-shrink-0 text-center flex flex-col justify-center items-center transition-all
-                    ${paid ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-dashed border-violet-400 bg-white text-violet-700 hover:bg-violet-50'}">
-          <div class="w-10 h-10 mx-auto mb-2 rounded-xl ${paid ? 'bg-emerald-100' : 'bg-violet-50'} flex items-center justify-center">
-            <i class="fa-brands fa-pix text-sm ${paid ? 'text-emerald-600' : 'text-violet-600'}"></i>
+      const methods = [
+        { id: 'pix', name: 'Pix', icon: 'fa-brands fa-pix' }
+      ];
+
+      els.paymentMethodsContainer.innerHTML = methods.map(m => {
+        const isSelected = state.paymentMethod === m.id && paid;
+        return `
+          <div role="button" tabindex="0" onclick="selectPaymentMethod('${m.id}')"
+               class="py-2 px-4 rounded-full border-2 cursor-pointer w-[90%] mx-auto text-center flex flex-row justify-center items-center gap-2 transition-all
+                      ${isSelected ? 'border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm' : 'border-gray-200 bg-white hover:border-violet-300 text-gray-800'}">
+            <div class="w-8 h-8 rounded-full ${isSelected ? 'bg-emerald-100 text-emerald-600' : 'bg-violet-50 text-violet-600'} flex items-center justify-center shrink-0">
+              <i class="${m.icon} text-sm"></i>
+            </div>
+            <div class="font-bold text-sm">${m.name}</div>
+            <div class="text-xs ${isSelected ? 'text-emerald-600 font-semibold' : 'text-gray-500'}">
+              ${isSelected ? 'Pagamento Aprovado' : 'Selecionar'}
+            </div>
           </div>
-          <div class="font-bold text-sm">${paid ? 'Pix Confirmado' : 'Pagar via Pix'}</div>
-          <div class="text-xs ${paid ? 'text-emerald-600' : 'text-gray-500'} mt-1">
-            ${paid ? 'Pagamento aprovado' : 'Gerar QR Code'}
-          </div>
-        </div>
-      `;
+        `;
+      }).join('');
 
       els.priceDisplay.textContent = formatCurrency(calculateTotal());
       
       const plan = plans[state.selectedPlan];
-      let durationStr = plan.durationLabel;
-      let baseVal = plan.price;
-      if (state.selectedPlan === 2) {
-        durationStr = `${state.customDaysValue} dias`;
-        baseVal = getCurrentPlanPrice();
+      const basePrice = getCurrentPlanPrice();
+      let breakdown = `Plano ${plan.name} · ${plan.durationLabel}: ${formatCurrency(basePrice)}`;
+      if (state.selectedBoost > 0) {
+        breakdown += ` + Boost ${Math.round(state.selectedBoost * 100)}% (${formatCurrency(basePrice * state.selectedBoost)})`;
       }
-
-      let breakdown = `Plano ${plan.name} · ${durationStr}: ${formatCurrency(baseVal)}`;
-      if (state.boostActive) breakdown += ` + Boost 15% (${formatCurrency(baseVal * BOOST_RATE)})`;
       els.priceBreakdown.textContent = breakdown;
 
       const canConfirm = state.selectedPlan !== null && state.paymentDone;
@@ -599,20 +578,34 @@
     function selectPlan(index) {
       state.selectedPlan = index;
       state.paymentDone = false;
+      state.paymentMethod = null;
       els.pixQrContainer.classList.add('hidden');
       renderPlans();
     }
 
-    function toggleBoost() {
-      state.boostActive = !state.boostActive;
+    function selectBoost(rate) {
+      state.selectedBoost = rate;
       state.paymentDone = false;
+      state.paymentMethod = null;
       els.pixQrContainer.classList.add('hidden');
+      renderPlans();
+    }
+
+    function selectPaymentMethod(method) {
+      state.paymentMethod = method;
+      if (method === 'pix') {
+        state.paymentDone = false;
+        simulatePixPayment();
+      } else {
+        els.pixQrContainer.classList.add('hidden');
+        state.paymentDone = true;
+        const label = method === 'credit' ? 'Cartão de Crédito' : 'Cartão de Débito';
+        showToast(`Pagamento via ${label} aprovado com sucesso!`, 'success');
+      }
       renderPlans();
     }
 
     function simulatePixPayment() {
-      if (state.paymentDone) return;
-
       const totalVal = calculateTotal().toFixed(2);
       const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=PIX_PAGAMENTO_R$${totalVal}`;
       
@@ -625,13 +618,14 @@
 
     function copyPixCode() {
       els.pixCopyInput.select();
-      els.pixCopyInput.setSelectionRange(0, 99999);
+      els.pixCopyInput.setSelectionRange(0, 9999);
       navigator.clipboard.writeText(els.pixCopyInput.value);
       showToast('Código Pix copiado com sucesso!', 'success');
     }
 
     function simulateSuccessfulPayment() {
       state.paymentDone = true;
+      state.paymentMethod = 'pix';
       els.pixQrContainer.classList.add('hidden');
       renderPlans();
       showToast('Pagamento Pix confirmado com sucesso!', 'success');
@@ -639,6 +633,7 @@
 
     function openModal() {
       state.paymentDone = false;
+      state.paymentMethod = null;
       els.pixQrContainer.classList.add('hidden');
       els.confirmBtn.disabled = true;
       els.confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -656,7 +651,7 @@
 
     function confirmPlan() {
       if (state.selectedPlan === null || !state.paymentDone) {
-        showToast('Efetue o pagamento via Pix antes de confirmar.', 'error');
+        showToast('Selecione uma forma de pagamento e finalize antes de confirmar.', 'error');
         return;
       }
 
@@ -688,13 +683,13 @@
     });
 
     window.selectPlan = selectPlan;
-    window.toggleBoost = toggleBoost;
+    window.selectBoost = selectBoost;
+    window.selectPaymentMethod = selectPaymentMethod;
     window.simulatePixPayment = simulatePixPayment;
     window.copyPixCode = copyPixCode;
     window.simulateSuccessfulPayment = simulateSuccessfulPayment;
     window.closeModal = closeModal;
     window.confirmPlan = confirmPlan;
-    window.updateCustomDays = updateCustomDays;
 
     validateForm();
   </script>
