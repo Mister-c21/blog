@@ -578,6 +578,26 @@
       border-top-right-radius: 4px;
     }
 
+    /* MÍDIAS NA MENSAGEM */
+    .message-media-img {
+      max-width: 100%;
+      max-height: 280px;
+      border-radius: 12px;
+      display: block;
+      margin-top: 6px;
+      object-fit: cover;
+    }
+
+    .message-media-video {
+      width: 100%;
+      min-width: 260px;
+      aspect-ratio: 16 / 9;
+      border-radius: 12px;
+      border: none;
+      margin-top: 6px;
+      display: block;
+    }
+
     .chat-input-area {
       padding: 16px 24px;
       background: rgba(255, 255, 255, 0.85);
@@ -587,6 +607,11 @@
       display: flex;
       gap: 12px;
       align-items: center;
+    }
+
+    /* MENU DO BOTAO PLUS DA BARRA DE ESCRITA */
+    .plus-wrapper {
+      position: relative;
     }
 
     .plus-btn {
@@ -607,6 +632,51 @@
     .plus-btn:hover {
       color: var(--primary-violet);
       background-color: var(--primary-light);
+    }
+
+    .plus-menu {
+      position: absolute;
+      bottom: calc(100% + 12px);
+      left: 0;
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 6px;
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 190px;
+      z-index: 100;
+      animation: popoverFadeIn 0.2s ease-out;
+    }
+
+    .plus-menu.active {
+      display: flex;
+    }
+
+    .plus-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: none;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text-dark);
+      font-size: 0.88rem;
+      font-weight: 500;
+      transition: background 0.2s, color 0.2s;
+      width: 100%;
+      text-align: left;
+    }
+
+    .plus-menu-item:hover {
+      background: var(--primary-light);
+      color: var(--primary-violet);
     }
 
     .chat-input-area input {
@@ -721,9 +791,23 @@
           <div class="message sent">Qual o seu episódio ou temporada preferida?</div>
         </div>
         <div class="chat-input-area">
-          <button class="plus-btn" id="plusBtn" aria-label="Anexar arquivo ou mídia">
-            <i data-lucide="plus" style="width: 20px; height: 20px;"></i>
-          </button>
+          <div class="plus-wrapper">
+            <button class="plus-btn" id="plusBtn" aria-label="Anexar arquivo ou mídia">
+              <i data-lucide="plus" style="width: 20px; height: 20px;"></i>
+            </button>
+
+            <div class="plus-menu" id="plusMenu">
+              <button class="plus-menu-item" id="btnAddImage">
+                <i data-lucide="image" style="width: 18px; height: 18px;"></i>
+                <span>Imagem via URL</span>
+              </button>
+              <button class="plus-menu-item" id="btnAddVideo">
+                <i data-lucide="video" style="width: 18px; height: 18px;"></i>
+                <span>Vídeo do YouTube</span>
+              </button>
+            </div>
+          </div>
+
           <input type="text" id="messageInput" placeholder="Digite sua mensagem na comunidade...">
           <button class="send-btn" id="sendBtn">
             <i data-lucide="send" style="width: 18px; height: 18px;"></i>
@@ -769,7 +853,70 @@
     const popoverTitle = document.getElementById('popoverTitle');
     const popoverContent = document.getElementById('popoverContent');
 
+    // Elementos do Menu Seletor Plus
+    const plusBtn = document.getElementById('plusBtn');
+    const plusMenu = document.getElementById('plusMenu');
+    const btnAddImage = document.getElementById('btnAddImage');
+    const btnAddVideo = document.getElementById('btnAddVideo');
+
     let currentAnimeData = null;
+
+    // LÓGICA DO MENU PLUS E ADIÇÃO DE MÍDIAS
+    plusBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      plusMenu.classList.toggle('active');
+    });
+
+    // Fecha o menu plus ao clicar fora dele
+    document.addEventListener('click', (e) => {
+      if (plusMenu.classList.contains('active') && !plusMenu.contains(e.target) && !plusBtn.contains(e.target)) {
+        plusMenu.classList.remove('active');
+      }
+    });
+
+    // Função para extrair o ID do vídeo do YouTube de variados formatos de URL
+    function getYouTubeId(url) {
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.match(regExp);
+      return (match && match[2].length === 11) ? match[2] : null;
+    }
+
+    // Opção 1: Imagem via URL
+    btnAddImage.addEventListener('click', () => {
+      plusMenu.classList.remove('active');
+      const imageUrl = prompt('Digite ou cole a URL da imagem da Web:');
+      if (imageUrl && imageUrl.trim()) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message sent';
+        messageDiv.innerHTML = `
+          <span>Imagem enviada:</span>
+          <img src="${imageUrl.trim()}" class="message-media-img" alt="Imagem enviada" onerror="this.onerror=null; this.src=''; this.alt='Erro ao carregar a imagem. Verifique a URL.';">
+        `;
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    });
+
+    // Opção 2: Vídeo do YouTube via URL
+    btnAddVideo.addEventListener('click', () => {
+      plusMenu.classList.remove('active');
+      const videoUrl = prompt('Digite ou cole o link do vídeo do YouTube:');
+      if (videoUrl && videoUrl.trim()) {
+        const videoId = getYouTubeId(videoUrl.trim());
+        if (videoId) {
+          const messageDiv = document.createElement('div');
+          messageDiv.className = 'message sent';
+          messageDiv.innerHTML = `
+            <span>Vídeo anexado:</span>
+            <iframe class="message-media-video" src="https://www.youtube.com/embed/${videoId}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+          `;
+          chatMessages.appendChild(messageDiv);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        } else {
+          alert('URL do YouTube inválida. Verifique o link e tente novamente.');
+        }
+      }
+    });
 
     // Controla a abertura do menu flutuante ao clicar no nome da Comunidade
     activeNameContainer.addEventListener('click', (e) => {
