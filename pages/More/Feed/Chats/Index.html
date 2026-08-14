@@ -756,6 +756,7 @@
 
       const isVisible = infoPopover.classList.contains('active');
       if (isVisible) {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
         infoPopover.classList.remove('active');
       } else {
         renderAnimeInfo(currentAnimeData);
@@ -765,12 +766,14 @@
 
     closePopoverBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       infoPopover.classList.remove('active');
     });
 
     // Fecha o popover ao clicar fora dele
     document.addEventListener('click', (e) => {
       if (!infoPopover.contains(e.target) && !activeNameContainer.contains(e.target)) {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
         infoPopover.classList.remove('active');
       }
     });
@@ -796,6 +799,7 @@
 
     // Renderiza os dados no Menu Flutuante
     async function renderAnimeInfo(anime) {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       popoverTitle.textContent = anime.title;
       
       const genres = anime.genres ? anime.genres.map(g => g.name).join(', ') : 'N/A';
@@ -824,7 +828,12 @@
         </div>
 
         <div>
-          <strong style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 6px;">RESUMO & WIKIPÉDIA</strong>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <strong style="font-size: 0.8rem; color: var(--text-muted);">RESUMO & WIKIPÉDIA</strong>
+            <button id="audioDescBtn" title="Ouvir audiodescrição da descrição" style="background: none; border: none; cursor: pointer; color: var(--primary-violet); display: flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 600;">
+              <i data-lucide="volume-2" style="width: 14px; height: 14px;"></i> Audiodescrição
+            </button>
+          </div>
           
           <div class="wiki-lang-tabs" id="wikiLangTabs">
             <div class="wiki-lang-tab-item active" data-lang="pt">Português</div>
@@ -842,10 +851,51 @@
 
       const wikiSynopsisElem = document.getElementById('wikiSynopsis');
       const langTabs = popoverContent.querySelectorAll('.wiki-lang-tab-item');
+      const audioDescBtn = document.getElementById('audioDescBtn');
+      let currentLangCode = 'pt';
+
+      // Lógica do botão de audiodescrição
+      if (audioDescBtn && 'speechSynthesis' in window) {
+        audioDescBtn.addEventListener('click', () => {
+          if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+            audioDescBtn.innerHTML = '<i data-lucide="volume-2" style="width: 14px; height: 14px;"></i> Audiodescrição';
+            lucide.createIcons();
+            return;
+          }
+
+          // Obtém o texto limpo da sinopse
+          const textToRead = wikiSynopsisElem.innerText;
+          if (!textToRead || textToRead.includes('Carregando') || textToRead.includes('Buscando')) return;
+
+          const utterance = new SpeechSynthesisUtterance(textToRead);
+          utterance.lang = currentLangCode;
+
+          utterance.onend = () => {
+            audioDescBtn.innerHTML = '<i data-lucide="volume-2" style="width: 14px; height: 14px;"></i> Audiodescrição';
+            lucide.createIcons();
+          };
+
+          utterance.onerror = () => {
+            audioDescBtn.innerHTML = '<i data-lucide="volume-2" style="width: 14px; height: 14px;"></i> Audiodescrição';
+            lucide.createIcons();
+          };
+
+          window.speechSynthesis.speak(utterance);
+          audioDescBtn.innerHTML = '<i data-lucide="square" style="width: 14px; height: 14px;"></i> Parar';
+          lucide.createIcons();
+        });
+      }
 
       // Atualiza a sinopse buscando EXCLUSIVAMENTE na Wikipédia
       async function updateSynopsisByLang(langCode) {
         if (!wikiSynopsisElem) return;
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        if (audioDescBtn) {
+          audioDescBtn.innerHTML = '<i data-lucide="volume-2" style="width: 14px; height: 14px;"></i> Audiodescrição';
+        }
+
+        currentLangCode = langCode;
         wikiSynopsisElem.innerHTML = 'Carregando resumo da Wikipédia...';
         
         const wikiData = await fetchWikipediaSummary(anime.title, langCode);
@@ -919,7 +969,8 @@
             activeName.textContent = anime.title;
             activeAvatarImg.src = anime.images.jpg.image_url;
 
-            // Fecha o popover ao mudar de comunidade
+            // Fecha o popover e interrompe fala ao mudar de comunidade
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             infoPopover.classList.remove('active');
 
             // Define a capa do anime como imagem de fundo borrada do chat
@@ -961,6 +1012,7 @@
       chatSidebar.classList.remove('mobile-hidden');
       chatWindow.classList.remove('mobile-active');
       chatWindow.classList.remove('desktop-open');
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       infoPopover.classList.remove('active');
       document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
 
