@@ -548,7 +548,7 @@
       flex: 1;
       padding: 28px;
       overflow-y: auto;
-      overflow-x: hidden; /* EVITA VAZAMENTO HORIZONTAL DE TELA */
+      overflow-x: hidden;
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -562,6 +562,8 @@
       line-height: 1.5;
       word-break: break-word;
       overflow-wrap: break-word;
+      display: flex;
+      flex-direction: column;
     }
 
     .message.received {
@@ -580,7 +582,29 @@
       border-top-right-radius: 4px;
     }
 
-    /* MÍDIAS NA MENSAGEM (AJUSTADAS PARA EVITAR OVERFLOW) */
+    /* BOTAO DE AUDIODESCRICAO NA MENSAGEM RECEBIDA */
+    .message-audio-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--primary-violet);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 6px;
+      padding: 2px 0;
+      opacity: 0.85;
+      transition: opacity 0.2s;
+      align-self: flex-start;
+    }
+
+    .message-audio-btn:hover {
+      opacity: 1;
+    }
+
+    /* MÍDIAS NA MENSAGEM */
     .message-media-img {
       width: 100%;
       max-width: 100%;
@@ -794,7 +818,12 @@
           </div>
         </div>
         <div class="chat-messages" id="chatMessages">
-          <div class="message received">Bem-vindo à comunidade! Conversem sobre seus animes favoritos.</div>
+          <div class="message received">
+            <span class="message-text">Bem-vindo à comunidade! Conversem sobre seus animes favoritos.</span>
+            <button class="message-audio-btn" onclick="speakMessage(this)" title="Ouvir audiodescrição">
+              <i data-lucide="volume-2" style="width: 14px; height: 14px;"></i> <span>Audiodescrição</span>
+            </button>
+          </div>
           <div class="message sent">Qual o seu episódio ou temporada preferida?</div>
         </div>
         <div class="chat-input-area">
@@ -872,6 +901,41 @@
     const btnAddVoice = document.getElementById('btnAddVoice');
 
     let currentAnimeData = null;
+
+    // FUNÇÃO PARA AUDIODESCRIÇÃO DA MENSAGEM RECEBIDA
+    function speakMessage(btn) {
+      if (!('speechSynthesis' in window)) return;
+      
+      const messageDiv = btn.closest('.message');
+      const textElement = messageDiv.querySelector('.message-text');
+      const textToRead = textElement ? textElement.innerText : messageDiv.innerText.replace('Audiodescrição', '').replace('Parar', '').trim();
+
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        btn.innerHTML = '<i data-lucide="volume-2" style="width: 14px; height: 14px;"></i> <span>Audiodescrição</span>';
+        lucide.createIcons();
+        return;
+      }
+
+      if (!textToRead) return;
+
+      const utterance = new SpeechSynthesisUtterance(textToRead);
+      utterance.lang = 'pt-BR';
+
+      utterance.onend = () => {
+        btn.innerHTML = '<i data-lucide="volume-2" style="width: 14px; height: 14px;"></i> <span>Audiodescrição</span>';
+        lucide.createIcons();
+      };
+
+      utterance.onerror = () => {
+        btn.innerHTML = '<i data-lucide="volume-2" style="width: 14px; height: 14px;"></i> <span>Audiodescrição</span>';
+        lucide.createIcons();
+      };
+
+      window.speechSynthesis.speak(utterance);
+      btn.innerHTML = '<i data-lucide="square" style="width: 14px; height: 14px;"></i> <span>Parar</span>';
+      lucide.createIcons();
+    }
 
     // LÓGICA DO MENU PLUS E ADIÇÃO DE MÍDIAS
     plusBtn.addEventListener('click', (e) => {
