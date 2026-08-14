@@ -693,39 +693,6 @@
       background: rgba(255, 255, 255, 0.9);
     }
 
-    /* BOTÃO DE MICROFONE */
-    .mic-btn {
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-      border-radius: var(--radius-full);
-      transition: all 0.2s ease;
-      flex-shrink: 0;
-    }
-
-    .mic-btn:hover {
-      color: var(--primary-violet);
-      background-color: var(--primary-light);
-    }
-
-    .mic-btn.recording {
-      color: var(--danger-color);
-      background-color: var(--danger-light);
-      animation: pulse 1.2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-      100% { transform: scale(1); }
-    }
-
     .send-btn {
       background-color: var(--primary-violet);
       color: white;
@@ -845,15 +812,14 @@
                 <i data-lucide="video" style="width: 18px; height: 18px;"></i>
                 <span>Vídeo do YouTube</span>
               </button>
+              <button class="plus-menu-item" id="btnAddVoice">
+                <i data-lucide="mic" style="width: 18px; height: 18px;"></i>
+                <span>Mensagem por Voz</span>
+              </button>
             </div>
           </div>
 
           <input type="text" id="messageInput" placeholder="Digite sua mensagem na comunidade...">
-          
-          <button class="mic-btn" id="micBtn" aria-label="Grave uma mensagem por voz" title="Clique para falar">
-            <i data-lucide="mic" style="width: 20px; height: 20px;"></i>
-          </button>
-
           <button class="send-btn" id="sendBtn">
             <i data-lucide="send" style="width: 18px; height: 18px;"></i>
           </button>
@@ -888,7 +854,6 @@
     const chatMessages = document.getElementById('chatMessages');
     const messageInput = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
-    const micBtn = document.getElementById('micBtn');
     const searchInput = document.getElementById('searchInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
     const chatList = document.getElementById('chatList');
@@ -904,6 +869,7 @@
     const plusMenu = document.getElementById('plusMenu');
     const btnAddImage = document.getElementById('btnAddImage');
     const btnAddVideo = document.getElementById('btnAddVideo');
+    const btnAddVoice = document.getElementById('btnAddVoice');
 
     let currentAnimeData = null;
 
@@ -963,6 +929,53 @@
         }
       }
     });
+
+    // Opção 3: Transcrição de Voz (Speech to Text)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      let isRecording = false;
+
+      btnAddVoice.addEventListener('click', () => {
+        plusMenu.classList.remove('active');
+        if (isRecording) {
+          recognition.stop();
+        } else {
+          recognition.start();
+        }
+      });
+
+      recognition.onstart = () => {
+        isRecording = true;
+        messageInput.placeholder = "Ouvindo sua fala...";
+      };
+
+      recognition.onend = () => {
+        isRecording = false;
+        messageInput.placeholder = "Digite sua mensagem na comunidade...";
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript && transcript.trim()) {
+          messageInput.value = transcript;
+          sendMessage();
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Erro no reconhecimento de voz:', event.error);
+        isRecording = false;
+        messageInput.placeholder = "Digite sua mensagem na comunidade...";
+      };
+    } else {
+      btnAddVoice.style.display = 'none';
+    }
 
     // Controla a abertura do menu flutuante ao clicar no nome da Comunidade
     activeNameContainer.addEventListener('click', (e) => {
@@ -1249,56 +1262,6 @@
 
     sendBtn.addEventListener('click', sendMessage);
     messageInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
-
-    // LÓGICA DE TRANSCRIÇÃO DE VOZ (SPEECH TO TEXT)
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'pt-BR';
-      recognition.continuous = false;
-      recognition.interimResults = false;
-
-      let isRecording = false;
-
-      micBtn.addEventListener('click', () => {
-        if (isRecording) {
-          recognition.stop();
-        } else {
-          recognition.start();
-        }
-      });
-
-      recognition.onstart = () => {
-        isRecording = true;
-        micBtn.classList.add('recording');
-        messageInput.placeholder = "Ouvindo sua fala...";
-      };
-
-      recognition.onend = () => {
-        isRecording = false;
-        micBtn.classList.remove('recording');
-        messageInput.placeholder = "Digite sua mensagem na comunidade...";
-      };
-
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript && transcript.trim()) {
-          messageInput.value = transcript;
-          sendMessage(); // Envia automaticamente a transcrição da fala
-        }
-      };
-
-      recognition.onerror = (event) => {
-        console.error('Erro no reconhecimento de voz:', event.error);
-        isRecording = false;
-        micBtn.classList.remove('recording');
-        messageInput.placeholder = "Digite sua mensagem na comunidade...";
-      };
-    } else {
-      // Oculta o botão caso o navegador do usuário não suporte a Web Speech API
-      micBtn.style.display = 'none';
-    }
 
     searchInput.addEventListener('input', (e) => {
       const term = e.target.value.toLowerCase();
