@@ -35,7 +35,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 30px;
+      margin-bottom: 25px;
       padding-bottom: 20px;
       border-bottom: 1px solid var(--border);
     }
@@ -52,6 +52,91 @@
     .header-right { text-align: right; }
     .header-right h1 { font-size: 1.4rem; font-weight: 600; }
     .header-right p { color: var(--text-light); font-size: 0.9rem; }
+
+    /* ===== Barra de Pesquisa ===== */
+    .search-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 25px;
+    }
+
+    .search-box input {
+      flex: 1;
+      padding: 14px 18px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      font-size: 1rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-box input:focus {
+      border-color: var(--secondary);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
+    .search-box button {
+      padding: 0 24px;
+      background: var(--secondary);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .search-box button:hover {
+      background: #6D28D9;
+    }
+
+    /* Resultado da pesquisa */
+    #search-result {
+      margin-bottom: 30px;
+      display: none;
+    }
+
+    .result-card {
+      background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%);
+      border: 1px solid var(--secondary-light);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .result-info h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .result-info .symbol {
+      color: var(--secondary);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .result-price {
+      text-align: right;
+    }
+
+    .result-price .price {
+      font-size: 2.2rem;
+      font-weight: 600;
+    }
+
+    .result-price .change {
+      font-size: 1.1rem;
+      font-weight: 500;
+      margin-top: 4px;
+    }
 
     .section-title {
       font-size: 1.2rem;
@@ -127,18 +212,18 @@
 
     .loading, .error {
       text-align: center;
-      padding: 50px 20px;
+      padding: 40px 20px;
       color: var(--text-light);
     }
 
     .spinner {
-      width: 40px;
-      height: 40px;
+      width: 36px;
+      height: 36px;
       border: 3px solid var(--border);
       border-top-color: var(--secondary);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
-      margin: 0 auto 20px;
+      margin: 0 auto 16px;
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -158,6 +243,8 @@
       header { flex-direction: column; gap: 12px; text-align: center; }
       .header-right { text-align: center; }
       .indices { grid-template-columns: 1fr 1fr; }
+      .result-card { flex-direction: column; text-align: center; }
+      .result-price { text-align: center; }
     }
   </style>
 </head>
@@ -171,6 +258,21 @@
       </div>
     </header>
 
+    <!-- Barra de Pesquisa -->
+    <div class="search-box">
+      <input 
+        type="text" 
+        id="search-input" 
+        placeholder="Pesquisar ação ou cripto (ex: AAPL, TSLA, PETR4.SA, bitcoin, eth...)"
+        autocomplete="off"
+      >
+      <button onclick="searchAsset()">Pesquisar</button>
+    </div>
+
+    <!-- Resultado da pesquisa -->
+    <div id="search-result"></div>
+
+    <!-- Conteúdo principal -->
     <div id="content">
       <div class="loading">
         <div class="spinner"></div>
@@ -188,10 +290,9 @@
     // ============================================
     // COLE SUA CHAVE DO FINNHUB AQUI
     // ============================================
-    const FINNHUB_API_KEY = "d9v5529r01qv408j5b8gd9v5529r01qv408j5b90";   // ← substitua pela sua chave
+    const FINNHUB_API_KEY = "d9v5529r01qv408j5b8gd9v5529r01qv408j5b90";
     // ============================================
 
-    // Símbolos que vamos buscar
     const indices = [
       { symbol: "SPY", name: "S&P 500 (SPY)" },
       { symbol: "QQQ", name: "Nasdaq 100 (QQQ)" },
@@ -210,7 +311,21 @@
       { symbol: "BRK.B", name: "Berkshire Hathaway" }
     ];
 
-    // Função para buscar cotação no Finnhub
+    // Mapeamento rápido de criptos comuns
+    const cryptoMap = {
+      btc: "bitcoin", bitcoin: "bitcoin",
+      eth: "ethereum", ethereum: "ethereum",
+      sol: "solana", solana: "solana",
+      bnb: "binancecoin", binancecoin: "binancecoin",
+      ada: "cardano", cardano: "cardano",
+      xrp: "ripple", ripple: "ripple",
+      doge: "dogecoin", dogecoin: "dogecoin",
+      dot: "polkadot", polkadot: "polkadot",
+      avax: "avalanche-2", avalanche: "avalanche-2",
+      link: "chainlink", chainlink: "chainlink",
+      matic: "matic-network", polygon: "matic-network"
+    };
+
     async function getQuote(symbol) {
       const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
       const res = await fetch(url);
@@ -218,26 +333,136 @@
       return await res.json();
     }
 
-    // Função para buscar criptomoedas (CoinGecko - sem chave)
-    async function getCrypto() {
-      const url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,binancecoin&vs_currencies=usd&include_24hr_change=true";
+    async function getProfile(symbol) {
+      try {
+        const url = `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
+        const res = await fetch(url);
+        if (res.ok) return await res.json();
+      } catch (e) {}
+      return null;
+    }
+
+    async function getCryptoPrice(id) {
+      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&include_24hr_change=true`;
       const res = await fetch(url);
       return await res.json();
     }
 
     function formatPrice(price) {
+      if (!price && price !== 0) return "—";
       return price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
     function formatChange(change) {
+      if (change === undefined || change === null) return "—";
       const sign = change >= 0 ? "+" : "";
       return `${sign}${change.toFixed(2)}%`;
     }
 
+    // ========== PESQUISA ==========
+    async function searchAsset() {
+      const input = document.getElementById("search-input");
+      const query = input.value.trim().toLowerCase();
+      const resultDiv = document.getElementById("search-result");
+
+      if (!query) {
+        resultDiv.style.display = "none";
+        return;
+      }
+
+      resultDiv.style.display = "block";
+      resultDiv.innerHTML = `
+        <div class="loading" style="padding:30px">
+          <div class="spinner"></div>
+          <p>Buscando "${query}"...</p>
+        </div>
+      `;
+
+      try {
+        // 1. Tenta como criptomoeda primeiro
+        const cryptoId = cryptoMap[query] || query;
+        const cryptoData = await getCryptoPrice(cryptoId);
+
+        if (cryptoData[cryptoId]) {
+          const data = cryptoData[cryptoId];
+          const change = data.usd_24h_change || 0;
+          const isUp = change >= 0;
+
+          resultDiv.innerHTML = `
+            <div class="result-card">
+              <div class="result-info">
+                <h2>${cryptoId.charAt(0).toUpperCase() + cryptoId.slice(1)}</h2>
+                <div class="symbol">${query.toUpperCase()} · Criptomoeda</div>
+              </div>
+              <div class="result-price">
+                <div class="price">$${formatPrice(data.usd)}</div>
+                <div class="change ${isUp ? 'up' : 'down'}">
+                  ${isUp ? '▲' : '▼'} ${formatChange(change)}
+                </div>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        // 2. Tenta como ação (Finnhub)
+        if (FINNHUB_API_KEY === "d9v5529r01qv408j5b8gd9v5529r01qv408j5b90") {
+          throw new Error("Configure a chave do Finnhub para buscar ações");
+        }
+
+        const symbol = query.toUpperCase();
+        const [quote, profile] = await Promise.all([
+          getQuote(symbol),
+          getProfile(symbol)
+        ]);
+
+        if (!quote.c || quote.c === 0) {
+          throw new Error("Ativo não encontrado");
+        }
+
+        const change = quote.dp || 0;
+        const isUp = change >= 0;
+        const name = profile?.name || symbol;
+
+        resultDiv.innerHTML = `
+          <div class="result-card">
+            <div class="result-info">
+              <h2>${name}</h2>
+              <div class="symbol">${symbol} · Ação</div>
+            </div>
+            <div class="result-price">
+              <div class="price">$${formatPrice(quote.c)}</div>
+              <div class="change ${isUp ? 'up' : 'down'}">
+                ${isUp ? '▲' : '▼'} ${formatChange(change)}
+              </div>
+            </div>
+          </div>
+        `;
+
+      } catch (err) {
+        resultDiv.innerHTML = `
+          <div class="result-card" style="justify-content:center; text-align:center; color:var(--text-light)">
+            <div>
+              <p style="font-size:1.1rem; margin-bottom:6px">Não encontrado</p>
+              <p style="font-size:0.9rem">${err.message}</p>
+              <p style="font-size:0.85rem; margin-top:10px">
+                Exemplos: AAPL, TSLA, MSFT, PETR4.SA, bitcoin, eth, sol
+              </p>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // Enter para pesquisar
+    document.getElementById("search-input").addEventListener("keypress", function(e) {
+      if (e.key === "Enter") searchAsset();
+    });
+
+    // ========== CARREGAMENTO PRINCIPAL ==========
     async function loadData() {
       const content = document.getElementById("content");
 
-      // Verifica se a chave foi colocada
       if (FINNHUB_API_KEY === "SUA_CHAVE_AQUI" || !FINNHUB_API_KEY) {
         content.innerHTML = `
           <div class="error">
@@ -251,14 +476,12 @@
       }
 
       try {
-        // Busca tudo em paralelo
         const [quotesIndices, quotesStocks, crypto] = await Promise.all([
           Promise.all(indices.map(i => getQuote(i.symbol))),
           Promise.all(stocks.map(s => getQuote(s.symbol))),
-          getCrypto()
+          getCryptoPrice("bitcoin,ethereum,solana,binancecoin")
         ]);
 
-        // Renderiza Índices
         let indicesHTML = indices.map((item, i) => {
           const q = quotesIndices[i];
           const change = q.dp || 0;
@@ -274,7 +497,7 @@
           `;
         }).join("");
 
-        // Adiciona Bitcoin como índice
+        // Bitcoin
         const btc = crypto.bitcoin;
         indicesHTML += `
           <div class="index-card">
@@ -286,7 +509,6 @@
           </div>
         `;
 
-        // Renderiza Ações
         let stocksHTML = stocks.map((item, i) => {
           const q = quotesStocks[i];
           const change = q.dp || 0;
@@ -307,14 +529,14 @@
           `;
         }).join("");
 
-        // Adiciona mais criptos
-        const cryptos = [
+        // Criptos extras
+        const extraCryptos = [
           { id: "ethereum", symbol: "ETH", name: "Ethereum" },
           { id: "solana", symbol: "SOL", name: "Solana" },
           { id: "binancecoin", symbol: "BNB", name: "BNB" }
         ];
 
-        cryptos.forEach(c => {
+        extraCryptos.forEach(c => {
           const data = crypto[c.id];
           const change = data.usd_24h_change || 0;
           const isUp = change >= 0;
@@ -334,9 +556,7 @@
           `;
         });
 
-        // Atualiza a data
-        const now = new Date();
-        document.getElementById("datetime").textContent = now.toLocaleString("pt-BR", {
+        document.getElementById("datetime").textContent = new Date().toLocaleString("pt-BR", {
           weekday: "long", day: "numeric", month: "long",
           hour: "2-digit", minute: "2-digit"
         });
@@ -354,16 +574,12 @@
           <div class="error">
             <p>Erro ao carregar cotações.</p>
             <p style="font-size:0.9rem;margin-top:10px">${err.message}</p>
-            <p style="margin-top:15px;font-size:0.85rem">Verifique se a chave do Finnhub está correta.</p>
           </div>
         `;
       }
     }
 
-    // Carrega pela primeira vez
     loadData();
-
-    // Atualiza a cada 60 segundos
     setInterval(loadData, 60000);
   </script>
 </body>
