@@ -191,6 +191,57 @@
       border-radius: 99px;
     }
 
+    /* ESTILOS DA TIKTOK TAB BAR DE IDIOMAS DA WIKIPÉDIA */
+    .wiki-lang-tabs {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 4px 0 8px 0;
+      border-bottom: 1px solid var(--border-strong);
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      margin-bottom: 10px;
+    }
+
+    .wiki-lang-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .wiki-lang-tab-item {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      position: relative;
+      padding-bottom: 6px;
+      transition: color 0.2s ease, font-weight 0.2s ease;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .wiki-lang-tab-item:hover {
+      color: var(--text-dark);
+    }
+
+    .wiki-lang-tab-item.active {
+      color: var(--primary-violet);
+      font-weight: 700;
+    }
+
+    .wiki-lang-tab-item.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 16px;
+      height: 2px;
+      background-color: var(--primary-violet);
+      border-radius: 99px;
+    }
+
     .chat-list {
       list-style: none;
       overflow-y: auto;
@@ -309,7 +360,7 @@
       align-items: center;
       justify-content: space-between;
       position: relative;
-      z-index: 20; /* Eleva o cabeçalho acima do restante do chat */
+      z-index: 20;
     }
 
     .chat-messages,
@@ -358,7 +409,7 @@
       border: 1px solid var(--border-strong);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-lg);
-      z-index: 9999; /* Garante topo absoluto no fluxo do chat */
+      z-index: 9999;
       display: none;
       flex-direction: column;
       overflow: hidden;
@@ -613,7 +664,7 @@
         </div>
 
         <ul class="chat-list" id="chatList">
-          </ul>
+        </ul>
       </div>
 
       <div class="chat-window" id="chatWindow">
@@ -663,7 +714,7 @@
     lucide.createIcons();
 
     // Lógica para as abas da TikTok Tab Bar com redirecionamento
-    const tiktokTabs = document.querySelectorAll('.tiktok-tab-item');
+    const tiktokTabs = document.querySelectorAll('.tiktok-tab-bar .tiktok-tab-item');
     tiktokTabs.forEach(tab => {
       tab.addEventListener('click', () => {
         const targetUrl = tab.getAttribute('data-url');
@@ -723,40 +774,22 @@
       }
     });
 
-    // Função para buscar resumo na Wikipédia API (REST API oficial)
-    async function fetchWikipediaSummary(animeTitle) {
-      // 1. Tenta buscar em Português
+    // Função parametrizada para buscar resumo na Wikipédia API em qualquer idioma especifico
+    async function fetchWikipediaSummary(animeTitle, lang = 'pt') {
       try {
-        const response = await fetch(`https://pt.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(animeTitle)}`);
+        const response = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(animeTitle)}`);
         if (response.ok) {
           const data = await response.json();
           if (data.extract) {
             return {
               extract: data.extract,
-              url: data.content_urls?.desktop?.page || `https://pt.wikipedia.org/wiki/${encodeURIComponent(animeTitle)}`
+              url: data.content_urls?.desktop?.page || `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(animeTitle)}`
             };
           }
         }
       } catch (err) {
-        console.log('Erro na Wikipédia PT:', err);
+        console.log(`Erro na Wikipédia ${lang.toUpperCase()}:`, err);
       }
-
-      // 2. Fallback para Inglês
-      try {
-        const responseEn = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(animeTitle)}`);
-        if (responseEn.ok) {
-          const dataEn = await responseEn.json();
-          if (dataEn.extract) {
-            return {
-              extract: dataEn.extract,
-              url: dataEn.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(animeTitle)}`
-            };
-          }
-        }
-      } catch (err) {
-        console.log('Erro na Wikipédia EN:', err);
-      }
-
       return null;
     }
 
@@ -791,17 +824,31 @@
 
         <div>
           <strong style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 6px;">RESUMO & WIKIPÉDIA</strong>
+          
+          <div class="wiki-lang-tabs" id="wikiLangTabs">
+            <div class="wiki-lang-tab-item active" data-lang="pt">Português</div>
+            <div class="wiki-lang-tab-item" data-lang="en">English</div>
+            <div class="wiki-lang-tab-item" data-lang="es">Español</div>
+            <div class="wiki-lang-tab-item" data-lang="ja">日本語</div>
+            <div class="wiki-lang-tab-item" data-lang="fr">Français</div>
+          </div>
+
           <p class="info-description" id="wikiSynopsis">Buscando resumo na Wikipédia...</p>
         </div>
       `;
 
       lucide.createIcons();
 
-      // Busca dados na Wikipédia
-      const wikiData = await fetchWikipediaSummary(anime.title);
       const wikiSynopsisElem = document.getElementById('wikiSynopsis');
-      
-      if (wikiSynopsisElem) {
+      const langTabs = popoverContent.querySelectorAll('.wiki-lang-tab-item');
+
+      // Função utilitária para atualizar a sinopse com base no idioma
+      async function updateSynopsisByLang(langCode) {
+        if (!wikiSynopsisElem) return;
+        wikiSynopsisElem.innerHTML = 'Carregando resumo...';
+        
+        const wikiData = await fetchWikipediaSummary(anime.title, langCode);
+        
         if (wikiData) {
           wikiSynopsisElem.innerHTML = `
             ${wikiData.extract}
@@ -811,10 +858,10 @@
             </a>
           `;
         } else {
-          // Fallback para a sinopse original da API de animes
+          // Fallback caso não exista o resumo na língua selecionada
           const fallbackSynopsis = anime.synopsis 
             ? anime.synopsis.slice(0, 240) + '...' 
-            : 'Nenhuma informação adicional encontrada.';
+            : 'Nenhuma informação encontrada neste idioma na Wikipédia.';
           wikiSynopsisElem.innerHTML = `
             ${fallbackSynopsis}
             <br>
@@ -825,6 +872,19 @@
         }
         lucide.createIcons();
       }
+
+      // Adiciona evento às abas de idiomas no estilo TikTok
+      langTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          langTabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          const selectedLang = tab.getAttribute('data-lang');
+          updateSynopsisByLang(selectedLang);
+        });
+      });
+
+      // Busca inicial padrão em Português
+      updateSynopsisByLang('pt');
     }
 
     // Consumo da API de Anime (Jikan / MyAnimeList)
