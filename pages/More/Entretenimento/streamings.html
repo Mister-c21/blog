@@ -1128,6 +1128,7 @@
                 <span>Temas</span>
             </div>
             <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('top')">Todas</button>
+            <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('continuarContainer')">Continuar Assistindo</button>
             <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('adicionadosContainer')">Adicionados Recentemente</button>
             <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('emAltaContainer')">Em Alta</button>
             <button class="sidebar-dropdown-item" onclick="scrollToSectionTarget('cartoonsContainer')">Cartoons</button>
@@ -1188,6 +1189,7 @@
 
     <nav class="tiktok-tabs-container">
         <div class="tiktok-tab active" data-target="top">Todas</div>
+        <div class="tiktok-tab" data-target="continuarContainer">Continuar Assistindo</div>
         <div class="tiktok-tab" data-target="adicionadosContainer">Adicionados Recentemente</div>
         <div class="tiktok-tab" data-target="emAltaContainer">Em Alta</div>
         <div class="tiktok-tab" data-target="cartoonsContainer">Cartoons</div>
@@ -1219,6 +1221,14 @@
 
     <main class="vertical-list" id="mainVerticalList">
         <div class="ad-banner">Espaço Publicitário - Anúncio</div>
+
+        <!-- Seção Continuar Assistindo (dinâmica via LocalStorage) -->
+        <section class="carousel-section" id="sectionContinuar" style="display: none;">
+            <div class="carousel-header">
+                <h2>Continuar Assistindo</h2>
+            </div>
+            <div class="carousel-container" id="continuarContainer" tabindex="0"></div>
+        </section>
 
         <section class="carousel-section">
             <div class="carousel-header">
@@ -1433,6 +1443,79 @@
         const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
         const IMG_URL_16_9 = 'https://image.tmdb.org/t/p/w500';
         const IMG_URL_2_3 = 'https://image.tmdb.org/t/p/w342';
+
+        /* ==========================================================
+           LÓGICA DO "CONTINUAR ASSISTINDO" (LOCALSTORAGE)
+           ========================================================== */
+        const STORAGE_KEY_CONTINUAR = 'loreplay_continuar_assistindo';
+
+        function salvarContinuarAssistindo(item, explicitType) {
+            let lista = JSON.parse(localStorage.getItem(STORAGE_KEY_CONTINUAR)) || [];
+            
+            // Determinar o tipo correto
+            let tipoMidia = explicitType;
+            if(!tipoMidia) {
+                tipoMidia = (item.title !== undefined || item.release_date !== undefined) ? 'filme' : 'serie';
+            }
+            if (tipoMidia === 'movie') tipoMidia = 'filme';
+            if (tipoMidia === 'tv') tipoMidia = 'serie';
+
+            const dadosSalvar = {
+                id: item.id,
+                title: item.title || item.name || 'Sem Título',
+                backdrop_path: item.backdrop_path || '',
+                poster_path: item.poster_path || '',
+                media_type: tipoMidia,
+                overview: item.overview || '',
+                vote_average: item.vote_average || 0,
+                release_date: item.release_date || item.first_air_date || ''
+            };
+
+            // Remove se já existir para colocar no topo (mais recente)
+            lista = lista.filter(i => i.id !== dadosSalvar.id);
+            lista.unshift(dadosSalvar);
+
+            // Limita a 15 itens salvos para não inflar o cache
+            if (lista.length > 15) lista.pop();
+
+            localStorage.setItem(STORAGE_KEY_CONTINUAR, JSON.stringify(lista));
+            carregarContinuarAssistindo();
+        }
+
+        function carregarContinuarAssistindo() {
+            const lista = JSON.parse(localStorage.getItem(STORAGE_KEY_CONTINUAR)) || [];
+            const container = document.getElementById('continuarContainer');
+            const section = document.getElementById('sectionContinuar');
+
+            if (!container || !section) return;
+
+            if (lista.length === 0) {
+                section.style.display = 'none';
+                container.innerHTML = '';
+                return;
+            }
+
+            section.style.display = 'block';
+            container.innerHTML = '';
+
+            lista.forEach(item => {
+                const title = item.title;
+                const imgPath = item.backdrop_path ? `${IMG_URL_16_9}${item.backdrop_path}` : 'https://via.placeholder.com/250x140/333333/ffffff?text=Sem+Imagem';
+
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.tabIndex = 0;
+                card.innerHTML = `
+                    <div class="card-image">
+                        <img src="${imgPath}" alt="${title}">
+                    </div>
+                    <div class="card-title">${title}</div>
+                `;
+
+                card.addEventListener('click', () => openModal(item, item.media_type));
+                container.appendChild(card);
+            });
+        }
 
         /* ==========================================================
            LÓGICA DO INDICADOR ANIMADO DE NAVEGAÇÃO
@@ -1676,6 +1759,9 @@
             }
             if (tipoMidia === 'movie') tipoMidia = 'filme';
             if (tipoMidia === 'tv') tipoMidia = 'serie';
+
+            // Salva no Continuar Assistindo ao abrir/reproduzir
+            salvarContinuarAssistindo(item, tipoMidia);
 
             const tmdbId = item.id;
             
@@ -2012,6 +2098,9 @@
             if (defaultActiveBtn) {
                 updateNavIndicator(defaultActiveBtn);
             }
+
+            // Inicializa a lista de continuar assistindo do localStorage
+            carregarContinuarAssistindo();
 
             fetchMainBanner();
             fetchHorizontalCarousel('/movie/upcoming', 'adicionadosContainer');
