@@ -99,16 +99,6 @@
             flex-shrink: 0;
         }
 
-        .menu-subtitle {
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: rgba(255, 255, 255, 0.4);
-            font-weight: 700;
-            margin-top: 5px;
-            padding-left: 16px;
-        }
-
         /* Conteúdo Principal */
         main {
             flex: 1;
@@ -120,7 +110,6 @@
             max-width: 100%;
         }
 
-        /* Header Centralizado */
         .app-header {
             display: flex;
             flex-direction: column;
@@ -163,7 +152,6 @@
             position: relative;
         }
 
-        /* Barra de Busca (Desktop Base) */
         .search-bar {
             width: 100%;
             max-width: 320px;
@@ -244,7 +232,6 @@
             transform: translateY(-9px) rotate(-45deg);
         }
 
-        /* Menu Lateral Drawer (Mobile) */
         .mobile-drawer {
             position: fixed;
             top: 0;
@@ -282,7 +269,6 @@
             display: block;
         }
 
-        /* Grade de Jogos */
         .games-section {
             width: 100%;
         }
@@ -358,7 +344,85 @@
             color: var(--text-secondary);
         }
 
-        /* Modal */
+        /* --- Estilos do Menu Flutuante de Seleção de Modo --- */
+        .game-options-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .game-options-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .game-options-modal {
+            background-color: var(--bg-sidebar);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 360px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .game-options-overlay.active .game-options-modal {
+            transform: scale(1);
+        }
+
+        .game-options-title {
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+
+        .game-option-btn {
+            background-color: var(--bg-card);
+            border: 1.5px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-color);
+            padding: 14px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .game-option-btn:hover {
+            border-color: rgba(168, 85, 247, 0.5);
+            background-color: rgba(138, 43, 226, 0.15);
+        }
+
+        /* Opção de Página Web Destacada */
+        .game-option-btn.highlighted {
+            background: var(--gradient-accent);
+            border-color: transparent;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
+        }
+
+        .game-option-btn.highlighted:hover {
+            filter: brightness(1.1);
+        }
+
+        /* Modal do Iframe */
         #iframeModal {
             position: fixed; 
             inset: 0; 
@@ -442,17 +506,14 @@
                 padding: 16px;
                 gap: 20px; 
             }
-            
             .search-bar {
                 max-width: 250px; 
             }
-            
             .search-bar input {
                 padding: 8px 32px 8px 14px; 
                 font-size: 13px; 
                 border-radius: 16px; 
             }
-
             .clear-btn {
                 right: 11px;
                 font-size: 16px;
@@ -544,6 +605,24 @@
         </section>
     </main>
 
+    <!-- Menu Flutuante de Opções de Jogo -->
+    <div class="game-options-overlay" id="gameOptionsOverlay">
+        <div class="game-options-modal">
+            <div class="game-options-title" id="gameOptionsTitle">Jogar Jogo</div>
+            <p style="font-size: 13px; color: var(--text-secondary); text-align: center; margin-bottom: 8px;">Escolha onde deseja executar:</p>
+            
+            <!-- Opção Página Web (Destacada) -->
+            <button class="game-option-btn highlighted" id="btnWebPage">
+                <i class="fas fa-globe"></i> Página Web
+            </button>
+            
+            <!-- Opção Local -->
+            <button class="game-option-btn" id="btnLocal">
+                <i class="fas fa-desktop"></i> Executar Localmente
+            </button>
+        </div>
+    </div>
+
     <div id="iframeModal">
         <div id="modal-drag-handle">
             <div class="drag-pill"></div>
@@ -556,6 +635,7 @@
 
     <script>
         let gamesData = [];
+        let selectedGameUrl = '';
 
         async function renderGames() {
             try {
@@ -570,6 +650,7 @@
                     card.className = 'game-card';
                     card.setAttribute('data-category', game.category);
                     card.setAttribute('data-url', game.iframeUrl);
+                    card.setAttribute('data-title', game.title);
 
                     card.innerHTML = `
                         <div class="game-thumb">
@@ -583,8 +664,9 @@
 
                     card.addEventListener('click', () => {
                         const targetUrl = card.getAttribute('data-url');
+                        const gameTitle = card.getAttribute('data-title');
                         if(targetUrl) {
-                            openIframeModal(targetUrl);
+                            openGameOptions(targetUrl, gameTitle);
                         }
                     });
 
@@ -612,6 +694,12 @@
         const modalIframe = document.getElementById('modalIframe');
         const handle = document.getElementById('modal-drag-handle');
         
+        // Elementos do Menu Flutuante de Opções
+        const gameOptionsOverlay = document.getElementById('gameOptionsOverlay');
+        const gameOptionsTitle = document.getElementById('gameOptionsTitle');
+        const btnWebPage = document.getElementById('btnWebPage');
+        const btnLocal = document.getElementById('btnLocal');
+
         let touchStartY = 0;
         let isDragging = false;
         let currentCategoryFilter = 'para voce';
@@ -687,6 +775,39 @@
                     toggleMenu();
                 }
             });
+        });
+
+        // Funções do Menu Flutuante de Escolha
+        function openGameOptions(url, title) {
+            selectedGameUrl = url;
+            gameOptionsTitle.textContent = title;
+            gameOptionsOverlay.classList.add('active');
+            document.body.classList.add('modal-open');
+        }
+
+        function closeGameOptions() {
+            gameOptionsOverlay.classList.remove('active');
+            document.body.classList.remove('modal-open');
+        }
+
+        // Ação para Página Web (abre no modal iframe da página)
+        btnWebPage.addEventListener('click', () => {
+            closeGameOptions();
+            openIframeModal(selectedGameUrl);
+        });
+
+        // Ação para Executar Localmente (exemplo: abre em nova aba ou protocolo local)
+        btnLocal.addEventListener('click', () => {
+            closeGameOptions();
+            // Lógica para modo local (ex: window.location.href ou abertura externa)
+            window.open(selectedGameUrl, '_blank');
+        });
+
+        // Fechar menu de opções clicando fora dele
+        gameOptionsOverlay.addEventListener('click', (e) => {
+            if (e.target === gameOptionsOverlay) {
+                closeGameOptions();
+            }
         });
 
         window.openIframeModal = function(url) {
