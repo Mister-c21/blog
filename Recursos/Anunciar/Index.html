@@ -273,6 +273,11 @@
         </div>
 
         <div>
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Duração do Anúncio (Dias)</h3>
+          <div class="flex flex-row gap-4 overflow-x-auto pb-2 custom-scroll" id="durationContainer"></div>
+        </div>
+
+        <div>
           <h3 class="text-sm font-semibold text-gray-700 mb-3">Forma de Pagamento</h3>
           <div class="flex flex-row gap-4 overflow-x-auto pb-2 custom-scroll" id="paymentMethodsContainer"></div>
         </div>
@@ -327,6 +332,7 @@
       selectedFile: null,
       selectedPlan: 0, // 0 = Bronze, 1 = Prata, 2 = Ouro
       selectedBoost: 0, // 0 (0%), 0.10 (10%), 0.20 (20%), 0.30 (30%), 0.40 (40%)
+      selectedDurationDays: 12, // Começa em 12 dias (valor base sem acréscimo)
       paymentMethod: null, // 'pix'
       paymentDone: false,
     };
@@ -343,6 +349,13 @@
       { rate: 0.20, label: "+20%", desc: "Boost médio" },
       { rate: 0.30, label: "+30%", desc: "Boost alto" },
       { rate: 0.40, label: "+40%", desc: "Boost máximo" }
+    ];
+
+    const durationOptions = [
+      { days: 12, label: "12 Dias", desc: "Base (Sem acréscimo)" },
+      { days: 15, label: "15 Dias", desc: "+1,2% por dia extra" },
+      { days: 20, label: "20 Dias", desc: "+1,2% por dia extra" },
+      { days: 30, label: "30 Dias", desc: "+1,2% por dia extra" }
     ];
 
     const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -366,6 +379,7 @@
       priceBreakdown: $('#priceBreakdown'),
       plansContainer: $('#plansContainer'),
       boostContainer: $('#boostContainer'),
+      durationContainer: $('#durationContainer'),
       paymentMethodsContainer: $('#paymentMethodsContainer'),
       confirmBtn: $('#confirmBtn'),
       toastContainer: $('#toastContainer'),
@@ -430,7 +444,7 @@
 
       if (file.size > MAX_FILE_SIZE) {
         els.uploadError.textContent = 'Arquivo muito grande. Máximo 5 MB.';
-        els.uploadError.classList.remove('hidden');
+        els.uploadError.classList.add('hidden');
         return;
       }
 
@@ -487,9 +501,21 @@
 
     function calculateTotal() {
       if (state.selectedPlan === null) return 0;
-      let total = getCurrentPlanPrice();
-      if (state.selectedBoost > 0) total += total * state.selectedBoost;
-      return Math.round(total * 100) / 100;
+      
+      // 1. Preço base + Boost
+      let baseWithBoost = getCurrentPlanPrice();
+      if (state.selectedBoost > 0) {
+        baseWithBoost += baseWithBoost * state.selectedBoost;
+      }
+
+      // 2. Acréscimo de 1,2% (0.012) por cada dia adicional além dos 12 dias iniciais
+      let finalTotal = baseWithBoost;
+      if (state.selectedDurationDays > 12) {
+        const extraDays = state.selectedDurationDays - 12;
+        finalTotal += baseWithBoost * (0.012 * extraDays);
+      }
+
+      return Math.round(finalTotal * 100) / 100;
     }
 
     function renderPlans() {
@@ -538,6 +564,21 @@
         `;
       }).join('');
 
+      els.durationContainer.innerHTML = durationOptions.map(option => {
+        const isSelected = state.selectedDurationDays === option.days;
+        return `
+          <div role="button" tabindex="0" onclick="selectDuration(${option.days})"
+               class="p-4 rounded-2xl border-2 cursor-pointer min-w-[140px] flex-shrink-0 text-center transition-all
+                      ${isSelected ? 'selected-plan' : 'border-gray-200 bg-white hover:border-violet-300'}">
+            <div class="w-10 h-10 mx-auto mb-2 rounded-xl ${isSelected ? 'bg-violet-100 text-violet-600' : 'bg-gray-100 text-gray-500'} flex items-center justify-center">
+              <i class="fa-regular fa-calendar-days text-sm"></i>
+            </div>
+            <div class="font-bold text-sm text-gray-800">${option.label}</div>
+            <div class="text-xs text-gray-500 mt-1">${option.desc}</div>
+          </div>
+        `;
+      }).join('');
+
       const methods = [
         { id: 'pix', name: 'Pix', icon: 'fa-brands fa-pix' }
       ];
@@ -562,10 +603,12 @@
       els.priceDisplay.textContent = formatCurrency(calculateTotal());
       
       const plan = plans[state.selectedPlan];
-      const basePrice = getCurrentPlanPrice();
-      let breakdown = `Plano ${plan.name} · ${plan.durationLabel}: ${formatCurrency(basePrice)}`;
+      let breakdown = `Plano ${plan.name} · ${state.selectedDurationDays} dias`;
       if (state.selectedBoost > 0) {
-        breakdown += ` + Boost ${Math.round(state.selectedBoost * 100)}% (${formatCurrency(basePrice * state.selectedBoost)})`;
+        breakdown += ` + Boost ${Math.round(state.selectedBoost * 100)}%`;
+      }
+      if (state.selectedDurationDays > 12) {
+        breakdown += ` (+1,2%/dia extra)`;
       }
       els.priceBreakdown.textContent = breakdown;
 
@@ -591,6 +634,14 @@
       renderPlans();
     }
 
+    function selectDuration(days) {
+      state.selectedDurationDays = days;
+      state.paymentDone = false;
+      state.paymentMethod = null;
+      els.pixQrContainer.classList.add('hidden');
+      renderPlans();
+    }
+
     function selectPaymentMethod(method) {
       state.paymentMethod = method;
       if (method === 'pix') {
@@ -599,8 +650,7 @@
       } else {
         els.pixQrContainer.classList.add('hidden');
         state.paymentDone = true;
-        const label = method === 'credit' ? 'Cartão de Crédito' : 'Cartão de Débito';
-        showToast(`Pagamento via ${label} aprovado com sucesso!`, 'success');
+        showToast('Pagamento aprovado com sucesso!', 'success');
       }
       renderPlans();
     }
@@ -684,6 +734,7 @@
 
     window.selectPlan = selectPlan;
     window.selectBoost = selectBoost;
+    window.selectDuration = selectDuration;
     window.selectPaymentMethod = selectPaymentMethod;
     window.simulatePixPayment = simulatePixPayment;
     window.copyPixCode = copyPixCode;
