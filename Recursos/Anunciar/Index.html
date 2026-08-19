@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="Crie e publique anúncios profissionais com planos flexíveis e pagamento via Pix.">
+  <meta name="description" content="Crie e publique anúncios profissionais com planos flexíveis e pagamento seguro.">
   <meta name="theme-color" content="#7c3aed">
   <title>Criar Anúncio • Nova Campanha</title>
 
@@ -258,13 +258,8 @@
         
         <div class="text-center">
           <p class="text-sm text-gray-500 font-medium mb-1">Total a pagar</p>
-          <div id="priceDisplay" class="font-extrabold text-violet-700 text-4xl tracking-tight">R$ 0,00</div>
+          <div id="priceDisplay" class="font-extrabold text-violet-700 text-4xl tracking-tight">R$ 100,00</div>
           <p id="priceBreakdown" class="text-xs text-gray-400 mt-1.5"></p>
-        </div>
-
-        <div>
-          <h3 class="text-sm font-semibold text-gray-700 mb-3">Plano de veiculação</h3>
-          <div class="flex flex-row gap-4 overflow-x-auto pb-2 custom-scroll snap-x" id="plansContainer"></div>
         </div>
 
         <div>
@@ -273,35 +268,8 @@
         </div>
 
         <div>
-          <h3 class="text-sm font-semibold text-gray-700 mb-3">Duração do Anúncio (Dias)</h3>
-          <div class="flex flex-row gap-4 overflow-x-auto pb-2 custom-scroll" id="durationContainer"></div>
-        </div>
-
-        <div>
           <h3 class="text-sm font-semibold text-gray-700 mb-3">Forma de Pagamento</h3>
           <div class="flex flex-row gap-4 overflow-x-auto pb-2 custom-scroll" id="paymentMethodsContainer"></div>
-        </div>
-        
-        <div id="pixQrContainer" class="hidden bg-white/80 border border-violet-200 rounded-2xl p-5 text-center animate-fade-in">
-          <div class="flex items-center justify-center gap-2 mb-3">
-            <i class="fa-brands fa-pix text-violet-600 text-lg"></i>
-            <span class="font-bold text-gray-800 text-sm">Escaneie o QR Code para pagar</span>
-          </div>
-          <div class="bg-white p-3 inline-block rounded-xl border border-gray-100 shadow-sm mb-3">
-            <img id="qrCodeImage" src="" alt="QR Code Pix" class="w-40 h-40 mx-auto object-contain">
-          </div>
-          <p class="text-xs text-gray-500 mb-3">Abra o aplicativo do seu banco e aponte a câmera</p>
-          <div class="flex items-center gap-2 max-w-md mx-auto bg-gray-50 p-2 rounded-xl border border-gray-200">
-            <input type="text" id="pixCopyInput" readonly value="00020126580014br.gov.bcb.pix..." class="w-full bg-transparent text-xs text-gray-600 outline-none px-2 font-mono">
-            <button type="button" onclick="copyPixCode()" class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors flex items-center gap-1 shrink-0">
-              <i class="fa-regular fa-copy"></i> Copiar
-            </button>
-          </div>
-          <div class="mt-3">
-            <button type="button" onclick="simulateSuccessfulPayment()" class="text-xs text-violet-600 hover:underline font-semibold">
-              Já fiz o pagamento (Simular aprovação)
-            </button>
-          </div>
         </div>
 
       </div>
@@ -330,32 +298,16 @@
     // ===================== STATE =====================
     const state = {
       selectedFile: null,
-      selectedPlan: 0, // 0 = Bronze, 1 = Prata, 2 = Ouro
-      selectedBoost: 0, // 0 (0%), 0.10 (10%), 0.20 (20%), 0.30 (30%), 0.40 (40%)
-      selectedDurationDays: 12, // Começa em 12 dias (valor base sem acréscimo)
-      paymentMethod: null, // 'pix'
+      selectedPlan: 0,
+      selectedBoost: false,
+      selectedDurationDays: 15,
+      paymentMethod: null,
       paymentDone: false,
     };
 
-    const plans = [
-      { name: "Bronze", price: 80, days: 7, durationLabel: "1 semana", popular: false, icon: "fa-shield-halved", placements: ["LoreSpace Search", "LoreGamming"] },
-      { name: "Prata", price: 140, days: 15, durationLabel: "15 dias", popular: false, icon: "fa-award", placements: ["LoreSpace Search", "LoreGamming", "LorePlay"] },
-      { name: "Ouro", price: 200, days: 30, durationLabel: "1 mês", popular: true, icon: "fa-crown", placements: ["LoreSpace Search", "LoreGamming", "LorePlay", "LoreWiki"] }
-    ];
-
     const boostOptions = [
-      { rate: 0, label: "Sem Boost", desc: "Padrão" },
-      { rate: 0.10, label: "+10%", desc: "Boost leve" },
-      { rate: 0.20, label: "+20%", desc: "Boost médio" },
-      { rate: 0.30, label: "+30%", desc: "Boost alto" },
-      { rate: 0.40, label: "+40%", desc: "Boost máximo" }
-    ];
-
-    const durationOptions = [
-      { days: 12, label: "12 Dias", desc: "Base (Sem acréscimo)" },
-      { days: 15, label: "15 Dias", desc: "+1,2% por dia extra" },
-      { days: 20, label: "20 Dias", desc: "+1,2% por dia extra" },
-      { days: 30, label: "30 Dias", desc: "+1,2% por dia extra" }
+      { active: false, label: "Sem Boost", desc: "R$ 100,00", url: "https://checkout.infinitepay.io/caio-santos-06a/49IzIuTW3h" },
+      { active: true, label: "Com Boost", desc: "R$ 180,00", url: "https://checkout.infinitepay.io/caio-santos-06a/YVFaUPXokI" }
     ];
 
     const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -377,15 +329,10 @@
       modal: $('#modal'),
       priceDisplay: $('#priceDisplay'),
       priceBreakdown: $('#priceBreakdown'),
-      plansContainer: $('#plansContainer'),
       boostContainer: $('#boostContainer'),
-      durationContainer: $('#durationContainer'),
       paymentMethodsContainer: $('#paymentMethodsContainer'),
       confirmBtn: $('#confirmBtn'),
-      toastContainer: $('#toastContainer'),
-      pixQrContainer: $('#pixQrContainer'),
-      qrCodeImage: $('#qrCodeImage'),
-      pixCopyInput: $('#pixCopyInput')
+      toastContainer: $('#toastContainer')
     };
 
     function formatCurrency(value) {
@@ -404,6 +351,20 @@
         toast.style.transition = 'all 0.3s ease';
         setTimeout(() => toast.remove(), 300);
       }, 3200);
+    }
+
+    function sendNativeNotification(title, body) {
+      if (!("Notification" in window)) return;
+      
+      if (Notification.permission === "granted") {
+        new Notification(title, { body: body, icon: '/favicon.ico' });
+      } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+          if (permission === "granted") {
+            new Notification(title, { body: body, icon: '/favicon.ico' });
+          }
+        });
+      }
     }
 
     function isValidUrl(str) {
@@ -495,64 +456,21 @@
 
     els.finalUrl.addEventListener('input', validateForm);
 
-    function getCurrentPlanPrice() {
-      return plans[state.selectedPlan].price;
-    }
-
     function calculateTotal() {
-      if (state.selectedPlan === null) return 0;
-      
-      // 1. Preço base + Boost
-      let baseWithBoost = getCurrentPlanPrice();
-      if (state.selectedBoost > 0) {
-        baseWithBoost += baseWithBoost * state.selectedBoost;
+      let total = 100;
+      if (state.selectedBoost) {
+        total += 80;
       }
-
-      // 2. Acréscimo de 1,2% (0.012) por cada dia adicional além dos 12 dias iniciais
-      let finalTotal = baseWithBoost;
-      if (state.selectedDurationDays > 12) {
-        const extraDays = state.selectedDurationDays - 12;
-        finalTotal += baseWithBoost * (0.012 * extraDays);
-      }
-
-      return Math.round(finalTotal * 100) / 100;
+      return total;
     }
 
     function renderPlans() {
-      els.plansContainer.innerHTML = plans.map((plan, index) => {
-        const isSelected = state.selectedPlan === index;
-
-        const placementsList = plan.placements.map(p => `
-          <li class="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
-            <i class="fa-solid fa-check text-violet-500 text-[10px]"></i> ${p}
-          </li>
-        `).join('');
-
-        return `
-          <div role="button" tabindex="0" onclick="selectPlan(${index})"
-               class="plan-card cursor-pointer p-5 rounded-2xl border-2 min-w-[200px] sm:min-w-[220px] flex-shrink-0 snap-start
-                      ${plan.popular ? 'border-violet-400' : 'border-gray-200'}
-                      bg-white ${isSelected ? 'selected-plan' : ''}">
-            ${plan.popular ? `<div class="inline-flex items-center gap-1 text-[10px] font-bold text-violet-700 bg-violet-100 px-2.5 py-1 rounded-full mb-3"><i class="fa-solid fa-fire text-[9px]"></i> RECOMENDADO</div>` : '<div class="h-6 mb-3"></div>'}
-            <div class="flex items-center gap-2.5 mb-1">
-              <span class="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center text-sm"><i class="fa-solid ${plan.icon}"></i></span>
-              <h3 class="font-bold text-lg text-gray-900">${plan.name}</h3>
-            </div>
-            <p class="text-3xl font-extrabold text-violet-600 my-3 tracking-tight">${formatCurrency(plan.price)}</p>
-            <div class="mt-2 pt-3 border-t border-gray-100">
-              <p class="text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Locais de Exibição</p>
-              <ul class="space-y-1">${placementsList}</ul>
-            </div>
-          </div>
-        `;
-      }).join('');
-
       const paid = state.paymentDone;
 
       els.boostContainer.innerHTML = boostOptions.map(option => {
-        const isSelected = state.selectedBoost === option.rate;
+        const isSelected = state.selectedBoost === option.active;
         return `
-          <div role="button" tabindex="0" onclick="selectBoost(${option.rate})"
+          <div role="button" tabindex="0" onclick="selectBoost(${option.active})"
                class="p-4 rounded-2xl border-2 cursor-pointer min-w-[140px] flex-shrink-0 text-center transition-all
                       ${isSelected ? 'selected-plan' : 'border-gray-200 bg-white hover:border-violet-300'}">
             <div class="w-10 h-10 mx-auto mb-2 rounded-xl ${isSelected ? 'bg-violet-100 text-violet-600' : 'bg-gray-100 text-gray-500'} flex items-center justify-center">
@@ -564,23 +482,8 @@
         `;
       }).join('');
 
-      els.durationContainer.innerHTML = durationOptions.map(option => {
-        const isSelected = state.selectedDurationDays === option.days;
-        return `
-          <div role="button" tabindex="0" onclick="selectDuration(${option.days})"
-               class="p-4 rounded-2xl border-2 cursor-pointer min-w-[140px] flex-shrink-0 text-center transition-all
-                      ${isSelected ? 'selected-plan' : 'border-gray-200 bg-white hover:border-violet-300'}">
-            <div class="w-10 h-10 mx-auto mb-2 rounded-xl ${isSelected ? 'bg-violet-100 text-violet-600' : 'bg-gray-100 text-gray-500'} flex items-center justify-center">
-              <i class="fa-regular fa-calendar-days text-sm"></i>
-            </div>
-            <div class="font-bold text-sm text-gray-800">${option.label}</div>
-            <div class="text-xs text-gray-500 mt-1">${option.desc}</div>
-          </div>
-        `;
-      }).join('');
-
       const methods = [
-        { id: 'pix', name: 'Pix', icon: 'fa-brands fa-pix' }
+        { id: 'pagar', name: 'Pagar', icon: 'fa-solid fa-credit-card' }
       ];
 
       els.paymentMethodsContainer.innerHTML = methods.map(m => {
@@ -594,97 +497,65 @@
             </div>
             <div class="font-bold text-sm">${m.name}</div>
             <div class="text-xs ${isSelected ? 'text-emerald-600 font-semibold' : 'text-gray-500'}">
-              ${isSelected ? 'Pagamento Aprovado' : 'Selecionar'}
+              ${isSelected ? 'Pagamento Aprovado' : 'Clique para pagar'}
             </div>
           </div>
         `;
       }).join('');
 
-      els.priceDisplay.textContent = formatCurrency(calculateTotal());
+      const totalVal = calculateTotal();
+      els.priceDisplay.textContent = formatCurrency(totalVal);
       
-      const plan = plans[state.selectedPlan];
-      let breakdown = `Plano ${plan.name} · ${state.selectedDurationDays} dias`;
-      if (state.selectedBoost > 0) {
-        breakdown += ` + Boost ${Math.round(state.selectedBoost * 100)}%`;
-      }
-      if (state.selectedDurationDays > 12) {
-        breakdown += ` (+1,2%/dia extra)`;
-      }
+      let breakdown = `Quinzenal (15 dias) · Boost: ${state.selectedBoost ? 'Sim (+R$ 80,00)' : 'Não'}`;
       els.priceBreakdown.textContent = breakdown;
 
-      const canConfirm = state.selectedPlan !== null && state.paymentDone;
+      const canConfirm = state.paymentDone;
       els.confirmBtn.disabled = !canConfirm;
       els.confirmBtn.classList.toggle('opacity-50', !canConfirm);
       els.confirmBtn.classList.toggle('cursor-not-allowed', !canConfirm);
     }
 
-    function selectPlan(index) {
-      state.selectedPlan = index;
+    function selectBoost(active) {
+      state.selectedBoost = active;
       state.paymentDone = false;
       state.paymentMethod = null;
-      els.pixQrContainer.classList.add('hidden');
-      renderPlans();
-    }
-
-    function selectBoost(rate) {
-      state.selectedBoost = rate;
-      state.paymentDone = false;
-      state.paymentMethod = null;
-      els.pixQrContainer.classList.add('hidden');
-      renderPlans();
-    }
-
-    function selectDuration(days) {
-      state.selectedDurationDays = days;
-      state.paymentDone = false;
-      state.paymentMethod = null;
-      els.pixQrContainer.classList.add('hidden');
       renderPlans();
     }
 
     function selectPaymentMethod(method) {
       state.paymentMethod = method;
-      if (method === 'pix') {
-        state.paymentDone = false;
-        simulatePixPayment();
-      } else {
-        els.pixQrContainer.classList.add('hidden');
-        state.paymentDone = true;
-        showToast('Pagamento aprovado com sucesso!', 'success');
+      
+      if (method === 'pagar') {
+        const currentBoostOption = boostOptions.find(b => b.active === state.selectedBoost);
+        const totalValNum = calculateTotal();
+        const totalVal = totalValNum.toFixed(2).replace('.', ',');
+        const baseUrl = currentBoostOption ? currentBoostOption.url : "https://checkout.infinitepay.io/caio-santos-06a/kb3QkKvlm6";
+        const returnUrl = encodeURIComponent(window.location.origin + window.location.pathname + '?pagamento=sucesso');
+        const infinityPayUrl = `${baseUrl}?amount=${totalVal}&return_url=${returnUrl}`;
+        
+        showToast('Redirecionando para o pagamento...', 'info');
+        
+        const campaignData = {
+          imageUrl: els.imagePreview.src || '',
+          finalUrl: els.finalUrl.value.trim(),
+          planName: "Padrão",
+          planPrice: 100,
+          boostRate: state.selectedBoost ? 80 : 0,
+          durationDays: 15,
+          totalAmount: totalValNum,
+          paymentStatus: 'Aprovado'
+        };
+        sessionStorage.setItem('pendingCampaign', JSON.stringify(campaignData));
+
+        setTimeout(() => {
+          window.top.location.href = infinityPayUrl;
+        }, 800);
       }
-      renderPlans();
-    }
-
-    function simulatePixPayment() {
-      const totalVal = calculateTotal().toFixed(2);
-      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=PIX_PAGAMENTO_R$${totalVal}`;
-      
-      els.qrCodeImage.src = qrApiUrl;
-      els.pixCopyInput.value = `00020126580014br.gov.bcb.pix0136campanha-anuncio-${totalVal.replace('.', '')}5204000053039865802BR5925Plano Ads Plataforma6009Sao Paulo62070503***`;
-      
-      els.pixQrContainer.classList.remove('hidden');
-      showToast('QR Code Pix gerado com sucesso!', 'info');
-    }
-
-    function copyPixCode() {
-      els.pixCopyInput.select();
-      els.pixCopyInput.setSelectionRange(0, 9999);
-      navigator.clipboard.writeText(els.pixCopyInput.value);
-      showToast('Código Pix copiado com sucesso!', 'success');
-    }
-
-    function simulateSuccessfulPayment() {
-      state.paymentDone = true;
-      state.paymentMethod = 'pix';
-      els.pixQrContainer.classList.add('hidden');
-      renderPlans();
-      showToast('Pagamento Pix confirmado com sucesso!', 'success');
     }
 
     function openModal() {
       state.paymentDone = false;
       state.paymentMethod = null;
-      els.pixQrContainer.classList.add('hidden');
       els.confirmBtn.disabled = true;
       els.confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
       els.modal.classList.remove('hidden');
@@ -699,21 +570,86 @@
       document.body.style.overflow = '';
     }
 
-    function confirmPlan() {
-      if (state.selectedPlan === null || !state.paymentDone) {
-        showToast('Selecione uma forma de pagamento e finalize antes de confirmar.', 'error');
-        return;
+    async function confirmPlan(overrideData = null) {
+      let campaignData = overrideData;
+
+      if (!campaignData) {
+        if (!state.paymentDone) {
+          showToast('Finalize o pagamento antes de confirmar.', 'error');
+          return;
+        }
+
+        const totalValNum = calculateTotal();
+        campaignData = {
+          imageUrl: els.imagePreview.src || '',
+          finalUrl: els.finalUrl.value.trim(),
+          planName: "Padrão",
+          planPrice: 100,
+          boostRate: state.selectedBoost ? 80 : 0,
+          durationDays: 15,
+          totalAmount: totalValNum,
+          paymentStatus: 'Aprovado'
+        };
       }
 
-      els.confirmBtn.classList.add('btn-loading');
-      els.confirmBtn.disabled = true;
+      if (els.confirmBtn) {
+        els.confirmBtn.classList.add('btn-loading');
+        els.confirmBtn.disabled = true;
+      }
 
-      setTimeout(() => {
-        els.confirmBtn.classList.remove('btn-loading');
-        closeModal();
-        showToast(`Anúncio publicado com sucesso por ${formatCurrency(calculateTotal())}!`, 'success');
-      }, 900);
+      try {
+        const response = await fetch('https://dados-khaki.vercel.app/api/campaigns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(campaignData)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          closeModal();
+          showToast(`Anúncio publicado com sucesso por ${formatCurrency(campaignData.totalAmount)}!`, 'success');
+          sendNativeNotification("Sucesso!", "Seu anúncio foi pago e publicado com sucesso!");
+        } else {
+          showToast('Erro ao publicar anúncio no banco de dados.', 'error');
+        }
+      } catch (error) {
+        console.error('Erro na requisição:', error);
+        showToast('Falha de conexão com o servidor.', 'error');
+      } finally {
+        if (els.confirmBtn) {
+          els.confirmBtn.classList.remove('btn-loading');
+        }
+      }
     }
+
+    window.addEventListener('load', async () => {
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('pagamento') === 'sucesso') {
+        const savedData = sessionStorage.getItem('pendingCampaign');
+        
+        if (savedData) {
+          openModal();
+          showToast('Pagamento confirmado! Publicando anúncio...', 'info');
+          
+          state.paymentDone = true;
+          state.paymentMethod = 'pagar';
+          renderPlans();
+
+          const campaignParsed = JSON.parse(savedData);
+          
+          setTimeout(async () => {
+            await confirmPlan(campaignParsed);
+            sessionStorage.removeItem('pendingCampaign');
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }, 1200);
+        }
+      }
+    });
 
     els.form.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -732,13 +668,8 @@
       if (e.target === els.modal) closeModal();
     });
 
-    window.selectPlan = selectPlan;
     window.selectBoost = selectBoost;
-    window.selectDuration = selectDuration;
     window.selectPaymentMethod = selectPaymentMethod;
-    window.simulatePixPayment = simulatePixPayment;
-    window.copyPixCode = copyPixCode;
-    window.simulateSuccessfulPayment = simulateSuccessfulPayment;
     window.closeModal = closeModal;
     window.confirmPlan = confirmPlan;
 
