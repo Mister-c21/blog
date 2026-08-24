@@ -252,14 +252,26 @@
                 </div>
                 <div class="p-4 space-y-4">
                     <textarea rows="3" placeholder="No que você está pensando, Seu Nome?" class="w-full focus:outline-none text-base resize-none placeholder-gray-400"></textarea>
-                    
-                    <!-- Campo Opcional para Link via URL (Inicialmente Oculto) -->
-                    <div id="urlContainer" class="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 hidden">
-                        <i class="fa-solid fa-link text-secondary"></i>
-                        <input type="url" id="urlInput" placeholder="Insira o link (URL)..." class="w-full text-sm outline-none placeholder-gray-400">
-                        <button onclick="hideUrlInput()" class="text-gray-400 hover:text-red-500 transition px-1" title="Fechar campo de link">
-                            <i class="fa-solid fa-xmark"></i>
+                </div>
+
+                <!-- Área de Preview do Arquivo Selecionado (estilo Facebook) -->
+                <div id="filePreviewContainer" class="hidden px-4 pb-3">
+                    <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                        <!-- Preview de Imagem -->
+                        <img id="imagePreview" class="w-full max-h-80 object-contain hidden" alt="Preview da imagem">
+                        
+                        <!-- Preview de Vídeo -->
+                        <video id="videoPreview" class="w-full max-h-80 object-contain hidden" controls></video>
+                        
+                        <!-- Botão de remover arquivo -->
+                        <button type="button" onclick="removeSelectedFile()" 
+                                class="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition"
+                                title="Remover arquivo">
+                            <i class="fa-solid fa-xmark text-sm"></i>
                         </button>
+                        
+                        <!-- Nome do arquivo -->
+                        <div id="fileNameDisplay" class="px-3 py-2 bg-gray-100 text-xs text-gray-600 truncate border-t border-gray-200"></div>
                     </div>
                 </div>
 
@@ -279,10 +291,6 @@
                         <label for="videoInput" class="cursor-pointer hover:opacity-85 transition" title="Adicionar Vídeo do Dispositivo">
                             <i class="fa-solid fa-video text-blue-500"></i>
                         </label>
-                        <!-- Botão Link URL (Alterna a visibilidade do campo) -->
-                        <button onclick="toggleUrlInput()" class="cursor-pointer hover:opacity-85 transition text-secondary" title="Adicionar Link (URL)">
-                            <i class="fa-solid fa-link"></i>
-                        </button>
                     </div>
                 </div>
                 <div class="p-4 bg-gray-50 border-t border-gray-100">
@@ -831,34 +839,65 @@
             }
         }
 
+        // ========== PREVIEW DE ARQUIVOS (ESTILO FACEBOOK) ==========
         function handleFileSelect(type) {
             const input = type === 'image' ? document.getElementById('imageInput') : document.getElementById('videoInput');
-            if (input && input.files && input.files[0]) {
-                alert(`Arquivo de ${type} selecionado: ` + input.files[0].name);
+            const previewContainer = document.getElementById('filePreviewContainer');
+            const imagePreview = document.getElementById('imagePreview');
+            const videoPreview = document.getElementById('videoPreview');
+            const fileNameDisplay = document.getElementById('fileNameDisplay');
+
+            if (!input || !input.files || !input.files[0]) return;
+
+            const file = input.files[0];
+            const fileURL = URL.createObjectURL(file);
+
+            // Limpa previews anteriores
+            imagePreview.classList.add('hidden');
+            videoPreview.classList.add('hidden');
+            videoPreview.src = '';
+            imagePreview.src = '';
+
+            // Mostra o container
+            previewContainer.classList.remove('hidden');
+            fileNameDisplay.textContent = file.name;
+
+            if (type === 'image') {
+                // Limpa o input de vídeo se havia um
+                document.getElementById('videoInput').value = '';
+                
+                imagePreview.src = fileURL;
+                imagePreview.classList.remove('hidden');
+            } else {
+                // Limpa o input de imagem se havia um
+                document.getElementById('imageInput').value = '';
+                
+                videoPreview.src = fileURL;
+                videoPreview.classList.remove('hidden');
             }
         }
 
-        function toggleUrlInput() {
-            const container = document.getElementById('urlContainer');
-            const urlInput = document.getElementById('urlInput');
-            if (container && urlInput) {
-                container.classList.toggle('hidden');
-                if (!container.classList.contains('hidden')) {
-                    urlInput.focus();
-                } else {
-                    urlInput.value = '';
-                }
-            }
-        }
+        function removeSelectedFile() {
+            const previewContainer = document.getElementById('filePreviewContainer');
+            const imagePreview = document.getElementById('imagePreview');
+            const videoPreview = document.getElementById('videoPreview');
+            const fileNameDisplay = document.getElementById('fileNameDisplay');
 
-        function hideUrlInput() {
-            const container = document.getElementById('urlContainer');
-            const urlInput = document.getElementById('urlInput');
-            if (container && urlInput) {
-                container.classList.add('hidden');
-                urlInput.value = '';
-            }
+            // Limpa os inputs
+            document.getElementById('imageInput').value = '';
+            document.getElementById('videoInput').value = '';
+
+            // Limpa as previews
+            imagePreview.src = '';
+            videoPreview.src = '';
+            imagePreview.classList.add('hidden');
+            videoPreview.classList.add('hidden');
+            fileNameDisplay.textContent = '';
+
+            // Esconde o container
+            previewContainer.classList.add('hidden');
         }
+        // ===========================================================
 
         function openViewsModal() {
             const modal = document.getElementById('viewsModal');
@@ -1066,7 +1105,7 @@
             }, { passive: true });
 
             verMaisModalContent.addEventListener('touchend', () => {
-                verMaisModalContent.style.transform = 'transform 0.3s ease';
+                verMaisModalContent.style.transition = 'transform 0.3s ease';
                 if (verMaisCurrentDeltaY > 120) {
                     closeVerMaisModal();
                 } else {
