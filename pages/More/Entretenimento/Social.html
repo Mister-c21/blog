@@ -240,324 +240,399 @@
     </div>
 
     <!-- Script Principal com Módulos ESM do Nostr -->
-    <script type="module">
-        import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
 
-        let currentAuthMode = 'login';
-        let currentUserData = {
+    <script type="module">
+    import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+    import { bytesToHex, hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+
+    let currentAuthMode = 'login';
+    let currentUserData = {
+        pubkey: '',
+        privateKey: null, // Uint8Array
+        nickname: '@anonimo',
+        avatarUrl: ''
+    };
+
+    const RELAYS = [
+        'wss://relay.damus.io',
+        'wss://nos.lol',
+        'wss://relay.nostr.band',
+        'wss://relay.primal.net'
+    ];
+
+    let pool = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+        pool = new NostrTools.SimplePool();
+
+        switchSection('feed', 1);
+        loadSessionFromNostr();
+
+        const isLoggedIn = localStorage.getItem('isLoggedIn');
+        if (!isLoggedIn) {
+            openAuthModal();
+        }
+    });
+
+    window.switchAuthTab = function(mode) {
+        currentAuthMode = mode;
+        const title = document.getElementById('authModalTitle');
+        const subtitle = document.getElementById('authModalSubtitle');
+        const registerFields = document.getElementById('registerFieldsContainer');
+        const loginFields = document.getElementById('loginFieldsContainer');
+        const submitBtn = document.getElementById('authSubmitBtn');
+        const loginBtn = document.getElementById('tabLoginBtn');
+        const registerBtn = document.getElementById('tabRegisterBtn');
+
+        if (mode === 'login') {
+            title.innerText = 'Entre com sua Chave';
+            subtitle.innerText = 'Insira sua chave privada (nsec)';
+            registerFields.classList.add('hidden');
+            loginFields.classList.remove('hidden');
+            submitBtn.innerText = 'Entrar na Conta';
+            
+            loginBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-gray-900 shadow-sm transition';
+            registerBtn.className = 'flex-1 py-2 text-xs font-medium text-gray-500 hover:text-gray-900 transition';
+        } else {
+            title.innerText = 'Criar Nova Identidade';
+            subtitle.innerText = 'Gere suas chaves descentralizadas do Nostr';
+            registerFields.classList.remove('hidden');
+            loginFields.classList.add('hidden');
+            submitBtn.innerText = 'Criar e Entrar';
+            
+            registerBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-gray-900 shadow-sm transition';
+            loginBtn.className = 'flex-1 py-2 text-xs font-medium text-gray-500 hover:text-gray-900 transition';
+        }
+    }
+
+    window.generateNewAccessKey = function() {
+        try {
+            const sk = NostrTools.generateSecretKey(); // Uint8Array
+            const nsk = NostrTools.nip19.nsecEncode(sk);
+            document.getElementById('generatedKeyOutput').value = nsk;
+            // Guarda temporariamente a chave gerada em bytes para o submit
+            window.__tempGeneratedSk = sk;
+            alert('Chave privada gerada com sucesso! Guarde-a com segurança.');
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao gerar chave.');
+        }
+    }
+
+    window.handleAuthSubmit = function(event) {
+        event.preventDefault();
+        let privKeyToUse = null; // Uint8Array
+
+        if (currentAuthMode === 'register') {
+            const nsec = document.getElementById('generatedKeyOutput').value.trim();
+            if (!nsec) {
+                alert('Gere sua chave de acesso primeiro.');
+                return;
+            }
+            try {
+                if (window.__tempGeneratedSk) {
+                    privKeyToUse = window.__tempGeneratedSk;
+                } else {
+                    const decoded = NostrTools.nip19.decode(nsec);
+                    if (decoded.type !== 'nsec') throw new Error('Tipo inválido');
+                    privKeyToUse = decoded.data; // Uint8Array
+                }
+            } catch (e) {
+                alert('Chave gerada inválida.');
+                return;
+            }
+        } else {
+            const inputVal = document.getElementById('authKeyInput').value.trim();
+            if (!inputVal) {
+                alert('Insira sua chave.');
+                return;
+            }
+            try {
+                if (inputVal.startsWith('nsec1') || inputVal.startsWith('nsec')) {
+                    const decoded = NostrTools.nip19.decode(inputVal);
+                    if (decoded.type !== 'nsec') throw new Error('Não é nsec');
+                    privKeyToUse = decoded.data; // Uint8Array
+                } else {
+                    // Assume hex
+                    privKeyToUse = hexToBytes(inputVal);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Chave nsec/hex inválida.');
+                return;
+            }
+        }
+
+        try {
+            const pubKey = NostrTools.getPublicKey(privKeyToUse);
+            const npub = NostrTools.nip19.npubEncode(pubKey);
+
+            currentUserData.privateKey = privKeyToUse;
+            currentUserData.pubkey = pubKey;
+            currentUserData.nickname = '@' + npub.substring(0, 12) + '...';
+
+            // Salva no localStorage convertendo Uint8Array → hex
+            const sessionToSave = {
+                pubkey: currentUserData.pubkey,
+                privateKeyHex: bytesToHex(privKeyToUse),
+                nickname: currentUserData.nickname,
+                avatarUrl: currentUserData.avatarUrl || ''
+            };
+            localStorage.setItem('nostr_session', JSON.stringify(sessionToSave));
+            localStorage.setItem('isLoggedIn', 'true');
+
+            alert('Autenticado com sucesso!');
+            applyUserDataToInterface();
+            closeAuthModal();
+            fetchNostrFeed();
+        } catch (e) {
+            console.error(e);
+            alert('Erro ao processar a chave.');
+        }
+    }
+
+    function loadSessionFromNostr() {
+        const session = localStorage.getItem('nostr_session');
+        if (session) {
+            try {
+                const parsed = JSON.parse(session);
+                if (parsed.privateKeyHex) {
+                    currentUserData.privateKey = hexToBytes(parsed.privateKeyHex);
+                    currentUserData.pubkey = parsed.pubkey;
+                    currentUserData.nickname = parsed.nickname || '@anonimo';
+                    currentUserData.avatarUrl = parsed.avatarUrl || '';
+                    applyUserDataToInterface();
+                    fetchNostrFeed();
+                }
+            } catch (e) {
+                console.error('Erro ao carregar sessão:', e);
+                localStorage.removeItem('nostr_session');
+                localStorage.removeItem('isLoggedIn');
+            }
+        }
+    }
+
+    window.logoutAccount = function() {
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('nostr_session');
+        currentUserData = {
             pubkey: '',
-            privateKey: '',
+            privateKey: null,
             nickname: '@anonimo',
             avatarUrl: ''
         };
+        alert('Sessão encerrada.');
+        openAuthModal();
+    }
 
-        const RELAYS = [
-            'wss://relay.damus.io',
-            'wss://nos.lol',
-            'wss://relay.nostr.band'
-        ];
-
-        let pool = null;
-
-        window.addEventListener('DOMContentLoaded', () => {
-            pool = new NostrTools.SimplePool();
-
-            switchSection('feed', 1);
-            loadSessionFromNostr();
-
-            const isLoggedIn = localStorage.getItem('isLoggedIn');
-            if (!isLoggedIn) {
-                openAuthModal();
-            }
-        });
-
-        window.switchAuthTab = function(mode) {
-            currentAuthMode = mode;
-            const title = document.getElementById('authModalTitle');
-            const subtitle = document.getElementById('authModalSubtitle');
-            const registerFields = document.getElementById('registerFieldsContainer');
-            const loginFields = document.getElementById('loginFieldsContainer');
-            const submitBtn = document.getElementById('authSubmitBtn');
-            const loginBtn = document.getElementById('tabLoginBtn');
-            const registerBtn = document.getElementById('tabRegisterBtn');
-
-            if (mode === 'login') {
-                title.innerText = 'Entre com sua Chave';
-                subtitle.innerText = 'Insira sua chave privada (nsec)';
-                registerFields.classList.add('hidden');
-                loginFields.classList.remove('hidden');
-                submitBtn.innerText = 'Entrar na Conta';
-                
-                loginBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-gray-900 shadow-sm transition';
-                registerBtn.className = 'flex-1 py-2 text-xs font-medium text-gray-500 hover:text-gray-900 transition';
-            } else {
-                title.innerText = 'Criar Nova Identidade';
-                subtitle.innerText = 'Gere suas chaves descentralizadas do Nostr';
-                registerFields.classList.remove('hidden');
-                loginFields.classList.add('hidden');
-                submitBtn.innerText = 'Criar e Entrar';
-                
-                registerBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-gray-900 shadow-sm transition';
-                loginBtn.className = 'flex-1 py-2 text-xs font-medium text-gray-500 hover:text-gray-900 transition';
-            }
-        }
-
-        window.generateNewAccessKey = function() {
-            try {
-                const sk = NostrTools.generatePrivateKey();
-                const nsk = NostrTools.nip19.nsecEncode(sk);
-                document.getElementById('generatedKeyOutput').value = nsk;
-                alert('Chave privada gerada com sucesso! Guarde-a.');
-            } catch (err) {
-                console.error(err);
-                alert('Erro ao gerar chave.');
-            }
-        }
-
-        window.handleAuthSubmit = function(event) {
-            event.preventDefault();
-            let privKeyToUse = '';
-
-            if (currentAuthMode === 'register') {
-                privKeyToUse = document.getElementById('generatedKeyOutput').value.trim();
-                if (!privKeyToUse) {
-                    alert('Gere sua chave de acesso primeiro.');
-                    return;
-                }
-            } else {
-                const inputVal = document.getElementById('authKeyInput').value.trim();
-                if (!inputVal) {
-                    alert('Insira sua chave.');
-                    return;
-                }
-                if (inputVal.startsWith('nsec')) {
-                    try {
-                        let decoded = NostrTools.nip19.decode(inputVal);
-                        privKeyToUse = decoded.data;
-                    } catch(e) {
-                        alert('Chave nsec inválida.');
-                        return;
-                    }
-                } else {
-                    privKeyToUse = inputVal;
-                }
-            }
-
-            try {
-                let pubKey = NostrTools.getPublicKey(privKeyToUse);
-                let npub = NostrTools.nip19.npubEncode(pubKey);
-
-                currentUserData.privateKey = privKeyToUse;
-                currentUserData.pubkey = pubKey;
-                currentUserData.nickname = '@' + npub.substring(0, 12) + '...';
-
-                localStorage.setItem('nostr_session', JSON.stringify(currentUserData));
-                localStorage.setItem('isLoggedIn', 'true');
-
-                alert('Autenticado com sucesso!');
-                applyUserDataToInterface();
-                closeAuthModal();
-                fetchNostrFeed();
-            } catch(e) {
-                alert('Erro ao processar a chave.');
-            }
-        }
-
-        function loadSessionFromNostr() {
-            const session = localStorage.getItem('nostr_session');
-            if (session) {
-                try {
-                    currentUserData = JSON.parse(session);
-                    applyUserDataToInterface();
-                    fetchNostrFeed();
-                } catch(e) {}
-            }
-        }
-
-        window.logoutAccount = function() {
-            localStorage.removeItem('isLoggedIn');
-            localStorage.removeItem('nostr_session');
-            alert('Sessão encerrada.');
+    window.publishNostrNote = async function() {
+        if (!currentUserData.privateKey) {
+            alert('Faça login com sua chave privada primeiro.');
             openAuthModal();
+            return;
         }
 
-        window.publishNostrNote = async function() {
-            if (!currentUserData.privateKey) {
-                alert('Faça login com sua chave privada primeiro.');
-                openAuthModal();
-                return;
-            }
-
-            const contentText = document.getElementById('postTextArea').value.trim();
-            if (!contentText) {
-                alert('Escreva algo na publicação.');
-                return;
-            }
-
-            let eventTemplate = {
-                kind: 1,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [],
-                content: contentText,
-                pubkey: currentUserData.pubkey
-            };
-
-            try {
-                const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
-                const pubs = pool.publish(RELAYS, signedEvent);
-                
-                await Promise.all(pubs);
-                alert('Publicado na rede Nostr com sucesso!');
-                
-                document.getElementById('postTextArea').value = '';
-                removeSelectedFile();
-                switchSection('feed', 1);
-                fetchNostrFeed();
-            } catch(err) {
-                console.error(err);
-                alert('Erro ao publicar nos relays.');
-            }
+        const contentText = document.getElementById('postTextArea').value.trim();
+        if (!contentText) {
+            alert('Escreva algo na publicação.');
+            return;
         }
 
-        async function fetchNostrFeed() {
-            if (!pool) return;
-            const feedContainer = document.getElementById('feed-para-voce');
+        const eventTemplate = {
+            kind: 1,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [],
+            content: contentText
+        };
+
+        try {
+            const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
             
-            try {
-                const events = await pool.list(RELAYS, [{ kinds: [1], limit: 25 }]);
+            // publish retorna um array de Promises
+            const pubs = pool.publish(RELAYS, signedEvent);
+            
+            // Espera pelo menos um relay aceitar (melhor UX)
+            await Promise.any(pubs);
+            
+            alert('Publicado na rede Nostr com sucesso!');
+            
+            document.getElementById('postTextArea').value = '';
+            removeSelectedFile();
+            switchSection('feed', 1);
+            fetchNostrFeed();
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao publicar nos relays. Tente novamente.');
+        }
+    }
+
+    async function fetchNostrFeed() {
+        if (!pool) return;
+        const feedContainer = document.getElementById('feed-para-voce');
+        
+        feedContainer.innerHTML = `
+            <div class="bg-white p-6 rounded-2xl border border-gray-200 text-center space-y-2">
+                <i class="fa-solid fa-spinner fa-spin text-2xl text-secondary mb-1"></i>
+                <p class="text-xs text-gray-500">Conectando aos relays Nostr e carregando publicações...</p>
+            </div>`;
+
+        try {
+            // querySync substitui o antigo pool.list()
+            // Aceita um único filtro (não array)
+            const events = await pool.querySync(RELAYS, {
+                kinds: [1],
+                limit: 25
+            });
+            
+            if (events && events.length > 0) {
+                // Remove duplicatas por id
+                const unique = Array.from(new Map(events.map(e => [e.id, e])).values());
+                unique.sort((a, b) => b.created_at - a.created_at);
                 
-                if (events && events.length > 0) {
-                    events.sort((a, b) => b.created_at - a.created_at);
+                let htmlContent = '';
+                unique.forEach(ev => {
+                    const shortPub = ev.pubkey.substring(0, 8) + '...';
+                    const timeAgo = new Date(ev.created_at * 1000).toLocaleString('pt-BR');
                     
-                    let htmlContent = '';
-                    events.forEach(ev => {
-                        let shortPub = ev.pubkey.substring(0, 8) + '...';
-                        let timeAgo = new Date(ev.created_at * 1000).toLocaleTimeString();
-                        
-                        htmlContent += `
-                        <div class="bg-white p-4 rounded-2xl border border-gray-200 transition-all duration-300 hover:border-secondary">
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-secondary font-bold">
-                                        <i class="fa-solid fa-user"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-semibold text-sm font-mono">${shortPub}</h3>
-                                        <span class="text-xs text-gray-400">${timeAgo}</span>
-                                    </div>
+                    htmlContent += `
+                    <div class="bg-white p-4 rounded-2xl border border-gray-200 transition-all duration-300 hover:border-secondary">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-secondary font-bold">
+                                    <i class="fa-solid fa-user"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-sm font-mono">${shortPub}</h3>
+                                    <span class="text-xs text-gray-400">${timeAgo}</span>
                                 </div>
                             </div>
-                            <p class="text-sm text-gray-700 mb-3">${escapeHtml(ev.content)}</p>
-                        </div>`;
-                    });
-                    
-                    feedContainer.innerHTML = htmlContent;
-                } else {
-                    feedContainer.innerHTML = `<div class="bg-white p-6 rounded-2xl border border-gray-200 text-center"><p class="text-xs text-gray-500">Nenhum post encontrado nos relays.</p></div>`;
-                }
-            } catch(e) {
-                console.error("Erro ao buscar feed:", e);
-            }
-        }
-
-        function applyUserDataToInterface() {
-            const profileDisplay = document.getElementById('profileUsernameDisplay');
-            if (profileDisplay && currentUserData.nickname) {
-                profileDisplay.innerText = currentUserData.nickname;
-            }
-            const accessKeyInput = document.getElementById('accessKeyInput');
-            if (accessKeyInput && currentUserData.privateKey) {
-                try {
-                    accessKeyInput.value = NostrTools.nip19.nsecEncode(currentUserData.privateKey);
-                } catch(e) {}
-            }
-        }
-
-        window.switchSection = function(sectionId, index) {
-            document.querySelectorAll('.content-section').forEach(section => {
-                section.classList.add('hidden');
-            });
-            const targetSection = document.getElementById('section-' + sectionId);
-            if (targetSection) {
-                targetSection.classList.remove('hidden');
-            }
-
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('text-secondary');
-                link.classList.add('text-gray-700');
-            });
-
-            const activeLink = document.getElementById('nav-' + sectionId);
-            if (activeLink) {
-                activeLink.classList.add('text-secondary');
-                activeLink.classList.remove('text-gray-700');
-            }
-        }
-
-        window.switchFeedTab = function(tabName) {
-            const feedParaVoce = document.getElementById('feed-para-voce');
-            const feedSeguindo = document.getElementById('feed-seguindo');
-            if (tabName === 'para-voce') {
-                feedParaVoce.classList.remove('hidden');
-                feedSeguindo.classList.add('hidden');
+                        </div>
+                        <p class="text-sm text-gray-700 mb-3 whitespace-pre-wrap break-words">${escapeHtml(ev.content)}</p>
+                    </div>`;
+                });
+                
+                feedContainer.innerHTML = htmlContent;
             } else {
-                feedSeguindo.classList.remove('hidden');
-                feedParaVoce.classList.add('hidden');
+                feedContainer.innerHTML = `
+                    <div class="bg-white p-6 rounded-2xl border border-gray-200 text-center">
+                        <p class="text-xs text-gray-500">Nenhum post encontrado nos relays no momento.</p>
+                    </div>`;
+            }
+        } catch (e) {
+            console.error("Erro ao buscar feed:", e);
+            feedContainer.innerHTML = `
+                <div class="bg-white p-6 rounded-2xl border border-gray-200 text-center space-y-2">
+                    <i class="fa-solid fa-triangle-exclamation text-2xl text-amber-500 mb-1"></i>
+                    <p class="text-xs text-gray-500">Falha ao conectar aos relays. Tente recarregar a página.</p>
+                </div>`;
+        }
+    }
+
+    function applyUserDataToInterface() {
+        const profileDisplay = document.getElementById('profileUsernameDisplay');
+        if (profileDisplay && currentUserData.nickname) {
+            profileDisplay.innerText = currentUserData.nickname;
+        }
+        const accessKeyInput = document.getElementById('accessKeyInput');
+        if (accessKeyInput && currentUserData.privateKey) {
+            try {
+                accessKeyInput.value = NostrTools.nip19.nsecEncode(currentUserData.privateKey);
+            } catch (e) {
+                console.error(e);
             }
         }
+        // Atualiza nome no formulário de post
+        const postAuthorName = document.getElementById('postAuthorName');
+        if (postAuthorName && currentUserData.nickname) {
+            postAuthorName.innerText = currentUserData.nickname;
+        }
+    }
 
-        function openAuthModal() {
-            const modal = document.getElementById('authModal');
-            const content = document.getElementById('authModalContent');
-            if (modal && content) {
-                modal.classList.remove('pointer-events-none', 'opacity-0');
-                modal.classList.add('opacity-100');
-                content.classList.remove('translate-y-full');
-            }
+    window.switchSection = function(sectionId, index) {
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.classList.add('hidden');
+        });
+        const targetSection = document.getElementById('section-' + sectionId);
+        if (targetSection) {
+            targetSection.classList.remove('hidden');
         }
 
-        function closeAuthModal() {
-            const modal = document.getElementById('authModal');
-            const content = document.getElementById('authModalContent');
-            if (modal && content) {
-                modal.classList.remove('opacity-100');
-                modal.classList.add('opacity-0', 'pointer-events-none');
-                content.classList.add('translate-y-full');
-            }
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('text-secondary');
+            link.classList.add('text-gray-700');
+        });
+
+        const activeLink = document.getElementById('nav-' + sectionId);
+        if (activeLink) {
+            activeLink.classList.add('text-secondary');
+            activeLink.classList.remove('text-gray-700');
         }
+    }
 
-        window.handleFileSelect = function(type) {
-            const input = type === 'image' ? document.getElementById('imageInput') : document.getElementById('videoInput');
-            const previewContainer = document.getElementById('filePreviewContainer');
-            const imagePreview = document.getElementById('imagePreview');
-            const videoPreview = document.getElementById('videoPreview');
-
-            if (!input || !input.files || !input.files[0]) return;
-            const fileURL = URL.createObjectURL(input.files[0]);
-
-            imagePreview.classList.add('hidden');
-            videoPreview.classList.add('hidden');
-            previewContainer.classList.remove('hidden');
-
-            if (type === 'image') {
-                imagePreview.src = fileURL;
-                imagePreview.classList.remove('hidden');
-            } else {
-                videoPreview.src = fileURL;
-                videoPreview.classList.remove('hidden');
-            }
+    window.switchFeedTab = function(tabName) {
+        const feedParaVoce = document.getElementById('feed-para-voce');
+        const feedSeguindo = document.getElementById('feed-seguindo');
+        if (tabName === 'para-voce') {
+            feedParaVoce.classList.remove('hidden');
+            feedSeguindo.classList.add('hidden');
+        } else {
+            feedSeguindo.classList.remove('hidden');
+            feedParaVoce.classList.add('hidden');
         }
+    }
 
-        window.removeSelectedFile = function() {
-            document.getElementById('imageInput').value = '';
-            document.getElementById('videoInput').value = '';
-            document.getElementById('filePreviewContainer').classList.add('hidden');
+    function openAuthModal() {
+        const modal = document.getElementById('authModal');
+        const content = document.getElementById('authModalContent');
+        if (modal && content) {
+            modal.classList.remove('pointer-events-none', 'opacity-0');
+            modal.classList.add('opacity-100');
+            content.classList.remove('translate-y-full');
         }
+    }
 
-        function escapeHtml(text) {
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    function closeAuthModal() {
+        const modal = document.getElementById('authModal');
+        const content = document.getElementById('authModalContent');
+        if (modal && content) {
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            content.classList.add('translate-y-full');
         }
+    }
+
+    window.handleFileSelect = function(type) {
+        const input = type === 'image' ? document.getElementById('imageInput') : document.getElementById('videoInput');
+        const previewContainer = document.getElementById('filePreviewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+        const videoPreview = document.getElementById('videoPreview');
+
+        if (!input || !input.files || !input.files[0]) return;
+        const fileURL = URL.createObjectURL(input.files[0]);
+
+        imagePreview.classList.add('hidden');
+        videoPreview.classList.add('hidden');
+        previewContainer.classList.remove('hidden');
+
+        if (type === 'image') {
+            imagePreview.src = fileURL;
+            imagePreview.classList.remove('hidden');
+        } else {
+            videoPreview.src = fileURL;
+            videoPreview.classList.remove('hidden');
+        }
+    }
+
+    window.removeSelectedFile = function() {
+        document.getElementById('imageInput').value = '';
+        document.getElementById('videoInput').value = '';
+        document.getElementById('filePreviewContainer').classList.add('hidden');
+    }
+
+    function escapeHtml(text) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
     </script>
 </body>
 </html>
