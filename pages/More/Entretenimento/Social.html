@@ -13,9 +13,6 @@
     <!-- Font Awesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Nostr Tools CDN (Modo Produção) -->
-    <script src="https://unpkg.com/nostr-tools/lib/nostr.bundle.js"></script>
-
     <script>
         tailwind.config = {
             theme: {
@@ -84,7 +81,7 @@
                 </button>
             </div>
 
-            <!-- Feed Para Você (Carregado via Nostr) -->
+            <!-- Feed Para Você -->
             <div id="feed-para-voce" class="space-y-4">
                 <div class="bg-white p-6 rounded-2xl border border-gray-200 text-center space-y-2">
                     <i class="fa-solid fa-spinner fa-spin text-2xl text-secondary mb-1"></i>
@@ -242,8 +239,10 @@
         </div>
     </div>
 
-    <!-- Scripts de Controle e Integração Nostr -->
-    <script>
+    <!-- Script Principal com Módulos ESM do Nostr -->
+    <script type="module">
+        import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+
         let currentAuthMode = 'login';
         let currentUserData = {
             pubkey: '',
@@ -261,9 +260,7 @@
         let pool = null;
 
         window.addEventListener('DOMContentLoaded', () => {
-            if (window.NostrTools) {
-                pool = new NostrTools.SimplePool();
-            }
+            pool = new NostrTools.SimplePool();
 
             switchSection('feed', 1);
             loadSessionFromNostr();
@@ -274,7 +271,7 @@
             }
         });
 
-        function switchAuthTab(mode) {
+        window.switchAuthTab = function(mode) {
             currentAuthMode = mode;
             const title = document.getElementById('authModalTitle');
             const subtitle = document.getElementById('authModalSubtitle');
@@ -305,18 +302,19 @@
             }
         }
 
-        function generateNewAccessKey() {
-            if (!window.NostrTools) {
-                alert('Aguarde o carregamento do script.');
-                return;
+        window.generateNewAccessKey = function() {
+            try {
+                const sk = NostrTools.generatePrivateKey();
+                const nsk = NostrTools.nip19.nsecEncode(sk);
+                document.getElementById('generatedKeyOutput').value = nsk;
+                alert('Chave privada gerada com sucesso! Guarde-a.');
+            } catch (err) {
+                console.error(err);
+                alert('Erro ao gerar chave.');
             }
-            const sk = NostrTools.generatePrivateKey();
-            const nsk = NostrTools.nip19.nsecEncode(sk);
-            document.getElementById('generatedKeyOutput').value = nsk;
-            alert('Chave privada gerada com sucesso! Guarde-a.');
         }
 
-        function handleAuthSubmit(event) {
+        window.handleAuthSubmit = function(event) {
             event.preventDefault();
             let privKeyToUse = '';
 
@@ -376,14 +374,14 @@
             }
         }
 
-        function logoutAccount() {
+        window.logoutAccount = function() {
             localStorage.removeItem('isLoggedIn');
             localStorage.removeItem('nostr_session');
             alert('Sessão encerrada.');
             openAuthModal();
         }
 
-        async function publishNostrNote() {
+        window.publishNostrNote = async function() {
             if (!currentUserData.privateKey) {
                 alert('Faça login com sua chave privada primeiro.');
                 openAuthModal();
@@ -475,7 +473,7 @@
             }
         }
 
-        function switchSection(sectionId, index) {
+        window.switchSection = function(sectionId, index) {
             document.querySelectorAll('.content-section').forEach(section => {
                 section.classList.add('hidden');
             });
@@ -496,7 +494,7 @@
             }
         }
 
-        function switchFeedTab(tabName) {
+        window.switchFeedTab = function(tabName) {
             const feedParaVoce = document.getElementById('feed-para-voce');
             const feedSeguindo = document.getElementById('feed-seguindo');
             if (tabName === 'para-voce') {
@@ -528,7 +526,7 @@
             }
         }
 
-        function handleFileSelect(type) {
+        window.handleFileSelect = function(type) {
             const input = type === 'image' ? document.getElementById('imageInput') : document.getElementById('videoInput');
             const previewContainer = document.getElementById('filePreviewContainer');
             const imagePreview = document.getElementById('imagePreview');
@@ -550,7 +548,7 @@
             }
         }
 
-        function removeSelectedFile() {
+        window.removeSelectedFile = function() {
             document.getElementById('imageInput').value = '';
             document.getElementById('videoInput').value = '';
             document.getElementById('filePreviewContainer').classList.add('hidden');
