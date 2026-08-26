@@ -379,6 +379,42 @@
         </section>
     </main>
 
+    <!-- Modal de Comentários (Kind 1) -->
+    <div id="commentsModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-0 md:p-4">
+        <div id="commentsModalContent" class="bg-white w-full md:max-w-lg max-h-[85vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full md:translate-y-4 transition-transform duration-300">
+            <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="font-bold text-sm text-gray-900">Comentários</h3>
+                <button type="button" onclick="closeCommentsModal()" class="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-600 transition">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+            
+            <div id="commentsModalList" class="p-4 overflow-y-auto space-y-3 flex-1 divide-y divide-gray-100">
+                <!-- Conteúdo dinâmico preenchido via JS -->
+            </div>
+
+            <div class="p-4 bg-gray-50 border-t border-gray-100 flex gap-2">
+                <input type="text" id="modalCommentInput" placeholder="Escreva um comentário..." class="w-full text-xs px-3.5 py-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-secondary">
+                <button id="modalCommentSubmitBtn" onclick="" class="bg-secondary text-white px-4 py-3 rounded-xl text-xs font-semibold hover:opacity-90 transition flex-shrink-0">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Quem Deu Like (Kind 7 Reactions) -->
+    <div id="likesModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-0 md:p-4">
+        <div id="likesModalContent" class="bg-white w-full md:max-w-md max-h-[75vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full md:translate-y-4 transition-transform duration-300">
+            <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="font-bold text-sm text-gray-900">Curtidas</h3>
+                <button type="button" onclick="closeLikesModal()" class="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-600 transition">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+            <div id="likesModalList" class="p-4 overflow-y-auto space-y-3 flex-1 divide-y divide-gray-100">
+                <!-- Conteúdo preenchido via JS -->
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Autenticação -->
     <div id="authModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-0 md:p-4">
         <div id="authModalContent" class="bg-white w-full md:max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl md:rounded-3xl p-6 flex flex-col shadow-2xl transform translate-y-full md:translate-y-4 transition-transform duration-300 space-y-5">
@@ -435,6 +471,14 @@
     let isLoadingMore = false;
     let selectedFileUrl = null;
     let selectedFileType = null;
+    let activeCommentPostId = null;
+    let activeCommentAuthorPubkey = null;
+    
+    // Controle local de likes do usuário logado por postId
+    let userLikesMap = new Map();
+
+    // Cache de reações/likes por postId
+    let postLikesCache = new Map();
 
     // Modo Seguro + NSFW.js
     let safeMode = localStorage.getItem('safeMode') !== 'false';
@@ -1194,10 +1238,244 @@
             updateCharCount();
             removeSelectedFile();
             switchSection('feed', 1);
-            fetchNostrFeed();
+            await fetchNostrFeed();
         } catch (err) {
             console.error(err);
             alert('Erro ao publicar nos relays. Tente novamente.');
+        }
+    };
+
+    // ========== CURTIDAS (Kind 7 Reactions) ==========
+    window.toggleLikePost = async function(postId, authorPubkey) {
+        if (!currentUserData.privateKey) {
+            alert('Faça login para curtir publicações.');
+            openAuthModal();
+            return;
+        }
+
+        const isLiked = userLikesMap.get(postId) || false;
+        if (isLiked) {
+            userLikesMap.set(postId, false);
+            let likesSet = postLikesCache.get(postId) || new Set();
+            likesSet.delete(currentUserData.pubkey);
+            postLikesCache.set(postId, likesSet);
+            updateLikeButtonUI(postId, false, likesSet.size);
+            return;
+        }
+
+        const tags = [
+            ['e', postId],
+            ['p', authorPubkey]
+        ];
+
+        const eventTemplate = {
+            kind: 7,
+            created_at: Math.floor(Date.now() / 1000),
+            tags,
+            content: '+'
+        };
+
+        try {
+            const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
+            await Promise.any(pool.publish(RELAYS, signedEvent));
+
+            userLikesMap.set(postId, true);
+            let likesSet = postLikesCache.get(postId) || new Set();
+            likesSet.add(currentUserData.pubkey);
+            postLikesCache.set(postId, likesSet);
+            updateLikeButtonUI(postId, true, likesSet.size);
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao enviar curtida.');
+        }
+    };
+
+    function updateLikeButtonUI(postId, isLiked, count) {
+        const btn = document.getElementById(`like-btn-${postId}`);
+        const countSpan = document.getElementById(`like-count-${postId}`);
+        if (countSpan) countSpan.innerText = count;
+        if (btn) {
+            if (isLiked) {
+                btn.className = 'flex items-center gap-1.5 text-red-500 transition';
+                btn.querySelector('i').className = 'fa-solid fa-heart';
+            } else {
+                btn.className = 'flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition';
+                btn.querySelector('i').className = 'fa-regular fa-heart';
+            }
+        }
+    }
+
+    window.openLikesModal = async function(postId) {
+        const modal = document.getElementById('likesModal');
+        const content = document.getElementById('likesModalContent');
+        const listContainer = document.getElementById('likesModalList');
+
+        listContainer.innerHTML = `<div class="text-center py-6 text-xs text-gray-400"><i class="fa-solid fa-spinner fa-spin text-lg mb-1"></i><p>Carregando curtidas...</p></div>`;
+
+        if (modal && content) {
+            modal.classList.remove('pointer-events-none', 'opacity-0');
+            modal.classList.add('opacity-100');
+            content.classList.remove('translate-y-full');
+        }
+
+        let likesSet = postLikesCache.get(postId) || new Set();
+        if (likesSet.size === 0) {
+            listContainer.innerHTML = `<div class="text-center py-6 text-xs text-gray-400">Nenhuma curtida encontrada.</div>`;
+            return;
+        }
+
+        const pubkeys = Array.from(likesSet);
+        await fetchProfiles(pubkeys);
+
+        let html = '';
+        pubkeys.forEach(pubkey => {
+            const shortPub = pubkey.substring(0, 8) + '...';
+            const authorPic = getProfilePicture(pubkey);
+            const avatarH = authorPic
+                ? `<img src="${escapeHtml(authorPic)}" class="w-full h-full object-cover" alt="Avatar" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');"><i class="fa-solid fa-user hidden text-xs"></i>`
+                : `<i class="fa-solid fa-user text-xs"></i>`;
+
+            html += `
+                <div class="flex items-center justify-between py-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary font-bold overflow-hidden relative">
+                            ${avatarH}
+                        </div>
+                        <span class="font-bold text-xs text-gray-900 font-mono">${shortPub}</span>
+                    </div>
+                    <i class="fa-solid fa-heart text-red-500 text-xs"></i>
+                </div>`;
+        });
+        listContainer.innerHTML = html;
+    };
+
+    window.closeLikesModal = function() {
+        const modal = document.getElementById('likesModal');
+        const content = document.getElementById('likesModalContent');
+        if (modal && content) {
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            content.classList.add('translate-y-full');
+        }
+    };
+
+    // ========== COMENTÁRIOS NO MODAL (Kind 1 Replies) ==========
+    window.openCommentsModal = async function(postId, eventAuthorPubkey) {
+        activeCommentPostId = postId;
+        activeCommentAuthorPubkey = eventAuthorPubkey;
+
+        const modal = document.getElementById('commentsModal');
+        const content = document.getElementById('commentsModalContent');
+        const listContainer = document.getElementById('commentsModalList');
+        const submitBtn = document.getElementById('modalCommentSubmitBtn');
+
+        submitBtn.setAttribute('onclick', `submitModalComment()`);
+        listContainer.innerHTML = `<div class="text-center py-6 text-xs text-gray-400"><i class="fa-solid fa-spinner fa-spin text-lg mb-1"></i><p>Buscando comentários da rede...</p></div>`;
+
+        if (modal && content) {
+            modal.classList.remove('pointer-events-none', 'opacity-0');
+            modal.classList.add('opacity-100');
+            content.classList.remove('translate-y-full');
+        }
+
+        await fetchAndRenderModalComments(postId);
+    };
+
+    window.closeCommentsModal = function() {
+        const modal = document.getElementById('commentsModal');
+        const content = document.getElementById('commentsModalContent');
+        if (modal && content) {
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            content.classList.add('translate-y-full');
+        }
+        activeCommentPostId = null;
+        activeCommentAuthorPubkey = null;
+    };
+
+    async function fetchAndRenderModalComments(postId) {
+        const listContainer = document.getElementById('commentsModalList');
+
+        try {
+            const replies = await pool.querySync(RELAYS, {
+                kinds: [1],
+                '#e': [postId],
+                limit: 30
+            });
+
+            if (replies && replies.length > 0) {
+                replies.sort((a, b) => a.created_at - b.created_at);
+                
+                const pubkeys = [...new Set(replies.map(r => r.pubkey))];
+                await fetchProfiles(pubkeys);
+
+                let html = '';
+                replies.forEach(reply => {
+                    const shortPub = reply.pubkey.substring(0, 8) + '...';
+                    const timeAgo = new Date(reply.created_at * 1000).toLocaleDateString('pt-BR');
+                    const authorPic = getProfilePicture(reply.pubkey);
+                    const avatarH = authorPic
+                        ? `<img src="${escapeHtml(authorPic)}" class="w-full h-full object-cover" alt="Avatar" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');"><i class="fa-solid fa-user hidden text-xs"></i>`
+                        : `<i class="fa-solid fa-user text-xs"></i>`;
+
+                    html += `
+                        <div class="flex items-start gap-3 py-3">
+                            <div class="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary font-bold overflow-hidden relative">
+                                ${avatarH}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-xs text-gray-900 font-mono">${shortPub}</span>
+                                    <span class="text-[10px] text-gray-400">${timeAgo}</span>
+                                </div>
+                                <p class="text-xs text-gray-700 mt-1 whitespace-pre-wrap break-words">${escapeHtml(reply.content)}</p>
+                            </div>
+                        </div>`;
+                });
+                listContainer.innerHTML = html;
+
+                const countSpan = document.getElementById(`comment-count-${postId}`);
+                if (countSpan) countSpan.innerText = replies.length;
+            } else {
+                listContainer.innerHTML = `<div class="text-center py-6 text-xs text-gray-400">Nenhum comentário encontrado para esta publicação. Seja o primeiro a comentar!</div>`;
+            }
+        } catch (e) {
+            console.error('Erro ao buscar comentários:', e);
+            listContainer.innerHTML = `<div class="text-center py-6 text-xs text-red-400">Erro ao carregar comentários da rede.</div>`;
+        }
+    }
+
+    window.submitModalComment = async function() {
+        if (!currentUserData.privateKey) {
+            alert('Faça login para comentar.');
+            openAuthModal();
+            return;
+        }
+
+        const inputEl = document.getElementById('modalCommentInput');
+        const content = inputEl.value.trim();
+        if (!content || !activeCommentPostId) return;
+
+        const tags = [
+            ['e', activeCommentPostId, '', 'reply'],
+            ['p', activeCommentAuthorPubkey]
+        ];
+
+        const eventTemplate = {
+            kind: 1,
+            created_at: Math.floor(Date.now() / 1000),
+            tags,
+            content: content
+        };
+
+        try {
+            const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
+            await Promise.any(pool.publish(RELAYS, signedEvent));
+            inputEl.value = '';
+            await fetchAndRenderModalComments(activeCommentPostId);
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao enviar comentário. Tente novamente.');
         }
     };
 
@@ -1218,6 +1496,10 @@
                 unique.sort((a, b) => b.created_at - a.created_at);
                 cachedEvents = unique;
                 oldestTimestamp = unique[unique.length - 1].created_at;
+                
+                const postIds = unique.map(e => e.id);
+                fetchReactionsForPosts(postIds);
+
                 renderFeeds();
             } else {
                 feedContainer.innerHTML = `<div class="p-6 text-center"><p class="text-xs text-gray-500">Nenhum post encontrado nos relays no momento.</p></div>`;
@@ -1229,6 +1511,34 @@
                     <i class="fa-solid fa-triangle-exclamation text-2xl text-amber-500 mb-1"></i>
                     <p class="text-xs text-gray-500">Falha ao conectar aos relays. Tente recarregar a página.</p>
                 </div>`;
+        }
+    }
+
+    async function fetchReactionsForPosts(postIds) {
+        if (!pool || !postIds.length) return;
+        try {
+            const reactions = await pool.querySync(RELAYS, {
+                kinds: [7],
+                '#e': postIds
+            });
+            if (reactions) {
+                reactions.forEach(rx => {
+                    const eTag = rx.tags.find(t => t[0] === 'e');
+                    if (eTag && eTag[1]) {
+                        const postId = eTag[1];
+                        let set = postLikesCache.get(postId) || new Set();
+                        set.add(rx.pubkey);
+                        postLikesCache.set(postId, set);
+
+                        if (currentUserData.pubkey && rx.pubkey.toLowerCase() === currentUserData.pubkey.toLowerCase()) {
+                            userLikesMap.set(postId, true);
+                        }
+                    }
+                });
+                renderFeeds();
+            }
+        } catch (e) {
+            console.error('Erro ao buscar reações:', e);
         }
     }
 
@@ -1249,6 +1559,10 @@
                 unique.sort((a, b) => b.created_at - a.created_at);
                 oldestTimestamp = unique[unique.length - 1].created_at;
                 cachedEvents = cachedEvents.concat(unique);
+                
+                const postIds = unique.map(e => e.id);
+                fetchReactionsForPosts(postIds);
+
                 renderFeeds();
             }
         } catch (e) {
@@ -1298,7 +1612,11 @@
             const shortPub = ev.pubkey.substring(0, 8) + '...';
             const timeAgo = new Date(ev.created_at * 1000).toLocaleDateString('pt-BR');
             const isFollowing = followingList.has(ev.pubkey);
-            const isSelf = ev.pubkey === currentUserData.pubkey;
+            const isSelf = currentUserData.pubkey && ev.pubkey.toLowerCase() === currentUserData.pubkey.toLowerCase();
+
+            const likesSet = postLikesCache.get(ev.id) || new Set();
+            const likesCount = likesSet.size;
+            const isLikedByMe = userLikesMap.get(ev.id) || false;
 
             let followBtnHtml = '';
             if (!isSelf) {
@@ -1338,6 +1656,9 @@
                    </div>`
                 : '';
 
+            const likeBtnClass = isLikedByMe ? 'flex items-center gap-1.5 text-red-500 transition' : 'flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition';
+            const likeIconClass = isLikedByMe ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+
             const postCard = `
             <div class="p-4 hover:bg-gray-50/60 transition duration-150">
                 <div class="flex items-start gap-3">
@@ -1356,10 +1677,13 @@
                         ${warningBadge}
                         ${textSectionHtml}
                         ${mediaHtml}
-                        <div class="flex items-center justify-between text-gray-400 text-xs max-w-md pt-3">
-                            <button class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-regular fa-comment"></i><span>0</span></button>
-                            <button class="flex items-center gap-1.5 hover:text-red-500 transition"><i class="fa-regular fa-heart"></i><span>0</span></button>
-                            <button class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-solid fa-arrow-up-from-bracket"></i></button>
+                        <div class="flex items-center justify-between text-gray-400 text-xs max-w-xs pt-3">
+                            <button onclick="openCommentsModal('${ev.id}', '${ev.pubkey}')" class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-regular fa-comment"></i><span id="comment-count-${ev.id}">0</span></button>
+
+                            <div class="flex items-center gap-2">
+                                <button id="like-btn-${ev.id}" onclick="toggleLikePost('${ev.id}', '${ev.pubkey}')" class="${likeBtnClass}"><i class="${likeIconClass}"></i><span id="like-count-${ev.id}">${likesCount}</span></button>
+                                <button onclick="openLikesModal('${ev.id}')" class="text-[11px] text-gray-400 hover:underline" title="Ver quem curtiu">(ver)</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1370,7 +1694,7 @@
                 htmlSeguindo += postCard;
                 countSeguindo++;
             }
-            if (currentUserData.pubkey && ev.pubkey === currentUserData.pubkey) {
+            if (isSelf) {
                 htmlMeusPosts += postCard;
                 countMeusPosts++;
             }
