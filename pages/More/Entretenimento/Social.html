@@ -6,9 +6,10 @@
     <title>LorePlay - Social</title>
     <link rel="icon" type="image/png" href="./Src/FavicoLP.png">
     <link rel="apple-touch-icon" href="./Src/FavicoLP.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- TensorFlow.js + NSFW.js -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/nsfwjs@2.4.2/dist/nsfwjs.min.js"></script>
@@ -26,43 +27,72 @@
         }
     </script>
     <style>
-        .sensitive-media {
+        .safe-blur {
             filter: blur(32px);
             transition: filter 0.35s ease;
             cursor: pointer;
+            user-select: none;
         }
-        .sensitive-media.revealed {
-            filter: none !important;
+        .safe-blur.revealed {
+            filter: none;
+            cursor: default;
         }
-        .sensitive-overlay {
+        .safe-media-wrapper {
+            position: relative;
+            overflow: hidden;
+            border-radius: 1rem;
+            background: #f3f4f6;
+        }
+        .safe-overlay {
             position: absolute;
             inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.55);
             color: white;
-            font-size: 13px;
-            font-weight: 600;
-            border-radius: 1rem;
-            z-index: 10;
-            pointer-events: none;
-            text-align: center;
-            padding: 12px;
+            z-index: 20;
+            cursor: pointer;
+            transition: opacity 0.25s ease;
         }
-        .sensitive-wrapper {
-            position: relative;
-            overflow: hidden;
+        .safe-overlay.hidden-overlay {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .safe-video-blocked {
+            background: #1f2937;
+            color: white;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             border-radius: 1rem;
+            cursor: pointer;
+            gap: 8px;
+        }
+        .safe-link-disabled {
+            color: #9ca3af !important;
+            text-decoration: line-through !important;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .safe-link-reveal {
+            color: #7c3aed;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-left: 6px;
+            text-decoration: underline;
         }
         .nsfw-checking {
-            opacity: 0.7;
+            opacity: 0.75;
         }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col md:flex-row">
 
-    <!-- Sidebar (inalterado) -->
+    <!-- Sidebar / Bottom Tab Bar -->
     <nav id="bottomNavbar" class="fixed bottom-3 left-6 right-6 md:top-0 md:left-0 md:right-auto md:w-64 md:h-screen bg-white/85 backdrop-blur-md md:bg-white border border-gray-200/60 md:border-t-0 md:border-r md:border-gray-200 flex md:flex-col justify-around md:justify-start items-center md:items-start p-2 md:p-4 z-50 rounded-2xl md:rounded-none transition-all duration-300 ease-in-out">
         <div class="hidden md:flex items-center gap-3 mb-8 px-2">
             <i class="fa-solid fa-feather text-2xl text-secondary"></i>
@@ -98,8 +128,10 @@
         </div>
     </nav>
 
+    <!-- Conteúdo Principal -->
     <main class="flex-1 p-4 md:p-8 pb-24 md:pb-8 max-w-2xl mx-auto w-full space-y-6">
 
+        <!-- Seção: Feed -->
         <section id="section-feed" class="content-section space-y-4">
             <div class="flex items-center justify-center gap-6 py-2 border-b border-gray-100 mb-2 sticky top-0 bg-gray-50/80 backdrop-blur-md z-30">
                 <button onclick="switchFeedTab('para-voce')" id="tab-para-voce" class="relative pb-1 text-sm md:text-base font-bold text-secondary transition-all">
@@ -112,12 +144,11 @@
                 </button>
             </div>
 
-            <!-- Modo Seguro + status do modelo -->
             <div class="flex items-center justify-between px-1 mb-3 gap-3 flex-wrap">
                 <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
                     <input type="checkbox" id="safeModeToggle" checked onchange="toggleSafeMode()" class="w-3.5 h-3.5 rounded accent-secondary">
                     <span class="font-medium">Modo Seguro</span>
-                    <span class="text-gray-400">(IA + filtros)</span>
+                    <span class="text-gray-400">(borra imagens • bloqueia vídeos • desativa links • IA)</span>
                 </label>
                 <span id="nsfwModelStatus" class="text-[11px] text-gray-400"></span>
             </div>
@@ -143,11 +174,12 @@
             </div>
         </section>
 
-        <!-- Seção Postar (inalterada) -->
+        <!-- Seção: Postar -->
         <section id="section-postar" class="content-section space-y-4 hidden">
             <header class="mb-6 hidden md:block">
                 <h1 class="text-2xl font-bold text-gray-900">Criar Publicação</h1>
             </header>
+
             <div id="form-comum" class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                 <div class="p-4 flex items-center gap-3 border-b border-gray-100">
                     <div id="postAuthorAvatar" class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-secondary font-bold overflow-hidden relative">
@@ -165,6 +197,7 @@
                         <span id="charCounter" class="text-xs text-gray-400 font-mono">0 / 4000</span>
                     </div>
                 </div>
+
                 <div id="filePreviewContainer" class="hidden px-4 pb-3">
                     <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
                         <img id="imagePreview" class="w-full max-h-80 object-contain hidden" alt="Preview da imagem">
@@ -174,8 +207,10 @@
                         </button>
                     </div>
                 </div>
+
                 <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleFileSelect('image')">
                 <input type="file" id="videoInput" accept="video/*" class="hidden" onchange="handleFileSelect('video')">
+
                 <div class="px-4 py-3 mx-4 mb-4 border border-gray-200 rounded-xl flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-700">Adicionar mídia</span>
                     <div class="flex items-center gap-5 text-xl">
@@ -193,22 +228,48 @@
             </div>
         </section>
 
-        <!-- Seção Perfil (inalterada) -->
+        <!-- Seção: Perfil -->
         <section id="section-perfil" class="content-section space-y-4 hidden">
             <header class="mb-6">
                 <h1 class="text-2xl font-bold text-gray-900">Perfil</h1>
             </header>
+
             <div class="bg-white p-6 rounded-2xl border border-gray-200 flex flex-col items-center text-center space-y-4">
                 <div class="relative">
-                    <div id="profileAvatar" class="w-24 h-24 rounded-full bg-gray-200 text-secondary flex items-center justify-center text-4xl font-bold border-2 border-white overflow-hidden">
+                    <div id="profileAvatar" class="w-24 h-24 rounded-full bg-gray-200 text-secondary flex items-center justify-center text-4xl font-bold border-2 border-white overflow-hidden relative">
                         <i id="profileAvatarIcon" class="fa-solid fa-user"></i>
                         <img id="profileAvatarImg" class="w-full h-full rounded-full object-cover hidden absolute inset-0" alt="Foto de perfil">
                     </div>
+                    <button type="button" onclick="document.getElementById('profileImageInput').click()"
+                            class="absolute -bottom-1 -right-1 w-8 h-8 bg-secondary text-white rounded-full flex items-center justify-center shadow-md hover:opacity-90 transition"
+                            title="Alterar foto de perfil">
+                        <i class="fa-solid fa-camera text-xs"></i>
+                    </button>
                 </div>
+
                 <div>
                     <h2 id="profileUsernameDisplay" class="font-bold text-lg text-gray-900 font-mono text-xs">@nostr...</h2>
                 </div>
+
+                <div class="w-full space-y-3 pt-2 border-t border-gray-100">
+                    <input type="file" id="profileImageInput" accept="image/*" class="hidden" onchange="handleProfileImageSelect(event)">
+
+                    <div class="space-y-1 text-left">
+                        <label class="text-xs font-semibold text-gray-700">URL da imagem de perfil</label>
+                        <input type="url" id="profileImageUrlInput" placeholder="https://..."
+                               class="w-full text-xs px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20">
+                    </div>
+
+                    <button onclick="saveProfilePicture()"
+                            class="w-full py-2.5 bg-secondary text-white text-xs font-semibold rounded-xl hover:opacity-90 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Salvar foto de perfil na rede
+                    </button>
+                    <p class="text-[11px] text-gray-400 text-left">
+                        Use uma URL pública (nostr.build, imgur, etc.) para que outras pessoas vejam sua foto.
+                    </p>
+                </div>
             </div>
+
             <div class="bg-white p-5 rounded-2xl border border-gray-200 space-y-3">
                 <div class="flex items-center gap-2 pb-3 border-b border-gray-100">
                     <i class="fa-solid fa-key text-secondary"></i>
@@ -235,7 +296,7 @@
         </section>
     </main>
 
-    <!-- Modal Auth (inalterado) -->
+    <!-- Modal de Autenticação -->
     <div id="authModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-0 md:p-4">
         <div id="authModalContent" class="bg-white w-full md:max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl md:rounded-3xl p-6 flex flex-col shadow-2xl transform translate-y-full md:translate-y-4 transition-transform duration-300 space-y-5">
             <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto md:hidden"></div>
@@ -292,18 +353,21 @@
     let selectedFileUrl = null;
     let selectedFileType = null;
 
-    // ===== MODO SEGURO + NSFW.js =====
+    // Modo Seguro + NSFW.js
     let safeMode = localStorage.getItem('safeMode') !== 'false';
     let nsfwModel = null;
     let modelLoadingPromise = null;
-    const nsfwCache = new Map(); // url -> boolean (isNSFW)
+    const nsfwCache = new Map();
 
-    // Thresholds de classificação (ajustáveis)
     const NSFW_THRESHOLDS = {
         Porn: 0.55,
         Hentai: 0.55,
         Sexy: 0.70
     };
+
+    // Cache de perfis (pubkey -> { name, picture, about })
+    const profileCache = new Map();
+    let pendingProfilePictureUrl = null;
 
     const BLOCKED_DOMAINS = [
         'pornhub.com', 'xvideos.com', 'xnxx.com', 'xhamster.com', 'redtube.com',
@@ -338,28 +402,67 @@
         const toggle = document.getElementById('safeModeToggle');
         if (toggle) toggle.checked = safeMode;
 
-        if (safeMode) {
-            loadNSFWModel();
-        }
+        if (safeMode) loadNSFWModel();
 
         switchSection('feed', 1);
         loadSessionFromNostr();
 
         const isLoggedIn = localStorage.getItem('isLoggedIn');
-        if (!isLoggedIn) {
-            openAuthModal();
-        }
+        if (!isLoggedIn) openAuthModal();
 
         window.addEventListener('scroll', () => {
             const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-            const currentScroll = window.scrollY;
-            if (currentScroll >= scrollableHeight - 300 && !isLoadingMore) {
+            if (window.scrollY >= scrollableHeight - 300 && !isLoadingMore) {
                 fetchMoreNostrFeed();
             }
         });
     });
 
-    // ===== NSFW.js =====
+    // ========== MODO SEGURO ==========
+    window.toggleSafeMode = function() {
+        const toggle = document.getElementById('safeModeToggle');
+        safeMode = toggle ? toggle.checked : true;
+        localStorage.setItem('safeMode', safeMode);
+
+        if (safeMode) {
+            loadNSFWModel().then(() => renderFeeds());
+        } else {
+            const statusEl = document.getElementById('nsfwModelStatus');
+            if (statusEl) statusEl.textContent = '';
+            renderFeeds();
+        }
+    };
+
+    function askUserConfirmation(message) {
+        return confirm((message || 'Tem certeza que deseja ver este conteúdo?') +
+            '\n\nEste conteúdo pode conter material sensível, explícito ou inadequado.');
+    }
+
+    window.revealImage = function(wrapper) {
+        if (!askUserConfirmation('Tem certeza que deseja ver esta imagem?')) return;
+        const img = wrapper.querySelector('.safe-blur');
+        const overlay = wrapper.querySelector('.safe-overlay');
+        if (img) img.classList.add('revealed');
+        if (overlay) overlay.classList.add('hidden-overlay');
+    };
+
+    window.revealVideo = function(container, videoUrl) {
+        if (!askUserConfirmation('Tem certeza que deseja carregar e assistir este vídeo?')) return;
+        container.innerHTML = `<video src="${escapeHtml(videoUrl)}" class="w-full max-h-96 object-cover rounded-2xl" controls autoplay></video>`;
+    };
+
+    window.revealLink = function(spanElement, url) {
+        if (!askUserConfirmation('Tem certeza que deseja abrir este link?')) return;
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.className = 'text-secondary underline hover:opacity-80 break-all';
+        a.textContent = url;
+        spanElement.parentNode.replaceChild(a, spanElement);
+    };
+
+    // ========== NSFW.js ==========
     async function loadNSFWModel() {
         if (nsfwModel) return nsfwModel;
         if (modelLoadingPromise) return modelLoadingPromise;
@@ -369,14 +472,12 @@
 
         modelLoadingPromise = (async () => {
             try {
-                // Modelo padrão do NSFW.js (MobileNet v2)
                 nsfwModel = await nsfwjs.load();
                 if (statusEl) statusEl.textContent = 'IA pronta ✓';
-                console.log('NSFW.js model loaded');
                 return nsfwModel;
             } catch (err) {
                 console.error('Erro ao carregar NSFW.js:', err);
-                if (statusEl) statusEl.textContent = 'IA indisponível (usando filtro básico)';
+                if (statusEl) statusEl.textContent = 'IA indisponível (filtro básico)';
                 nsfwModel = null;
                 return null;
             } finally {
@@ -388,10 +489,7 @@
     }
 
     async function classifyImageUrl(url) {
-        if (!url || nsfwCache.has(url)) {
-            return nsfwCache.get(url) || false;
-        }
-
+        if (!url || nsfwCache.has(url)) return nsfwCache.get(url) || false;
         if (!nsfwModel) {
             await loadNSFWModel();
             if (!nsfwModel) {
@@ -406,7 +504,6 @@
             img.onload = async () => {
                 try {
                     const predictions = await nsfwModel.classify(img, 5);
-                    // predictions: [{className, probability}, ...]
                     let isNSFW = false;
                     for (const p of predictions) {
                         const threshold = NSFW_THRESHOLDS[p.className];
@@ -418,7 +515,6 @@
                     nsfwCache.set(url, isNSFW);
                     resolve(isNSFW);
                 } catch (e) {
-                    console.warn('Falha na classificação (CORS ou outro):', url, e);
                     nsfwCache.set(url, false);
                     resolve(false);
                 }
@@ -431,83 +527,52 @@
         });
     }
 
-    // Escaneia imagens renderizadas e aplica proteção se NSFW
     async function scanAndClassifyImages() {
         if (!safeMode) return;
-
         const images = document.querySelectorAll('img[data-nsfw-check="true"]');
         if (!images.length) return;
 
-        // Limita concorrência para não travar o navegador
         const queue = Array.from(images);
         const concurrency = 3;
 
         async function processNext() {
-            if (queue.length === 0) return;
+            if (!queue.length) return;
             const img = queue.shift();
-            const url = img.src || img.dataset.src;
-            if (!url) {
-                processNext();
-                return;
-            }
+            const url = img.src;
+            if (!url) return processNext();
 
             img.classList.add('nsfw-checking');
             const isNSFW = await classifyImageUrl(url);
             img.classList.remove('nsfw-checking');
 
-            if (isNSFW) {
-                protectMediaElement(img);
-            }
+            if (isNSFW) protectImageElement(img);
             processNext();
         }
 
-        // Inicia workers
-        const workers = [];
-        for (let i = 0; i < concurrency; i++) {
-            workers.push(processNext());
-        }
-        await Promise.all(workers);
+        await Promise.all(Array.from({ length: concurrency }, () => processNext()));
     }
 
-    function protectMediaElement(mediaEl) {
-        // Sobe até o wrapper de mídia
-        let wrapper = mediaEl.closest('.mt-3') || mediaEl.parentElement;
-        if (!wrapper || wrapper.classList.contains('sensitive-wrapper')) return;
+    function protectImageElement(img) {
+        let wrapper = img.closest('.mt-3') || img.parentElement;
+        if (!wrapper || wrapper.classList.contains('safe-media-wrapper')) return;
 
-        const originalHTML = wrapper.innerHTML;
+        const src = img.src;
         const newWrapper = document.createElement('div');
-        newWrapper.className = 'mt-3 sensitive-wrapper border border-gray-200';
+        newWrapper.className = 'mt-3 safe-media-wrapper border border-gray-200';
+        newWrapper.onclick = function() { revealImage(this); };
         newWrapper.innerHTML = `
-            <div class="sensitive-media" onclick="this.classList.add('revealed'); this.nextElementSibling.style.display='none';">
-                ${originalHTML}
-            </div>
-            <div class="sensitive-overlay">
-                <div>
-                    <i class="fa-solid fa-eye-slash mb-1"></i><br>
-                    Conteúdo detectado como sensível<br>
-                    <span class="text-[11px] font-normal opacity-90">Clique para revelar</span>
+            <img src="${escapeHtml(src)}" class="w-full max-h-96 object-cover safe-blur" alt="Imagem protegida" loading="lazy">
+            <div class="safe-overlay">
+                <div class="text-center px-4">
+                    <i class="fa-solid fa-eye-slash text-xl mb-2"></i>
+                    <div class="text-sm font-semibold">Imagem protegida (IA)</div>
+                    <div class="text-[11px] opacity-90 mt-1">Clique para revelar</div>
                 </div>
             </div>`;
         wrapper.replaceWith(newWrapper);
     }
 
-    // ===== FILTRO HEURÍSTICO =====
-    window.toggleSafeMode = function() {
-        const toggle = document.getElementById('safeModeToggle');
-        safeMode = toggle ? toggle.checked : true;
-        localStorage.setItem('safeMode', safeMode);
-
-        if (safeMode) {
-            loadNSFWModel().then(() => {
-                renderFeeds();
-            });
-        } else {
-            const statusEl = document.getElementById('nsfwModelStatus');
-            if (statusEl) statusEl.textContent = '';
-            renderFeeds();
-        }
-    }
-
+    // ========== FILTRO HEURÍSTICO ==========
     function isBlockedDomain(url) {
         if (!url) return false;
         try {
@@ -520,71 +585,223 @@
 
     function isExplicitEvent(ev) {
         if (!ev) return false;
-
         if (ev.tags && Array.isArray(ev.tags)) {
             for (const tag of ev.tags) {
                 const t0 = (tag[0] || '').toLowerCase();
                 const t1 = (tag[1] || '').toLowerCase();
-
                 if (t0 === 'content-warning' || t0 === 'cw') return true;
                 if (t0 === 'nsfw' || t1 === 'nsfw') return true;
-                if (t0 === 't' && ['nsfw','porn','xxx','nude','nudes','explicit','adult','gore','guro','hentai','rule34'].includes(t1)) {
-                    return true;
-                }
+                if (t0 === 't' && ['nsfw','porn','xxx','nude','nudes','explicit','adult','gore','guro','hentai','rule34'].includes(t1)) return true;
                 if (t1.includes('nsfw') || t1.includes('explicit') || t1.includes('porn') || t1.includes('gore')) return true;
-                if ((t0 === 'image' || t0 === 'video' || t0 === 'url' || t0 === 'r') && isBlockedDomain(t1)) {
-                    return true;
-                }
+                if ((t0 === 'image' || t0 === 'video' || t0 === 'url' || t0 === 'r') && isBlockedDomain(t1)) return true;
             }
         }
-
         const content = (ev.content || '').toLowerCase();
         if (EXPLICIT_TERMS.some(term => content.includes(term))) return true;
-
-        const urlRegex = /(https?:\/\/[^\s]+)/gi;
-        const urls = content.match(urlRegex) || [];
+        const urls = content.match(/(https?:\/\/[^\s]+)/gi) || [];
         if (urls.some(u => isBlockedDomain(u))) return true;
-
         return false;
     }
 
-    function wrapSensitiveMedia(html, isSensitive) {
-        if (!safeMode || !isSensitive || !html) return html;
-
-        return html.replace(
-            /<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">([\s\S]*?)<\/div>/g,
-            (match, inner) => {
-                return `
-                <div class="mt-3 sensitive-wrapper border border-gray-200">
-                    <div class="sensitive-media" onclick="this.classList.add('revealed'); this.nextElementSibling.style.display='none';">
-                        ${inner}
-                    </div>
-                    <div class="sensitive-overlay">
-                        <div>
-                            <i class="fa-solid fa-eye-slash mb-1"></i><br>
-                            Conteúdo sensível<br>
-                            <span class="text-[11px] font-normal opacity-90">Clique para revelar</span>
-                        </div>
-                    </div>
-                </div>`;
-            }
-        );
+    // ========== MÍDIA COM PROTEÇÃO ==========
+    function buildImageHtml(url) {
+        if (!safeMode) {
+            return `<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">
+                        <img src="${escapeHtml(url)}" data-nsfw-check="true" class="w-full max-h-96 object-cover" alt="Imagem" loading="lazy">
+                    </div>`;
+        }
+        return `
+        <div class="mt-3 safe-media-wrapper border border-gray-200" onclick="revealImage(this)">
+            <img src="${escapeHtml(url)}" data-nsfw-check="true" class="w-full max-h-96 object-cover safe-blur" alt="Imagem protegida" loading="lazy">
+            <div class="safe-overlay">
+                <div class="text-center px-4">
+                    <i class="fa-solid fa-eye-slash text-xl mb-2"></i>
+                    <div class="text-sm font-semibold">Imagem protegida</div>
+                    <div class="text-[11px] opacity-90 mt-1">Clique para revelar</div>
+                </div>
+            </div>
+        </div>`;
     }
 
-    // ===== RESTANTE DO CÓDIGO (com adaptações mínimas) =====
+    function buildVideoHtml(url) {
+        if (!safeMode) {
+            return `<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">
+                        <video src="${escapeHtml(url)}" class="w-full max-h-96 object-cover" controls></video>
+                    </div>`;
+        }
+        return `
+        <div class="mt-3 safe-video-blocked border border-gray-700" onclick="revealVideo(this, '${escapeHtml(url)}')">
+            <i class="fa-solid fa-video-slash text-2xl opacity-80"></i>
+            <div class="text-sm font-semibold">Vídeo bloqueado</div>
+            <div class="text-[11px] opacity-80">Clique para carregar (confirmação necessária)</div>
+        </div>`;
+    }
 
+    function extractMediaAndCleanText(ev) {
+        let mediaHtml = '';
+        let cleanContent = ev.content || '';
+
+        if (ev.tags && ev.tags.length > 0) {
+            ev.tags.forEach(tag => {
+                if (tag[0] === 'image' && tag[1]) {
+                    mediaHtml += buildImageHtml(tag[1]);
+                    cleanContent = cleanContent.replace(tag[1], '');
+                } else if (tag[0] === 'video' && tag[1]) {
+                    mediaHtml += buildVideoHtml(tag[1]);
+                    cleanContent = cleanContent.replace(tag[1], '');
+                }
+            });
+        }
+
+        const urlRegex = /(https?:\/\/[^\s]+\.(?:png|jpg|jpeg|gif|webp|mp4|webm))/gi;
+        cleanContent = cleanContent.replace(urlRegex, (url) => {
+            if (url.match(/\.(mp4|webm)$/i)) mediaHtml += buildVideoHtml(url);
+            else mediaHtml += buildImageHtml(url);
+            return '';
+        });
+
+        return { cleanContent: cleanContent.trim(), mediaHtml };
+    }
+
+    // ========== FOTO DE PERFIL ==========
+    window.handleProfileImageSelect = function(event) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const localUrl = URL.createObjectURL(file);
+        pendingProfilePictureUrl = localUrl;
+        setAvatarEverywhere(localUrl);
+        alert('Preview local ativado.\n\nPara que outras pessoas vejam sua foto, cole uma URL pública no campo e clique em "Salvar foto de perfil na rede".');
+    };
+
+    function setAvatarEverywhere(url) {
+        if (!url) return;
+
+        const profileImg = document.getElementById('profileAvatarImg');
+        const profileIcon = document.getElementById('profileAvatarIcon');
+        if (profileImg) {
+            profileImg.src = url;
+            profileImg.classList.remove('hidden');
+            if (profileIcon) profileIcon.classList.add('hidden');
+        }
+
+        const postAvatar = document.querySelector('#postAuthorAvatar .post-avatar-img');
+        const postIcon = document.querySelector('#postAuthorAvatar .post-avatar-icon');
+        if (postAvatar) {
+            postAvatar.src = url;
+            postAvatar.classList.remove('hidden');
+            if (postIcon) postIcon.classList.add('hidden');
+        }
+
+        currentUserData.avatarUrl = url;
+    }
+
+    window.saveProfilePicture = async function() {
+        if (!currentUserData.privateKey) {
+            alert('Faça login primeiro.');
+            openAuthModal();
+            return;
+        }
+
+        const urlInput = document.getElementById('profileImageUrlInput');
+        let pictureUrl = (urlInput?.value || '').trim();
+        if (!pictureUrl && pendingProfilePictureUrl) pictureUrl = pendingProfilePictureUrl;
+        if (!pictureUrl) {
+            alert('Informe a URL da imagem ou selecione um arquivo.');
+            return;
+        }
+
+        try {
+            const metadata = {
+                name: currentUserData.nickname?.replace(/^@/, '') || 'anonimo',
+                picture: pictureUrl,
+                about: ''
+            };
+            const existing = profileCache.get(currentUserData.pubkey);
+            if (existing) {
+                if (existing.name) metadata.name = existing.name;
+                if (existing.about) metadata.about = existing.about;
+            }
+
+            const eventTemplate = {
+                kind: 0,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [],
+                content: JSON.stringify(metadata)
+            };
+
+            const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
+            await Promise.any(pool.publish(RELAYS, signedEvent));
+
+            currentUserData.avatarUrl = pictureUrl;
+            profileCache.set(currentUserData.pubkey, metadata);
+            setAvatarEverywhere(pictureUrl);
+
+            const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
+            session.avatarUrl = pictureUrl;
+            localStorage.setItem('nostr_session', JSON.stringify(session));
+
+            alert('Foto de perfil publicada na rede Nostr!');
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao publicar foto de perfil. Tente novamente.');
+        }
+    };
+
+    async function fetchProfiles(pubkeys) {
+        if (!pool || !pubkeys.length) return;
+        const missing = pubkeys.filter(pk => pk && !profileCache.has(pk));
+        if (!missing.length) return;
+
+        try {
+            const events = await pool.querySync(RELAYS, {
+                kinds: [0],
+                authors: missing,
+                limit: missing.length
+            });
+
+            if (events) {
+                const latest = new Map();
+                events.forEach(ev => {
+                    const prev = latest.get(ev.pubkey);
+                    if (!prev || ev.created_at > prev.created_at) latest.set(ev.pubkey, ev);
+                });
+
+                latest.forEach((ev, pubkey) => {
+                    try {
+                        const data = JSON.parse(ev.content || '{}');
+                        profileCache.set(pubkey, {
+                            name: data.name || data.display_name || '',
+                            picture: data.picture || data.image || '',
+                            about: data.about || ''
+                        });
+                    } catch {
+                        profileCache.set(pubkey, { name: '', picture: '', about: '' });
+                    }
+                });
+            }
+
+            missing.forEach(pk => {
+                if (!profileCache.has(pk)) profileCache.set(pk, { name: '', picture: '', about: '' });
+            });
+        } catch (e) {
+            console.error('Erro ao buscar perfis:', e);
+        }
+    }
+
+    function getProfilePicture(pubkey) {
+        const p = profileCache.get(pubkey);
+        return (p && p.picture) ? p.picture : '';
+    }
+
+    // ========== AUTH & SESSÃO ==========
     window.updateCharCount = function() {
         const textarea = document.getElementById('postTextArea');
         const counter = document.getElementById('charCounter');
         const currentLength = textarea.value.length;
-        const maxLength = 4000;
-        counter.innerText = `${currentLength} / ${maxLength}`;
-        if (currentLength >= maxLength) {
-            counter.classList.add('text-red-500', 'font-bold');
-        } else {
-            counter.classList.remove('text-red-500', 'font-bold');
-        }
-    }
+        counter.innerText = `${currentLength} / 4000`;
+        if (currentLength >= 4000) counter.classList.add('text-red-500', 'font-bold');
+        else counter.classList.remove('text-red-500', 'font-bold');
+    };
 
     window.switchAuthTab = function(mode) {
         currentAuthMode = mode;
@@ -613,20 +830,19 @@
             registerBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-gray-900 shadow-sm transition';
             loginBtn.className = 'flex-1 py-2 text-xs font-medium text-gray-500 hover:text-gray-900 transition';
         }
-    }
+    };
 
     window.generateNewAccessKey = function() {
         try {
             const sk = NostrTools.generateSecretKey();
-            const nsk = NostrTools.nip19.nsecEncode(sk);
-            document.getElementById('generatedKeyOutput').value = nsk;
+            document.getElementById('generatedKeyOutput').value = NostrTools.nip19.nsecEncode(sk);
             window.__tempGeneratedSk = sk;
             alert('Chave privada gerada com sucesso! Guarde-a com segurança.');
         } catch (err) {
             console.error(err);
             alert('Erro ao gerar chave.');
         }
-    }
+    };
 
     window.handleAuthSubmit = function(event) {
         event.preventDefault();
@@ -634,28 +850,18 @@
 
         if (currentAuthMode === 'register') {
             const nsec = document.getElementById('generatedKeyOutput').value.trim();
-            if (!nsec) {
-                alert('Gere sua chave de acesso primeiro.');
-                return;
-            }
+            if (!nsec) { alert('Gere sua chave de acesso primeiro.'); return; }
             try {
-                if (window.__tempGeneratedSk) {
-                    privKeyToUse = window.__tempGeneratedSk;
-                } else {
+                if (window.__tempGeneratedSk) privKeyToUse = window.__tempGeneratedSk;
+                else {
                     const decoded = NostrTools.nip19.decode(nsec);
                     if (decoded.type !== 'nsec') throw new Error('Tipo inválido');
                     privKeyToUse = decoded.data;
                 }
-            } catch (e) {
-                alert('Chave gerada inválida.');
-                return;
-            }
+            } catch { alert('Chave gerada inválida.'); return; }
         } else {
             const inputVal = document.getElementById('authKeyInput').value.trim();
-            if (!inputVal) {
-                alert('Insira sua chave.');
-                return;
-            }
+            if (!inputVal) { alert('Insira sua chave.'); return; }
             try {
                 if (inputVal.startsWith('nsec1') || inputVal.startsWith('nsec')) {
                     const decoded = NostrTools.nip19.decode(inputVal);
@@ -679,13 +885,12 @@
             currentUserData.pubkey = pubKey;
             currentUserData.nickname = '@' + npub.substring(0, 12) + '...';
 
-            const sessionToSave = {
+            localStorage.setItem('nostr_session', JSON.stringify({
                 pubkey: currentUserData.pubkey,
                 privateKeyHex: bytesToHex(privKeyToUse),
                 nickname: currentUserData.nickname,
                 avatarUrl: currentUserData.avatarUrl || ''
-            };
-            localStorage.setItem('nostr_session', JSON.stringify(sessionToSave));
+            }));
             localStorage.setItem('isLoggedIn', 'true');
 
             alert('Autenticado com sucesso!');
@@ -693,61 +898,73 @@
             closeAuthModal();
             fetchNostrFeed();
             loadUserContactList();
+
+            fetchProfiles([pubKey]).then(() => {
+                const p = profileCache.get(pubKey);
+                if (p?.picture) {
+                    currentUserData.avatarUrl = p.picture;
+                    setAvatarEverywhere(p.picture);
+                    const urlInput = document.getElementById('profileImageUrlInput');
+                    if (urlInput) urlInput.value = p.picture;
+                }
+            });
         } catch (e) {
             console.error(e);
             alert('Erro ao processar a chave.');
         }
-    }
+    };
 
     function loadSessionFromNostr() {
         const session = localStorage.getItem('nostr_session');
-        if (session) {
-            try {
-                const parsed = JSON.parse(session);
-                if (parsed.privateKeyHex) {
-                    currentUserData.privateKey = hexToBytes(parsed.privateKeyHex);
-                    currentUserData.pubkey = parsed.pubkey;
-                    currentUserData.nickname = parsed.nickname || '@anonimo';
-                    currentUserData.avatarUrl = parsed.avatarUrl || '';
-                    applyUserDataToInterface();
-                    fetchNostrFeed();
-                    loadUserContactList();
-                }
-            } catch (e) {
-                console.error('Erro ao carregar sessão:', e);
-                localStorage.removeItem('nostr_session');
-                localStorage.removeItem('isLoggedIn');
+        if (!session) return;
+        try {
+            const parsed = JSON.parse(session);
+            if (!parsed.privateKeyHex) return;
+
+            currentUserData.privateKey = hexToBytes(parsed.privateKeyHex);
+            currentUserData.pubkey = parsed.pubkey;
+            currentUserData.nickname = parsed.nickname || '@anonimo';
+            currentUserData.avatarUrl = parsed.avatarUrl || '';
+
+            applyUserDataToInterface();
+            fetchNostrFeed();
+            loadUserContactList();
+
+            if (currentUserData.pubkey) {
+                fetchProfiles([currentUserData.pubkey]).then(() => {
+                    const p = profileCache.get(currentUserData.pubkey);
+                    if (p?.picture) {
+                        currentUserData.avatarUrl = p.picture;
+                        setAvatarEverywhere(p.picture);
+                        const urlInput = document.getElementById('profileImageUrlInput');
+                        if (urlInput) urlInput.value = p.picture;
+                    }
+                });
             }
+        } catch (e) {
+            console.error('Erro ao carregar sessão:', e);
+            localStorage.removeItem('nostr_session');
+            localStorage.removeItem('isLoggedIn');
         }
     }
 
     window.logoutAccount = function() {
         localStorage.removeItem('isLoggedIn');
         localStorage.removeItem('nostr_session');
-        currentUserData = {
-            pubkey: '',
-            privateKey: null,
-            nickname: '@anonimo',
-            avatarUrl: ''
-        };
+        currentUserData = { pubkey: '', privateKey: null, nickname: '@anonimo', avatarUrl: '' };
         followingList.clear();
         alert('Sessão encerrada.');
         openAuthModal();
-    }
+    };
 
     async function loadUserContactList() {
         if (!pool || !currentUserData.pubkey) return;
         try {
-            const contactEvent = await pool.get(RELAYS, {
-                kinds: [3],
-                authors: [currentUserData.pubkey]
-            });
-            if (contactEvent && contactEvent.tags) {
+            const contactEvent = await pool.get(RELAYS, { kinds: [3], authors: [currentUserData.pubkey] });
+            if (contactEvent?.tags) {
                 followingList.clear();
                 contactEvent.tags.forEach(tag => {
-                    if (tag[0] === 'p' && tag[1]) {
-                        followingList.add(tag[1]);
-                    }
+                    if (tag[0] === 'p' && tag[1]) followingList.add(tag[1]);
                 });
             }
         } catch (e) {
@@ -766,30 +983,26 @@
             return;
         }
 
-        if (followingList.has(targetPubkey)) {
-            followingList.delete(targetPubkey);
-        } else {
-            followingList.add(targetPubkey);
-        }
+        if (followingList.has(targetPubkey)) followingList.delete(targetPubkey);
+        else followingList.add(targetPubkey);
 
         const tags = Array.from(followingList).map(pk => ['p', pk, '', '']);
         const eventTemplate = {
             kind: 3,
             created_at: Math.floor(Date.now() / 1000),
-            tags: tags,
+            tags,
             content: ''
         };
 
         try {
             const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
-            const pubs = pool.publish(RELAYS, signedEvent);
-            await Promise.any(pubs);
+            await Promise.any(pool.publish(RELAYS, signedEvent));
             renderFeeds();
         } catch (err) {
-            console.error('Erro ao atualizar lista:', err);
+            console.error(err);
             alert('Erro ao atualizar a rede. Tente novamente.');
         }
-    }
+    };
 
     window.publishNostrNote = async function() {
         if (!currentUserData.privateKey) {
@@ -803,7 +1016,6 @@
             alert('Escreva algo ou adicione uma mídia na publicação.');
             return;
         }
-
         if (contentText.length > 4000) {
             alert('O limite máximo é de 4000 caracteres.');
             return;
@@ -823,15 +1035,13 @@
         const eventTemplate = {
             kind: 1,
             created_at: Math.floor(Date.now() / 1000),
-            tags: tags,
+            tags,
             content: contentText
         };
 
         try {
             const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
-            const pubs = pool.publish(RELAYS, signedEvent);
-            await Promise.any(pubs);
-            
+            await Promise.any(pool.publish(RELAYS, signedEvent));
             alert('Publicado na rede Nostr com sucesso!');
             document.getElementById('postTextArea').value = '';
             updateCharCount();
@@ -842,12 +1052,12 @@
             console.error(err);
             alert('Erro ao publicar nos relays. Tente novamente.');
         }
-    }
+    };
 
+    // ========== FEED ==========
     async function fetchNostrFeed() {
         if (!pool) return;
         const feedContainer = document.getElementById('feed-para-voce');
-        
         feedContainer.innerHTML = `
             <div class="p-6 text-center space-y-2">
                 <i class="fa-solid fa-spinner fa-spin text-2xl text-secondary mb-1"></i>
@@ -855,25 +1065,18 @@
             </div>`;
 
         try {
-            const events = await pool.querySync(RELAYS, {
-                kinds: [1],
-                limit: 30
-            });
-            
-            if (events && events.length > 0) {
+            const events = await pool.querySync(RELAYS, { kinds: [1], limit: 30 });
+            if (events?.length) {
                 const unique = Array.from(new Map(events.map(e => [e.id, e])).values());
                 unique.sort((a, b) => b.created_at - a.created_at);
                 cachedEvents = unique;
                 oldestTimestamp = unique[unique.length - 1].created_at;
                 renderFeeds();
             } else {
-                feedContainer.innerHTML = `
-                    <div class="p-6 text-center">
-                        <p class="text-xs text-gray-500">Nenhum post encontrado nos relays no momento.</p>
-                    </div>`;
+                feedContainer.innerHTML = `<div class="p-6 text-center"><p class="text-xs text-gray-500">Nenhum post encontrado nos relays no momento.</p></div>`;
             }
         } catch (e) {
-            console.error("Erro ao buscar feed:", e);
+            console.error(e);
             feedContainer.innerHTML = `
                 <div class="p-6 text-center space-y-2">
                     <i class="fa-solid fa-triangle-exclamation text-2xl text-amber-500 mb-1"></i>
@@ -894,8 +1097,7 @@
                 until: oldestTimestamp - 1,
                 limit: 15
             });
-
-            if (events && events.length > 0) {
+            if (events?.length) {
                 const unique = Array.from(new Map(events.map(e => [e.id, e])).values());
                 unique.sort((a, b) => b.created_at - a.created_at);
                 oldestTimestamp = unique[unique.length - 1].created_at;
@@ -903,47 +1105,17 @@
                 renderFeeds();
             }
         } catch (e) {
-            console.error("Erro ao carregar mais posts:", e);
+            console.error(e);
         } finally {
             isLoadingMore = false;
             loadingIndicator.classList.add('hidden');
         }
     }
 
-    function extractMediaAndCleanText(ev) {
-        let mediaHtml = '';
-        let cleanContent = ev.content || '';
-
-        if (ev.tags && ev.tags.length > 0) {
-            ev.tags.forEach(tag => {
-                if (tag[0] === 'image' && tag[1]) {
-                    mediaHtml += `<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50"><img src="${escapeHtml(tag[1])}" data-nsfw-check="true" class="w-full max-h-96 object-cover" alt="Anexo de imagem" loading="lazy"></div>`;
-                    cleanContent = cleanContent.replace(tag[1], '');
-                } else if (tag[0] === 'video' && tag[1]) {
-                    mediaHtml += `<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50"><video src="${escapeHtml(tag[1])}" class="w-full max-h-96 object-cover" controls></video></div>`;
-                    cleanContent = cleanContent.replace(tag[1], '');
-                }
-            });
-        }
-
-        const urlRegex = /(https?:\/\/[^\s]+\.(?:png|jpg|jpeg|gif|webp|mp4|webm))/gi;
-        cleanContent = cleanContent.replace(urlRegex, (url) => {
-            if (url.match(/\.(mp4|webm)$/i)) {
-                mediaHtml += `<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50"><video src="${escapeHtml(url)}" class="w-full max-h-96 object-cover" controls></video></div>`;
-            } else {
-                mediaHtml += `<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50"><img src="${escapeHtml(url)}" data-nsfw-check="true" class="w-full max-h-96 object-cover" alt="Anexo de imagem" loading="lazy"></div>`;
-            }
-            return '';
-        });
-
-        return { cleanContent: cleanContent.trim(), mediaHtml };
-    }
-
     window.toggleReadMore = function(buttonElement) {
         const container = buttonElement.closest('.post-content-container');
         const shortText = container.querySelector('.post-text-short');
         const fullText = container.querySelector('.post-text-full');
-
         if (shortText.classList.contains('hidden')) {
             shortText.classList.remove('hidden');
             fullText.classList.add('hidden');
@@ -953,13 +1125,19 @@
             fullText.classList.remove('hidden');
             buttonElement.innerText = 'Ler menos';
         }
-    }
+    };
 
     function renderFeeds() {
+        if (!cachedEvents.length) return;
+
+        const pubkeys = [...new Set(cachedEvents.map(e => e.pubkey))];
+        fetchProfiles(pubkeys).then(() => _renderFeedsInternal());
+        _renderFeedsInternal();
+    }
+
+    function _renderFeedsInternal() {
         const feedParaVoce = document.getElementById('feed-para-voce');
         const feedSeguindo = document.getElementById('feed-seguindo');
-
-        if (!cachedEvents.length) return;
 
         let htmlParaVoce = '';
         let htmlSeguindo = '';
@@ -967,7 +1145,6 @@
 
         cachedEvents.forEach(ev => {
             const isSensitive = isExplicitEvent(ev);
-
             const shortPub = ev.pubkey.substring(0, 8) + '...';
             const timeAgo = new Date(ev.created_at * 1000).toLocaleDateString('pt-BR');
             const isFollowing = followingList.has(ev.pubkey);
@@ -975,22 +1152,20 @@
 
             let followBtnHtml = '';
             if (!isSelf) {
-                if (isFollowing) {
-                    followBtnHtml = `<button onclick="toggleFollowUser('${ev.pubkey}')" class="text-xs px-3 py-1 bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 font-semibold rounded-full transition">Seguindo</button>`;
-                } else {
-                    followBtnHtml = `<button onclick="toggleFollowUser('${ev.pubkey}')" class="text-xs px-3 py-1 bg-secondary/10 hover:bg-secondary hover:text-white text-secondary font-semibold rounded-full transition">Seguir</button>`;
-                }
+                followBtnHtml = isFollowing
+                    ? `<button onclick="toggleFollowUser('${ev.pubkey}')" class="text-xs px-3 py-1 bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 font-semibold rounded-full transition">Seguindo</button>`
+                    : `<button onclick="toggleFollowUser('${ev.pubkey}')" class="text-xs px-3 py-1 bg-secondary/10 hover:bg-secondary hover:text-white text-secondary font-semibold rounded-full transition">Seguir</button>`;
             }
 
             const { cleanContent, mediaHtml } = extractMediaAndCleanText(ev);
-            // Proteção imediata se já detectado por heurística
-            const protectedMedia = wrapSensitiveMedia(mediaHtml, isSensitive);
+
+            // Se heurística já marcou como sensível e modo seguro está on, vídeos/imagens já vêm protegidos via build*
+            // (buildImageHtml/buildVideoHtml já aplicam proteção quando safeMode=true)
 
             let textSectionHtml = '';
             if (cleanContent) {
                 const limit = 300;
                 const linkedContent = linkifyAndEscape(cleanContent);
-
                 if (cleanContent.length > limit) {
                     const shortContent = linkifyAndEscape(cleanContent.substring(0, limit) + '...');
                     textSectionHtml = `
@@ -998,24 +1173,29 @@
                             <p class="post-text-short text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">${shortContent}</p>
                             <p class="post-text-full text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed hidden">${linkedContent}</p>
                             <button onclick="toggleReadMore(this)" class="text-xs font-semibold text-secondary mt-1 hover:underline focus:outline-none">Ler mais</button>
-                        </div>
-                    `;
+                        </div>`;
                 } else {
                     textSectionHtml = `<p class="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-2">${linkedContent}</p>`;
                 }
             }
 
-            const warningBadge = (safeMode && isSensitive) 
+            const authorPicture = getProfilePicture(ev.pubkey);
+            const avatarHtml = authorPicture
+                ? `<img src="${escapeHtml(authorPicture)}" class="w-full h-full object-cover" alt="Avatar" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');">
+                   <i class="fa-solid fa-user hidden"></i>`
+                : `<i class="fa-solid fa-user"></i>`;
+
+            const warningBadge = (safeMode && isSensitive)
                 ? `<div class="mb-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
                     <i class="fa-solid fa-shield-halved"></i> Conteúdo sensível protegido
-                   </div>` 
+                   </div>`
                 : '';
 
             const postCard = `
             <div class="p-4 hover:bg-gray-50/60 transition duration-150">
                 <div class="flex items-start gap-3">
-                    <div class="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary font-bold overflow-hidden">
-                        <i class="fa-solid fa-user"></i>
+                    <div class="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary font-bold overflow-hidden relative">
+                        ${avatarHtml}
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center justify-between mb-1">
@@ -1028,7 +1208,7 @@
                         </div>
                         ${warningBadge}
                         ${textSectionHtml}
-                        ${protectedMedia}
+                        ${mediaHtml}
                         <div class="flex items-center justify-between text-gray-400 text-xs max-w-md pt-3">
                             <button class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-regular fa-comment"></i><span>0</span></button>
                             <button class="flex items-center gap-1.5 hover:text-green-500 transition"><i class="fa-solid fa-retweet"></i><span>0</span></button>
@@ -1040,7 +1220,6 @@
             </div>`;
 
             htmlParaVoce += postCard;
-
             if (isFollowing) {
                 htmlSeguindo += postCard;
                 countSeguindo++;
@@ -1050,7 +1229,7 @@
         feedParaVoce.innerHTML = htmlParaVoce || `
             <div class="p-6 text-center space-y-2">
                 <i class="fa-solid fa-shield-halved text-3xl text-gray-300 mb-1"></i>
-                <p class="text-xs text-gray-500">Nenhum post encontrado (ou todos foram filtrados pelo Modo Seguro).</p>
+                <p class="text-xs text-gray-500">Nenhum post encontrado.</p>
             </div>`;
 
         if (countSeguindo > 0) {
@@ -1060,56 +1239,49 @@
                 <div class="p-6 text-center space-y-2">
                     <i class="fa-solid fa-user-group text-3xl text-gray-300 mb-1"></i>
                     <h3 class="font-bold text-sm text-gray-900">Suas conexões estão aqui</h3>
-                    <p class="text-xs text-gray-500">As publicações das pessoas que você segue aparecerão nesta aba. Clique em "Seguir" nos posts do feed para começar!</p>
+                    <p class="text-xs text-gray-500">As publicações das pessoas que você segue aparecerão nesta aba.</p>
                 </div>`;
         }
 
-        // Dispara classificação por IA nas imagens restantes
-        if (safeMode) {
-            // Pequeno delay para o DOM atualizar
-            setTimeout(() => scanAndClassifyImages(), 400);
-        }
+        if (safeMode) setTimeout(() => scanAndClassifyImages(), 500);
     }
 
     function applyUserDataToInterface() {
         const profileDisplay = document.getElementById('profileUsernameDisplay');
-        if (profileDisplay && currentUserData.nickname) {
-            profileDisplay.innerText = currentUserData.nickname;
-        }
+        if (profileDisplay && currentUserData.nickname) profileDisplay.innerText = currentUserData.nickname;
+
         const accessKeyInput = document.getElementById('accessKeyInput');
         if (accessKeyInput && currentUserData.privateKey) {
             try {
                 accessKeyInput.value = NostrTools.nip19.nsecEncode(currentUserData.privateKey);
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         }
+
         const postAuthorName = document.getElementById('postAuthorName');
-        if (postAuthorName && currentUserData.nickname) {
-            postAuthorName.innerText = currentUserData.nickname;
+        if (postAuthorName && currentUserData.nickname) postAuthorName.innerText = currentUserData.nickname;
+
+        if (currentUserData.avatarUrl) {
+            setAvatarEverywhere(currentUserData.avatarUrl);
+            const urlInput = document.getElementById('profileImageUrlInput');
+            if (urlInput) urlInput.value = currentUserData.avatarUrl;
         }
     }
 
-    window.switchSection = function(sectionId, index) {
-        document.querySelectorAll('.content-section').forEach(section => {
-            section.classList.add('hidden');
-        });
-        const targetSection = document.getElementById('section-' + sectionId);
-        if (targetSection) {
-            targetSection.classList.remove('hidden');
-        }
+    window.switchSection = function(sectionId) {
+        document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+        const target = document.getElementById('section-' + sectionId);
+        if (target) target.classList.remove('hidden');
 
         document.querySelectorAll('.nav-link').forEach(link => {
             link.classList.remove('text-secondary');
             link.classList.add('text-gray-700');
         });
-
         const activeLink = document.getElementById('nav-' + sectionId);
         if (activeLink) {
             activeLink.classList.add('text-secondary');
             activeLink.classList.remove('text-gray-700');
         }
-    }
+    };
 
     window.switchFeedTab = function(tabName) {
         const feedParaVoce = document.getElementById('feed-para-voce');
@@ -1122,19 +1294,19 @@
         if (tabName === 'para-voce') {
             feedParaVoce.classList.remove('hidden');
             feedSeguindo.classList.add('hidden');
-            btnParaVoce.className = "relative pb-1 text-sm md:text-base font-bold text-secondary transition-all";
-            btnSeguindo.className = "relative pb-1 text-sm md:text-base font-semibold text-gray-400 hover:text-gray-700 transition-all";
-            indParaVoce.className = "absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-secondary rounded-full";
-            indSeguindo.className = "absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-transparent rounded-full";
+            btnParaVoce.className = 'relative pb-1 text-sm md:text-base font-bold text-secondary transition-all';
+            btnSeguindo.className = 'relative pb-1 text-sm md:text-base font-semibold text-gray-400 hover:text-gray-700 transition-all';
+            indParaVoce.className = 'absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-secondary rounded-full';
+            indSeguindo.className = 'absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-transparent rounded-full';
         } else {
             feedSeguindo.classList.remove('hidden');
             feedParaVoce.classList.add('hidden');
-            btnSeguindo.className = "relative pb-1 text-sm md:text-base font-bold text-secondary transition-all";
-            btnParaVoce.className = "relative pb-1 text-sm md:text-base font-semibold text-gray-400 hover:text-gray-700 transition-all";
-            indSeguindo.className = "absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-secondary rounded-full";
-            indParaVoce.className = "absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-transparent rounded-full";
+            btnSeguindo.className = 'relative pb-1 text-sm md:text-base font-bold text-secondary transition-all';
+            btnParaVoce.className = 'relative pb-1 text-sm md:text-base font-semibold text-gray-400 hover:text-gray-700 transition-all';
+            indSeguindo.className = 'absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-secondary rounded-full';
+            indParaVoce.className = 'absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-transparent rounded-full';
         }
-    }
+    };
 
     function openAuthModal() {
         const modal = document.getElementById('authModal');
@@ -1161,11 +1333,9 @@
         const previewContainer = document.getElementById('filePreviewContainer');
         const imagePreview = document.getElementById('imagePreview');
         const videoPreview = document.getElementById('videoPreview');
+        if (!input?.files?.[0]) return;
 
-        if (!input || !input.files || !input.files[0]) return;
-        const file = input.files[0];
-        const fileURL = URL.createObjectURL(file);
-
+        const fileURL = URL.createObjectURL(input.files[0]);
         selectedFileUrl = fileURL;
         selectedFileType = type;
 
@@ -1180,7 +1350,7 @@
             videoPreview.src = fileURL;
             videoPreview.classList.remove('hidden');
         }
-    }
+    };
 
     window.removeSelectedFile = function() {
         document.getElementById('imageInput').value = '';
@@ -1188,21 +1358,21 @@
         document.getElementById('filePreviewContainer').classList.add('hidden');
         selectedFileUrl = null;
         selectedFileType = null;
-    }
+    };
 
     function escapeHtml(text) {
         const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-        return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+        return String(text).replace(/[&<>"']/g, m => map[m]);
     }
 
     function linkifyAndEscape(text) {
         const escaped = escapeHtml(text);
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        return escaped.replace(urlRegex, (url) => {
-            if (safeMode && isBlockedDomain(url)) {
-                return `<span class="text-gray-400 line-through" title="Link bloqueado pelo Modo Seguro">${url}</span>`;
+        return escaped.replace(/(https?:\/\/[^\s]+)/g, (url) => {
+            if (!safeMode) {
+                return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-secondary underline hover:opacity-80 break-all">${url}</a>`;
             }
-            return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-secondary underline hover:opacity-80 break-all">${url}</a>`;
+            return `<span class="safe-link-disabled break-all">${url}</span>
+                    <span class="safe-link-reveal" onclick="revealLink(this.previousElementSibling, '${url}')">[Revelar link]</span>`;
         });
     }
     </script>
