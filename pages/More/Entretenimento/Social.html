@@ -4,37 +4,70 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LorePlay - Social</title>
-    <!-- Favicon -->
     <link rel="icon" type="image/png" href="./Src/FavicoLP.png">
     <link rel="apple-touch-icon" href="./Src/FavicoLP.png">
-
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- TensorFlow.js + NSFW.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nsfwjs@2.4.2/dist/nsfwjs.min.js"></script>
+
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
                         primary: '#ffffff',
-                        secondary: '#7c3aed', // Violeta
+                        secondary: '#7c3aed',
                     }
                 }
             }
         }
     </script>
+    <style>
+        .sensitive-media {
+            filter: blur(32px);
+            transition: filter 0.35s ease;
+            cursor: pointer;
+        }
+        .sensitive-media.revealed {
+            filter: none !important;
+        }
+        .sensitive-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 1rem;
+            z-index: 10;
+            pointer-events: none;
+            text-align: center;
+            padding: 12px;
+        }
+        .sensitive-wrapper {
+            position: relative;
+            overflow: hidden;
+            border-radius: 1rem;
+        }
+        .nsfw-checking {
+            opacity: 0.7;
+        }
+    </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col md:flex-row">
 
-    <!-- Sidebar / Bottom Tab Bar -->
+    <!-- Sidebar (inalterado) -->
     <nav id="bottomNavbar" class="fixed bottom-3 left-6 right-6 md:top-0 md:left-0 md:right-auto md:w-64 md:h-screen bg-white/85 backdrop-blur-md md:bg-white border border-gray-200/60 md:border-t-0 md:border-r md:border-gray-200 flex md:flex-col justify-around md:justify-start items-center md:items-start p-2 md:p-4 z-50 rounded-2xl md:rounded-none transition-all duration-300 ease-in-out">
         <div class="hidden md:flex items-center gap-3 mb-8 px-2">
             <i class="fa-solid fa-feather text-2xl text-secondary"></i>
             <span class="text-xl font-bold tracking-wide">LoreSocial</span>
         </div>
-
         <div class="relative w-full">
             <ul class="relative flex w-full justify-around md:flex-col md:space-y-4">
                 <li class="w-1/3 md:w-full">
@@ -65,12 +98,10 @@
         </div>
     </nav>
 
-    <!-- Conteúdo Principal -->
     <main class="flex-1 p-4 md:p-8 pb-24 md:pb-8 max-w-2xl mx-auto w-full space-y-6">
 
-        <!-- Seção: Feed -->
         <section id="section-feed" class="content-section space-y-4">
-            <div class="flex items-center justify-center gap-6 py-2 border-b border-gray-100 mb-4 sticky top-0 bg-gray-50/80 backdrop-blur-md z-30">
+            <div class="flex items-center justify-center gap-6 py-2 border-b border-gray-100 mb-2 sticky top-0 bg-gray-50/80 backdrop-blur-md z-30">
                 <button onclick="switchFeedTab('para-voce')" id="tab-para-voce" class="relative pb-1 text-sm md:text-base font-bold text-secondary transition-all">
                     Para você
                     <span id="indicator-para-voce" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-secondary rounded-full"></span>
@@ -81,7 +112,16 @@
                 </button>
             </div>
 
-            <!-- Feed Para Você -->
+            <!-- Modo Seguro + status do modelo -->
+            <div class="flex items-center justify-between px-1 mb-3 gap-3 flex-wrap">
+                <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+                    <input type="checkbox" id="safeModeToggle" checked onchange="toggleSafeMode()" class="w-3.5 h-3.5 rounded accent-secondary">
+                    <span class="font-medium">Modo Seguro</span>
+                    <span class="text-gray-400">(IA + filtros)</span>
+                </label>
+                <span id="nsfwModelStatus" class="text-[11px] text-gray-400"></span>
+            </div>
+
             <div id="feed-para-voce" class="divide-y divide-gray-100 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
                 <div class="p-6 text-center space-y-2">
                     <i class="fa-solid fa-spinner fa-spin text-2xl text-secondary mb-1"></i>
@@ -89,7 +129,6 @@
                 </div>
             </div>
 
-            <!-- Aba Seguindo -->
             <div id="feed-seguindo" class="divide-y divide-gray-100 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hidden">
                 <div class="p-6 text-center space-y-2">
                     <i class="fa-solid fa-user-group text-3xl text-gray-300 mb-1"></i>
@@ -98,19 +137,17 @@
                 </div>
             </div>
 
-            <!-- Indicador de Carregamento Infinito -->
             <div id="feed-loading-more" class="hidden text-center py-4">
                 <i class="fa-solid fa-spinner fa-spin text-xl text-secondary"></i>
                 <p class="text-xs text-gray-400 mt-1">Carregando mais posts...</p>
             </div>
         </section>
 
-        <!-- Seção: Postar -->
+        <!-- Seção Postar (inalterada) -->
         <section id="section-postar" class="content-section space-y-4 hidden">
             <header class="mb-6 hidden md:block">
                 <h1 class="text-2xl font-bold text-gray-900">Criar Publicação</h1>
             </header>
-
             <div id="form-comum" class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                 <div class="p-4 flex items-center gap-3 border-b border-gray-100">
                     <div id="postAuthorAvatar" class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-secondary font-bold overflow-hidden relative">
@@ -123,9 +160,11 @@
                     </div>
                 </div>
                 <div class="p-4 space-y-4">
-                    <textarea id="postTextArea" rows="3" placeholder="O que está acontecendo na rede Nostr?" class="w-full focus:outline-none text-base resize-none placeholder-gray-400"></textarea>
+                    <textarea id="postTextArea" rows="4" maxlength="4000" oninput="updateCharCount()" placeholder="O que está acontecendo na rede Nostr?" class="w-full focus:outline-none text-base resize-none placeholder-gray-400"></textarea>
+                    <div class="flex justify-end">
+                        <span id="charCounter" class="text-xs text-gray-400 font-mono">0 / 4000</span>
+                    </div>
                 </div>
-
                 <div id="filePreviewContainer" class="hidden px-4 pb-3">
                     <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
                         <img id="imagePreview" class="w-full max-h-80 object-contain hidden" alt="Preview da imagem">
@@ -135,10 +174,8 @@
                         </button>
                     </div>
                 </div>
-
                 <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleFileSelect('image')">
                 <input type="file" id="videoInput" accept="video/*" class="hidden" onchange="handleFileSelect('video')">
-
                 <div class="px-4 py-3 mx-4 mb-4 border border-gray-200 rounded-xl flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-700">Adicionar mídia</span>
                     <div class="flex items-center gap-5 text-xl">
@@ -156,7 +193,7 @@
             </div>
         </section>
 
-        <!-- Seção: Perfil -->
+        <!-- Seção Perfil (inalterada) -->
         <section id="section-perfil" class="content-section space-y-4 hidden">
             <header class="mb-6">
                 <h1 class="text-2xl font-bold text-gray-900">Perfil</h1>
@@ -172,8 +209,6 @@
                     <h2 id="profileUsernameDisplay" class="font-bold text-lg text-gray-900 font-mono text-xs">@nostr...</h2>
                 </div>
             </div>
-
-            <!-- Chave de Acesso (Nostr nsec) -->
             <div class="bg-white p-5 rounded-2xl border border-gray-200 space-y-3">
                 <div class="flex items-center gap-2 pb-3 border-b border-gray-100">
                     <i class="fa-solid fa-key text-secondary"></i>
@@ -190,7 +225,6 @@
                         <i class="fa-solid fa-triangle-exclamation mt-0.5 flex-shrink-0"></i>
                         <span><strong>Aviso:</strong> Guarde sua chave nsec em segurança. Ela é o seu login definitivo no ecossistema Nostr.</span>
                     </div>
-
                     <div class="pt-2 flex flex-col sm:flex-row gap-2">
                         <button onclick="logoutAccount()" class="w-full py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition flex items-center justify-center gap-2">
                             <i class="fa-solid fa-right-from-bracket"></i> Deslogar
@@ -199,14 +233,12 @@
                 </div>
             </div>
         </section>
-
     </main>
 
-    <!-- Modal de Autenticação / Login Nostr -->
+    <!-- Modal Auth (inalterado) -->
     <div id="authModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-0 md:p-4">
         <div id="authModalContent" class="bg-white w-full md:max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl md:rounded-3xl p-6 flex flex-col shadow-2xl transform translate-y-full md:translate-y-4 transition-transform duration-300 space-y-5">
             <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto md:hidden"></div>
-
             <div class="text-center space-y-1">
                 <div class="w-12 h-12 bg-secondary/10 text-secondary rounded-2xl flex items-center justify-center mx-auto text-xl mb-2">
                     <i class="fa-solid fa-feather"></i>
@@ -214,12 +246,10 @@
                 <h2 id="authModalTitle" class="font-bold text-xl text-gray-900">Entre com sua Chave</h2>
                 <p id="authModalSubtitle" class="text-xs text-gray-500">Insira sua chave privada (nsec) do Nostr</p>
             </div>
-
             <div class="flex bg-gray-100 p-1 rounded-xl">
                 <button onclick="switchAuthTab('login')" id="tabLoginBtn" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-gray-900 shadow-sm transition">Entrar</button>
                 <button onclick="switchAuthTab('register')" id="tabRegisterBtn" class="flex-1 py-2 text-xs font-medium text-gray-500 hover:text-gray-900 transition">Criar Identidade</button>
             </div>
-
             <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
                 <div id="registerFieldsContainer" class="space-y-4 hidden">
                     <div class="space-y-1">
@@ -232,20 +262,16 @@
                         </div>
                     </div>
                 </div>
-
                 <div id="loginFieldsContainer" class="space-y-1">
                     <label class="text-xs font-semibold text-gray-700">Sua Chave (nsec...)</label>
                     <input type="password" id="authKeyInput" placeholder="nsec1..." class="w-full text-xs px-3.5 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20">
                 </div>
-
                 <button type="submit" id="authSubmitBtn" class="w-full py-3 bg-secondary text-white rounded-xl text-xs font-bold hover:opacity-95 transition shadow-lg shadow-secondary/25">
                     Entrar na Conta
                 </button>
             </form>
         </div>
     </div>
-
-    <!-- Script Principal com Módulos ESM do Nostr -->
 
     <script type="module">
     import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
@@ -266,6 +292,37 @@
     let selectedFileUrl = null;
     let selectedFileType = null;
 
+    // ===== MODO SEGURO + NSFW.js =====
+    let safeMode = localStorage.getItem('safeMode') !== 'false';
+    let nsfwModel = null;
+    let modelLoadingPromise = null;
+    const nsfwCache = new Map(); // url -> boolean (isNSFW)
+
+    // Thresholds de classificação (ajustáveis)
+    const NSFW_THRESHOLDS = {
+        Porn: 0.55,
+        Hentai: 0.55,
+        Sexy: 0.70
+    };
+
+    const BLOCKED_DOMAINS = [
+        'pornhub.com', 'xvideos.com', 'xnxx.com', 'xhamster.com', 'redtube.com',
+        'youporn.com', 'tube8.com', 'spankbang.com', 'onlyfans.com', 'fansly.com',
+        'chaturbate.com', 'livejasmin.com', 'bongacams.com', 'stripchat.com',
+        'porntrex.com', 'eporner.com', 'hqporner.com', 'sxyprn.com',
+        'rule34.xxx', 'gelbooru.com', 'danbooru.donmai.us', 'e621.net',
+        'nhentai.net', 'hitomi.la', 'exhentai.org', 'e-hentai.org',
+        'bestgore.com', 'theync.com', 'goregrish.com', 'documentingreality.com',
+        'liveleak.com', 'kaotic.com'
+    ];
+
+    const EXPLICIT_TERMS = [
+        'nsfw', '#nsfw', 'porn', 'porno', 'xxx', 'nude', 'nudes', 'naked',
+        'explicit', 'gore', 'guro', 'snuff', 'conteúdo adulto', 'conteudo adulto',
+        'sexo explícito', 'sexo explicito', 'apenas adultos', '18+', '+18',
+        'hentai', 'rule34'
+    ];
+
     const RELAYS = [
         'wss://relay.damus.io',
         'wss://nos.lol',
@@ -278,6 +335,13 @@
     window.addEventListener('DOMContentLoaded', () => {
         pool = new NostrTools.SimplePool();
 
+        const toggle = document.getElementById('safeModeToggle');
+        if (toggle) toggle.checked = safeMode;
+
+        if (safeMode) {
+            loadNSFWModel();
+        }
+
         switchSection('feed', 1);
         loadSessionFromNostr();
 
@@ -289,12 +353,238 @@
         window.addEventListener('scroll', () => {
             const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
             const currentScroll = window.scrollY;
-
             if (currentScroll >= scrollableHeight - 300 && !isLoadingMore) {
                 fetchMoreNostrFeed();
             }
         });
     });
+
+    // ===== NSFW.js =====
+    async function loadNSFWModel() {
+        if (nsfwModel) return nsfwModel;
+        if (modelLoadingPromise) return modelLoadingPromise;
+
+        const statusEl = document.getElementById('nsfwModelStatus');
+        if (statusEl) statusEl.textContent = 'Carregando modelo de IA...';
+
+        modelLoadingPromise = (async () => {
+            try {
+                // Modelo padrão do NSFW.js (MobileNet v2)
+                nsfwModel = await nsfwjs.load();
+                if (statusEl) statusEl.textContent = 'IA pronta ✓';
+                console.log('NSFW.js model loaded');
+                return nsfwModel;
+            } catch (err) {
+                console.error('Erro ao carregar NSFW.js:', err);
+                if (statusEl) statusEl.textContent = 'IA indisponível (usando filtro básico)';
+                nsfwModel = null;
+                return null;
+            } finally {
+                modelLoadingPromise = null;
+            }
+        })();
+
+        return modelLoadingPromise;
+    }
+
+    async function classifyImageUrl(url) {
+        if (!url || nsfwCache.has(url)) {
+            return nsfwCache.get(url) || false;
+        }
+
+        if (!nsfwModel) {
+            await loadNSFWModel();
+            if (!nsfwModel) {
+                nsfwCache.set(url, false);
+                return false;
+            }
+        }
+
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = async () => {
+                try {
+                    const predictions = await nsfwModel.classify(img, 5);
+                    // predictions: [{className, probability}, ...]
+                    let isNSFW = false;
+                    for (const p of predictions) {
+                        const threshold = NSFW_THRESHOLDS[p.className];
+                        if (threshold && p.probability >= threshold) {
+                            isNSFW = true;
+                            break;
+                        }
+                    }
+                    nsfwCache.set(url, isNSFW);
+                    resolve(isNSFW);
+                } catch (e) {
+                    console.warn('Falha na classificação (CORS ou outro):', url, e);
+                    nsfwCache.set(url, false);
+                    resolve(false);
+                }
+            };
+            img.onerror = () => {
+                nsfwCache.set(url, false);
+                resolve(false);
+            };
+            img.src = url;
+        });
+    }
+
+    // Escaneia imagens renderizadas e aplica proteção se NSFW
+    async function scanAndClassifyImages() {
+        if (!safeMode) return;
+
+        const images = document.querySelectorAll('img[data-nsfw-check="true"]');
+        if (!images.length) return;
+
+        // Limita concorrência para não travar o navegador
+        const queue = Array.from(images);
+        const concurrency = 3;
+
+        async function processNext() {
+            if (queue.length === 0) return;
+            const img = queue.shift();
+            const url = img.src || img.dataset.src;
+            if (!url) {
+                processNext();
+                return;
+            }
+
+            img.classList.add('nsfw-checking');
+            const isNSFW = await classifyImageUrl(url);
+            img.classList.remove('nsfw-checking');
+
+            if (isNSFW) {
+                protectMediaElement(img);
+            }
+            processNext();
+        }
+
+        // Inicia workers
+        const workers = [];
+        for (let i = 0; i < concurrency; i++) {
+            workers.push(processNext());
+        }
+        await Promise.all(workers);
+    }
+
+    function protectMediaElement(mediaEl) {
+        // Sobe até o wrapper de mídia
+        let wrapper = mediaEl.closest('.mt-3') || mediaEl.parentElement;
+        if (!wrapper || wrapper.classList.contains('sensitive-wrapper')) return;
+
+        const originalHTML = wrapper.innerHTML;
+        const newWrapper = document.createElement('div');
+        newWrapper.className = 'mt-3 sensitive-wrapper border border-gray-200';
+        newWrapper.innerHTML = `
+            <div class="sensitive-media" onclick="this.classList.add('revealed'); this.nextElementSibling.style.display='none';">
+                ${originalHTML}
+            </div>
+            <div class="sensitive-overlay">
+                <div>
+                    <i class="fa-solid fa-eye-slash mb-1"></i><br>
+                    Conteúdo detectado como sensível<br>
+                    <span class="text-[11px] font-normal opacity-90">Clique para revelar</span>
+                </div>
+            </div>`;
+        wrapper.replaceWith(newWrapper);
+    }
+
+    // ===== FILTRO HEURÍSTICO =====
+    window.toggleSafeMode = function() {
+        const toggle = document.getElementById('safeModeToggle');
+        safeMode = toggle ? toggle.checked : true;
+        localStorage.setItem('safeMode', safeMode);
+
+        if (safeMode) {
+            loadNSFWModel().then(() => {
+                renderFeeds();
+            });
+        } else {
+            const statusEl = document.getElementById('nsfwModelStatus');
+            if (statusEl) statusEl.textContent = '';
+            renderFeeds();
+        }
+    }
+
+    function isBlockedDomain(url) {
+        if (!url) return false;
+        try {
+            const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+            return BLOCKED_DOMAINS.some(d => hostname === d || hostname.endsWith('.' + d));
+        } catch {
+            return false;
+        }
+    }
+
+    function isExplicitEvent(ev) {
+        if (!ev) return false;
+
+        if (ev.tags && Array.isArray(ev.tags)) {
+            for (const tag of ev.tags) {
+                const t0 = (tag[0] || '').toLowerCase();
+                const t1 = (tag[1] || '').toLowerCase();
+
+                if (t0 === 'content-warning' || t0 === 'cw') return true;
+                if (t0 === 'nsfw' || t1 === 'nsfw') return true;
+                if (t0 === 't' && ['nsfw','porn','xxx','nude','nudes','explicit','adult','gore','guro','hentai','rule34'].includes(t1)) {
+                    return true;
+                }
+                if (t1.includes('nsfw') || t1.includes('explicit') || t1.includes('porn') || t1.includes('gore')) return true;
+                if ((t0 === 'image' || t0 === 'video' || t0 === 'url' || t0 === 'r') && isBlockedDomain(t1)) {
+                    return true;
+                }
+            }
+        }
+
+        const content = (ev.content || '').toLowerCase();
+        if (EXPLICIT_TERMS.some(term => content.includes(term))) return true;
+
+        const urlRegex = /(https?:\/\/[^\s]+)/gi;
+        const urls = content.match(urlRegex) || [];
+        if (urls.some(u => isBlockedDomain(u))) return true;
+
+        return false;
+    }
+
+    function wrapSensitiveMedia(html, isSensitive) {
+        if (!safeMode || !isSensitive || !html) return html;
+
+        return html.replace(
+            /<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">([\s\S]*?)<\/div>/g,
+            (match, inner) => {
+                return `
+                <div class="mt-3 sensitive-wrapper border border-gray-200">
+                    <div class="sensitive-media" onclick="this.classList.add('revealed'); this.nextElementSibling.style.display='none';">
+                        ${inner}
+                    </div>
+                    <div class="sensitive-overlay">
+                        <div>
+                            <i class="fa-solid fa-eye-slash mb-1"></i><br>
+                            Conteúdo sensível<br>
+                            <span class="text-[11px] font-normal opacity-90">Clique para revelar</span>
+                        </div>
+                    </div>
+                </div>`;
+            }
+        );
+    }
+
+    // ===== RESTANTE DO CÓDIGO (com adaptações mínimas) =====
+
+    window.updateCharCount = function() {
+        const textarea = document.getElementById('postTextArea');
+        const counter = document.getElementById('charCounter');
+        const currentLength = textarea.value.length;
+        const maxLength = 4000;
+        counter.innerText = `${currentLength} / ${maxLength}`;
+        if (currentLength >= maxLength) {
+            counter.classList.add('text-red-500', 'font-bold');
+        } else {
+            counter.classList.remove('text-red-500', 'font-bold');
+        }
+    }
 
     window.switchAuthTab = function(mode) {
         currentAuthMode = mode;
@@ -312,7 +602,6 @@
             registerFields.classList.add('hidden');
             loginFields.classList.remove('hidden');
             submitBtn.innerText = 'Entrar na Conta';
-            
             loginBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-gray-900 shadow-sm transition';
             registerBtn.className = 'flex-1 py-2 text-xs font-medium text-gray-500 hover:text-gray-900 transition';
         } else {
@@ -321,7 +610,6 @@
             registerFields.classList.remove('hidden');
             loginFields.classList.add('hidden');
             submitBtn.innerText = 'Criar e Entrar';
-            
             registerBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-gray-900 shadow-sm transition';
             loginBtn.className = 'flex-1 py-2 text-xs font-medium text-gray-500 hover:text-gray-900 transition';
         }
@@ -516,7 +804,11 @@
             return;
         }
 
-        // Se houver arquivo selecionado, anexa via tag imeta/url ou adiciona o link no texto do evento
+        if (contentText.length > 4000) {
+            alert('O limite máximo é de 4000 caracteres.');
+            return;
+        }
+
         let tags = [];
         if (selectedFileUrl) {
             if (selectedFileType === 'image') {
@@ -542,6 +834,7 @@
             
             alert('Publicado na rede Nostr com sucesso!');
             document.getElementById('postTextArea').value = '';
+            updateCharCount();
             removeSelectedFile();
             switchSection('feed', 1);
             fetchNostrFeed();
@@ -621,11 +914,10 @@
         let mediaHtml = '';
         let cleanContent = ev.content || '';
 
-        // Procura anexos nas tags do evento Nostr
         if (ev.tags && ev.tags.length > 0) {
             ev.tags.forEach(tag => {
                 if (tag[0] === 'image' && tag[1]) {
-                    mediaHtml += `<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50"><img src="${escapeHtml(tag[1])}" class="w-full max-h-96 object-cover" alt="Anexo de imagem"></div>`;
+                    mediaHtml += `<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50"><img src="${escapeHtml(tag[1])}" data-nsfw-check="true" class="w-full max-h-96 object-cover" alt="Anexo de imagem" loading="lazy"></div>`;
                     cleanContent = cleanContent.replace(tag[1], '');
                 } else if (tag[0] === 'video' && tag[1]) {
                     mediaHtml += `<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50"><video src="${escapeHtml(tag[1])}" class="w-full max-h-96 object-cover" controls></video></div>`;
@@ -634,18 +926,33 @@
             });
         }
 
-        // Procura URLs de imagem/vídeo direto no texto caso venham sem tag dedicada
         const urlRegex = /(https?:\/\/[^\s]+\.(?:png|jpg|jpeg|gif|webp|mp4|webm))/gi;
         cleanContent = cleanContent.replace(urlRegex, (url) => {
             if (url.match(/\.(mp4|webm)$/i)) {
                 mediaHtml += `<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50"><video src="${escapeHtml(url)}" class="w-full max-h-96 object-cover" controls></video></div>`;
             } else {
-                mediaHtml += `<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50"><img src="${escapeHtml(url)}" class="w-full max-h-96 object-cover" alt="Anexo de imagem"></div>`;
+                mediaHtml += `<div class="mt-3 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50"><img src="${escapeHtml(url)}" data-nsfw-check="true" class="w-full max-h-96 object-cover" alt="Anexo de imagem" loading="lazy"></div>`;
             }
             return '';
         });
 
         return { cleanContent: cleanContent.trim(), mediaHtml };
+    }
+
+    window.toggleReadMore = function(buttonElement) {
+        const container = buttonElement.closest('.post-content-container');
+        const shortText = container.querySelector('.post-text-short');
+        const fullText = container.querySelector('.post-text-full');
+
+        if (shortText.classList.contains('hidden')) {
+            shortText.classList.remove('hidden');
+            fullText.classList.add('hidden');
+            buttonElement.innerText = 'Ler mais';
+        } else {
+            shortText.classList.add('hidden');
+            fullText.classList.remove('hidden');
+            buttonElement.innerText = 'Ler menos';
+        }
     }
 
     function renderFeeds() {
@@ -659,6 +966,8 @@
         let countSeguindo = 0;
 
         cachedEvents.forEach(ev => {
+            const isSensitive = isExplicitEvent(ev);
+
             const shortPub = ev.pubkey.substring(0, 8) + '...';
             const timeAgo = new Date(ev.created_at * 1000).toLocaleDateString('pt-BR');
             const isFollowing = followingList.has(ev.pubkey);
@@ -674,6 +983,33 @@
             }
 
             const { cleanContent, mediaHtml } = extractMediaAndCleanText(ev);
+            // Proteção imediata se já detectado por heurística
+            const protectedMedia = wrapSensitiveMedia(mediaHtml, isSensitive);
+
+            let textSectionHtml = '';
+            if (cleanContent) {
+                const limit = 300;
+                const linkedContent = linkifyAndEscape(cleanContent);
+
+                if (cleanContent.length > limit) {
+                    const shortContent = linkifyAndEscape(cleanContent.substring(0, limit) + '...');
+                    textSectionHtml = `
+                        <div class="post-content-container mb-2">
+                            <p class="post-text-short text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">${shortContent}</p>
+                            <p class="post-text-full text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed hidden">${linkedContent}</p>
+                            <button onclick="toggleReadMore(this)" class="text-xs font-semibold text-secondary mt-1 hover:underline focus:outline-none">Ler mais</button>
+                        </div>
+                    `;
+                } else {
+                    textSectionHtml = `<p class="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-2">${linkedContent}</p>`;
+                }
+            }
+
+            const warningBadge = (safeMode && isSensitive) 
+                ? `<div class="mb-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+                    <i class="fa-solid fa-shield-halved"></i> Conteúdo sensível protegido
+                   </div>` 
+                : '';
 
             const postCard = `
             <div class="p-4 hover:bg-gray-50/60 transition duration-150">
@@ -690,12 +1026,9 @@
                             </div>
                             <div>${followBtnHtml}</div>
                         </div>
-                        ${cleanContent ? `<p class="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-2">${escapeHtml(cleanContent)}</p>` : ''}
-                        
-                        <!-- Tags HTML Dedicadas para Anexos de Mídia -->
-                        ${mediaHtml}
-
-                        <!-- Barra de Ações Estilo Twitter (Comentários, Repost, Curtida) -->
+                        ${warningBadge}
+                        ${textSectionHtml}
+                        ${protectedMedia}
                         <div class="flex items-center justify-between text-gray-400 text-xs max-w-md pt-3">
                             <button class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-regular fa-comment"></i><span>0</span></button>
                             <button class="flex items-center gap-1.5 hover:text-green-500 transition"><i class="fa-solid fa-retweet"></i><span>0</span></button>
@@ -714,7 +1047,11 @@
             }
         });
 
-        feedParaVoce.innerHTML = htmlParaVoce;
+        feedParaVoce.innerHTML = htmlParaVoce || `
+            <div class="p-6 text-center space-y-2">
+                <i class="fa-solid fa-shield-halved text-3xl text-gray-300 mb-1"></i>
+                <p class="text-xs text-gray-500">Nenhum post encontrado (ou todos foram filtrados pelo Modo Seguro).</p>
+            </div>`;
 
         if (countSeguindo > 0) {
             feedSeguindo.innerHTML = htmlSeguindo;
@@ -725,6 +1062,12 @@
                     <h3 class="font-bold text-sm text-gray-900">Suas conexões estão aqui</h3>
                     <p class="text-xs text-gray-500">As publicações das pessoas que você segue aparecerão nesta aba. Clique em "Seguir" nos posts do feed para começar!</p>
                 </div>`;
+        }
+
+        // Dispara classificação por IA nas imagens restantes
+        if (safeMode) {
+            // Pequeno delay para o DOM atualizar
+            setTimeout(() => scanAndClassifyImages(), 400);
         }
     }
 
@@ -850,6 +1193,17 @@
     function escapeHtml(text) {
         const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
         return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
+    function linkifyAndEscape(text) {
+        const escaped = escapeHtml(text);
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        return escaped.replace(urlRegex, (url) => {
+            if (safeMode && isBlockedDomain(url)) {
+                return `<span class="text-gray-400 line-through" title="Link bloqueado pelo Modo Seguro">${url}</span>`;
+            }
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-secondary underline hover:opacity-80 break-all">${url}</a>`;
+        });
     }
     </script>
 </body>
