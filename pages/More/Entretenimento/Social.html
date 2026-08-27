@@ -583,6 +583,40 @@
         });
     });
 
+    // ========== TRADUÇÃO DE POSTS (API Google Translate) ==========
+    window.translatePostText = async function(postId, textToTranslate) {
+        const translationContainer = document.getElementById(`translation-${postId}`);
+        if (!translationContainer) return;
+
+        if (!translationContainer.classList.contains('hidden')) {
+            translationContainer.classList.add('hidden');
+            return;
+        }
+
+        translationContainer.innerHTML = `<span class="text-xs text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i> Traduzindo...</span>`;
+        translationContainer.classList.remove('hidden');
+
+        try {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=pt&dt=t&q=${encodeURIComponent(textToTranslate)}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data && data[0]) {
+                const translatedText = data[0].map(item => item[0]).join('');
+                translationContainer.innerHTML = `
+                    <div class="mt-2 p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-700">
+                        <span class="font-semibold text-[10px] text-secondary block mb-1">Tradução automática:</span>
+                        ${escapeHtml(translatedText)}
+                    </div>`;
+            } else {
+                translationContainer.innerHTML = `<span class="text-xs text-red-500">Não foi possível traduzir.</span>`;
+            }
+        } catch (e) {
+            console.error('Erro na tradução:', e);
+            translationContainer.innerHTML = `<span class="text-xs text-red-500">Erro ao conectar com o serviço de tradução.</span>`;
+        }
+    };
+
     // ========== MODO SEGURO ==========
     window.toggleSafeMode = function() {
         const toggle = document.getElementById('safeModeToggle');
@@ -1839,6 +1873,7 @@
             const likeBtnClass = isLikedByMe ? 'flex items-center gap-1.5 text-red-500 transition' : 'flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition';
             const likeIconClass = isLikedByMe ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
             const escapedContentForShare = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const escapedContentForTranslate = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
             html += `
             <div class="p-4 hover:bg-gray-50/60 transition">
@@ -1848,8 +1883,10 @@
                         <div class="flex items-center gap-1.5 mb-1 flex-wrap">
                             <span class="font-bold text-sm text-gray-900 font-mono">${displayName}</span>
                             <span class="text-xs text-gray-400">· ${timeAgo}</span>
+                            <button onclick="translatePostText('${ev.id}', '${escapedContentForTranslate}')" class="text-[11px] text-secondary hover:underline ml-auto font-medium">Traduzir</button>
                         </div>
                         ${linked ? `<p class="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-2">${linked}</p>` : ''}
+                        <div id="translation-${ev.id}" class="hidden mb-2"></div>
                         ${mediaHtml}
                         <div class="flex items-center justify-between text-gray-400 text-xs max-w-sm pt-3">
                             <button onclick="openCommentsModal('${ev.id}', '${ev.pubkey}')" class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-regular fa-comment"></i></button>
@@ -2048,6 +2085,7 @@
             const likeBtnClass = isLikedByMe ? 'flex items-center gap-1.5 text-red-500 transition' : 'flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition';
             const likeIconClass = isLikedByMe ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
             const escapedContentForShare = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const escapedContentForTranslate = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
             const postCard = `
             <div class="p-4 hover:bg-gray-50/60 transition duration-150">
@@ -2061,11 +2099,13 @@
                                 <span class="font-bold text-sm text-gray-900 font-mono">${displayName}</span>
                                 <span class="text-xs text-gray-400">·</span>
                                 <span class="text-xs text-gray-400">${timeAgo}</span>
+                                <button onclick="translatePostText('${ev.id}', '${escapedContentForTranslate}')" class="text-[11px] text-secondary hover:underline font-medium ml-1">Traduzir</button>
                             </div>
                             <div>${followBtnHtml}</div>
                         </div>
                         ${warningBadge}
                         ${textSectionHtml}
+                        <div id="translation-${ev.id}" class="hidden mb-2"></div>
                         ${mediaHtml}
                         <div class="flex items-center justify-between text-gray-400 text-xs max-w-sm pt-3">
                             <button onclick="openCommentsModal('${ev.id}', '${ev.pubkey}')" class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-regular fa-comment"></i><span id="comment-count-${ev.id}">0</span></button>
