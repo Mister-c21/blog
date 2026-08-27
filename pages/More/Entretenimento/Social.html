@@ -1361,7 +1361,7 @@
         pubkeys.forEach(pubkey => {
             const p = profileCache.get(pubkey);
             const displayName = (p && p.name) ? '@' + p.name : null;
-            if (!displayName) return; // Exibe apenas posts/usuários com userName válido
+            if (!displayName) return;
             
             const authorPic = getProfilePicture(pubkey);
             const avatarH = authorPic
@@ -1389,6 +1389,32 @@
             modal.classList.remove('opacity-100');
             modal.classList.add('opacity-0', 'pointer-events-none');
             content.classList.add('translate-y-full');
+        }
+    };
+
+    // ========== COMPARTILHAR POST ==========
+    window.sharePost = async function(postId, postContent) {
+        const shareData = {
+            title: 'LoreSocial Post',
+            text: postContent || 'Confira esta publicação no LoreSocial!',
+            url: window.location.href.split('#')[0] + '#' + postId
+        };
+
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Erro ao compartilhar:', err);
+                }
+            }
+        } else {
+            try {
+                await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+                alert('Link e conteúdo do post copiados para a área de transferência!');
+            } catch (e) {
+                alert('Não foi possível compartilhar ou copiar.');
+            }
         }
     };
 
@@ -1652,7 +1678,6 @@
 
         cachedEvents.forEach(ev => {
             const p = profileCache.get(ev.pubkey);
-            // FILTRAGEM: Exibe apenas posts de pessoas que possuem um userName configurado
             if (!p || !p.name || p.name.trim() === '') return;
 
             const isSensitive = isExplicitEvent(ev);
@@ -1706,6 +1731,9 @@
             const likeBtnClass = isLikedByMe ? 'flex items-center gap-1.5 text-red-500 transition' : 'flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition';
             const likeIconClass = isLikedByMe ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
 
+            // Escape seguro para passar o texto do post na função de compartilhar
+            const escapedContentForShare = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
             const postCard = `
             <div class="p-4 hover:bg-gray-50/60 transition duration-150">
                 <div class="flex items-start gap-3">
@@ -1724,13 +1752,18 @@
                         ${warningBadge}
                         ${textSectionHtml}
                         ${mediaHtml}
-                        <div class="flex items-center justify-between text-gray-400 text-xs max-w-xs pt-3">
+                        <div class="flex items-center justify-between text-gray-400 text-xs max-w-sm pt-3">
                             <button onclick="openCommentsModal('${ev.id}', '${ev.pubkey}')" class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-regular fa-comment"></i><span id="comment-count-${ev.id}">0</span></button>
 
                             <div class="flex items-center gap-2">
                                 <button id="like-btn-${ev.id}" onclick="toggleLikePost('${ev.id}', '${ev.pubkey}')" class="${likeBtnClass}"><i class="${likeIconClass}"></i><span id="like-count-${ev.id}">${likesCount}</span></button>
                                 <button onclick="openLikesModal('${ev.id}')" class="text-[11px] text-gray-400 hover:underline" title="Ver quem curtiu">(ver)</button>
                             </div>
+
+                            <!-- Botão de Compartilhar Adicionado Aqui -->
+                            <button onclick="sharePost('${ev.id}', '${escapedContentForShare}')" class="flex items-center gap-1.5 hover:text-secondary transition" title="Compartilhar post">
+                                <i class="fa-solid fa-share-nodes"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
