@@ -89,6 +89,16 @@
             opacity: 0.75;
         }
 
+        /* Animação fluida da Bottom Tab Bar ao rolar */
+        #bottomNavbar {
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease-in-out;
+        }
+        #bottomNavbar.nav-hidden {
+            transform: translateY(150%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
         /* Carrossel de mídia */
         .media-carousel {
             position: relative;
@@ -164,7 +174,7 @@
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col md:flex-row">
 
     <!-- Sidebar / Bottom Tab Bar -->
-    <nav id="bottomNavbar" class="fixed bottom-3 left-6 right-6 md:top-0 md:left-0 md:right-auto md:w-64 md:h-screen bg-white/85 backdrop-blur-md md:bg-white border border-gray-200/60 md:border-t-0 md:border-r md:border-gray-200 flex md:flex-col justify-around md:justify-start items-center md:items-start p-2 md:p-4 z-50 rounded-2xl md:rounded-none transition-all duration-300 ease-in-out">
+    <nav id="bottomNavbar" class="fixed bottom-3 left-6 right-6 md:top-0 md:left-0 md:right-auto md:w-64 md:h-screen bg-white/85 backdrop-blur-md md:bg-white border border-gray-200/60 md:border-t-0 md:border-r md:border-gray-200 flex md:flex-col justify-around md:justify-start items-center md:items-start p-2 md:p-4 z-50 rounded-2xl md:rounded-none">
         <div class="hidden md:flex items-center gap-3 mb-8 px-2">
             <i class="fa-solid fa-feather text-2xl text-secondary"></i>
             <span class="text-xl font-bold tracking-wide">LoreSocial</span>
@@ -419,12 +429,12 @@
         </section>
     </main>
 
-    <!-- Botão de Voltar ao Topo (Scroll to Top) -->
+    <!-- Botão de Voltar ao Topo -->
     <button id="scrollToTopBtn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="fixed bottom-20 right-6 md:bottom-6 z-40 w-10 h-10 bg-secondary text-white rounded-full shadow-lg flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300 hover:opacity-90" title="Voltar ao topo">
         <i class="fa-solid fa-arrow-up text-sm"></i>
     </button>
 
-    <!-- Modal de Comentários (Kind 1) -->
+    <!-- Modal de Comentários -->
     <div id="commentsModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-0 md:p-4">
         <div id="commentsModalContent" class="bg-white w-full md:max-w-lg max-h-[85vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full md:translate-y-4 transition-transform duration-300">
             <div class="p-4 border-b border-gray-100 flex items-center justify-between">
@@ -444,7 +454,7 @@
         </div>
     </div>
 
-    <!-- Modal de Quem Deu Like (Kind 7 Reactions) -->
+    <!-- Modal de Quem Deu Like -->
     <div id="likesModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-0 md:p-4">
         <div id="likesModalContent" class="bg-white w-full md:max-w-md max-h-[75vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full md:translate-y-4 transition-transform duration-300">
             <div class="p-4 border-b border-gray-100 flex items-center justify-between">
@@ -580,13 +590,28 @@
         const isLoggedIn = localStorage.getItem('isLoggedIn');
         if (!isLoggedIn) openAuthModal();
 
+        let lastScrollY = window.scrollY;
+
         window.addEventListener('scroll', () => {
+            const currentScrollY = window.scrollY;
             const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const bottomNavbar = document.getElementById('bottomNavbar');
+
+            // Esconde/mostra a Bottom Tab Bar de forma fluida ao rolar no mobile
+            if (window.innerWidth < 768) {
+                if (currentScrollY > lastScrollY && currentScrollY > 80) {
+                    bottomNavbar.classList.add('nav-hidden');
+                } else {
+                    bottomNavbar.classList.remove('nav-hidden');
+                }
+            }
+
+            lastScrollY = currentScrollY;
             
             // Controle do botão Voltar ao Topo (aparece após rolar 300px)
             const scrollBtn = document.getElementById('scrollToTopBtn');
             if (scrollBtn) {
-                if (window.scrollY > 300) {
+                if (currentScrollY > 300) {
                     scrollBtn.classList.remove('opacity-0', 'pointer-events-none');
                     scrollBtn.classList.add('opacity-100');
                 } else {
@@ -595,7 +620,7 @@
                 }
             }
 
-            if (window.scrollY >= scrollableHeight - 300 && !isLoadingMore) {
+            if (currentScrollY >= scrollableHeight - 300 && !isLoadingMore) {
                 fetchMoreNostrFeed();
             }
         });
@@ -778,7 +803,7 @@
         newWrapper.className = 'mt-3 safe-media-wrapper border border-gray-200';
         newWrapper.onclick = function() { revealImage(this); };
         newWrapper.innerHTML = `
-            <img src="${escapeHtml(src)}" class="w-full max-h-96 object-cover safe-blur" alt="Imagem protegida" loading="lazy">
+            <img src="${escapeHtml(src)}" data-nsfw-check="true" class="w-full max-h-96 object-cover safe-blur" alt="Imagem protegida" loading="lazy">
             <div class="safe-overlay">
                 <div class="text-center px-4">
                     <i class="fa-solid fa-eye-slash text-xl mb-2"></i>
@@ -963,7 +988,7 @@
         const localUrl = URL.createObjectURL(file);
         pendingProfilePictureUrl = localUrl;
         setAvatarEverywhere(localUrl);
-        alert('Preview local ativado.\n\nPara que outras pessoas vejam sua foto, cole uma URL pública no campo e clique em "Salvar foto de perfil na rede".');
+        alert('Preview local ativado.\n\nPara que outras pessoas vejan sua foto, cole uma URL pública no campo e clique em "Salvar foto de perfil na rede".');
     };
 
     function setAvatarEverywhere(url) {
@@ -1351,7 +1376,6 @@
             }
         }
 
-        // Hashtags do texto → tags Nostr "t" (NIP-12)
         const foundTags = extractHashtags(contentText);
         foundTags.forEach(h => {
             if (!tags.some(t => t[0] === 't' && t[1] === h)) {
@@ -1524,7 +1548,7 @@
         }
     };
 
-    // ========== COMENTÁRIOS NO MODAL (Kind 1 Replies) ==========
+    // ========== COMENTÁRIOS NO MODAL ==========
     window.openCommentsModal = async function(postId, eventAuthorPubkey) {
         activeCommentPostId = postId;
         activeCommentAuthorPubkey = eventAuthorPubkey;
@@ -1654,7 +1678,7 @@
         }
     };
 
-    // ========== PESQUISA (Posts via hashtag / Usuários) ==========
+    // ========== PESQUISA ==========
     window.setSearchTab = function(tab) {
         currentSearchTab = tab;
         const btnPosts = document.getElementById('searchTabPosts');
