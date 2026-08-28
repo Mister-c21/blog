@@ -89,6 +89,7 @@
             opacity: 0.75;
         }
 
+        /* Animação fluida da Bottom Tab Bar ao rolar */
         #bottomNavbar {
             transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease-in-out;
         }
@@ -98,6 +99,7 @@
             pointer-events: none;
         }
 
+        /* Carrossel de mídia */
         .media-carousel {
             position: relative;
             overflow: hidden;
@@ -441,7 +443,10 @@
                     <i class="fa-solid fa-xmark text-sm"></i>
                 </button>
             </div>
-            <div id="commentsModalList" class="p-4 overflow-y-auto space-y-3 flex-1 divide-y divide-gray-100"></div>
+            
+            <div id="commentsModalList" class="p-4 overflow-y-auto space-y-3 flex-1 divide-y divide-gray-100">
+            </div>
+
             <div class="p-4 bg-gray-50 border-t border-gray-100 flex gap-2">
                 <input type="text" id="modalCommentInput" placeholder="Escreva um comentário..." class="w-full text-xs px-3.5 py-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-secondary">
                 <button id="modalCommentSubmitBtn" onclick="" class="bg-secondary text-white px-4 py-3 rounded-xl text-xs font-semibold hover:opacity-90 transition flex-shrink-0">Enviar</button>
@@ -458,28 +463,7 @@
                     <i class="fa-solid fa-xmark text-sm"></i>
                 </button>
             </div>
-            <div id="likesModalList" class="p-4 overflow-y-auto space-y-3 flex-1 divide-y divide-gray-100"></div>
-        </div>
-    </div>
-
-    <!-- Modal de Chat com IA -->
-    <div id="aiChatModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-0 md:p-4">
-        <div id="aiChatModalContent" class="bg-white w-full md:max-w-lg max-h-[85vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full md:translate-y-4 transition-transform duration-300">
-            <div class="p-4 border-b border-gray-100 flex items-center justify-between">
-                <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2">
-                    <i class="fa-solid fa-robot text-secondary"></i> Conversar sobre o post
-                </h3>
-                <button type="button" onclick="closeAiChatModal()" class="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-600 transition">
-                    <i class="fa-solid fa-xmark text-sm"></i>
-                </button>
-            </div>
-            <div id="aiChatPostPreview" class="px-4 py-3 bg-gray-50 border-b border-gray-100 text-xs text-gray-600 max-h-24 overflow-y-auto"></div>
-            <div id="aiChatMessages" class="p-4 overflow-y-auto space-y-3 flex-1 min-h-[180px]"></div>
-            <div id="aiChatInputArea" class="p-4 bg-gray-50 border-t border-gray-100 flex gap-2 hidden">
-                <input type="text" id="aiChatInput" placeholder="Pergunte sobre este post..." class="w-full text-xs px-3.5 py-3 bg-white border border-gray-200 rounded-xl outline-none focus:border-secondary" onkeydown="if(event.key==='Enter') sendAiChatMessage()">
-                <button type="button" onclick="sendAiChatMessage()" class="bg-secondary text-white px-4 py-3 rounded-xl text-xs font-semibold hover:opacity-90 transition flex-shrink-0">
-                    <i class="fa-solid fa-paper-plane"></i>
-                </button>
+            <div id="likesModalList" class="p-4 overflow-y-auto space-y-3 flex-1 divide-y divide-gray-100">
             </div>
         </div>
     </div>
@@ -592,170 +576,6 @@
     let pool = null;
     let currentSearchTab = 'posts';
 
-    // ========== CHAT COM IA — vasculha TODO o Cache Storage ==========
-    const AI_MODEL_CACHE_NAME = 'lorespace-ai-model-v1';
-    let aiChatPostContent = '';
-    let aiModelAvailable = null;
-
-    /**
-     * Vasculha TODO o Cache Storage:
-     * - todos os nomes de cache (caches.keys())
-     * - todas as URLs/requests dentro de cada cache
-     * Procura "lorespace-ai-model-v1" no nome do cache ou na URL da entrada.
-     */
-    async function isAiModelInCache() {
-        try {
-            if (!('caches' in window)) return false;
-
-            const cacheNames = await caches.keys();
-            const needle = AI_MODEL_CACHE_NAME.toLowerCase();
-
-            for (const name of cacheNames) {
-                if (String(name).toLowerCase().includes(needle)) {
-                    try {
-                        const cache = await caches.open(name);
-                        const keys = await cache.keys();
-                        if (keys.length > 0) return true;
-                    } catch (e) {
-                        console.warn('Falha ao abrir cache:', name, e);
-                    }
-                }
-
-                try {
-                    const cache = await caches.open(name);
-                    const requests = await cache.keys();
-                    for (const req of requests) {
-                        const url = (req && req.url) ? String(req.url).toLowerCase() : '';
-                        if (url.includes(needle)) return true;
-                    }
-                } catch (e) {
-                    console.warn('Falha ao listar entradas do cache:', name, e);
-                }
-            }
-
-            return false;
-        } catch (e) {
-            console.error('Erro ao vasculhar Cache Storage da IA:', e);
-            return false;
-        }
-    }
-
-    window.openAiChatModal = async function(postId, postContent) {
-        aiChatPostContent = postContent || '';
-        const modal = document.getElementById('aiChatModal');
-        const content = document.getElementById('aiChatModalContent');
-        const preview = document.getElementById('aiChatPostPreview');
-        const messages = document.getElementById('aiChatMessages');
-        const inputArea = document.getElementById('aiChatInputArea');
-
-        const previewText = (aiChatPostContent || '(sem texto)').substring(0, 280);
-        preview.innerHTML = `<span class="font-semibold text-[10px] text-secondary block mb-1">Conteúdo do post:</span>${escapeHtml(previewText)}${aiChatPostContent.length > 280 ? '…' : ''}`;
-
-        messages.innerHTML = `<div class="text-center py-4 text-xs text-gray-400"><i class="fa-solid fa-spinner fa-spin text-lg mb-1"></i><p>Vasculhando cache do navegador...</p></div>`;
-        if (inputArea) inputArea.classList.add('hidden');
-
-        if (modal && content) {
-            modal.classList.remove('pointer-events-none', 'opacity-0');
-            modal.classList.add('opacity-100');
-            content.classList.remove('translate-y-full');
-        }
-
-        const available = await isAiModelInCache();
-        aiModelAvailable = available;
-
-        if (!available) {
-            messages.innerHTML = `
-                <div class="flex flex-col items-center justify-center py-8 px-4 text-center space-y-2">
-                    <i class="fa-solid fa-robot text-3xl text-gray-300"></i>
-                    <p class="text-sm font-semibold text-gray-700">IA indisponível no momento</p>
-                    <p class="text-xs text-gray-500">O modelo <code class="text-[10px] bg-gray-100 px-1 rounded">${AI_MODEL_CACHE_NAME}</code> não foi encontrado em nenhum cache do navegador.</p>
-                </div>`;
-            if (inputArea) inputArea.classList.add('hidden');
-            return;
-        }
-
-        messages.innerHTML = `
-            <div class="flex justify-start">
-                <div class="bg-secondary/10 text-gray-800 text-xs rounded-2xl rounded-bl-md px-3 py-2 max-w-[85%]">
-                    Olá! Posso ajudar a analisar ou conversar sobre o conteúdo deste post. O que você gostaria de saber?
-                </div>
-            </div>`;
-        if (inputArea) inputArea.classList.remove('hidden');
-        document.getElementById('aiChatInput')?.focus();
-    };
-
-    window.closeAiChatModal = function() {
-        const modal = document.getElementById('aiChatModal');
-        const content = document.getElementById('aiChatModalContent');
-        if (modal && content) {
-            modal.classList.remove('opacity-100');
-            modal.classList.add('opacity-0', 'pointer-events-none');
-            content.classList.add('translate-y-full');
-        }
-        aiChatPostContent = '';
-    };
-
-    window.sendAiChatMessage = async function() {
-        if (!aiModelAvailable) return;
-
-        const input = document.getElementById('aiChatInput');
-        const messages = document.getElementById('aiChatMessages');
-        const text = (input?.value || '').trim();
-        if (!text || !messages) return;
-
-        input.value = '';
-
-        messages.innerHTML += `
-            <div class="flex justify-end">
-                <div class="bg-secondary text-white text-xs rounded-2xl rounded-br-md px-3 py-2 max-w-[85%]">${escapeHtml(text)}</div>
-            </div>`;
-        messages.scrollTop = messages.scrollHeight;
-
-        const loadingId = 'ai-loading-' + Date.now();
-        messages.innerHTML += `
-            <div id="${loadingId}" class="flex justify-start">
-                <div class="bg-gray-100 text-gray-500 text-xs rounded-2xl rounded-bl-md px-3 py-2">
-                    <i class="fa-solid fa-spinner fa-spin"></i> Pensando...
-                </div>
-            </div>`;
-        messages.scrollTop = messages.scrollHeight;
-
-        try {
-            let reply = null;
-            if (typeof window.LoreSpaceAI?.chat === 'function') {
-                reply = await window.LoreSpaceAI.chat({
-                    modelCache: AI_MODEL_CACHE_NAME,
-                    context: aiChatPostContent,
-                    message: text
-                });
-            } else if (typeof window.runLoreSpaceAi === 'function') {
-                reply = await window.runLoreSpaceAi(aiChatPostContent, text);
-            } else {
-                reply = 'O modelo foi encontrado no cache do navegador, porém a interface de inferência ainda não está ligada neste cliente. Contexto do post foi carregado com sucesso.';
-            }
-
-            const loadingEl = document.getElementById(loadingId);
-            if (loadingEl) {
-                loadingEl.outerHTML = `
-                    <div class="flex justify-start">
-                        <div class="bg-secondary/10 text-gray-800 text-xs rounded-2xl rounded-bl-md px-3 py-2 max-w-[85%] whitespace-pre-wrap">${escapeHtml(String(reply || 'Sem resposta.'))}</div>
-                    </div>`;
-            }
-        } catch (e) {
-            console.error('Erro no chat IA:', e);
-            const loadingEl = document.getElementById(loadingId);
-            if (loadingEl) {
-                loadingEl.outerHTML = `
-                    <div class="flex justify-start">
-                        <div class="bg-red-50 text-red-600 text-xs rounded-2xl rounded-bl-md px-3 py-2 max-w-[85%]">
-                            IA indisponível no momento
-                        </div>
-                    </div>`;
-            }
-        }
-        messages.scrollTop = messages.scrollHeight;
-    };
-
     window.addEventListener('DOMContentLoaded', () => {
         pool = new NostrTools.SimplePool();
 
@@ -777,6 +597,7 @@
             const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
             const bottomNavbar = document.getElementById('bottomNavbar');
 
+            // Esconde/mostra a Bottom Tab Bar de forma fluida ao rolar no mobile
             if (window.innerWidth < 768) {
                 if (currentScrollY > lastScrollY && currentScrollY > 80) {
                     bottomNavbar.classList.add('nav-hidden');
@@ -787,6 +608,7 @@
 
             lastScrollY = currentScrollY;
             
+            // Controle do botão Voltar ao Topo (aparece após rolar 300px)
             const scrollBtn = document.getElementById('scrollToTopBtn');
             if (scrollBtn) {
                 if (currentScrollY > 300) {
@@ -804,7 +626,7 @@
         });
     });
 
-    // ========== TRADUÇÃO DE POSTS ==========
+    // ========== TRADUÇÃO DE POSTS (API Google Translate) ==========
     window.translatePostText = async function(postId, textToTranslate) {
         const translationContainer = document.getElementById(`translation-${postId}`);
         if (!translationContainer) return;
@@ -1148,7 +970,7 @@
         return { cleanContent: cleanContent.trim(), mediaHtml };
     }
 
-    // ========== HASHTAGS ==========
+    // ========== HASHTAGS (NIP-12) ==========
     function extractHashtags(text) {
         if (!text) return [];
         const matches = String(text).match(/#[\p{L}\p{N}_]+/gu) || [];
@@ -1583,7 +1405,7 @@
         }
     };
 
-    // ========== CURTIDAS ==========
+    // ========== CURTIDAS (Kind 7 Reactions) ==========
     window.toggleLikePost = async function(postId, authorPubkey) {
         if (!currentUserData.privateKey) {
             alert('Faça login para curtir publicações.');
@@ -1700,7 +1522,7 @@
         }
     };
 
-    // ========== COMPARTILHAR ==========
+    // ========== COMPARTILHAR POST ==========
     window.sharePost = async function(postId, postContent) {
         const shareData = {
             title: 'LoreSocial Post',
@@ -1712,7 +1534,9 @@
             try {
                 await navigator.share(shareData);
             } catch (err) {
-                if (err.name !== 'AbortError') console.error('Erro ao compartilhar:', err);
+                if (err.name !== 'AbortError') {
+                    console.error('Erro ao compartilhar:', err);
+                }
             }
         } else {
             try {
@@ -1724,7 +1548,7 @@
         }
     };
 
-    // ========== COMENTÁRIOS ==========
+    // ========== COMENTÁRIOS NO MODAL ==========
     window.openCommentsModal = async function(postId, eventAuthorPubkey) {
         activeCommentPostId = postId;
         activeCommentAuthorPubkey = eventAuthorPubkey;
@@ -2110,7 +1934,6 @@
                             <button onclick="openCommentsModal('${ev.id}', '${ev.pubkey}')" class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-regular fa-comment"></i></button>
                             <button id="like-btn-${ev.id}" onclick="toggleLikePost('${ev.id}', '${ev.pubkey}')" class="${likeBtnClass}"><i class="${likeIconClass}"></i><span id="like-count-${ev.id}">${likesCount}</span></button>
                             <button onclick="sharePost('${ev.id}', '${escapedContentForShare}')" class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-solid fa-share-nodes"></i></button>
-                            <button onclick="openAiChatModal('${ev.id}', '${escapedContentForShare}')" class="flex items-center gap-1.5 hover:text-secondary transition" title="Conversar com IA sobre este post"><i class="fa-solid fa-robot"></i></button>
                         </div>
                     </div>
                 </div>
@@ -2336,10 +2159,6 @@
 
                             <button onclick="sharePost('${ev.id}', '${escapedContentForShare}')" class="flex items-center gap-1.5 hover:text-secondary transition" title="Compartilhar post">
                                 <i class="fa-solid fa-share-nodes"></i>
-                            </button>
-
-                            <button onclick="openAiChatModal('${ev.id}', '${escapedContentForShare}')" class="flex items-center gap-1.5 hover:text-secondary transition" title="Conversar com IA sobre este post">
-                                <i class="fa-solid fa-robot"></i>
                             </button>
                         </div>
                     </div>
