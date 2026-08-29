@@ -495,6 +495,19 @@
         </div>
     </div>
 
+    <div id="userProfileModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-0 md:p-4">
+        <div id="userProfileModalContent" class="bg-white w-full md:max-w-lg max-h-[90vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full md:translate-y-4 transition-transform duration-300">
+            <div class="p-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                <h3 class="font-bold text-sm text-gray-900">Perfil</h3>
+                <button type="button" onclick="closeUserProfileModal()" class="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-600 transition">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+            <div id="userProfileHeader" class="p-5 border-b border-gray-100 flex-shrink-0"></div>
+            <div id="userProfilePosts" class="overflow-y-auto flex-1 divide-y divide-gray-100"></div>
+        </div>
+    </div>
+
     <div id="authModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-0 md:p-4">
         <div id="authModalContent" class="bg-white w-full md:max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl md:rounded-3xl p-6 flex flex-col shadow-2xl transform translate-y-full md:translate-y-4 transition-transform duration-300 space-y-5">
             <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto md:hidden"></div>
@@ -999,7 +1012,6 @@
         return String(query || '').trim().replace(/^#+/, '').toLowerCase();
     }
 
-    // ========== FOTO DE PERFIL (MAL / URL pública) ==========
     window.searchMalAvatars = async function() {
         const input = document.getElementById('malAvatarSearchInput');
         const q = (input?.value || '').trim();
@@ -1215,6 +1227,138 @@
         const p = profileCache.get(pubkey);
         return (p && p.picture) ? p.picture : '';
     }
+
+    window.openUserProfileModal = async function(pubkey) {
+        if (!pubkey) return;
+
+        const modal = document.getElementById('userProfileModal');
+        const content = document.getElementById('userProfileModalContent');
+        const header = document.getElementById('userProfileHeader');
+        const postsEl = document.getElementById('userProfilePosts');
+
+        if (!modal || !content || !header || !postsEl) return;
+
+        header.innerHTML = `<div class="text-center py-4 text-xs text-gray-400"><i class="fa-solid fa-spinner fa-spin text-lg"></i></div>`;
+        postsEl.innerHTML = `<div class="p-6 text-center text-xs text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i> Carregando posts...</div>`;
+
+        modal.classList.remove('pointer-events-none', 'opacity-0');
+        modal.classList.add('opacity-100');
+        content.classList.remove('translate-y-full');
+
+        await fetchProfiles([pubkey]);
+        const p = profileCache.get(pubkey) || { name: '', picture: '', about: '' };
+        const displayName = p.name ? '@' + p.name : '@' + pubkey.substring(0, 12) + '...';
+        const pic = p.picture || '';
+        const isSelf = currentUserData.pubkey && pubkey.toLowerCase() === currentUserData.pubkey.toLowerCase();
+        const isFollowing = followingList.has(pubkey);
+
+        let followBtn = '';
+        if (!isSelf) {
+            followBtn = isFollowing
+                ? `<button onclick="toggleFollowUser('${pubkey}'); setTimeout(() => openUserProfileModal('${pubkey}'), 400);" class="text-xs px-4 py-1.5 bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 font-semibold rounded-full transition">Seguindo</button>`
+                : `<button onclick="toggleFollowUser('${pubkey}'); setTimeout(() => openUserProfileModal('${pubkey}'), 400);" class="text-xs px-4 py-1.5 bg-secondary/10 hover:bg-secondary hover:text-white text-secondary font-semibold rounded-full transition">Seguir</button>`;
+        }
+
+        const avatarHtml = pic
+            ? `<img src="${escapeHtml(pic)}" class="w-full h-full object-cover" alt="Avatar" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');"><i class="fa-solid fa-user hidden text-2xl"></i>`
+            : `<i class="fa-solid fa-user text-2xl"></i>`;
+
+        header.innerHTML = `
+            <div class="flex flex-col items-center text-center space-y-3">
+                <div class="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-secondary overflow-hidden relative border-2 border-white shadow">
+                    ${avatarHtml}
+                </div>
+                <div>
+                    <h2 class="font-bold text-base text-gray-900 font-mono">${escapeHtml(displayName)}</h2>
+                    ${p.about ? `<p class="text-xs text-gray-500 mt-1 max-w-xs mx-auto line-clamp-3">${escapeHtml(p.about)}</p>` : ''}
+                </div>
+                ${followBtn ? `<div>${followBtn}</div>` : ''}
+            </div>`;
+
+        let userPosts = (cachedEvents || []).filter(ev => ev.pubkey === pubkey);
+
+        try {
+            if (pool) {
+                const fromRelays = await pool.querySync(RELAYS, {
+                    kinds: [1],
+                    authors: [pubkey],
+                    limit: 40
+                });
+                if (fromRelays?.length) {
+                    const map = new Map(userPosts.map(e => [e.id, e]));
+                    fromRelays.forEach(e => map.set(e.id, e));
+                    userPosts = Array.from(map.values());
+                }
+            }
+        } catch (e) {
+            console.error('Erro ao buscar posts do perfil:', e);
+        }
+
+        userPosts.sort((a, b) => b.created_at - a.created_at);
+        userPosts = userPosts.slice(0, 40);
+
+        if (!userPosts.length) {
+            postsEl.innerHTML = `<div class="p-6 text-center space-y-2"><i class="fa-solid fa-pen-to-square text-3xl text-gray-300"></i><p class="text-xs text-gray-500">Nenhuma publicação encontrada.</p></div>`;
+            return;
+        }
+
+        fetchReactionsForPosts(userPosts.map(e => e.id));
+
+        let html = '';
+        userPosts.forEach(ev => {
+            const timeAgo = new Date(ev.created_at * 1000).toLocaleDateString('pt-BR');
+            const { cleanContent, mediaHtml } = extractMediaAndCleanText(ev);
+            const linked = cleanContent
+                ? linkifyAndEscape(cleanContent.substring(0, 400) + (cleanContent.length > 400 ? '...' : ''))
+                : '';
+            const likesSet = postLikesCache.get(ev.id) || new Set();
+            const likesCount = likesSet.size;
+            const isLikedByMe = userLikesMap.get(ev.id) || false;
+            const likeBtnClass = isLikedByMe ? 'flex items-center gap-1.5 text-red-500 transition' : 'flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition';
+            const likeIconClass = isLikedByMe ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+            const escapedShare = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const escapedTranslate = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+            html += `
+            <div class="p-4 hover:bg-gray-50/60 transition">
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary overflow-hidden relative">
+                        ${pic
+                            ? `<img src="${escapeHtml(pic)}" class="w-full h-full object-cover" alt="" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');"><i class="fa-solid fa-user hidden text-xs"></i>`
+                            : `<i class="fa-solid fa-user text-xs"></i>`}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+                            <span class="font-bold text-xs text-gray-900 font-mono">${escapeHtml(displayName)}</span>
+                            <span class="text-[10px] text-gray-400">· ${timeAgo}</span>
+                            <button onclick="translatePostText('${ev.id}', '${escapedTranslate}')" class="text-[11px] text-secondary hover:underline ml-auto font-medium">Traduzir</button>
+                        </div>
+                        ${linked ? `<p class="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-2">${linked}</p>` : ''}
+                        <div id="translation-${ev.id}" class="hidden mb-2"></div>
+                        ${mediaHtml}
+                        <div class="flex items-center justify-between text-gray-400 text-xs max-w-sm pt-2">
+                            <button onclick="openCommentsModal('${ev.id}', '${ev.pubkey}')" class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-regular fa-comment"></i></button>
+                            <button id="like-btn-${ev.id}" onclick="toggleLikePost('${ev.id}', '${ev.pubkey}')" class="${likeBtnClass}"><i class="${likeIconClass}"></i><span id="like-count-${ev.id}">${likesCount}</span></button>
+                            <button onclick="sharePost('${ev.id}', '${escapedShare}')" class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-solid fa-share-nodes"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        postsEl.innerHTML = html;
+        if (safeMode) setTimeout(() => scanAndClassifyImages(), 400);
+    };
+
+    window.closeUserProfileModal = function() {
+        const modal = document.getElementById('userProfileModal');
+        const content = document.getElementById('userProfileModalContent');
+        if (modal && content) {
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            content.classList.add('translate-y-full');
+        }
+    };
 
     window.updateCharCount = function() {
         const textarea = document.getElementById('postTextArea');
@@ -1509,7 +1653,6 @@
         }
     };
 
-    // ========== MÍDIA DO POST (somente URL pública) ==========
     window.handleMediaUrlInput = function(type) {
         const imageInput = document.getElementById('mediaImageUrlInput');
         const videoInput = document.getElementById('mediaVideoUrlInput');
@@ -1670,11 +1813,11 @@
 
             html += `
                 <div class="flex items-center justify-between py-2">
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 cursor-pointer" onclick="openUserProfileModal('${pubkey}')">
                         <div class="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary font-bold overflow-hidden relative">
                             ${avatarH}
                         </div>
-                        <span class="font-bold text-xs text-gray-900 font-mono">${displayName}</span>
+                        <span class="font-bold text-xs text-gray-900 font-mono hover:text-secondary">${displayName}</span>
                     </div>
                     <i class="fa-solid fa-heart text-red-500 text-xs"></i>
                 </div>`;
@@ -1782,12 +1925,12 @@
 
                         html += `
                             <div class="flex items-start gap-3 py-3">
-                                <div class="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary font-bold overflow-hidden relative">
+                                <div class="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary font-bold overflow-hidden relative cursor-pointer" onclick="openUserProfileModal('${reply.pubkey}')">
                                     ${avatarH}
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center justify-between">
-                                        <span class="font-bold text-xs text-gray-900 font-mono">${displayName}</span>
+                                        <span class="font-bold text-xs text-gray-900 font-mono cursor-pointer hover:text-secondary" onclick="openUserProfileModal('${reply.pubkey}')">${displayName}</span>
                                         <span class="text-[10px] text-gray-400">${timeAgo}</span>
                                     </div>
                                     <p class="text-xs text-gray-700 mt-1 whitespace-pre-wrap break-words">${escapeHtml(reply.content)}</p>
@@ -1956,14 +2099,14 @@
             let followBtn = '';
             if (!isSelf) {
                 followBtn = isFollowing
-                    ? `<button onclick="toggleFollowUser('${u.pubkey}'); setTimeout(() => performSearch(), 300);" class="text-xs px-3 py-1 bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 font-semibold rounded-full transition">Seguindo</button>`
-                    : `<button onclick="toggleFollowUser('${u.pubkey}'); setTimeout(() => performSearch(), 300);" class="text-xs px-3 py-1 bg-secondary/10 hover:bg-secondary hover:text-white text-secondary font-semibold rounded-full transition">Seguir</button>`;
+                    ? `<button onclick="event.stopPropagation(); toggleFollowUser('${u.pubkey}'); setTimeout(() => performSearch(), 300);" class="text-xs px-3 py-1 bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 font-semibold rounded-full transition">Seguindo</button>`
+                    : `<button onclick="event.stopPropagation(); toggleFollowUser('${u.pubkey}'); setTimeout(() => performSearch(), 300);" class="text-xs px-3 py-1 bg-secondary/10 hover:bg-secondary hover:text-white text-secondary font-semibold rounded-full transition">Seguir</button>`;
             }
             const avatar = u.picture
                 ? `<img src="${escapeHtml(u.picture)}" class="w-full h-full object-cover" alt="" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');"><i class="fa-solid fa-user hidden"></i>`
                 : `<i class="fa-solid fa-user"></i>`;
             html += `
-                <div class="p-4 flex items-center justify-between gap-3 hover:bg-gray-50/60">
+                <div class="p-4 flex items-center justify-between gap-3 hover:bg-gray-50/60 cursor-pointer" onclick="openUserProfileModal('${u.pubkey}')">
                     <div class="flex items-center gap-3 min-w-0">
                         <div class="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary overflow-hidden relative">${avatar}</div>
                         <div class="min-w-0">
@@ -2085,10 +2228,10 @@
             html += `
             <div class="p-4 hover:bg-gray-50/60 transition">
                 <div class="flex items-start gap-3">
-                    <div class="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary overflow-hidden relative">${avatarHtml}</div>
+                    <div class="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary overflow-hidden relative cursor-pointer hover:opacity-90 transition" onclick="openUserProfileModal('${ev.pubkey}')" title="Ver perfil">${avatarHtml}</div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1.5 mb-1 flex-wrap">
-                            <span class="font-bold text-sm text-gray-900 font-mono">${displayName}</span>
+                            <span class="font-bold text-sm text-gray-900 font-mono cursor-pointer hover:text-secondary hover:underline transition" onclick="openUserProfileModal('${ev.pubkey}')">${displayName}</span>
                             <span class="text-xs text-gray-400">· ${timeAgo}</span>
                             <button onclick="translatePostText('${ev.id}', '${escapedContentForTranslate}')" class="text-[11px] text-secondary hover:underline ml-auto font-medium">Traduzir</button>
                         </div>
@@ -2296,13 +2439,13 @@
             const postCard = `
             <div class="p-4 hover:bg-gray-50/60 transition duration-150">
                 <div class="flex items-start gap-3">
-                    <div class="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary font-bold overflow-hidden relative">
+                    <div class="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary font-bold overflow-hidden relative cursor-pointer hover:opacity-90 transition" onclick="openUserProfileModal('${ev.pubkey}')" title="Ver perfil">
                         ${avatarHtml}
                     </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center justify-between mb-1">
                             <div class="flex items-center gap-1.5 flex-wrap">
-                                <span class="font-bold text-sm text-gray-900 font-mono">${displayName}</span>
+                                <span class="font-bold text-sm text-gray-900 font-mono cursor-pointer hover:text-secondary hover:underline transition" onclick="openUserProfileModal('${ev.pubkey}')">${displayName}</span>
                                 <span class="text-xs text-gray-400">·</span>
                                 <span class="text-xs text-gray-400">${timeAgo}</span>
                                 <button onclick="translatePostText('${ev.id}', '${escapedContentForTranslate}')" class="text-[11px] text-secondary hover:underline font-medium ml-1">Traduzir</button>
