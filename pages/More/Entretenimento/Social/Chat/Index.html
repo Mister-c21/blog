@@ -30,27 +30,19 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden; /* Evita barra de rolagem global na tela inteira */
+            overflow: hidden;
         }
 
-        /* Container Principal do App */
+        /* Container Principal ocupando 100% da tela e sem bordas arredondadas */
         .app-container {
             display: flex;
-            width: 100%;
-            max-width: 1400px;
+            width: 100vw;
             height: 100vh;
             background-color: var(--primary-bg);
-            box-shadow: 0 10px 25px rgba(108, 92, 231, 0.1);
-            overflow: hidden; /* Impede que o layout estoure */
-        }
-
-        @media (min-width: 768px) {
-            .app-container {
-                height: 92vh;
-                max-height: 900px;
-                border-radius: 12px;
-                overflow: hidden;
-            }
+            overflow: hidden;
+            border-radius: 0;
+            box-shadow: none;
+            max-width: none;
         }
 
         /* --- PAINEL ESQUERDO: Lista de Contatos --- */
@@ -241,9 +233,15 @@
             height: 100%;
         }
 
+        /* Desktop: O painel direito SEMPRE aparece ao lado do esquerdo */
         @media (min-width: 768px) {
             .chat-area {
                 display: flex !important;
+            }
+            .app-container:not(.desktop-has-chat) .chat-area .messages-container,
+            .app-container:not(.desktop-has-chat) .chat-area .chat-input-area {
+                opacity: 0.4;
+                pointer-events: none;
             }
         }
 
@@ -363,13 +361,14 @@
             background-color: var(--secondary-hover);
         }
 
-        /* Classes de Controle Mobile via JS */
-        .mobile-show-chat .sidebar {
-            display: none;
-        }
-
-        .mobile-show-chat .chat-area {
-            display: flex;
+        /* Funcionamento mobile: Oculta a sidebar e mostra o chat inteiro quando ativo */
+        @media (max-width: 767px) {
+            .mobile-show-chat .sidebar {
+                display: none;
+            }
+            .mobile-show-chat .chat-area {
+                display: flex !important;
+            }
         }
     </style>
 </head>
@@ -515,7 +514,14 @@
             });
 
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            appContainer.classList.add('mobile-show-chat');
+            
+            // Lógica responsiva diferente para mobile vs desktop
+            if (window.innerWidth <= 767) {
+                appContainer.classList.add('mobile-show-chat');
+            } else {
+                appContainer.classList.add('desktop-has-chat');
+            }
+            
             renderChatList();
         }
 
