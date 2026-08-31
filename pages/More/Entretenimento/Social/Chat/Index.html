@@ -6,6 +6,7 @@
     <title>Chat Web - Violeta & Branco</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         :root {
             --primary-bg: #ffffff;
@@ -234,7 +235,6 @@
             height: 100%;
         }
 
-        /* Desktop: O painel direito SEMPRE aparece ao lado do esquerdo */
         @media (min-width: 768px) {
             .chat-area {
                 display: flex !important;
@@ -418,7 +418,7 @@
             gap: 20px;
         }
 
-        /* Abas internas do Modal (Escanear vs Meu Código / Inserir Código) */
+        /* Abas internas do Modal */
         .qr-tabs {
             display: flex;
             width: 100%;
@@ -458,7 +458,7 @@
             display: flex;
         }
 
-        /* Visualizador da Câmera (Scanner Fictício/Real) */
+        /* Viewport da Câmera Real com html5-qrcode */
         .scanner-viewport {
             width: 100%;
             height: 220px;
@@ -469,32 +469,24 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #fff;
         }
 
-        .scanner-frame {
-            width: 150px;
-            height: 150px;
-            border: 2px dashed var(--secondary-color);
-            border-radius: 12px;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: pulseScanner 2s infinite;
+        #reader {
+            width: 100% !important;
+            height: 100% !important;
+            border: none !important;
         }
-
-        @keyframes pulseScanner {
-            0% { border-color: var(--secondary-color); }
-            50% { border-color: #a29bfe; }
-            100% { border-color: var(--secondary-color); }
-        }
-
-        .scanner-viewport p {
-            position: absolute;
-            bottom: 12px;
-            font-size: 12px;
-            color: rgba(255,255,255,0.7);
+        
+        #reader__dashboard_section_csr button, 
+        #reader button {
+            background-color: var(--secondary-color) !important;
+            color: white !important;
+            border: none !important;
+            padding: 6px 12px !important;
+            border-radius: 6px !important;
+            font-size: 12px !important;
+            cursor: pointer !important;
+            margin-top: 5px !important;
         }
 
         /* Exibição do "Meu Código QR" */
@@ -529,7 +521,7 @@
             color: var(--text-main);
         }
 
-        /* Container de Inserção de Código por Texto (Desktop ou alternativa) */
+        /* Container de Inserção de Código por Texto (Desktop) */
         .code-input-container {
             width: 100%;
             display: flex;
@@ -649,7 +641,7 @@
             color: white;
         }
 
-        /* Modal de Seleção de Música (Estilo Instagram Notas via iTunes API com Preview) */
+        /* Modal de Seleção de Música */
         .music-modal {
             display: none;
             position: fixed;
@@ -801,7 +793,7 @@
             color: var(--secondary-hover);
         }
 
-        /* --- Estilo de Player de Música em Vinil (Estilo Instagram Notas) --- */
+        /* --- Estilo de Player de Música em Vinil --- */
         .vinyl-player-card {
             display: flex;
             align-items: center;
@@ -1143,10 +1135,7 @@
 
                 <div class="qr-view-section active" id="scannerSection">
                     <div class="scanner-viewport" id="scannerViewport">
-                        <div class="scanner-frame">
-                            <i class="fa-solid fa-camera" style="font-size: 32px; color: rgba(255,255,255,0.4);"></i>
-                        </div>
-                        <p>Posicione o QR Code no visor</p>
+                        <div id="reader"></div>
                     </div>
                     <div class="code-input-container" id="desktopCodeInputContainer">
                         <label id="codeLabelText" for="contactCodeInput">Inserir código do contato:</label>
@@ -1186,8 +1175,7 @@
             <div class="music-search-box">
                 <input type="text" class="music-search-input" id="musicSearchInput" placeholder="Pesquisar músicas ou artistas..." autocomplete="off">
             </div>
-            <div class="music-list" id="musicList">
-                </div>
+            <div class="music-list" id="musicList"></div>
         </div>
     </div>
 
@@ -1217,6 +1205,7 @@
         let activePreviewAudio = null;
         let activeChatAudio = null; 
         let myQrCodeInitialized = false;
+        let html5QrCodeScanner = null;
 
         const appContainer = document.getElementById('appContainer');
         const chatListEl = document.getElementById('chatList');
@@ -1415,7 +1404,7 @@
             renderChatList();
         }
 
-        /* --- Funcionalidade do Modal de Adicionar Contato (QR Scanner & Inserção Desktop) --- */
+        /* --- Funcionalidade do Modal de Adicionar Contato com Câmera Real --- */
         addContactHeaderBtn.addEventListener('click', () => {
             dropdownMenu.classList.remove('show');
             attachmentMenu.classList.remove('show');
@@ -1426,28 +1415,25 @@
             qrModal.classList.add('show');
             contactCodeInput.value = '';
             
-            // Adaptar comportamento entre Mobile e Desktop
             const isDesktop = window.innerWidth >= 768;
             if (isDesktop) {
-                // No desktop, esconde as abas e o visor de câmera, mostrando apenas a inserção de código
                 qrTabsContainer.style.display = 'none';
                 scannerViewport.style.display = 'none';
                 desktopCodeInputContainer.style.display = 'flex';
-                switchQrTab('scanner'); // Garante que a seção ativa contém o input
+                switchQrTab('scanner');
             } else {
-                // No mobile, exibe as abas normalmente
                 qrTabsContainer.style.display = 'flex';
                 scannerViewport.style.display = 'flex';
-                desktopCodeInputContainer.style.display = 'flex';
+                desktopCodeInputContainer.style.display = 'none'; // No mobile usa a câmera real
                 switchQrTab('scanner');
+                initCameraScanner();
             }
 
-            // Gera o QR Code dinâmico do usuário caso não tenha sido gerado
             if (!myQrCodeInitialized) {
                 const qrContainer = document.getElementById('myQrCodeContainer');
                 qrContainer.innerHTML = '';
                 new QRCode(qrContainer, {
-                    text: "https://chatweb.app/user/perfil_usuario_atual",
+                    text: "ContatoNovo_QR_" + Math.random().toString(36).substring(2, 7),
                     width: 130,
                     height: 130,
                     colorDark: "#2d3436",
@@ -1459,7 +1445,45 @@
         }
 
         function closeQrModal() {
+            stopCameraScanner();
             qrModal.classList.remove('show');
+        }
+
+        function initCameraScanner() {
+            if (window.innerWidth < 768 && !html5QrCodeScanner) {
+                setTimeout(() => {
+                    try {
+                        html5QrCodeScanner = new Html5Qrcode("reader");
+                        html5QrCodeScanner.start(
+                            { facingMode: "environment" },
+                            { fps: 10, qrbox: { width: 150, height: 150 } },
+                            (decodedText, decodedResult) => {
+                                // Sucesso ao escanear código QR pela câmera real
+                                stopCameraScanner();
+                                addContactAndOpen(decodedText);
+                            },
+                            (errorMessage) => {
+                                // Erros de varredura quadro a quadro podem ser ignorados silenciosamente
+                            }
+                        ).catch(err => {
+                            console.warn("Falha ao iniciar a câmera, usando fallback manual se necessário", err);
+                        });
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }, 300);
+            }
+        }
+
+        function stopCameraScanner() {
+            if (html5QrCodeScanner) {
+                html5QrCodeScanner.stop().then(() => {
+                    html5QrCodeScanner.clear();
+                    html5QrCodeScanner = null;
+                }).catch(err => {
+                    html5QrCodeScanner = null;
+                });
+            }
         }
 
         function switchQrTab(tabName) {
@@ -1471,7 +1495,11 @@
             if (tabName === 'scanner') {
                 tabScannerBtn.classList.add('active');
                 scannerSection.classList.add('active');
+                if (window.innerWidth < 768) {
+                    initCameraScanner();
+                }
             } else {
+                stopCameraScanner();
                 tabMyCodeBtn.classList.add('active');
                 myCodeSection.classList.add('active');
             }
@@ -1480,23 +1508,25 @@
         function submitAddContact() {
             const codeVal = contactCodeInput.value.trim();
             if (!codeVal) {
-                alert("Por favor, insira ou escaneie o código do contato.");
+                alert("Por favor, insira o código do contato.");
                 return;
             }
+            addContactAndOpen(codeVal);
+        }
 
-            // Cria um novo contato fictício com base no código inserido
+        function addContactAndOpen(contactNameOrCode) {
             const newId = chatsData.length > 0 ? Math.max(...chatsData.map(c => c.id)) + 1 : 1;
-            const initials = codeVal.substring(0, 2).toUpperCase();
+            const initials = contactNameOrCode.substring(0, 2).toUpperCase();
             
             chatsData.unshift({
                 id: newId,
-                name: codeVal,
-                lastMsg: "Contato adicionado via código",
+                name: contactNameOrCode,
+                lastMsg: "Contato adicionado com sucesso",
                 avatar: initials,
                 type: "contatos",
                 pinned: false,
                 messages: [
-                    { sender: "received", text: `Olá! Fui adicionado através do código: ${codeVal}` }
+                    { sender: "received", text: `Olá! Conectado via código: ${contactNameOrCode}` }
                 ]
             });
 
@@ -1575,7 +1605,7 @@
             return videoId;
         }
 
-        /* Funções do Menu de Música via iTunes API com Preview */
+        /* Funções de Música */
         function openMusicModal() {
             musicModal.classList.add('show');
             musicSearchInput.value = '';
