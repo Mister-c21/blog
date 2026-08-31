@@ -253,6 +253,7 @@
             align-items: center;
             border-bottom: 1px solid var(--border-color);
             gap: 12px;
+            position: relative;
         }
 
         .back-btn {
@@ -268,6 +269,50 @@
             .back-btn {
                 display: none;
             }
+        }
+
+        /* Menu Contextual da Elipse */
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            right: 20px;
+            top: 60px;
+            background-color: var(--primary-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.15);
+            border-radius: 8px;
+            z-index: 100;
+            width: 180px;
+            overflow: hidden;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            font-size: 14px;
+            color: var(--text-main);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background-color: var(--light-violet);
+            color: var(--secondary-color);
+        }
+
+        .dropdown-item i {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .dropdown-item:hover i {
+            color: var(--secondary-color);
         }
 
         .messages-container {
@@ -413,8 +458,19 @@
                     <div class="chat-name" id="activeName">Bem-vindo</div>
                     <div class="chat-last-msg" id="activeStatus" style="font-size: 12px;">offline</div>
                 </div>
-                <div class="sidebar-actions">
-                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                <div class="sidebar-actions" style="position: relative;">
+                    <i class="fa-solid fa-ellipsis-vertical" id="ellipsisBtn" style="cursor: pointer;"></i>
+                    <div class="dropdown-menu" id="dropdownMenu">
+                        <div class="dropdown-item" onclick="togglePinChat()">
+                            <i class="fa-solid fa-thumbtack" id="pinIcon"></i> <span id="pinText">Fixar contato</span>
+                        </div>
+                        <div class="dropdown-item" onclick="toggleBlockChat()">
+                            <i class="fa-solid fa-ban" id="blockIcon"></i> <span id="blockText">Bloquear</span>
+                        </div>
+                        <div class="dropdown-item" onclick="deleteChat()" style="color: #e74c3c;">
+                            <i class="fa-solid fa-trash" style="color: #e74c3c;"></i> Excluir contato
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -434,18 +490,18 @@
 
     <script>
         const chatsData = [
-            { id: 1, name: "Maria Silva", lastMsg: "Combinado então!", avatar: "M", type: "contatos", messages: [
+            { id: 1, name: "Maria Silva", lastMsg: "Combinado então!", avatar: "M", type: "contatos", pinned: false, messages: [
                 { sender: "received", text: "Oi, tudo bem?" },
                 { sender: "sent", text: "Tudo ótimo e com você?" },
                 { sender: "received", text: "Combinado então!" }
             ]},
-            { id: 2, name: "Carlos Souza", lastMsg: "Me liga quando puder.", avatar: "C", type: "contatos", messages: [
+            { id: 2, name: "Carlos Souza", lastMsg: "Me liga quando puder.", avatar: "C", type: "contatos", pinned: false, messages: [
                 { sender: "received", text: "Me liga quando puder." }
             ]},
-            { id: 3, name: "Grupo de Projetos", lastMsg: "Ana: Atualizei o repositório.", avatar: "GP", type: "contatos", messages: [
+            { id: 3, name: "Grupo de Projetos", lastMsg: "Ana: Atualizei o repositório.", avatar: "GP", type: "contatos", pinned: false, messages: [
                 { sender: "received", text: "Ana: Atualizei o repositório." }
             ]},
-            { id: 4, name: "Usuário Bloqueado", lastMsg: "Sem mensagens recentes", avatar: "UB", type: "bloqueados", messages: [
+            { id: 4, name: "Usuário Bloqueado", lastMsg: "Sem mensagens recentes", avatar: "UB", type: "bloqueados", pinned: false, messages: [
                 { sender: "received", text: "Este contato está bloqueado." }
             ]}
         ];
@@ -464,6 +520,8 @@
         const sendBtn = document.getElementById('sendBtn');
         const backBtn = document.getElementById('backBtn');
         const searchInput = document.getElementById('searchInput');
+        const ellipsisBtn = document.getElementById('ellipsisBtn');
+        const dropdownMenu = document.getElementById('dropdownMenu');
 
         function switchTab(tabName) {
             currentTab = tabName;
@@ -493,7 +551,7 @@
                 item.innerHTML = `
                     <div class="avatar">${chat.avatar}</div>
                     <div class="chat-info">
-                        <div class="chat-name">${chat.name}</div>
+                        <div class="chat-name">${chat.name} ${chat.pinned ? '<i class="fa-solid fa-thumbtack" style="font-size: 11px; color: var(--secondary-color); margin-left: 5px;"></i>' : ''}</div>
                         <div class="chat-last-msg">${chat.lastMsg}</div>
                     </div>
                 `;
@@ -510,6 +568,12 @@
             activeAvatar.textContent = chat.avatar;
             activeStatus.textContent = "online";
             
+            // Atualizar textos e ícones do menu drop-down de acordo com o chat selecionado
+            const pinText = document.getElementById('pinText');
+            const blockText = document.getElementById('blockText');
+            pinText.textContent = chat.pinned ? "Desfixar contato" : "Fixar contato";
+            blockText.textContent = chat.type === 'bloqueados' ? "Desbloquear" : "Bloquear";
+
             messagesContainer.style.justifyContent = 'flex-start';
             messagesContainer.innerHTML = '';
             chat.messages.forEach(msg => {
@@ -537,10 +601,68 @@
             activeName.textContent = "Bem-vindo";
             activeAvatar.innerHTML = '<i class="fa-solid fa-user"></i>';
             activeStatus.textContent = "offline";
+            dropdownMenu.classList.remove('show');
             messagesContainer.style.justifyContent = 'center';
             messagesContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 15px;">Selecione um contato para conversar</div>';
             renderChatList();
         });
+
+        // Alternar abertura do menu dropdown da elipse
+        ellipsisBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentChatId !== null) {
+                dropdownMenu.classList.toggle('show');
+            }
+        });
+
+        // Fechar menu ao clicar fora
+        window.addEventListener('click', () => {
+            dropdownMenu.classList.remove('show');
+        });
+
+        function togglePinChat() {
+            if (currentChatId === null) return;
+            const chat = chatsData.find(c => c.id === currentChatId);
+            chat.pinned = !chat.pinned;
+            selectChat(currentChatId);
+        }
+
+        function toggleBlockChat() {
+            if (currentChatId === null) return;
+            const chat = chatsData.find(c => c.id === currentChatId);
+            if (chat.type === 'contatos') {
+                chat.type = 'bloqueados';
+                currentTab = 'bloqueados';
+                document.querySelectorAll('.tab-item').forEach(btn => {
+                    btn.classList.toggle('active', btn.textContent.toLowerCase().includes('bloqueados'));
+                });
+            } else {
+                chat.type = 'contatos';
+                currentTab = 'contatos';
+                document.querySelectorAll('.tab-item').forEach(btn => {
+                    btn.classList.toggle('active', btn.textContent.toLowerCase().includes('contatos'));
+                });
+            }
+            selectChat(currentChatId);
+        }
+
+        function deleteChat() {
+            if (currentChatId === null) return;
+            const index = chatsData.findIndex(c => c.id === currentChatId);
+            if (index !== -1) {
+                chatsData.splice(index, 1);
+            }
+            currentChatId = null;
+            appContainer.classList.remove('mobile-show-chat');
+            appContainer.classList.remove('desktop-has-chat');
+            activeName.textContent = "Bem-vindo";
+            activeAvatar.innerHTML = '<i class="fa-solid fa-user"></i>';
+            activeStatus.textContent = "offline";
+            dropdownMenu.classList.remove('show');
+            messagesContainer.style.justifyContent = 'center';
+            messagesContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 15px;">Selecione um contato para conversar</div>';
+            renderChatList();
+        }
 
         searchInput.addEventListener('input', (e) => {
             searchQuery = e.target.value;
