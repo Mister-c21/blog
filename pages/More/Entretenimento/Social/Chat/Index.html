@@ -565,6 +565,22 @@
             text-overflow: ellipsis;
         }
 
+        .music-preview-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            color: var(--secondary-color);
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .music-preview-btn:hover {
+            color: var(--secondary-hover);
+        }
+
         .music-player-card {
             display: flex;
             align-items: center;
@@ -868,6 +884,7 @@
         let searchQuery = '';
         let activeAttachmentType = null;
         let musicSearchTimeout = null;
+        let activePreviewAudio = null;
 
         const appContainer = document.getElementById('appContainer');
         const chatListEl = document.getElementById('chatList');
@@ -1114,14 +1131,18 @@
             return videoId;
         }
 
-        /* Funções do Menu de Música via iTunes API */
+        /* Funções do Menu de Música via iTunes API com Preview */
         function openMusicModal() {
             musicModal.classList.add('show');
             musicSearchInput.value = '';
-            fetchItunesMusic('pop hits'); // Busca padrão inicial
+            fetchItunesMusic('pop hits');
         }
 
         function closeMusicModal() {
+            if (activePreviewAudio) {
+                activePreviewAudio.pause();
+                activePreviewAudio = null;
+            }
             musicModal.classList.remove('show');
         }
 
@@ -1134,6 +1155,10 @@
         });
 
         async function fetchItunesMusic(term) {
+            if (activePreviewAudio) {
+                activePreviewAudio.pause();
+                activePreviewAudio = null;
+            }
             musicList.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 14px;">Carregando músicas...</div>`;
             try {
                 const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=song&limit=20`);
@@ -1155,21 +1180,57 @@
                 const item = document.createElement('div');
                 item.className = 'music-item';
                 const artworkUrl = track.artworkUrl100 ? track.artworkUrl100.replace('100x100bb', '200x200bb') : '';
+                
                 item.innerHTML = `
                     <img src="${artworkUrl}" class="music-art" alt="Capa">
-                    <div class="music-details">
+                    <div class="music-details" onclick="selectMusicItem(event, '${encodeURIComponent(JSON.stringify(track))}')">
                         <div class="music-title">${track.trackName}</div>
                         <div class="music-artist">${track.artistName}</div>
                     </div>
-                    <i class="fa-solid fa-circle-play" style="font-size: 24px; color: var(--secondary-color);"></i>
+                    ${track.previewUrl ? `<button class="music-preview-btn" onclick="togglePreview(event, '${track.previewUrl}', this)"><i class="fa-solid fa-play"></i></button>` : ''}
                 `;
-                item.addEventListener('click', () => sendSelectedMusic(track));
                 musicList.appendChild(item);
             });
         }
 
+        function togglePreview(event, previewUrl, btnElement) {
+            event.stopPropagation();
+            if (activePreviewAudio && activePreviewAudio.src === previewUrl) {
+                if (activePreviewAudio.paused) {
+                    activePreviewAudio.play();
+                    btnElement.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                } else {
+                    activePreviewAudio.pause();
+                    btnElement.innerHTML = '<i class="fa-solid fa-play"></i>';
+                }
+            } else {
+                if (activePreviewAudio) {
+                    activePreviewAudio.pause();
+                    // Resetar ícones anteriores se necessário
+                    document.querySelectorAll('.music-preview-btn').forEach(b => b.innerHTML = '<i class="fa-solid fa-play"></i>');
+                }
+                activePreviewAudio = new Audio(previewUrl);
+                activePreviewAudio.play();
+                btnElement.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                activePreviewAudio.onended = () => {
+                    btnElement.innerHTML = '<i class="fa-solid fa-play"></i>';
+                };
+            }
+        }
+
+        function selectMusicItem(event, encodedTrack) {
+            event.stopPropagation();
+            const track = JSON.parse(decodeURIComponent(encodedTrack));
+            sendSelectedMusic(track);
+        }
+
         function sendSelectedMusic(track) {
             if (currentChatId === null) return;
+            if (activePreviewAudio) {
+                activePreviewAudio.pause();
+                activePreviewAudio = null;
+            }
+
             const artworkUrl = track.artworkUrl100 ? track.artworkUrl100.replace('100x100bb', '200x200bb') : '';
             const previewUrl = track.previewUrl;
             const trackName = track.trackName;
