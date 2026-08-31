@@ -357,6 +357,78 @@
             text-align: center;
         }
 
+        /* Modal customizado para URL de Imagem ou YouTube */
+        .url-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .url-modal.show {
+            display: flex;
+        }
+
+        .url-modal-content {
+            background-color: var(--primary-bg);
+            padding: 24px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .url-modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 12px;
+        }
+
+        .url-modal input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            outline: none;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .url-modal input:focus {
+            border-color: var(--secondary-color);
+        }
+
+        .url-modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .url-modal-buttons button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-cancel {
+            background-color: var(--gray-bg);
+            color: var(--text-muted);
+        }
+
+        .btn-confirm {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
         .messages-container {
             flex: 1;
             padding: 25px;
@@ -391,6 +463,21 @@
             color: #ffffff;
             align-self: flex-end;
             border-top-right-radius: 2px;
+        }
+
+        /* Estilização de elementos inseridos nas mensagens */
+        .message img {
+            max-width: 100%;
+            border-radius: 6px;
+            display: block;
+        }
+
+        .message iframe {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            border: none;
+            border-radius: 6px;
+            display: block;
         }
 
         /* Caixa de Entrada de Mensagem */
@@ -526,25 +613,36 @@
                 <div class="chat-input-icons">
                     <i class="fa-solid fa-paperclip" id="attachBtn" title="Anexo"></i>
                     <div class="attachment-menu" id="attachmentMenu">
-                        <div class="attachment-item" onclick="sendAttachment('Sticky')">
+                        <div class="attachment-item" onclick="handleAttachmentSelection('Sticky')">
                             <i class="fa-solid fa-note-sticky"></i> Sticky
                         </div>
-                        <div class="attachment-item" onclick="sendAttachment('GIF')">
+                        <div class="attachment-item" onclick="handleAttachmentSelection('GIF')">
                             <i class="fa-solid fa-image"></i> GIFs
                         </div>
-                        <div class="attachment-item" onclick="sendAttachment('Música')">
+                        <div class="attachment-item" onclick="handleAttachmentSelection('Música')">
                             <i class="fa-solid fa-music"></i> Música
                         </div>
-                        <div class="attachment-item" onclick="sendAttachment('Vídeo do YouTube')">
+                        <div class="attachment-item" onclick="handleAttachmentSelection('Vídeo do YouTube')">
                             <i class="fa-brands fa-youtube"></i> Vídeo do YouTube
                         </div>
-                        <div class="attachment-item" onclick="sendAttachment('Imagem')">
+                        <div class="attachment-item" onclick="handleAttachmentSelection('Imagem')">
                             <i class="fa-solid fa-camera"></i> Imagem
                         </div>
                     </div>
                 </div>
                 <input type="text" id="messageInput" placeholder="Digite uma mensagem..." autocomplete="off">
                 <button id="sendBtn"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="url-modal" id="urlModal">
+        <div class="url-modal-content">
+            <div class="url-modal-title" id="urlModalTitle">Inserir URL</div>
+            <input type="text" id="urlInput" placeholder="Cole o link aqui..." autocomplete="off">
+            <div class="url-modal-buttons">
+                <button class="btn-cancel" onclick="closeUrlModal()">Cancelar</button>
+                <button class="btn-confirm" onclick="confirmUrlModal()">Enviar</button>
             </div>
         </div>
     </div>
@@ -570,6 +668,7 @@
         let currentTab = 'contatos';
         let currentChatId = null;
         let searchQuery = '';
+        let activeAttachmentType = null;
 
         const appContainer = document.getElementById('appContainer');
         const chatListEl = document.getElementById('chatList');
@@ -585,6 +684,9 @@
         const dropdownMenu = document.getElementById('dropdownMenu');
         const attachBtn = document.getElementById('attachBtn');
         const attachmentMenu = document.getElementById('attachmentMenu');
+        const urlModal = document.getElementById('urlModal');
+        const urlModalTitle = document.getElementById('urlModalTitle');
+        const urlInput = document.getElementById('urlInput');
 
         function switchTab(tabName) {
             currentTab = tabName;
@@ -641,7 +743,11 @@
             chat.messages.forEach(msg => {
                 const msgDiv = document.createElement('div');
                 msgDiv.className = `message ${msg.sender}`;
-                msgDiv.textContent = msg.text;
+                if (msg.isHtml) {
+                    msgDiv.innerHTML = msg.content;
+                } else {
+                    msgDiv.textContent = msg.text;
+                }
                 messagesContainer.appendChild(msgDiv);
             });
 
@@ -670,7 +776,6 @@
             renderChatList();
         });
 
-        // Alternar abertura do menu dropdown da elipse
         ellipsisBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             attachmentMenu.classList.remove('show');
@@ -679,7 +784,6 @@
             }
         });
 
-        // Alternar abertura do menu de anexos (clipe)
         attachBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             dropdownMenu.classList.remove('show');
@@ -688,7 +792,6 @@
             }
         });
 
-        // Fechar menus ao clicar fora
         window.addEventListener('click', () => {
             dropdownMenu.classList.remove('show');
             attachmentMenu.classList.remove('show');
@@ -739,12 +842,78 @@
             renderChatList();
         }
 
-        function sendAttachment(type) {
+        function handleAttachmentSelection(type) {
+            attachmentMenu.classList.remove('show');
             if (currentChatId === null) return;
-            const text = `[Enviou ${type}]`;
+
+            if (type === 'Imagem' || type === 'Vídeo do YouTube') {
+                activeAttachmentType = type;
+                urlModalTitle.textContent = type === 'Imagem' ? 'Adicionar URL da Imagem' : 'Adicionar URL do Vídeo do YouTube';
+                urlInput.value = '';
+                urlModal.classList.add('show');
+                urlInput.focus();
+            } else {
+                sendAttachmentSimple(type);
+            }
+        }
+
+        function closeUrlModal() {
+            urlModal.classList.remove('show');
+            activeAttachmentType = null;
+        }
+
+        function confirmUrlModal() {
+            const url = urlInput.value.trim();
+            if (!url) return;
 
             const chat = chatsData.find(c => c.id === currentChatId);
-            chat.messages.push({ sender: 'sent', text: text });
+            let contentHtml = '';
+            let lastMsgText = '';
+
+            if (activeAttachmentType === 'Imagem') {
+                contentHtml = `<img src="${url}" alt="Imagem enviada" onerror="this.outerHTML='[Erro ao carregar imagem]'"/>`;
+                lastMsgText = '[Enviou Imagem]';
+            } else if (activeAttachmentType === 'Vídeo do YouTube') {
+                const videoId = extractYouTubeId(url);
+                if (videoId) {
+                    contentHtml = `<iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;
+                    lastMsgText = '[Enviou Vídeo do YouTube]';
+                } else {
+                    contentHtml = `https://downdetector.com.br/fora-do-ar/youtube/`;
+                    lastMsgText = '[Enviou Vídeo do YouTube inválido]';
+                }
+            }
+
+            chat.messages.push({ sender: 'sent', isHtml: true, content: contentHtml, text: lastMsgText });
+            chat.lastMsg = `Você: ${lastMsgText}`;
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message sent';
+            msgDiv.innerHTML = contentHtml;
+            messagesContainer.appendChild(msgDiv);
+
+            closeUrlModal();
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            renderChatList();
+        }
+
+        function extractYouTubeId(url) {
+            let videoId = null;
+            if (url.includes('youtu.be/')) {
+                videoId = url.split('youtu.be/')[1]?.split('?')[0];
+            } else if (url.includes('youtube.com/watch')) {
+                const urlParams = new URLSearchParams(url.split('?')[1]);
+                videoId = urlParams.get('v');
+            } else if (url.includes('youtube.com/embed/')) {
+                videoId = url.split('youtube.com/embed/')[1]?.split('?')[0];
+            }
+            return videoId;
+        }
+
+        function sendAttachmentSimple(type) {
+            const text = `[Enviou ${type}]`;
+            const chat = chatsData.find(c => c.id === currentChatId);
+            chat.messages.push({ sender: 'sent', isHtml: false, text: text });
             chat.lastMsg = `Você: ${text}`;
 
             const msgDiv = document.createElement('div');
@@ -752,7 +921,6 @@
             msgDiv.textContent = text;
             messagesContainer.appendChild(msgDiv);
 
-            attachmentMenu.classList.remove('show');
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             renderChatList();
         }
@@ -767,7 +935,7 @@
             if (!text || currentChatId === null) return;
 
             const chat = chatsData.find(c => c.id === currentChatId);
-            chat.messages.push({ sender: 'sent', text: text });
+            chat.messages.push({ sender: 'sent', isHtml: false, text: text });
             chat.lastMsg = `Você: ${text}`;
 
             const msgDiv = document.createElement('div');
