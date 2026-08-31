@@ -315,6 +315,48 @@
             color: var(--secondary-color);
         }
 
+        /* Menu de anexos (clipe) */
+        .attachment-menu {
+            display: none;
+            position: absolute;
+            bottom: 75px;
+            left: 20px;
+            background-color: var(--primary-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.15);
+            border-radius: 12px;
+            z-index: 100;
+            width: 220px;
+            overflow: hidden;
+        }
+
+        .attachment-menu.show {
+            display: block;
+        }
+
+        .attachment-item {
+            padding: 12px 16px;
+            font-size: 14px;
+            color: var(--text-main);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .attachment-item:hover {
+            background-color: var(--light-violet);
+            color: var(--secondary-color);
+        }
+
+        .attachment-item i {
+            font-size: 16px;
+            color: var(--secondary-color);
+            width: 20px;
+            text-align: center;
+        }
+
         .messages-container {
             flex: 1;
             padding: 25px;
@@ -359,6 +401,7 @@
             align-items: center;
             gap: 12px;
             border-top: 1px solid var(--border-color);
+            position: relative;
         }
 
         .chat-input-icons {
@@ -367,6 +410,7 @@
             color: var(--text-muted);
             font-size: 18px;
             cursor: pointer;
+            position: relative;
         }
 
         .chat-input-icons i:hover {
@@ -480,7 +524,24 @@
 
             <div class="chat-input-area">
                 <div class="chat-input-icons">
-                    <i class="fa-solid fa-paperclip" title="Anexo"></i>
+                    <i class="fa-solid fa-paperclip" id="attachBtn" title="Anexo"></i>
+                    <div class="attachment-menu" id="attachmentMenu">
+                        <div class="attachment-item" onclick="sendAttachment('Sticky')">
+                            <i class="fa-solid fa-note-sticky"></i> Sticky
+                        </div>
+                        <div class="attachment-item" onclick="sendAttachment('GIF')">
+                            <i class="fa-solid fa-image"></i> GIFs
+                        </div>
+                        <div class="attachment-item" onclick="sendAttachment('Música')">
+                            <i class="fa-solid fa-music"></i> Música
+                        </div>
+                        <div class="attachment-item" onclick="sendAttachment('Vídeo do YouTube')">
+                            <i class="fa-brands fa-youtube"></i> Vídeo do YouTube
+                        </div>
+                        <div class="attachment-item" onclick="sendAttachment('Imagem')">
+                            <i class="fa-solid fa-camera"></i> Imagem
+                        </div>
+                    </div>
                 </div>
                 <input type="text" id="messageInput" placeholder="Digite uma mensagem..." autocomplete="off">
                 <button id="sendBtn"><i class="fa-solid fa-paper-plane"></i></button>
@@ -522,6 +583,8 @@
         const searchInput = document.getElementById('searchInput');
         const ellipsisBtn = document.getElementById('ellipsisBtn');
         const dropdownMenu = document.getElementById('dropdownMenu');
+        const attachBtn = document.getElementById('attachBtn');
+        const attachmentMenu = document.getElementById('attachmentMenu');
 
         function switchTab(tabName) {
             currentTab = tabName;
@@ -568,7 +631,6 @@
             activeAvatar.textContent = chat.avatar;
             activeStatus.textContent = "online";
             
-            // Atualizar textos e ícones do menu drop-down de acordo com o chat selecionado
             const pinText = document.getElementById('pinText');
             const blockText = document.getElementById('blockText');
             pinText.textContent = chat.pinned ? "Desfixar contato" : "Fixar contato";
@@ -602,6 +664,7 @@
             activeAvatar.innerHTML = '<i class="fa-solid fa-user"></i>';
             activeStatus.textContent = "offline";
             dropdownMenu.classList.remove('show');
+            attachmentMenu.classList.remove('show');
             messagesContainer.style.justifyContent = 'center';
             messagesContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 15px;">Selecione um contato para conversar</div>';
             renderChatList();
@@ -610,14 +673,25 @@
         // Alternar abertura do menu dropdown da elipse
         ellipsisBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            attachmentMenu.classList.remove('show');
             if (currentChatId !== null) {
                 dropdownMenu.classList.toggle('show');
             }
         });
 
-        // Fechar menu ao clicar fora
+        // Alternar abertura do menu de anexos (clipe)
+        attachBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdownMenu.classList.remove('show');
+            if (currentChatId !== null) {
+                attachmentMenu.classList.toggle('show');
+            }
+        });
+
+        // Fechar menus ao clicar fora
         window.addEventListener('click', () => {
             dropdownMenu.classList.remove('show');
+            attachmentMenu.classList.remove('show');
         });
 
         function togglePinChat() {
@@ -659,8 +733,27 @@
             activeAvatar.innerHTML = '<i class="fa-solid fa-user"></i>';
             activeStatus.textContent = "offline";
             dropdownMenu.classList.remove('show');
+            attachmentMenu.classList.remove('show');
             messagesContainer.style.justifyContent = 'center';
             messagesContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 15px;">Selecione um contato para conversar</div>';
+            renderChatList();
+        }
+
+        function sendAttachment(type) {
+            if (currentChatId === null) return;
+            const text = `[Enviou ${type}]`;
+
+            const chat = chatsData.find(c => c.id === currentChatId);
+            chat.messages.push({ sender: 'sent', text: text });
+            chat.lastMsg = `Você: ${text}`;
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message sent';
+            msgDiv.textContent = text;
+            messagesContainer.appendChild(msgDiv);
+
+            attachmentMenu.classList.remove('show');
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
             renderChatList();
         }
 
