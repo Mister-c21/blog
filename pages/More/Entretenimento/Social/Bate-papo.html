@@ -8,7 +8,6 @@
   <link rel="icon" type="image/png" href="./Src/FavicoLW.png">
   <link rel="apple-touch-icon" href="./Src/FavicoLW.png">
 
-  
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     :root {
@@ -57,10 +56,21 @@
       justify-content: space-around;
       align-items: center;
       z-index: 1000;
+      /* Transição fluida aplicada apenas para o comportamento mobile */
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Classe para esconder a barra SOMENTE no Mobile (desliza para baixo) */
+    .navbar.hidden {
+      transform: translateY(100%);
+      opacity: 0;
+      pointer-events: none;
     }
 
     .logo {
-      display: none; /* Escondido no mobile */
+      display: none;
       font-size: 1.4rem;
       font-weight: 700;
       color: var(--primary-violet);
@@ -86,18 +96,15 @@
       padding: 8px 12px;
       border-radius: 12px;
       position: relative;
-      /* Transição super fluida e elástica */
       transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
-    /* Efeito ao passar o mouse */
     .nav-item a:hover {
       color: var(--primary-violet);
       background-color: var(--primary-light);
       transform: translateY(-2px);
     }
 
-    /* Efeito Ativo Fluido e Atraente */
     .nav-item a.active {
       color: var(--primary-violet);
       background-color: var(--primary-light);
@@ -106,7 +113,6 @@
       box-shadow: 0 6px 16px rgba(124, 58, 237, 0.18);
     }
 
-    /* Animação suave no ícone ao ativar */
     .nav-item a i {
       width: 24px;
       height: 24px;
@@ -123,6 +129,12 @@
       width: 100%;
       height: calc(100vh - var(--nav-size));
       display: flex;
+      transition: height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* Expande a altura no mobile quando a barra inferior some */
+    .main-wrapper.expanded {
+      height: 100vh;
     }
 
     .feed {
@@ -132,7 +144,6 @@
       padding: 0;
     }
 
-    /* Transição suave de fade e escala ao carregar o iframe */
     .feed-iframe {
       width: 100%;
       height: 100%;
@@ -148,74 +159,7 @@
       transform: scale(0.99);
     }
 
-    /* Cards do Feed */
-    .post-card {
-      background-color: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-    }
-
-    .post-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-
-    .avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background-color: var(--primary-violet);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-    }
-
-    .user-info h4 {
-      font-size: 0.95rem;
-    }
-
-    .user-info span {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    .post-content {
-      font-size: 0.95rem;
-      line-height: 1.5;
-      margin-bottom: 15px;
-    }
-
-    .post-actions {
-      display: flex;
-      gap: 20px;
-      border-top: 1px solid var(--border-color);
-      padding-top: 12px;
-      color: var(--text-muted);
-    }
-
-    .action-btn {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 0.85rem;
-    }
-
-    .action-btn:hover {
-      color: var(--primary-violet);
-    }
-
-    /* --- LAYOUT DESKTOP (Sidebar) --- */
+    /* --- LAYOUT DESKTOP (Sidebar Fixa e Imune a Ocultação) --- */
     @media (min-width: 768px) {
       body {
         flex-direction: row;
@@ -232,6 +176,11 @@
         padding-top: 30px;
         border-top: none;
         border-right: 1px solid var(--border-color);
+        /* Anula qualquer efeito de sumir ou deslocamento lateral no desktop */
+        transform: none !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        transition: none;
       }
 
       .logo {
@@ -252,27 +201,15 @@
         border-radius: 12px;
       }
 
-      .nav-item.nav-home a:hover,
-      .nav-item.nav-home a:focus-visible {
-        box-shadow: none;
-        background-color: var(--primary-light);
-        color: var(--primary-violet);
-        transform: translateX(4px);
-      }
-
-      .nav-item a.active {
-        transform: translateX(6px);
-      }
-
       .main-wrapper {
-        height: 100vh;
+        height: 100vh !important;
       }
     }
   </style>
 </head>
 <body>
 
-  <nav class="navbar">
+  <nav class="navbar" id="mainNav">
     <div class="logo">LoreWiki</div>
     <ul class="nav-list">
       <li class="nav-item nav-home">
@@ -290,11 +227,9 @@
     </ul>
   </nav>
 
-  <div class="main-wrapper">
+  <div class="main-wrapper" id="mainWrapper">
     <main class="feed">
-      
       <iframe src="Chat/Index.html" class="feed-iframe" title="Conteúdo do Feed"></iframe>
-
     </main>
   </div>
 
@@ -302,20 +237,25 @@
     lucide.createIcons();
 
     const feedIframe = document.querySelector('.feed-iframe');
-    // Seleciona apenas o link do Chat (que possui data-src), mantendo o Home livre para navegação normal de link
     const navLinks = document.querySelectorAll('.nav-list a[data-src]');
-    
+    const mainNav = document.getElementById('mainNav');
+    const mainWrapper = document.getElementById('mainWrapper');
+
+    // Executa a ocultação animada apenas se estiver em telas menores (Mobile)
+    if (window.innerWidth < 768) {
+      mainNav.classList.add('hidden');
+      mainWrapper.classList.add('expanded');
+    }
+
     navLinks.forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault();
         
         if (link.classList.contains('active')) return;
 
-        // Remove 'active' de todos os itens e adiciona ao clicado
         document.querySelectorAll('.nav-list a').forEach(item => item.classList.remove('active'));
         link.classList.add('active');
         
-        // Transição suave do iframe (dissolvência)
         const newSrc = link.getAttribute('data-src');
         if (newSrc) {
           feedIframe.classList.add('changing');
@@ -325,6 +265,19 @@
           }, 200);
         }
       });
+    });
+
+    // Comunicação opcional via iframe
+    window.addEventListener('message', (event) => {
+      if (window.innerWidth < 768) {
+        if (event.data === 'hideNav') {
+          mainNav.classList.add('hidden');
+          mainWrapper.classList.add('expanded');
+        } else if (event.data === 'showNav') {
+          mainNav.classList.remove('hidden');
+          mainWrapper.classList.remove('expanded');
+        }
+      }
     });
   </script>
 </body>
