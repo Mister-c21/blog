@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat Web - Violeta & Branco</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             --primary-bg: #ffffff;
@@ -357,6 +358,225 @@
             text-align: center;
         }
 
+        /* --- MODAL DE SCANNER DE CÓDIGO QR / ADICIONAR CONTATO --- */
+        .qr-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .qr-modal.show {
+            display: flex;
+        }
+
+        .qr-modal-content {
+            background-color: var(--primary-bg);
+            width: 90%;
+            max-width: 400px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            animation: scaleUp 0.25s ease-out;
+        }
+
+        @keyframes scaleUp {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .qr-modal-header {
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text-main);
+        }
+
+        .qr-modal-header i {
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--text-muted);
+        }
+
+        .qr-modal-body {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Abas internas do Modal (Escanear vs Meu Código / Inserir Código) */
+        .qr-tabs {
+            display: flex;
+            width: 100%;
+            background-color: var(--gray-bg);
+            border-radius: 10px;
+            padding: 4px;
+        }
+
+        .qr-tab-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: none;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .qr-tab-btn.active {
+            background-color: var(--primary-bg);
+            color: var(--secondary-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .qr-view-section {
+            width: 100%;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .qr-view-section.active {
+            display: flex;
+        }
+
+        /* Visualizador da Câmera (Scanner Fictício/Real) */
+        .scanner-viewport {
+            width: 100%;
+            height: 220px;
+            background-color: #111;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+
+        .scanner-frame {
+            width: 150px;
+            height: 150px;
+            border: 2px dashed var(--secondary-color);
+            border-radius: 12px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulseScanner 2s infinite;
+        }
+
+        @keyframes pulseScanner {
+            0% { border-color: var(--secondary-color); }
+            50% { border-color: #a29bfe; }
+            100% { border-color: var(--secondary-color); }
+        }
+
+        .scanner-viewport p {
+            position: absolute;
+            bottom: 12px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        /* Exibição do "Meu Código QR" */
+        .my-qr-box {
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .my-qr-code-render {
+            width: 140px;
+            height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .my-qr-code-render img {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .my-qr-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* Container de Inserção de Código por Texto (Desktop ou alternativa) */
+        .code-input-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .code-input-container label {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-align: left;
+            width: 100%;
+        }
+
+        .code-input-container input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            outline: none;
+            font-size: 14px;
+            background-color: var(--gray-bg);
+            color: var(--text-main);
+        }
+
+        .code-input-container input:focus {
+            border-color: var(--secondary-color);
+            background-color: var(--primary-bg);
+        }
+
+        .qr-action-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .qr-action-btn:hover {
+            background-color: var(--secondary-hover);
+        }
+
         /* Modal customizado para URL de Imagem ou YouTube */
         .url-modal {
             display: none;
@@ -429,7 +649,7 @@
             color: white;
         }
 
-        /* Modal Estilo Notas do Instagram para Seleção de Música (API iTunes com Preview) */
+        /* Modal de Seleção de Música (Estilo Instagram Notas via iTunes API com Preview) */
         .music-modal {
             display: none;
             position: fixed;
@@ -594,7 +814,6 @@
             max-width: 300px;
         }
 
-        /* Contêiner do Disco de Vinil */
         .vinyl-container {
             position: relative;
             width: 60px;
@@ -602,7 +821,6 @@
             flex-shrink: 0;
         }
 
-        /* O Disco de Vinil Preto com ranhuras simuladas */
         .vinyl-disc {
             position: absolute;
             top: 0;
@@ -618,7 +836,6 @@
             transition: transform 0.3s ease;
         }
 
-        /* Animação de rotação quando a música está tocando */
         .vinyl-disc.playing {
             animation: spinVinyl 3s linear infinite;
         }
@@ -628,7 +845,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Capa centralizada no disco de vinil */
         .vinyl-center-art {
             width: 24px;
             height: 24px;
@@ -639,7 +855,6 @@
             z-index: 2;
         }
 
-        /* Capa do Álbum Deslizada para a Esquerda (Estilo Instagram Notas) */
         .vinyl-album-cover {
             position: absolute;
             top: 4px;
@@ -745,7 +960,6 @@
             border-top-right-radius: 2px;
         }
 
-        /* Estilização de elementos inseridos nas mensagens */
         .message img {
             max-width: 100%;
             border-radius: 6px;
@@ -820,7 +1034,6 @@
             background-color: var(--secondary-hover);
         }
 
-        /* Funcionamento mobile: Oculta a sidebar e mostra o chat inteiro quando ativo */
         @media (max-width: 767px) {
             .mobile-show-chat .sidebar {
                 display: none;
@@ -841,7 +1054,7 @@
                     <span>Conversas</span>
                 </div>
                 <div class="sidebar-actions">
-                    <i class="fa-solid fa-pen-to-square" title="Nova Conversa"></i>
+                    <i class="fa-solid fa-user-plus" id="addContactHeaderBtn" title="Adicionar Contato"></i>
                 </div>
             </div>
 
@@ -916,6 +1129,43 @@
         </div>
     </div>
 
+    <div class="qr-modal" id="qrModal">
+        <div class="qr-modal-content">
+            <div class="qr-modal-header">
+                <span id="qrModalMainTitle">Adicionar Contato</span>
+                <i class="fa-solid fa-xmark" onclick="closeQrModal()"></i>
+            </div>
+            <div class="qr-modal-body">
+                <div class="qr-tabs" id="qrTabsContainer">
+                    <button class="qr-tab-btn active" id="tabScannerBtn" onclick="switchQrTab('scanner')">Escanear QR</button>
+                    <button class="qr-tab-btn" id="tabMyCodeBtn" onclick="switchQrTab('mycode')">Meu Código</button>
+                </div>
+
+                <div class="qr-view-section active" id="scannerSection">
+                    <div class="scanner-viewport" id="scannerViewport">
+                        <div class="scanner-frame">
+                            <i class="fa-solid fa-camera" style="font-size: 32px; color: rgba(255,255,255,0.4);"></i>
+                        </div>
+                        <p>Posicione o QR Code no visor</p>
+                    </div>
+                    <div class="code-input-container" id="desktopCodeInputContainer">
+                        <label id="codeLabelText" for="contactCodeInput">Inserir código do contato:</label>
+                        <input type="text" id="contactCodeInput" placeholder="Digite o ID ou nome do contato..." autocomplete="off">
+                    </div>
+                    <button class="qr-action-btn" onclick="submitAddContact()">Adicionar Contato</button>
+                </div>
+
+                <div class="qr-view-section" id="myCodeSection">
+                    <div class="my-qr-box">
+                        <div class="my-qr-code-render" id="myQrCodeContainer"></div>
+                        <div class="my-qr-name">Meu Perfil - Chat Web</div>
+                    </div>
+                    <p style="font-size: 12px; color: var(--text-muted); text-align: center;">Peça para seus amigos escanearem este código para adicioná-lo.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="url-modal" id="urlModal">
         <div class="url-modal-content">
             <div class="url-modal-title" id="urlModalTitle">Inserir URL</div>
@@ -965,7 +1215,8 @@
         let activeAttachmentType = null;
         let musicSearchTimeout = null;
         let activePreviewAudio = null;
-        let activeChatAudio = null; // Áudio ativo nas mensagens enviadas
+        let activeChatAudio = null; 
+        let myQrCodeInitialized = false;
 
         const appContainer = document.getElementById('appContainer');
         const chatListEl = document.getElementById('chatList');
@@ -987,6 +1238,16 @@
         const musicModal = document.getElementById('musicModal');
         const musicSearchInput = document.getElementById('musicSearchInput');
         const musicList = document.getElementById('musicList');
+        const addContactHeaderBtn = document.getElementById('addContactHeaderBtn');
+        const qrModal = document.getElementById('qrModal');
+        const qrTabsContainer = document.getElementById('qrTabsContainer');
+        const scannerViewport = document.getElementById('scannerViewport');
+        const desktopCodeInputContainer = document.getElementById('desktopCodeInputContainer');
+        const contactCodeInput = document.getElementById('contactCodeInput');
+        const tabScannerBtn = document.getElementById('tabScannerBtn');
+        const tabMyCodeBtn = document.getElementById('tabMyCodeBtn');
+        const scannerSection = document.getElementById('scannerSection');
+        const myCodeSection = document.getElementById('myCodeSection');
 
         function switchTab(tabName) {
             currentTab = tabName;
@@ -1152,6 +1413,96 @@
             messagesContainer.style.justifyContent = 'center';
             messagesContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 15px;">Selecione um contato para conversar</div>';
             renderChatList();
+        }
+
+        /* --- Funcionalidade do Modal de Adicionar Contato (QR Scanner & Inserção Desktop) --- */
+        addContactHeaderBtn.addEventListener('click', () => {
+            dropdownMenu.classList.remove('show');
+            attachmentMenu.classList.remove('show');
+            openQrModal();
+        });
+
+        function openQrModal() {
+            qrModal.classList.add('show');
+            contactCodeInput.value = '';
+            
+            // Adaptar comportamento entre Mobile e Desktop
+            const isDesktop = window.innerWidth >= 768;
+            if (isDesktop) {
+                // No desktop, esconde as abas e o visor de câmera, mostrando apenas a inserção de código
+                qrTabsContainer.style.display = 'none';
+                scannerViewport.style.display = 'none';
+                desktopCodeInputContainer.style.display = 'flex';
+                switchQrTab('scanner'); // Garante que a seção ativa contém o input
+            } else {
+                // No mobile, exibe as abas normalmente
+                qrTabsContainer.style.display = 'flex';
+                scannerViewport.style.display = 'flex';
+                desktopCodeInputContainer.style.display = 'flex';
+                switchQrTab('scanner');
+            }
+
+            // Gera o QR Code dinâmico do usuário caso não tenha sido gerado
+            if (!myQrCodeInitialized) {
+                const qrContainer = document.getElementById('myQrCodeContainer');
+                qrContainer.innerHTML = '';
+                new QRCode(qrContainer, {
+                    text: "https://chatweb.app/user/perfil_usuario_atual",
+                    width: 130,
+                    height: 130,
+                    colorDark: "#2d3436",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                myQrCodeInitialized = true;
+            }
+        }
+
+        function closeQrModal() {
+            qrModal.classList.remove('show');
+        }
+
+        function switchQrTab(tabName) {
+            tabScannerBtn.classList.remove('active');
+            tabMyCodeBtn.classList.remove('active');
+            scannerSection.classList.remove('active');
+            myCodeSection.classList.remove('active');
+
+            if (tabName === 'scanner') {
+                tabScannerBtn.classList.add('active');
+                scannerSection.classList.add('active');
+            } else {
+                tabMyCodeBtn.classList.add('active');
+                myCodeSection.classList.add('active');
+            }
+        }
+
+        function submitAddContact() {
+            const codeVal = contactCodeInput.value.trim();
+            if (!codeVal) {
+                alert("Por favor, insira ou escaneie o código do contato.");
+                return;
+            }
+
+            // Cria um novo contato fictício com base no código inserido
+            const newId = chatsData.length > 0 ? Math.max(...chatsData.map(c => c.id)) + 1 : 1;
+            const initials = codeVal.substring(0, 2).toUpperCase();
+            
+            chatsData.unshift({
+                id: newId,
+                name: codeVal,
+                lastMsg: "Contato adicionado via código",
+                avatar: initials,
+                type: "contatos",
+                pinned: false,
+                messages: [
+                    { sender: "received", text: `Olá! Fui adicionado através do código: ${codeVal}` }
+                ]
+            });
+
+            closeQrModal();
+            renderChatList();
+            selectChat(newId);
         }
 
         function handleAttachmentSelection(type) {
@@ -1328,7 +1679,6 @@
             const trackName = track.trackName;
             const artistName = track.artistName;
 
-            // Gerador de ID único para controlar este player de vinil na mensagem
             const playerInstanceId = 'vinyl_' + Math.random().toString(36).substr(2, 9);
 
             const contentHtml = `
@@ -1381,7 +1731,6 @@
             } else {
                 if (activeChatAudio) {
                     activeChatAudio.pause();
-                    // Limpar animações e ícones de todos os outros players ativos no chat
                     document.querySelectorAll('.vinyl-disc').forEach(d => d.classList.remove('playing'));
                     document.querySelectorAll('.vinyl-play-btn').forEach(b => b.innerHTML = '<i class="fa-solid fa-play"></i>');
                 }
