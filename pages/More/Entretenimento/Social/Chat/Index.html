@@ -7,12 +7,19 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script type="module">
+        import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+        import { bytesToHex, hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+        window.NostrTools = NostrTools;
+        window.nostrBytesToHex = bytesToHex;
+        window.nostrHexToBytes = hexToBytes;
+    </script>
     <style>
         :root {
             --primary-bg: #ffffff;
-            --secondary-color: #6c5ce7; /* Violeta principal */
-            --secondary-hover: #5b4be2; /* Violeta escuro para hover */
-            --light-violet: #f3f0ff;    /* Violeta claro para detalhes */
+            --secondary-color: #6c5ce7;
+            --secondary-hover: #5b4be2;
+            --light-violet: #f3f0ff;
             --gray-bg: #f8f9fa;
             --text-main: #2d3436;
             --text-muted: #636e72;
@@ -46,7 +53,6 @@
             max-width: none;
         }
 
-        /* --- PAINEL ESQUERDO: Lista de Contatos --- */
         .sidebar {
             width: 100%;
             background-color: var(--primary-bg);
@@ -223,7 +229,6 @@
             text-overflow: ellipsis;
         }
 
-        /* --- PAINEL DIREITO: Área de Conversa --- */
         .chat-area {
             display: none;
             flex-direction: column;
@@ -312,7 +317,6 @@
             color: var(--secondary-color);
         }
 
-        /* Menu de anexos (clipe) */
         .attachment-menu {
             display: none;
             position: absolute;
@@ -354,7 +358,6 @@
             text-align: center;
         }
 
-        /* --- MODAL ESTILO INSTAGRAM PARA GIFs E STICKERS --- */
         .ig-media-modal {
             display: none;
             position: fixed;
@@ -420,7 +423,6 @@
             color: var(--text-muted);
         }
 
-        /* Abas Internas Estilo Instagram (GIFs / Stickers) */
         .ig-tabs {
             display: flex;
             border-bottom: 1px solid var(--border-color);
@@ -507,7 +509,6 @@
             object-fit: cover;
         }
 
-        /* --- MODAL DE SCANNER QR / OUTROS MODAIS --- */
         .qr-modal {
             display: none;
             position: fixed;
@@ -691,7 +692,6 @@
             background-color: var(--secondary-hover);
         }
 
-        /* Modal URL Geral */
         .url-modal {
             display: none;
             position: fixed;
@@ -759,7 +759,6 @@
             color: white;
         }
 
-        /* Modal de Música */
         .music-modal {
             display: none;
             position: fixed;
@@ -897,7 +896,6 @@
             justify-content: center;
         }
 
-        /* Player Vinil */
         .vinyl-player-card {
             display: flex;
             align-items: center;
@@ -1242,17 +1240,17 @@
                         <div id="reader"></div>
                     </div>
                     <div class="code-input-container" id="desktopCodeInputContainer">
-                        <label id="codeLabelText" for="contactCodeInput">Inserir código do contato:</label>
-                        <input type="text" id="contactCodeInput" placeholder="Digite o ID ou nome do contato..." autocomplete="off">
+                        <label id="codeLabelText" for="contactCodeInput">Inserir npub ou código do contato:</label>
+                        <input type="text" id="contactCodeInput" placeholder="npub1... ou chave pública" autocomplete="off">
                     </div>
                     <button class="qr-action-btn" onclick="submitAddContact()">Adicionar Contato</button>
                 </div>
                 <div class="qr-view-section" id="myCodeSection">
                     <div class="my-qr-box">
                         <div class="my-qr-code-render" id="myQrCodeContainer"></div>
-                        <div class="my-qr-name">Meu Perfil - Chat Web</div>
+                        <div class="my-qr-name">Meu npub (Nostr)</div>
                     </div>
-                    <p style="font-size: 12px; color: var(--text-muted); text-align: center;">Peça para seus amigos escanearem este código para adicioná-lo.</p>
+                    <p style="font-size: 12px; color: var(--text-muted); text-align: center;">Peça para seus amigos escanearem este código (sua chave pública npub).</p>
                 </div>
             </div>
         </div>
@@ -1283,36 +1281,65 @@
     </div>
 
     <script>
-        const chatsData = [
-            { id: 1, name: "Maria Silva", lastMsg: "Combinado então!", avatar: "M", type: "contatos", pinned: false, messages: [
-                { sender: "received", text: "Oi, tudo bem?" },
-                { sender: "sent", text: "Tudo ótimo e com você?" },
-                { sender: "received", text: "Combinado então!" }
-            ]},
-            { id: 2, name: "Carlos Souza", lastMsg: "Me liga quando puder.", avatar: "C", type: "contatos", pinned: false, messages: [
-                { sender: "received", text: "Me liga quando puder." }
-            ]},
-            { id: 3, name: "Grupo de Projetos", lastMsg: "Ana: Atualizei o repositório.", avatar: "GP", type: "contatos", pinned: false, messages: [
-                { sender: "received", text: "Ana: Atualizei o repositório." }
-            ]},
-            { id: 4, name: "Usuário Bloqueado", lastMsg: "Sem mensagens recentes", avatar: "UB", type: "bloqueados", pinned: false, messages: [
-                { sender: "received", text: "Este contato está bloqueado." }
-            ]}
-        ];
+        /* ============================================================
+           AUTENTICAÇÃO REDE NOSTR
+           ============================================================ */
+        (function checkNostrAuth() {
+            const LOGIN_PAGE = '../Index.html'; // ajuste se necessário
 
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+            const session = localStorage.getItem('nostr_session');
+
+            if (isLoggedIn !== 'true' || !session) {
+                if (window.top !== window.self) window.top.location.replace(LOGIN_PAGE);
+                else window.location.replace(LOGIN_PAGE);
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(session);
+                if (!parsed.privateKeyHex || !parsed.pubkey) {
+                    localStorage.removeItem('isLoggedIn');
+                    localStorage.removeItem('nostr_session');
+                    if (window.top !== window.self) window.top.location.replace(LOGIN_PAGE);
+                    else window.location.replace(LOGIN_PAGE);
+                }
+            } catch (e) {
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('nostr_session');
+                if (window.top !== window.self) window.top.location.replace(LOGIN_PAGE);
+                else window.location.replace(LOGIN_PAGE);
+            }
+        })();
+
+        /* ============================================================
+           ESTADO GLOBAL
+           ============================================================ */
+        let chatsData = [];
         let currentTab = 'contatos';
         let currentChatId = null;
         let searchQuery = '';
         let activeAttachmentType = null;
         let musicSearchTimeout = null;
         let activePreviewAudio = null;
-        let activeChatAudio = null; 
+        let activeChatAudio = null;
         let myQrCodeInitialized = false;
         let html5QrCodeScanner = null;
-
-        // Estado do Modal estilo Instagram (GIF / Sticker)
-        let igCurrentType = 'gif'; // 'gif' ou 'sticker'
+        let igCurrentType = 'gif';
         let igSearchTimeout = null;
+
+        const NORST_RELAYS = [
+            'wss://relay.damus.io',
+            'wss://nos.lol',
+            'wss://relay.nostr.band',
+            'wss://relay.primal.net'
+        ];
+
+        let nostrPool = null;
+        let currentUserPubkey = null;
+        let currentUserNpub = null;
+        let dmSubscription = null;
+        const seenMessageIds = new Set();
 
         const appContainer = document.getElementById('appContainer');
         const chatListEl = document.getElementById('chatList');
@@ -1344,8 +1371,6 @@
         const tabMyCodeBtn = document.getElementById('tabMyCodeBtn');
         const scannerSection = document.getElementById('scannerSection');
         const myCodeSection = document.getElementById('myCodeSection');
-
-        // Referências do Modal de Instagram (GIF/Sticker)
         const igMediaModal = document.getElementById('igMediaModal');
         const igModalTitle = document.getElementById('igModalTitle');
         const tabGifBtn = document.getElementById('tabGifBtn');
@@ -1353,10 +1378,203 @@
         const igSearchInput = document.getElementById('igSearchInput');
         const igGridContainer = document.getElementById('igGridContainer');
 
+        /* ============================================================
+           HELPERS NOSTR
+           ============================================================ */
+        function getNostrSession() {
+            try {
+                const raw = localStorage.getItem('nostr_session');
+                return raw ? JSON.parse(raw) : null;
+            } catch {
+                return null;
+            }
+        }
+
+        function initNostrFromSession() {
+            const session = getNostrSession();
+            if (!session || !session.pubkey) return false;
+            currentUserPubkey = session.pubkey;
+            try {
+                if (window.NostrTools) {
+                    currentUserNpub = NostrTools.nip19.npubEncode(session.pubkey);
+                } else {
+                    currentUserNpub = session.pubkey;
+                }
+            } catch {
+                currentUserNpub = session.pubkey;
+            }
+            return true;
+        }
+
+        function getPrivateKeyBytes() {
+            const session = getNostrSession();
+            if (!session?.privateKeyHex) return null;
+            try {
+                if (window.nostrHexToBytes) return window.nostrHexToBytes(session.privateKeyHex);
+                if (window.NostrTools?.hexToBytes) return NostrTools.hexToBytes(session.privateKeyHex);
+                const hex = session.privateKeyHex;
+                const out = new Uint8Array(hex.length / 2);
+                for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i * 2, 2), 16);
+                return out;
+            } catch {
+                return null;
+            }
+        }
+
+        function waitForNostrTools(maxMs = 5000) {
+            return new Promise((resolve) => {
+                if (window.NostrTools) return resolve(true);
+                const start = Date.now();
+                const t = setInterval(() => {
+                    if (window.NostrTools || Date.now() - start > maxMs) {
+                        clearInterval(t);
+                        resolve(!!window.NostrTools);
+                    }
+                }, 100);
+            });
+        }
+
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+
+        function showMessageNotification(title, body) {
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
+            if (!document.hidden && currentChatId !== null) return;
+            try {
+                const n = new Notification(title || 'Nova mensagem', {
+                    body: body || 'Você recebeu uma mensagem',
+                    icon: '../Src/FavicoLW.png',
+                    tag: 'loresocial-dm'
+                });
+                n.onclick = () => { window.focus(); n.close(); };
+            } catch (e) {
+                console.warn('Notificação:', e);
+            }
+        }
+
+        function buildMediaPayload(type, data) {
+            return JSON.stringify({ lore: 1, type, ...data });
+        }
+
+        function tryParseMediaPayload(text) {
+            try {
+                const obj = JSON.parse(text);
+                if (obj && obj.lore === 1 && obj.type) return obj;
+            } catch {}
+            return null;
+        }
+
+        function escapeAttr(s) {
+            return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function renderMessageContent(msgDiv, text) {
+            const media = tryParseMediaPayload(text);
+            if (!media) {
+                msgDiv.textContent = text;
+                return;
+            }
+
+            if (media.type === 'text') {
+                msgDiv.textContent = media.text || '';
+                return;
+            }
+
+            if (media.type === 'gif' || media.type === 'sticker' || media.type === 'image') {
+                msgDiv.innerHTML = `<img src="${escapeAttr(media.url)}" alt="${escapeAttr(media.type)}" onerror="this.outerHTML='[Mídia indisponível]'"/>`;
+                return;
+            }
+
+            if (media.type === 'youtube' && media.videoId) {
+                msgDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${escapeAttr(media.videoId)}" allowfullscreen></iframe>`;
+                return;
+            }
+
+            if (media.type === 'music') {
+                const artworkUrl = media.artwork || '';
+                const previewUrl = media.preview || '';
+                const trackName = media.title || 'Música';
+                const artistName = media.artist || '';
+                const playerInstanceId = 'vinyl_' + Math.random().toString(36).substr(2, 9);
+
+                msgDiv.innerHTML = `
+                    <div class="vinyl-player-card">
+                        <div class="vinyl-container">
+                            <div class="vinyl-disc" id="disc_${playerInstanceId}">
+                                <img src="${escapeAttr(artworkUrl)}" class="vinyl-center-art" alt="Centro">
+                            </div>
+                            <img src="${escapeAttr(artworkUrl)}" class="vinyl-album-cover" alt="Capa">
+                        </div>
+                        <div class="vinyl-info">
+                            <div class="vinyl-title">${escapeAttr(trackName)}</div>
+                            <div class="vinyl-artist">${escapeAttr(artistName)}</div>
+                            <div class="vinyl-controls">
+                                ${previewUrl
+                                    ? `<button class="vinyl-play-btn" id="btn_${playerInstanceId}" onclick="toggleChatVinyl('${escapeAttr(previewUrl)}', '${playerInstanceId}')"><i class="fa-solid fa-play"></i></button>`
+                                    : '<div style="font-size:10px; color:var(--text-muted);">Indisponível</div>'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            msgDiv.textContent = text;
+        }
+
+        function mediaPreviewText(plainText) {
+            const media = tryParseMediaPayload(plainText);
+            if (!media) return plainText;
+            if (media.type === 'text') return media.text || '';
+            if (media.type === 'gif') return '[GIF]';
+            if (media.type === 'sticker') return '[Sticker]';
+            if (media.type === 'image') return '[Imagem]';
+            if (media.type === 'youtube') return '[YouTube]';
+            if (media.type === 'music') return `[Música: ${media.title || ''}]`;
+            return plainText;
+        }
+
+        async function sendNostrDm(chat, plainText) {
+            if (!chat?.pubkey || !plainText) return false;
+            const sk = getPrivateKeyBytes();
+            if (!sk || !window.NostrTools) return false;
+
+            try {
+                if (!nostrPool) nostrPool = new NostrTools.SimplePool();
+                const encrypted = await NostrTools.nip04.encrypt(sk, chat.pubkey, plainText);
+                const eventTemplate = {
+                    kind: 4,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [['p', chat.pubkey]],
+                    content: encrypted
+                };
+                const signed = NostrTools.finalizeEvent(eventTemplate, sk);
+                await Promise.any(nostrPool.publish(NORST_RELAYS, signed));
+                seenMessageIds.add(signed.id);
+                return true;
+            } catch (e) {
+                console.error('Erro ao enviar DM Nostr:', e);
+                return false;
+            }
+        }
+
+        /* ============================================================
+           UI BÁSICA
+           ============================================================ */
         function switchTab(tabName) {
             currentTab = tabName;
             document.querySelectorAll('.tab-item').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+            if (typeof event !== 'undefined' && event?.target) event.target.classList.add('active');
+            else {
+                document.querySelectorAll('.tab-item').forEach(btn => {
+                    if (btn.textContent.toLowerCase().includes(tabName === 'bloqueados' ? 'bloqueados' : 'contatos')) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
             renderChatList();
         }
 
@@ -1364,8 +1582,8 @@
             chatListEl.innerHTML = '';
             const filteredChats = chatsData.filter(chat => {
                 const matchesTab = chat.type === currentTab;
-                const matchesSearch = chat.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                      chat.lastMsg.toLowerCase().includes(searchQuery.toLowerCase());
+                const matchesSearch = chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    (chat.lastMsg || '').toLowerCase().includes(searchQuery.toLowerCase());
                 return matchesTab && matchesSearch;
             });
 
@@ -1381,7 +1599,7 @@
                     <div class="avatar">${chat.avatar}</div>
                     <div class="chat-info">
                         <div class="chat-name">${chat.name} ${chat.pinned ? '<i class="fa-solid fa-thumbtack" style="font-size: 11px; color: var(--secondary-color); margin-left: 5px;"></i>' : ''}</div>
-                        <div class="chat-last-msg">${chat.lastMsg}</div>
+                        <div class="chat-last-msg">${chat.lastMsg || ''}</div>
                     </div>
                 `;
                 item.addEventListener('click', () => selectChat(chat.id));
@@ -1396,34 +1614,36 @@
             }
             currentChatId = id;
             const chat = chatsData.find(c => c.id === id);
-            
+            if (!chat) return;
+
             activeName.textContent = chat.name;
             activeAvatar.textContent = chat.avatar;
-            activeStatus.textContent = "online";
-            
-            const pinText = document.getElementById('pinText');
-            const blockText = document.getElementById('blockText');
-            pinText.textContent = chat.pinned ? "Desfixar contato" : "Fixar contato";
-            blockText.textContent = chat.type === 'bloqueados' ? "Desbloquear" : "Bloquear";
+            activeStatus.textContent = 'online';
+
+            document.getElementById('pinText').textContent = chat.pinned ? 'Desfixar contato' : 'Fixar contato';
+            document.getElementById('blockText').textContent = chat.type === 'bloqueados' ? 'Desbloquear' : 'Bloquear';
 
             messagesContainer.style.justifyContent = 'flex-start';
             messagesContainer.innerHTML = '';
             chat.messages.forEach(msg => {
                 const msgDiv = document.createElement('div');
                 msgDiv.className = `message ${msg.sender}`;
-                if (msg.isHtml) {
+                const media = tryParseMediaPayload(msg.text || '');
+                if (media) {
+                    renderMessageContent(msgDiv, msg.text);
+                } else if (msg.isHtml && msg.content) {
                     msgDiv.innerHTML = msg.content;
                 } else {
-                    msgDiv.textContent = msg.text;
+                    msgDiv.textContent = msg.displayText || msg.text || '';
                 }
                 messagesContainer.appendChild(msgDiv);
             });
 
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            
+
             if (window.innerWidth <= 767) {
                 appContainer.classList.add('mobile-show-chat');
-                window.parent.postMessage('hideNav', '*'); // Esconde a barra inferior de forma fluida
+                window.parent.postMessage('hideNav', '*');
             } else {
                 appContainer.classList.add('desktop-has-chat');
             }
@@ -1438,14 +1658,14 @@
             appContainer.classList.remove('mobile-show-chat');
             currentChatId = null;
             appContainer.classList.remove('desktop-has-chat');
-            activeName.textContent = "Bem-vindo";
+            activeName.textContent = 'Bem-vindo';
             activeAvatar.innerHTML = '<i class="fa-solid fa-user"></i>';
-            activeStatus.textContent = "offline";
+            activeStatus.textContent = 'offline';
             dropdownMenu.classList.remove('show');
             attachmentMenu.classList.remove('show');
             messagesContainer.style.justifyContent = 'center';
             messagesContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 15px;">Selecione um contato para conversar</div>';
-            window.parent.postMessage('showNav', '*'); // Mostra a barra inferior novamente
+            window.parent.postMessage('showNav', '*');
             renderChatList();
         });
 
@@ -1479,16 +1699,13 @@
             if (chat.type === 'contatos') {
                 chat.type = 'bloqueados';
                 currentTab = 'bloqueados';
-                document.querySelectorAll('.tab-item').forEach(btn => {
-                    btn.classList.toggle('active', btn.textContent.toLowerCase().includes('bloqueados'));
-                });
             } else {
                 chat.type = 'contatos';
                 currentTab = 'contatos';
-                document.querySelectorAll('.tab-item').forEach(btn => {
-                    btn.classList.toggle('active', btn.textContent.toLowerCase().includes('contatos'));
-                });
             }
+            document.querySelectorAll('.tab-item').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase().includes(currentTab));
+            });
             selectChat(currentChatId);
         }
 
@@ -1503,16 +1720,18 @@
             currentChatId = null;
             appContainer.classList.remove('mobile-show-chat');
             appContainer.classList.remove('desktop-has-chat');
-            activeName.textContent = "Bem-vindo";
+            activeName.textContent = 'Bem-vindo';
             activeAvatar.innerHTML = '<i class="fa-solid fa-user"></i>';
-            activeStatus.textContent = "offline";
+            activeStatus.textContent = 'offline';
             messagesContainer.style.justifyContent = 'center';
             messagesContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 15px;">Selecione um contato para conversar</div>';
-            window.parent.postMessage('showNav', '*'); // Garante restaurar a barra se deletar dentro do chat mobile
+            window.parent.postMessage('showNav', '*');
             renderChatList();
         }
 
-        /* --- Integração de GIFs e Stickers com API Pública Gratuita da Giphy --- */
+        /* ============================================================
+           GIPHY
+           ============================================================ */
         function openIgMediaModal(initialType) {
             igCurrentType = initialType;
             igMediaModal.classList.add('show');
@@ -1546,38 +1765,34 @@
         igSearchInput.addEventListener('input', (e) => {
             const query = e.target.value.trim();
             clearTimeout(igSearchTimeout);
-            igSearchTimeout = setTimeout(() => {
-                fetchGiphyMedia(query, igCurrentType);
-            }, 400);
+            igSearchTimeout = setTimeout(() => fetchGiphyMedia(query, igCurrentType), 400);
         });
 
         async function fetchGiphyMedia(query, type) {
             igGridContainer.innerHTML = `<div style="grid-column: span 2; text-align: center; padding: 20px; color: var(--text-muted);">Buscando ${type === 'gif' ? 'GIFs' : 'Stickers'}...</div>`;
-            
-            let endpoint = '';
-            const apiKey = 'dc6zaTOxFJmzC';
+
+            // Cole sua chave em https://developers.giphy.com/
+            const apiKey = 'SUA_CHAVE_GIPHY_AQUI';
             const limit = 20;
+            let endpoint = '';
 
             if (type === 'gif') {
-                if (query) {
-                    endpoint = `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g`;
-                } else {
-                    endpoint = `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=${limit}&rating=g`;
-                }
+                endpoint = query
+                    ? `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g`
+                    : `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=${limit}&rating=g`;
             } else {
-                if (query) {
-                    endpoint = `https://api.giphy.com/v1/stickers/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g`;
-                } else {
-                    endpoint = `https://api.giphy.com/v1/stickers/trending?api_key=${apiKey}&limit=${limit}&rating=g`;
-                }
+                endpoint = query
+                    ? `https://api.giphy.com/v1/stickers/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g`
+                    : `https://api.giphy.com/v1/stickers/trending?api_key=${apiKey}&limit=${limit}&rating=g`;
             }
 
             try {
                 const response = await fetch(endpoint);
                 const data = await response.json();
+                if (data.meta && data.meta.status !== 200) throw new Error(data.meta.msg || 'Erro API');
                 renderIgGrid(data.data);
             } catch (error) {
-                igGridContainer.innerHTML = `<div style="grid-column: span 2; text-align: center; color: #e74c3c; padding: 20px;">Erro ao carregar conteúdo. Tente novamente.</div>`;
+                igGridContainer.innerHTML = `<div style="grid-column: span 2; text-align: center; color: #e74c3c; padding: 20px;">Erro ao carregar. Verifique a chave da API Giphy.</div>`;
             }
         }
 
@@ -1587,30 +1802,27 @@
                 igGridContainer.innerHTML = `<div style="grid-column: span 2; text-align: center; padding: 20px; color: var(--text-muted);">Nenhum resultado encontrado</div>`;
                 return;
             }
-
             items.forEach(item => {
-                const mediaUrl = item.images.fixed_height_downsampled ? item.images.fixed_height_downsampled.url : item.images.original.url;
-                
+                const mediaUrl = item.images.fixed_height_downsampled
+                    ? item.images.fixed_height_downsampled.url
+                    : item.images.original.url;
                 const gridItem = document.createElement('div');
                 gridItem.className = 'ig-media-item';
                 gridItem.innerHTML = `<img src="${mediaUrl}" alt="Mídia" loading="lazy">`;
-                
-                gridItem.addEventListener('click', () => {
-                    sendIgMediaMessage(mediaUrl, igCurrentType);
-                });
-
+                gridItem.addEventListener('click', () => sendIgMediaMessage(mediaUrl, igCurrentType));
                 igGridContainer.appendChild(gridItem);
             });
         }
 
         function sendIgMediaMessage(url, type) {
             if (currentChatId === null) return;
-
-            const contentHtml = `<img src="${url}" alt="${type}"/>`;
-            const lastMsgText = type === 'gif' ? '[Enviou GIF]' : '[Enviou Sticker]';
+            const mediaType = type === 'gif' ? 'gif' : 'sticker';
+            const payload = buildMediaPayload(mediaType, { url });
+            const lastMsgText = mediaType === 'gif' ? '[Enviou GIF]' : '[Enviou Sticker]';
+            const contentHtml = `<img src="${url}" alt="${mediaType}"/>`;
 
             const chat = chatsData.find(c => c.id === currentChatId);
-            chat.messages.push({ sender: 'sent', isHtml: true, content: contentHtml, text: lastMsgText });
+            chat.messages.push({ sender: 'sent', isHtml: true, content: contentHtml, text: payload });
             chat.lastMsg = `Você: ${lastMsgText}`;
 
             const msgDiv = document.createElement('div');
@@ -1621,18 +1833,16 @@
             closeIgMediaModal();
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             renderChatList();
+            sendNostrDm(chat, payload);
         }
 
-        /* Handler de Seleção de Anexo no Clipe */
         function handleAttachmentSelection(type) {
             attachmentMenu.classList.remove('show');
             if (currentChatId === null) return;
 
-            if (type === 'GIF') {
-                openIgMediaModal('gif');
-            } else if (type === 'Sticky') {
-                openIgMediaModal('sticker');
-            } else if (type === 'Imagem' || type === 'Vídeo do YouTube') {
+            if (type === 'GIF') openIgMediaModal('gif');
+            else if (type === 'Sticky') openIgMediaModal('sticker');
+            else if (type === 'Imagem' || type === 'Vídeo do YouTube') {
                 activeAttachmentType = type;
                 urlModalTitle.textContent = type === 'Imagem' ? 'Adicionar URL da Imagem' : 'Adicionar URL do Vídeo do YouTube';
                 urlInput.value = '';
@@ -1643,7 +1853,9 @@
             }
         }
 
-        // Scanner QR Code e Modais Adicionais
+        /* ============================================================
+           QR / CONTATOS
+           ============================================================ */
         addContactHeaderBtn.addEventListener('click', () => {
             dropdownMenu.classList.remove('show');
             attachmentMenu.classList.remove('show');
@@ -1670,12 +1882,13 @@
             if (!myQrCodeInitialized) {
                 const qrContainer = document.getElementById('myQrCodeContainer');
                 qrContainer.innerHTML = '';
+                const qrText = currentUserNpub || getNostrSession()?.pubkey || 'npub_desconhecido';
                 new QRCode(qrContainer, {
-                    text: "ContatoNovo_QR_" + Math.random().toString(36).substring(2, 7),
+                    text: qrText,
                     width: 130,
                     height: 130,
-                    colorDark: "#2d3436",
-                    colorLight: "#ffffff",
+                    colorDark: '#2d3436',
+                    colorLight: '#ffffff',
                     correctLevel: QRCode.CorrectLevel.H
                 });
                 myQrCodeInitialized = true;
@@ -1691,16 +1904,16 @@
             if (window.innerWidth < 768 && !html5QrCodeScanner) {
                 setTimeout(() => {
                     try {
-                        html5QrCodeScanner = new Html5Qrcode("reader");
+                        html5QrCodeScanner = new Html5Qrcode('reader');
                         html5QrCodeScanner.start(
-                            { facingMode: "environment" },
+                            { facingMode: 'environment' },
                             { fps: 10, qrbox: { width: 150, height: 150 } },
                             (decodedText) => {
                                 stopCameraScanner();
                                 addContactAndOpen(decodedText);
                             },
                             () => {}
-                        ).catch(err => console.warn("Câmera indisponível", err));
+                        ).catch(err => console.warn('Câmera indisponível', err));
                     } catch (e) {
                         console.error(e);
                     }
@@ -1737,26 +1950,64 @@
         function submitAddContact() {
             const codeVal = contactCodeInput.value.trim();
             if (!codeVal) {
-                alert("Por favor, insira o código do contato.");
+                alert('Por favor, insira o npub ou código do contato.');
                 return;
             }
             addContactAndOpen(codeVal);
         }
 
-        function addContactAndOpen(contactNameOrCode) {
+        async function addContactAndOpen(contactNameOrCode) {
+            let pubkey = null;
+            let displayName = contactNameOrCode.trim();
+
+            try {
+                if (window.NostrTools && displayName.startsWith('npub1')) {
+                    const decoded = NostrTools.nip19.decode(displayName);
+                    if (decoded.type === 'npub') {
+                        pubkey = typeof decoded.data === 'string'
+                            ? decoded.data
+                            : Array.from(decoded.data).map(b => b.toString(16).padStart(2, '0')).join('');
+                    }
+                } else if (/^[0-9a-f]{64}$/i.test(displayName)) {
+                    pubkey = displayName.toLowerCase();
+                }
+            } catch (e) {
+                console.warn('Decode npub:', e);
+            }
+
+            if (pubkey && window.NostrTools) {
+                try {
+                    if (!nostrPool) nostrPool = new NostrTools.SimplePool();
+                    const profileEv = await nostrPool.get(NORST_RELAYS, { kinds: [0], authors: [pubkey] });
+                    if (profileEv?.content) {
+                        const data = JSON.parse(profileEv.content);
+                        if (data.name || data.display_name) displayName = data.name || data.display_name;
+                    }
+                } catch {}
+            }
+
+            const exists = chatsData.find(c =>
+                (c.pubkey && pubkey && c.pubkey.toLowerCase() === pubkey.toLowerCase()) ||
+                c.name.toLowerCase() === displayName.toLowerCase()
+            );
+            if (exists) {
+                closeQrModal();
+                selectChat(exists.id);
+                return;
+            }
+
             const newId = chatsData.length > 0 ? Math.max(...chatsData.map(c => c.id)) + 1 : 1;
-            const initials = contactNameOrCode.substring(0, 2).toUpperCase();
-            
+            const initials = displayName.substring(0, 2).toUpperCase();
+
             chatsData.unshift({
                 id: newId,
-                name: contactNameOrCode,
-                lastMsg: "Contato adicionado com sucesso",
+                name: displayName,
+                lastMsg: 'Contato adicionado via QR / código',
                 avatar: initials,
-                type: "contatos",
+                type: 'contatos',
                 pinned: false,
-                messages: [
-                    { sender: "received", text: `Olá! Conectado via código: ${contactNameOrCode}` }
-                ]
+                pubkey: pubkey || null,
+                messages: [{ sender: 'received', text: buildMediaPayload('text', { text: `Olá! Conectado via: ${displayName}` }) }]
             });
 
             closeQrModal();
@@ -1764,6 +2015,9 @@
             selectChat(newId);
         }
 
+        /* ============================================================
+           URL / YOUTUBE
+           ============================================================ */
         function closeUrlModal() {
             urlModal.classList.remove('show');
             activeAttachmentType = null;
@@ -1771,26 +2025,31 @@
 
         function confirmUrlModal() {
             const url = urlInput.value.trim();
-            if (!url) return;
+            if (!url || currentChatId === null) return;
+
             const chat = chatsData.find(c => c.id === currentChatId);
             let contentHtml = '';
             let lastMsgText = '';
+            let payload = '';
 
             if (activeAttachmentType === 'Imagem') {
                 contentHtml = `<img src="${url}" alt="Imagem enviada" onerror="this.outerHTML='[Erro ao carregar imagem]'"/>`;
                 lastMsgText = '[Enviou Imagem]';
+                payload = buildMediaPayload('image', { url });
             } else if (activeAttachmentType === 'Vídeo do YouTube') {
                 const videoId = extractYouTubeId(url);
                 if (videoId) {
                     contentHtml = `<iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;
                     lastMsgText = '[Enviou Vídeo do YouTube]';
+                    payload = buildMediaPayload('youtube', { url, videoId });
                 } else {
-                    contentHtml = `https://www.reddit.com/r/youtube/comments/1cbnbeq/youtube_keeps_giving_me_something_went_wrong_error/?tl=pt-br`;
+                    contentHtml = '[Vídeo do YouTube inválido]';
                     lastMsgText = '[Enviou Vídeo inválido]';
+                    payload = buildMediaPayload('text', { text: contentHtml });
                 }
             }
 
-            chat.messages.push({ sender: 'sent', isHtml: true, content: contentHtml, text: lastMsgText });
+            chat.messages.push({ sender: 'sent', isHtml: true, content: contentHtml, text: payload });
             chat.lastMsg = `Você: ${lastMsgText}`;
 
             const msgDiv = document.createElement('div');
@@ -1801,13 +2060,13 @@
             closeUrlModal();
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             renderChatList();
+            sendNostrDm(chat, payload);
         }
 
         function extractYouTubeId(url) {
             let videoId = null;
-            if (url.includes('youtu.be/')) {
-                videoId = url.split('youtu.be/')[1]?.split('?')[0];
-            } else if (url.includes('youtube.com/watch')) {
+            if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1]?.split('?')[0];
+            else if (url.includes('youtube.com/watch')) {
                 const urlParams = new URLSearchParams(url.split('?')[1]);
                 videoId = urlParams.get('v');
             } else if (url.includes('youtube.com/embed/')) {
@@ -1816,6 +2075,9 @@
             return videoId;
         }
 
+        /* ============================================================
+           MÚSICA
+           ============================================================ */
         function openMusicModal() {
             musicModal.classList.add('show');
             musicSearchInput.value = '';
@@ -1833,9 +2095,7 @@
         musicSearchInput.addEventListener('input', (e) => {
             const query = e.target.value.trim();
             clearTimeout(musicSearchTimeout);
-            musicSearchTimeout = setTimeout(() => {
-                fetchItunesMusic(query || 'pop hits');
-            }, 400);
+            musicSearchTimeout = setTimeout(() => fetchItunesMusic(query || 'pop hits'), 400);
         });
 
         async function fetchItunesMusic(term) {
@@ -1859,12 +2119,10 @@
                 musicList.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 14px;">Nenhuma música encontrada</div>`;
                 return;
             }
-
             tracks.forEach(track => {
                 const item = document.createElement('div');
                 item.className = 'music-item';
                 const artworkUrl = track.artworkUrl100 ? track.artworkUrl100.replace('100x100bb', '200x200bb') : '';
-                
                 item.innerHTML = `
                     <img src="${artworkUrl}" class="music-art" alt="Capa">
                     <div class="music-details" onclick="selectMusicItem(event, '${encodeURIComponent(JSON.stringify(track))}')">
@@ -1895,9 +2153,7 @@
                 activePreviewAudio = new Audio(previewUrl);
                 activePreviewAudio.play();
                 btnElement.innerHTML = '<i class="fa-solid fa-pause"></i>';
-                activePreviewAudio.onended = () => {
-                    btnElement.innerHTML = '<i class="fa-solid fa-play"></i>';
-                };
+                activePreviewAudio.onended = () => { btnElement.innerHTML = '<i class="fa-solid fa-play"></i>'; };
             }
         }
 
@@ -1915,7 +2171,7 @@
             }
 
             const artworkUrl = track.artworkUrl100 ? track.artworkUrl100.replace('100x100bb', '200x200bb') : '';
-            const previewUrl = track.previewUrl;
+            const previewUrl = track.previewUrl || '';
             const trackName = track.trackName;
             const artistName = track.artistName;
             const playerInstanceId = 'vinyl_' + Math.random().toString(36).substr(2, 9);
@@ -1938,9 +2194,15 @@
                 </div>
             `;
             const lastMsgText = `[Música: ${trackName} - ${artistName}]`;
+            const payload = buildMediaPayload('music', {
+                title: trackName,
+                artist: artistName,
+                artwork: artworkUrl,
+                preview: previewUrl
+            });
 
             const chat = chatsData.find(c => c.id === currentChatId);
-            chat.messages.push({ sender: 'sent', isHtml: true, content: contentHtml, text: lastMsgText });
+            chat.messages.push({ sender: 'sent', isHtml: true, content: contentHtml, text: payload });
             chat.lastMsg = `Você: ${lastMsgText}`;
 
             const msgDiv = document.createElement('div');
@@ -1951,6 +2213,7 @@
             closeMusicModal();
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             renderChatList();
+            sendNostrDm(chat, payload);
         }
 
         function toggleChatVinyl(previewUrl, instanceId) {
@@ -1984,17 +2247,24 @@
             }
         }
 
+        /* ============================================================
+           TEXTO + DM
+           ============================================================ */
         searchInput.addEventListener('input', (e) => {
             searchQuery = e.target.value;
             renderChatList();
         });
 
-        function sendMessage() {
+        async function sendMessage() {
             const text = messageInput.value.trim();
             if (!text || currentChatId === null) return;
 
             const chat = chatsData.find(c => c.id === currentChatId);
-            chat.messages.push({ sender: 'sent', isHtml: false, text: text });
+            if (!chat) return;
+
+            const payload = buildMediaPayload('text', { text });
+
+            chat.messages.push({ sender: 'sent', isHtml: false, text: payload, displayText: text });
             chat.lastMsg = `Você: ${text}`;
 
             const msgDiv = document.createElement('div');
@@ -2005,6 +2275,7 @@
             messageInput.value = '';
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             renderChatList();
+            await sendNostrDm(chat, payload);
         }
 
         sendBtn.addEventListener('click', sendMessage);
@@ -2012,7 +2283,236 @@
             if (e.key === 'Enter') sendMessage();
         });
 
-        renderChatList();
+        /* ============================================================
+           RECEBER DMS + CONTATOS DA REDE
+           ============================================================ */
+        async function handleIncomingDm(ev) {
+            if (!ev || seenMessageIds.has(ev.id)) return;
+            seenMessageIds.add(ev.id);
+
+            const sk = getPrivateKeyBytes();
+            if (!sk || !currentUserPubkey || !window.NostrTools) return;
+            if (ev.kind !== 4) return;
+
+            const pTags = (ev.tags || []).filter(t => t[0] === 'p').map(t => (t[1] || '').toLowerCase());
+            const fromMe = ev.pubkey.toLowerCase() === currentUserPubkey.toLowerCase();
+            const toMe = pTags.includes(currentUserPubkey.toLowerCase());
+            if (!fromMe && !toMe) return;
+
+            let otherPubkey = fromMe
+                ? (pTags.find(p => p !== currentUserPubkey.toLowerCase()) || null)
+                : ev.pubkey.toLowerCase();
+            if (!otherPubkey) return;
+
+            let plainText = '';
+            try {
+                const peer = fromMe ? otherPubkey : ev.pubkey;
+                plainText = await NostrTools.nip04.decrypt(sk, peer, ev.content);
+            } catch (e) {
+                plainText = '[Mensagem criptografada]';
+            }
+
+            let chat = chatsData.find(c => c.pubkey && c.pubkey.toLowerCase() === otherPubkey);
+            if (!chat) {
+                const newId = chatsData.length ? Math.max(...chatsData.map(c => c.id)) + 1 : 1;
+                const short = otherPubkey.substring(0, 10) + '…';
+                chat = {
+                    id: newId,
+                    name: short,
+                    lastMsg: '',
+                    avatar: short.substring(0, 2).toUpperCase(),
+                    type: 'contatos',
+                    pinned: false,
+                    pubkey: otherPubkey,
+                    messages: []
+                };
+                chatsData.unshift(chat);
+
+                try {
+                    if (!nostrPool) nostrPool = new NostrTools.SimplePool();
+                    const profileEv = await nostrPool.get(NORST_RELAYS, { kinds: [0], authors: [otherPubkey] });
+                    if (profileEv?.content) {
+                        const data = JSON.parse(profileEv.content);
+                        if (data.name || data.display_name) {
+                            chat.name = data.name || data.display_name;
+                            chat.avatar = chat.name.substring(0, 2).toUpperCase();
+                        }
+                    }
+                } catch {}
+            }
+
+            const lastPreview = mediaPreviewText(plainText);
+            const sender = fromMe ? 'sent' : 'received';
+            chat.messages.push({ sender, text: plainText });
+            chat.lastMsg = fromMe ? `Você: ${lastPreview}` : lastPreview;
+
+            if (currentChatId === chat.id) {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `message ${sender}`;
+                renderMessageContent(msgDiv, plainText);
+                messagesContainer.appendChild(msgDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+
+            renderChatList();
+            if (!fromMe) showMessageNotification(chat.name, lastPreview);
+        }
+
+        async function startDmListener() {
+            if (!window.NostrTools || !currentUserPubkey) return;
+            if (!nostrPool) nostrPool = new NostrTools.SimplePool();
+
+            if (dmSubscription && typeof dmSubscription.close === 'function') {
+                try { dmSubscription.close(); } catch {}
+            }
+
+            const since = Math.floor(Date.now() / 1000) - (7 * 24 * 60 * 60);
+
+            try {
+                const past = await nostrPool.querySync(NORST_RELAYS, {
+                    kinds: [4],
+                    authors: [currentUserPubkey],
+                    since,
+                    limit: 100
+                });
+                const pastToMe = await nostrPool.querySync(NORST_RELAYS, {
+                    kinds: [4],
+                    '#p': [currentUserPubkey],
+                    since,
+                    limit: 100
+                });
+
+                const all = [...(past || []), ...(pastToMe || [])];
+                all.sort((a, b) => a.created_at - b.created_at);
+                for (const ev of all) await handleIncomingDm(ev);
+
+                dmSubscription = nostrPool.subscribeMany(
+                    NORST_RELAYS,
+                    [
+                        { kinds: [4], authors: [currentUserPubkey], since: Math.floor(Date.now() / 1000) - 60 },
+                        { kinds: [4], '#p': [currentUserPubkey], since: Math.floor(Date.now() / 1000) - 60 }
+                    ],
+                    { onevent: (ev) => { handleIncomingDm(ev); } }
+                );
+            } catch (e) {
+                console.error('Listener DM:', e);
+            }
+        }
+
+        async function loadNostrContacts() {
+            await waitForNostrTools();
+            if (!initNostrFromSession() || !window.NostrTools) {
+                renderChatList();
+                return;
+            }
+
+            try {
+                nostrPool = new NostrTools.SimplePool();
+
+                const [contactEv, muteEv] = await Promise.all([
+                    nostrPool.get(NORST_RELAYS, { kinds: [3], authors: [currentUserPubkey] }),
+                    nostrPool.get(NORST_RELAYS, { kinds: [10000], authors: [currentUserPubkey] })
+                ]);
+
+                const following = new Set();
+                const blocked = new Set();
+
+                if (contactEv?.tags) {
+                    contactEv.tags.forEach(tag => {
+                        if (tag[0] === 'p' && tag[1]) following.add(tag[1].toLowerCase());
+                    });
+                }
+                if (muteEv?.tags) {
+                    muteEv.tags.forEach(tag => {
+                        if (tag[0] === 'p' && tag[1]) blocked.add(tag[1].toLowerCase());
+                    });
+                }
+
+                const allPubkeys = [...new Set([...following, ...blocked])];
+                const profileMap = new Map();
+
+                if (allPubkeys.length) {
+                    try {
+                        const profiles = await nostrPool.querySync(NORST_RELAYS, {
+                            kinds: [0],
+                            authors: allPubkeys,
+                            limit: allPubkeys.length
+                        });
+                        const latest = new Map();
+                        (profiles || []).forEach(ev => {
+                            const prev = latest.get(ev.pubkey);
+                            if (!prev || ev.created_at > prev.created_at) latest.set(ev.pubkey, ev);
+                        });
+                        latest.forEach((ev, pk) => {
+                            try {
+                                const data = JSON.parse(ev.content || '{}');
+                                profileMap.set(pk.toLowerCase(), {
+                                    name: data.name || data.display_name || '',
+                                    picture: data.picture || data.image || ''
+                                });
+                            } catch {}
+                        });
+                    } catch (e) {
+                        console.warn('Perfis Nostr:', e);
+                    }
+                }
+
+                const existingByPubkey = new Map(
+                    chatsData.filter(c => c.pubkey).map(c => [c.pubkey.toLowerCase(), c])
+                );
+
+                let idCounter = chatsData.length ? Math.max(...chatsData.map(c => c.id)) + 1 : 1;
+
+                following.forEach(pk => {
+                    if (blocked.has(pk)) return;
+                    if (existingByPubkey.has(pk)) return;
+                    const p = profileMap.get(pk) || {};
+                    const name = p.name || (pk.substring(0, 10) + '…');
+                    chatsData.push({
+                        id: idCounter++,
+                        name,
+                        lastMsg: 'Contato da rede Nostr',
+                        avatar: name.substring(0, 2).toUpperCase(),
+                        type: 'contatos',
+                        pinned: false,
+                        pubkey: pk,
+                        messages: []
+                    });
+                });
+
+                blocked.forEach(pk => {
+                    if (existingByPubkey.has(pk)) {
+                        const c = existingByPubkey.get(pk);
+                        c.type = 'bloqueados';
+                        return;
+                    }
+                    const p = profileMap.get(pk) || {};
+                    const name = p.name || (pk.substring(0, 10) + '…');
+                    chatsData.push({
+                        id: idCounter++,
+                        name,
+                        lastMsg: 'Usuário bloqueado',
+                        avatar: name.substring(0, 2).toUpperCase(),
+                        type: 'bloqueados',
+                        pinned: false,
+                        pubkey: pk,
+                        messages: [{ sender: 'received', text: buildMediaPayload('text', { text: 'Este contato está bloqueado.' }) }]
+                    });
+                });
+            } catch (e) {
+                console.error('Erro ao carregar contatos Nostr:', e);
+            }
+
+            renderChatList();
+        }
+
+        async function bootChatNostr() {
+            requestNotificationPermission();
+            await loadNostrContacts();
+            await startDmListener();
+        }
+
+        bootChatNostr();
     </script>
 </body>
 </html>
