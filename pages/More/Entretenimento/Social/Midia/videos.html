@@ -84,17 +84,17 @@
             color: #ffffff;
         }
 
-        /* Modal player */
+        /* ========== Modal fullscreen + slide mobile ========== */
         #videoModal {
             position: fixed;
             inset: 0;
             z-index: 100;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            align-items: stretch;
+            justify-content: stretch;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.25s ease;
+            transition: opacity 0.3s ease;
         }
         #videoModal.open {
             opacity: 1;
@@ -103,48 +103,112 @@
         #videoModalBackdrop {
             position: absolute;
             inset: 0;
-            background: rgba(0, 0, 0, 0.55);
-            backdrop-filter: blur(4px);
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(2px);
         }
         #videoModalPanel {
             position: relative;
             z-index: 1;
-            width: min(960px, 100%);
-            max-height: 92vh;
-            margin: 0.75rem;
+            width: 100%;
+            height: 100%;
+            max-height: 100%;
+            margin: 0;
             background: #ffffff;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
+            border-radius: 0;
+            border: none;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            transform: scale(0.96) translateY(12px);
-            transition: transform 0.25s ease;
+            box-shadow: none;
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+            will-change: transform;
         }
         #videoModal.open #videoModalPanel {
-            transform: scale(1) translateY(0);
+            transform: translateY(0);
+        }
+        /* Desktop: centralizado com cantos leves, ainda quase tela cheia */
+        @media (min-width: 768px) {
+            #videoModal {
+                align-items: center;
+                justify-content: center;
+                padding: 0;
+            }
+            #videoModalPanel {
+                width: 100%;
+                height: 100%;
+                max-width: 100%;
+                max-height: 100%;
+                border-radius: 0;
+                transform: translateY(100%);
+            }
+            #videoModal.open #videoModalPanel {
+                transform: translateY(0);
+            }
+        }
+        #videoModalPanel.dragging {
+            transition: none;
+        }
+        #videoModalPlayer {
+            flex-shrink: 0;
+            background: #000;
         }
         #videoModalPlayer video {
             width: 100%;
-            max-height: 56vh;
+            max-height: min(56vh, 100%);
             background: #000;
             display: block;
         }
+        @media (max-width: 767px) {
+            #videoModalPlayer video {
+                max-height: 42vh;
+            }
+        }
+        /* Handle de arraste (mobile) */
+        #modalDragHandle {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0 4px;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+            flex-shrink: 0;
+        }
+        @media (max-width: 767px) {
+            #modalDragHandle {
+                display: flex;
+            }
+        }
+        #modalDragHandle .handle-bar {
+            width: 40px;
+            height: 4px;
+            border-radius: 9999px;
+            background: #d1d5db;
+        }
         body.modal-open {
             overflow: hidden;
+            position: fixed;
+            width: 100%;
+            left: 0;
+            right: 0;
+        }
+        /* No mobile: esconder botão X — fecha só com swipe */
+        @media (max-width: 767px) {
+            #modalCloseBtn {
+                display: none !important;
+            }
         }
     </style>
 </head>
 <body class="min-h-screen flex flex-col bg-white text-gray-800">
 
-    <!-- Top bar -->
     <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200">
         <div class="flex items-center gap-3 px-3 md:px-4 h-14">
             <button type="button" id="menuToggle" class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700 md:hidden" aria-label="Menu">
                 <i class="fa-solid fa-bars"></i>
             </button>
-            <a href="../../Social.html" class="flex items-center gap-2 shrink-0 mr-2">
+            <a href="Index.html" class="flex items-center gap-2 shrink-0 mr-2">
                 <i class="fa-solid fa-feather text-secondary text-xl"></i>
                 <span class="font-bold text-lg tracking-tight hidden sm:inline text-gray-900">Lore<span class="text-secondary">Videos</span></span>
             </a>
@@ -177,10 +241,9 @@
     </header>
 
     <div class="flex flex-1 min-h-0">
-        <!-- Sidebar -->
         <aside id="sidebar" class="fixed md:sticky top-14 left-0 z-40 h-[calc(100vh-3.5rem)] w-60 bg-white border-r border-gray-200 p-3 transform -translate-x-full md:translate-x-0 transition-transform duration-200 overflow-y-auto no-scrollbar">
             <nav class="space-y-1">
-                <a href="../../Social.html" class="sidebar-link flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition">
+                <a href="Index.html" class="sidebar-link flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition">
                     <i class="fa-solid fa-house w-5 text-center"></i> Início (Feed)
                 </a>
                 <a href="videos.html" class="sidebar-link active flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm hover:bg-gray-100 transition">
@@ -205,7 +268,6 @@
         </aside>
         <div id="sidebarOverlay" class="fixed inset-0 bg-black/40 z-30 hidden md:hidden" onclick="closeSidebar()"></div>
 
-        <!-- Conteúdo principal -->
         <main class="flex-1 min-w-0 p-3 md:p-5 pb-20 bg-gray-50">
             <div class="flex gap-2 overflow-x-auto no-scrollbar mb-4 pb-1">
                 <button type="button" class="chip active" data-filter="" onclick="setChipFilter(this, '')">Todos</button>
@@ -232,15 +294,22 @@
         </main>
     </div>
 
-    <!-- Modal player -->
+    <!-- Modal fullscreen: abre de baixo → cima; no mobile fecha só com swipe para baixo -->
     <div id="videoModal" aria-hidden="true" role="dialog" aria-modal="true">
-        <div id="videoModalBackdrop" onclick="closePlayer()"></div>
+        <div id="videoModalBackdrop"></div>
         <div id="videoModalPanel">
+            <!-- Handle de arraste (visível só no mobile) -->
+            <div id="modalDragHandle" aria-hidden="true">
+                <div class="handle-bar"></div>
+                <p class="text-[10px] text-gray-400 mt-1.5">Deslize para baixo para fechar</p>
+            </div>
+
             <div class="flex items-center justify-between px-3 py-2 border-b border-gray-100 shrink-0 bg-white">
                 <span class="text-xs text-gray-400 font-medium truncate pr-2">
                     <i class="fa-solid fa-play text-secondary mr-1"></i> LoreVideos · Nostr
                 </span>
-                <button type="button" onclick="closePlayer()"
+                <!-- X só no desktop; no mobile o CSS esconde -->
+                <button type="button" id="modalCloseBtn" onclick="closePlayer()"
                         class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600 transition"
                         aria-label="Fechar">
                     <i class="fa-solid fa-xmark text-lg"></i>
@@ -248,8 +317,7 @@
             </div>
 
             <div class="overflow-y-auto no-scrollbar flex-1 min-h-0 bg-white">
-                <div id="videoModalPlayer" class="bg-black">
-                </div>
+                <div id="videoModalPlayer" class="bg-black"></div>
 
                 <div class="p-4 space-y-3">
                     <h1 id="playerTitle" class="text-base md:text-lg font-bold text-gray-900 leading-snug"></h1>
@@ -297,6 +365,11 @@
     let isLoading = false;
     let activeFilter = '';
     let currentPlayingId = null;
+    let scrollYBeforeModal = 0;
+
+    function isMobile() {
+        return window.matchMedia('(max-width: 767px)').matches;
+    }
 
     window.closeSidebar = function() {
         document.getElementById('sidebar').classList.add('-translate-x-full');
@@ -633,7 +706,11 @@
         currentPlayingId = v.id;
 
         const modal = document.getElementById('videoModal');
+        const panel = document.getElementById('videoModalPanel');
         const playerEl = document.getElementById('videoModalPlayer');
+
+        panel.style.transform = '';
+        panel.classList.remove('dragging');
 
         playerEl.innerHTML = `
             <video src="${escapeHtml(v.videoUrl)}" controls autoplay playsinline></video>`;
@@ -646,14 +723,18 @@
 
         renderRelated();
 
+        scrollYBeforeModal = window.scrollY;
+        document.body.classList.add('modal-open');
+        document.body.style.top = `-${scrollYBeforeModal}px`;
+
         modal.classList.add('open');
         modal.setAttribute('aria-hidden', 'false');
-        document.body.classList.add('modal-open');
     };
 
     window.closePlayer = function() {
         currentPlayingId = null;
         const modal = document.getElementById('videoModal');
+        const panel = document.getElementById('videoModalPanel');
         const playerEl = document.getElementById('videoModalPlayer');
 
         const vid = playerEl?.querySelector('video');
@@ -664,14 +745,101 @@
         }
         if (playerEl) playerEl.innerHTML = '';
 
+        panel.style.transform = '';
+        panel.classList.remove('dragging');
+
         modal.classList.remove('open');
         modal.setAttribute('aria-hidden', 'true');
+
         document.body.classList.remove('modal-open');
+        document.body.style.top = '';
+        window.scrollTo(0, scrollYBeforeModal);
     };
 
+    // Desktop: Esc fecha. Mobile: NÃO fecha com Esc (só swipe).
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closePlayer();
+        if (e.key === 'Escape' && !isMobile()) closePlayer();
     });
+
+    // ——— Swipe para baixo no mobile (única forma de fechar) ———
+    (function setupMobileSwipeClose() {
+        const panel = document.getElementById('videoModalPanel');
+        const handle = document.getElementById('modalDragHandle');
+        if (!panel || !handle) return;
+
+        let startY = 0;
+        let currentY = 0;
+        let dragging = false;
+
+        function onStart(clientY) {
+            if (!isMobile()) return;
+            if (!document.getElementById('videoModal').classList.contains('open')) return;
+            dragging = true;
+            startY = clientY;
+            currentY = 0;
+            panel.classList.add('dragging');
+        }
+
+        function onMove(clientY) {
+            if (!dragging) return;
+            const dy = clientY - startY;
+            // só arrasta para baixo
+            currentY = Math.max(0, dy);
+            panel.style.transform = `translateY(${currentY}px)`;
+        }
+
+        function onEnd() {
+            if (!dragging) return;
+            dragging = false;
+            panel.classList.remove('dragging');
+
+            const threshold = Math.min(140, window.innerHeight * 0.22);
+            if (currentY >= threshold) {
+                // anima até o fundo e fecha
+                panel.style.transition = 'transform 0.28s ease-out';
+                panel.style.transform = 'translateY(100%)';
+                setTimeout(() => {
+                    panel.style.transition = '';
+                    closePlayer();
+                }, 280);
+            } else {
+                // volta para cima
+                panel.style.transition = 'transform 0.25s ease-out';
+                panel.style.transform = 'translateY(0)';
+                setTimeout(() => {
+                    panel.style.transition = '';
+                    panel.style.transform = '';
+                }, 250);
+            }
+            currentY = 0;
+        }
+
+        handle.addEventListener('touchstart', (e) => {
+            if (e.touches[0]) onStart(e.touches[0].clientY);
+        }, { passive: true });
+
+        handle.addEventListener('touchmove', (e) => {
+            if (!dragging || !e.touches[0]) return;
+            onMove(e.touches[0].clientY);
+        }, { passive: true });
+
+        handle.addEventListener('touchend', onEnd);
+        handle.addEventListener('touchcancel', onEnd);
+
+        // Também permite iniciar o arraste no cabeçalho (área do título)
+        const headerBar = panel.querySelector('.border-b.border-gray-100');
+        if (headerBar) {
+            headerBar.addEventListener('touchstart', (e) => {
+                if (e.touches[0]) onStart(e.touches[0].clientY);
+            }, { passive: true });
+            headerBar.addEventListener('touchmove', (e) => {
+                if (!dragging || !e.touches[0]) return;
+                onMove(e.touches[0].clientY);
+            }, { passive: true });
+            headerBar.addEventListener('touchend', onEnd);
+            headerBar.addEventListener('touchcancel', onEnd);
+        }
+    })();
 
     function loadSessionAvatar() {
         try {
