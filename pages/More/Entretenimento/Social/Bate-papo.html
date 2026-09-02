@@ -60,6 +60,7 @@
             color: var(--text-main);
         }
         .sidebar-header .app-title { display: flex; align-items: center; gap: 10px; color: var(--secondary-color); font-size: 18px; }
+        .sidebar-actions { display: flex; align-items: center; gap: 14px; }
         .sidebar-actions i { cursor: pointer; color: var(--text-muted); font-size: 18px; }
         .sidebar-actions i:hover { color: var(--secondary-color); }
         #backToNetworkBtn:hover { color: var(--secondary-color); }
@@ -229,6 +230,7 @@
         .primary-btn {
             width: 100%; padding: 12px; background: var(--secondary-color);
             color: #fff; border: none; border-radius: 10px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
         }
         .primary-btn:hover { background: var(--secondary-hover); }
         #userSearchResults {
@@ -328,6 +330,7 @@
             </div>
             <div class="sidebar-actions">
                 <i class="fa-solid fa-user-plus" id="addContactHeaderBtn" title="Buscar usuário"></i>
+                <i class="fa-solid fa-envelope" id="inviteBtn" title="Enviar convite"></i>
             </div>
         </div>
         <div class="top-tab-bar">
@@ -395,6 +398,28 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="inviteModal">
+    <div class="modal-card">
+        <div class="modal-header">
+            <span>Enviar convite</span>
+            <i class="fa-solid fa-xmark" onclick="closeInviteModal()"></i>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:13px;color:var(--text-muted);line-height:1.5;">
+                Compartilhe o link para outra pessoa entrar no LoreSocial e te encontrar na rede.
+            </p>
+            <textarea id="inviteTextArea" readonly rows="6"
+                style="width:100%;padding:12px;border:1px solid var(--border-color);border-radius:10px;font-size:13px;resize:none;background:var(--gray-bg);outline:none;line-height:1.45;"></textarea>
+            <button class="primary-btn" type="button" onclick="copyInviteText()">
+                <i class="fa-regular fa-copy"></i> Copiar convite
+            </button>
+            <button class="primary-btn" type="button" onclick="shareInvite()" style="background:var(--secondary-hover);">
+                <i class="fa-solid fa-share-nodes"></i> Compartilhar
+            </button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="igMediaModal">
     <div class="modal-card" style="height:min(75vh,75dvh);">
         <div class="modal-header"><span id="igModalTitle">Selecionar GIF</span><i class="fa-solid fa-xmark" onclick="closeIgMediaModal()"></i></div>
@@ -450,7 +475,7 @@
 })();
 
 function goBackToNetwork() {
-    window.location.href = '../Social.html';
+    window.location.href = 'Social.html';
 }
 
 const NORST_RELAYS = [
@@ -760,6 +785,82 @@ async function startPresenceListener() {
 }
 setInterval(updateChatHeaderStatus, 15000);
 
+/* ——— Convite ——— */
+function getSocialInviteUrl() {
+    try {
+        const u = new URL('Social.html', window.location.href);
+        return u.href;
+    } catch {
+        return window.location.origin + '/Social.html';
+    }
+}
+function buildInviteText() {
+    const socialUrl = getSocialInviteUrl();
+    let npub = currentUserNpub || '';
+    try {
+        if (!npub && currentUserPubkey && window.NostrTools) {
+            npub = NostrTools.nip19.npubEncode(currentUserPubkey);
+        }
+    } catch {}
+    const lines = [
+        'Você foi convidado para o LoreSocial!',
+        '',
+        '1) Abra o link e entre (ou crie sua identidade Nostr):',
+        socialUrl,
+        ''
+    ];
+    if (npub) {
+        lines.push('2) No chat, busque meu perfil e envie uma solicitação:');
+        lines.push(npub);
+        lines.push('');
+    }
+    lines.push('Te vejo na rede 💜');
+    return lines.join('\n');
+}
+function openInviteModal() {
+    dropdownMenu.classList.remove('show');
+    attachmentMenu.classList.remove('show');
+    const area = document.getElementById('inviteTextArea');
+    if (area) area.value = buildInviteText();
+    document.getElementById('inviteModal').classList.add('show');
+}
+function closeInviteModal() {
+    document.getElementById('inviteModal').classList.remove('show');
+}
+async function copyInviteText() {
+    const text = document.getElementById('inviteTextArea')?.value || buildInviteText();
+    try {
+        await navigator.clipboard.writeText(text);
+        alert('Convite copiado!');
+    } catch {
+        const area = document.getElementById('inviteTextArea');
+        if (area) {
+            area.focus();
+            area.select();
+            try {
+                document.execCommand('copy');
+                alert('Convite copiado!');
+            } catch {
+                alert('Não foi possível copiar. Selecione o texto manualmente.');
+            }
+        }
+    }
+}
+async function shareInvite() {
+    const text = document.getElementById('inviteTextArea')?.value || buildInviteText();
+    const socialUrl = getSocialInviteUrl();
+    if (navigator.share) {
+        try {
+            await navigator.share({ title: 'Convite LoreSocial', text, url: socialUrl });
+            return;
+        } catch (e) {
+            if (e && e.name === 'AbortError') return;
+        }
+    }
+    await copyInviteText();
+}
+document.getElementById('inviteBtn')?.addEventListener('click', openInviteModal);
+
 function switchTab(tabName) {
     currentTab = tabName;
     document.querySelectorAll('.tab-item').forEach(btn => {
@@ -816,8 +917,7 @@ function selectChat(id) {
     messagesContainer.style.justifyContent = 'flex-start';
     messagesContainer.style.alignItems = 'stretch';
     messagesContainer.innerHTML = '';
-    const locked = !canMessageChat(chat);
-    setInputLocked(locked);
+    setInputLocked(!canMessageChat(chat));
 
     if (chat.status === 'pending_received') {
         const banner = document.createElement('div');
@@ -928,7 +1028,6 @@ document.getElementById('userSearchInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); performUserSearch(); }
 });
 
-/* Busca NIP-50 + fallback + contatos locais */
 async function performUserSearch() {
     const resultsEl = document.getElementById('userSearchResults');
     const raw = (document.getElementById('userSearchInput')?.value || '').trim();
@@ -945,7 +1044,6 @@ async function performUserSearch() {
 
     try {
         if (!nostrPool) nostrPool = new NostrTools.SimplePool();
-
         const q = raw.toLowerCase().replace(/^@+/, '').trim();
         let matches = [];
 
@@ -1037,7 +1135,6 @@ async function performUserSearch() {
                 if (m?.pubkey) byPk.set(m.pubkey.toLowerCase(), m);
             });
             matches = Array.from(byPk.values());
-
             matches.sort((a, b) => {
                 const al = (a.name || '').toLowerCase();
                 const bl = (b.name || '').toLowerCase();
