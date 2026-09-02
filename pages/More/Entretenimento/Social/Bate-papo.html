@@ -32,6 +32,7 @@
         .sidebar-header .app-title { display: flex; align-items: center; gap: 10px; color: var(--secondary-color); font-size: 18px; }
         .sidebar-actions i { cursor: pointer; color: var(--text-muted); font-size: 18px; }
         .sidebar-actions i:hover { color: var(--secondary-color); }
+        #backToNetworkBtn:hover { color: var(--secondary-color); }
         .top-tab-bar { display: flex; gap: 16px; padding: 0 20px 12px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
         .tab-item { font-size: 14px; font-weight: 600; color: var(--text-muted); cursor: pointer; background: none; border: none; position: relative; padding-bottom: 4px; }
         .tab-item.active { color: var(--secondary-color); }
@@ -139,8 +140,20 @@
 <div class="app-container" id="appContainer">
     <div class="sidebar">
         <div class="sidebar-header">
-            <div class="app-title"><i class="fa-solid fa-comments"></i><span>Conversas</span></div>
-            <div class="sidebar-actions"><i class="fa-solid fa-user-plus" id="addContactHeaderBtn" title="Buscar usuário"></i></div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <i class="fa-solid fa-arrow-left"
+                   id="backToNetworkBtn"
+                   title="Voltar para Social"
+                   style="cursor:pointer;color:var(--text-muted);font-size:18px;"
+                   onclick="goBackToNetwork()"></i>
+                <div class="app-title">
+                    <i class="fa-solid fa-comments"></i>
+                    <span>Conversas</span>
+                </div>
+            </div>
+            <div class="sidebar-actions">
+                <i class="fa-solid fa-user-plus" id="addContactHeaderBtn" title="Buscar usuário"></i>
+            </div>
         </div>
         <div class="top-tab-bar">
             <button class="tab-item active" data-tab="contatos" onclick="switchTab('contatos')">Contatos</button>
@@ -195,7 +208,6 @@
     </div>
 </div>
 
-<!-- Busca usuário -->
 <div class="modal-overlay" id="searchUserModal">
     <div class="modal-card">
         <div class="modal-header"><span>Buscar usuário</span><i class="fa-solid fa-xmark" onclick="closeSearchUserModal()"></i></div>
@@ -208,7 +220,6 @@
     </div>
 </div>
 
-<!-- GIF / Sticker -->
 <div class="modal-overlay" id="igMediaModal">
     <div class="modal-card" style="height:75vh;">
         <div class="modal-header"><span id="igModalTitle">Selecionar GIF</span><i class="fa-solid fa-xmark" onclick="closeIgMediaModal()"></i></div>
@@ -221,7 +232,6 @@
     </div>
 </div>
 
-<!-- URL -->
 <div class="modal-overlay" id="urlModal">
     <div class="modal-card" style="max-width:400px;">
         <div class="modal-header"><span id="urlModalTitle">Inserir URL</span><i class="fa-solid fa-xmark" onclick="closeUrlModal()"></i></div>
@@ -235,7 +245,6 @@
     </div>
 </div>
 
-<!-- Música -->
 <div class="modal-overlay" id="musicModal">
     <div class="modal-card" style="height:75vh;">
         <div class="modal-header"><span>Escolher música</span><i class="fa-solid fa-xmark" onclick="closeMusicModal()"></i></div>
@@ -248,11 +257,11 @@
 
 <script>
 (function checkNostrAuth() {
-    const LOGIN_PAGE = '../Index.html';
+    const LOGIN_PAGE = 'Social.html';
     const isLoggedIn = localStorage.getItem('isLoggedIn');
     const session = localStorage.getItem('nostr_session');
     if (isLoggedIn !== 'true' || !session) {
-        (window.top !== window.self ? window.top : window).location.replace(LOGIN_PAGE);
+        window.location.replace(LOGIN_PAGE);
         return;
     }
     try {
@@ -261,9 +270,13 @@
     } catch {
         localStorage.removeItem('isLoggedIn');
         localStorage.removeItem('nostr_session');
-        (window.top !== window.self ? window.top : window).location.replace(LOGIN_PAGE);
+        window.location.replace(LOGIN_PAGE);
     }
 })();
+
+function goBackToNetwork() {
+    window.location.href = 'Social.html';
+}
 
 const NORST_RELAYS = [
     'wss://relay.damus.io',
@@ -360,7 +373,7 @@ function showMessageNotification(title, body) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     if (!document.hidden && currentChatId !== null) return;
     try {
-        const n = new Notification(title || 'LoreSocial', { body: body || '', icon: '../Src/FavicoLW.png', tag: 'loresocial-chat' });
+        const n = new Notification(title || 'LoreSocial', { body: body || '', icon: './Src/FavicoLW.png', tag: 'loresocial-chat' });
         n.onclick = () => { window.focus(); n.close(); };
     } catch {}
 }
@@ -483,7 +496,6 @@ function updateRequestBadge() {
     else badge.style.display = 'none';
 }
 
-/* ---- Presença ---- */
 function isUserOnline(pubkey) {
     if (!pubkey) return false;
     const last = presenceMap.get(String(pubkey).toLowerCase());
@@ -569,7 +581,6 @@ async function startPresenceListener() {
 }
 setInterval(updateChatHeaderStatus, 15000);
 
-/* ---- UI lista / chat ---- */
 function switchTab(tabName) {
     currentTab = tabName;
     document.querySelectorAll('.tab-item').forEach(btn => {
@@ -656,8 +667,9 @@ function selectChat(id) {
 
     if (window.innerWidth <= 767) {
         appContainer.classList.add('mobile-show-chat');
-        window.parent.postMessage('hideNav', '*');
-    } else appContainer.classList.add('desktop-has-chat');
+    } else {
+        appContainer.classList.add('desktop-has-chat');
+    }
     renderChatList();
 }
 
@@ -674,7 +686,6 @@ backBtn.addEventListener('click', () => {
     attachmentMenu.classList.remove('show');
     messagesContainer.style.justifyContent = 'center';
     messagesContainer.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:15px;">Selecione um contato para conversar</div>';
-    window.parent.postMessage('showNav', '*');
     renderChatList();
 });
 ellipsisBtn.addEventListener('click', e => { e.stopPropagation(); attachmentMenu.classList.remove('show'); if (currentChatId !== null) dropdownMenu.classList.toggle('show'); });
@@ -716,11 +727,9 @@ function deleteChat() {
     activeStatus.textContent = 'offline';
     messagesContainer.style.justifyContent = 'center';
     messagesContainer.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:15px;">Selecione um contato para conversar</div>';
-    window.parent.postMessage('showNav', '*');
     renderChatList();
 }
 
-/* ---- Busca usuário ---- */
 document.getElementById('addContactHeaderBtn').addEventListener('click', () => {
     dropdownMenu.classList.remove('show');
     attachmentMenu.classList.remove('show');
@@ -866,7 +875,6 @@ async function rejectContactRequest(chatId) {
     renderChatList();
 }
 
-/* ---- Anexos / Giphy / Música ---- */
 function handleAttachmentSelection(type) {
     attachmentMenu.classList.remove('show');
     if (currentChatId == null) return;
@@ -1104,7 +1112,6 @@ function toggleChatVinyl(previewUrl, instanceId) {
     }
 }
 
-/* ---- Texto ---- */
 searchInput.addEventListener('input', e => { searchQuery = e.target.value; renderChatList(); });
 async function sendMessage() {
     const text = messageInput.value.trim();
@@ -1126,7 +1133,6 @@ async function sendMessage() {
 sendBtn.addEventListener('click', sendMessage);
 messageInput.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
 
-/* ---- Receber DMs ---- */
 async function handleIncomingDm(ev) {
     if (!ev || seenMessageIds.has(ev.id) || ev.kind !== 4) return;
     seenMessageIds.add(ev.id);
