@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mensagens Anônimas</title>
+    <title>Mensagens Anônimas - NGL Style</title>
     <!-- Importação do FontAwesome para utilizar ícones vetoriais profissionais -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Importação do html2canvas para capturar o card em imagem -->
@@ -575,19 +575,27 @@
     </div>
 
     <script>
-        // Conexão com a rede Nostr (Relays), validação estrita de mensagens direcionadas (#p) de até 24h e tratamento de login/ícone padrão
+        // Configuração dos relays Nostr
         const RELAYS = ['wss://relay.damus.io', 'wss://relay.nostr.band', 'wss://nos.lol'];
         let globalUserPubkey = null;
-        
-        async function connectNostrAndFetchProfile() {
+
+        // Função para autenticar e puxar dados do usuário via extensão Nostr (NIP-07 / Cache do navegador)
+        async function authenticateNostrUser() {
             if (window.nostr && window.nostr.getPublicKey) {
                 try {
                     globalUserPubkey = await window.nostr.getPublicKey();
+                    console.log("Usuário autenticado via Nostr:", globalUserPubkey);
+                    initNostrSession(globalUserPubkey);
                 } catch (e) {
-                    console.warn("Usuário negou acesso ao Nostr ou extensão indisponível:", e);
+                    console.warn("Usuário negou a permissão ou ocorreu um erro na extensão Nostr:", e);
+                    alert("É necessário autorizar o acesso à extensão Nostr para utilizar o aplicativo.");
                 }
+            } else {
+                alert("Nenhuma extensão Nostr (como Alby ou nos2x) foi detectada no seu navegador. Por favor, instale uma extensão compatível com NIP-07.");
             }
+        }
 
+        function initNostrSession(pubkey) {
             RELAYS.forEach(url => {
                 try {
                     const ws = new WebSocket(url);
@@ -595,11 +603,9 @@
                         console.log(`Conectado ao Relay Nostr: ${url}`);
                         const subId = 'ngl-sub-' + Math.random().toString(36).substring(2, 9);
                         
-                        if (globalUserPubkey) {
-                            const oneDayAgo = Math.floor(Date.now() / 1000) - (24 * 60 * 60);
-                            ws.send(JSON.stringify(["REQ", subId, { kinds: [1], '#p': [globalUserPubkey], since: oneDayAgo, limit: 50 }]));
-                            ws.send(JSON.stringify(["REQ", subId + "-profile", { kinds: [0], authors: [globalUserPubkey], limit: 1 }]));
-                        }
+                        const oneDayAgo = Math.floor(Date.now() / 1000) - (24 * 60 * 60);
+                        ws.send(JSON.stringify(["REQ", subId, { kinds: [1], '#p': [pubkey], since: oneDayAgo, limit: 50 }]));
+                        ws.send(JSON.stringify(["REQ", subId + "-profile", { kinds: [0], authors: [pubkey], limit: 1 }]));
                     };
                     
                     ws.onmessage = (event) => {
@@ -660,26 +666,23 @@
             messagesListContainer.prepend(newItem);
         }
 
-        connectNostrAndFetchProfile();
-
-        // Lógica de verificação de parâmetros na URL (Se acessado via link compartilhado)
+        // Lógica executada ao carregar a página
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const targetPubkey = urlParams.get('u');
             const sharedText = urlParams.get('t');
 
             if (targetPubkey) {
+                // Se acessado via link compartilhado, abre o modal de envio restrito
                 const sendModal = document.getElementById('sendModal');
                 const sendPromptText = document.getElementById('sendPromptText');
                 
-                // Exibe a mensagem personalizada escolhida pelo usuário ou a padrão
                 if (sharedText) {
                     sendPromptText.innerHTML = decodeURIComponent(sharedText).replace(/\n/g, '<br>');
                 }
 
                 sendModal.classList.add('active');
 
-                // Lógica para envio da mensagem anônima via Nostr (Kind 1 direcionada ao pubkey)
                 const sendAnonBtn = document.getElementById('sendAnonBtn');
                 const anonMessageInput = document.getElementById('anonMessageInput');
 
@@ -690,45 +693,57 @@
                         return;
                     }
 
-                    // Monta o evento Nostr Kind 1 contendo a tag #p apontando para o dono do link
-                    const event = {
+                    let event = {
                         kind: 1,
                         created_at: Math.floor(Date.now() / 1000),
                         tags: [["p", targetPubkey]],
                         content: messageContent,
-                        pubkey: "" // Anônimo / Gerado dinamicamente se sem chave própria
+                        pubkey: "" 
                     };
 
-                    let sentSuccessfully = false;
-
-                    for (const url of RELAYS) {
-                        try {
-                            const ws = new WebSocket(url);
-                            await new Promise((resolve, reject) => {
-                                ws.onopen = () => {
-                                    ws.send(JSON.stringify(["EVENT", event]));
-                                    resolve();
-                                };
-                                ws.onerror = (err) => reject(err);
-                                setTimeout(resolve, 2000);
-                            });
-                            ws.close();
-                            sentSuccessfully = true;
-                        } catch (err) {
-                            console.warn(`Falha ao publicar no relay ${url}`, err);
+                    try {
+                        if (window.nostr && window.nostr.signEvent) {
+                            event = await window.nostr.signEvent(event);
+                        } else {
+                            event.pubkey = "0000000000000000000000000000000000000000000000000000000000000000";
                         }
-                    }
 
-                    alert('Mensagem anônima enviada com sucesso!');
-                    anonMessageInput.value = '';
+                        let sentSuccessfully = false;
+                        for (const url of RELAYS) {
+                            try {
+                                const ws = new WebSocket(url);
+                                await new Promise((resolve, reject) => {
+                                    ws.onopen = () => {
+                                        ws.send(JSON.stringify(["EVENT", event]));
+                                        resolve();
+                                    };
+                                    ws.onerror = (err) => reject(err);
+                                    setTimeout(resolve, 2000);
+                                });
+                                ws.close();
+                                sentSuccessfully = true;
+                            } catch (err) {
+                                console.warn(`Falha ao publicar no relay ${url}`, err);
+                            }
+                        }
+
+                        alert('Mensagem anônima enviada com sucesso!');
+                        anonMessageInput.value = '';
+                    } catch (err) {
+                        console.error("Erro ao assinar ou enviar evento:", err);
+                        alert("Erro ao enviar mensagem.");
+                    }
                 });
+            } else {
+                // Fluxo normal: exige autenticação via cache/extensão Nostr do navegador
+                authenticateNostrUser();
             }
         });
 
         // Redirecionamento ao clicar no botão de Home
         const homeBtn = document.getElementById('homeBtn');
         homeBtn.addEventListener('click', () => {
-            window.location.href = '../../Social.html';
+            window.location.href = '../Bate-papo.html';
         });
 
         // Funcionalidade do Modal de Mensagens Recebidas
@@ -844,7 +859,7 @@
             }
         });
 
-        // Funcionalidade do botão Compartilhar principal: Copia o link simplificado com o identificador do usuário e a mensagem atual
+        // Funcionalidade do botão Compartilhar principal: Copia o link simplificado com a pubkey cacheada e o texto atual
         const shareBtn = document.getElementById('shareBtn');
         const editableText = document.getElementById('editableText');
         const btnEdit = document.getElementById('btnEdit');
@@ -863,10 +878,13 @@
         shareBtn.addEventListener('click', async () => {
             const baseUrl = window.location.origin + window.location.pathname;
             const currentMessageText = editableText.innerHTML;
-            // Gera o link simplificado contendo o identificador do usuário e o texto atual formatado
-            const simplifiedLink = globalUserPubkey 
-                ? `${baseUrl}?u=${globalUserPubkey}&t=${encodeURIComponent(currentMessageText)}` 
-                : window.location.href;
+            
+            if (!globalUserPubkey) {
+                alert('Aguarde a autenticação Nostr via navegador ser concluída para gerar seu link.');
+                return;
+            }
+
+            const simplifiedLink = `${baseUrl}?u=${globalUserPubkey}&t=${encodeURIComponent(currentMessageText)}`;
 
             try {
                 await navigator.clipboard.writeText(simplifiedLink);
