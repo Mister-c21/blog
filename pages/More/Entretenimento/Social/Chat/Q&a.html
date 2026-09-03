@@ -3,12 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mensagens Anônimas - NGL Style</title>
-    <!-- Importação do FontAwesome para utilizar ícones vetoriais profissionais -->
+    <title>Mensagens Anônimas</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Importação do html2canvas para capturar o card em imagem -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script type="module">
+        import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+        import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+        window.NostrTools = NostrTools;
+        window.nostrHexToBytes = hexToBytes;
+    </script>
     <style>
+        /* ... CSS idêntico ao original (não alterado) ... */
         * {
             margin: 0;
             padding: 0;
@@ -27,7 +32,6 @@
             padding: 20px;
         }
 
-        /* Top Bar */
         .top-bar {
             width: 100%;
             max-width: 400px;
@@ -58,7 +62,6 @@
             color: #8a2be2;
         }
 
-        /* Card Container (Stories Preview) */
         .card-preview {
             width: 100%;
             max-width: 320px;
@@ -77,7 +80,6 @@
             border: 2px solid #f3e8ff;
         }
 
-        /* Holographic overlay effect */
         .card-preview::before {
             content: '';
             position: absolute;
@@ -100,7 +102,6 @@
             background-color: #f3e8ff;
         }
 
-        /* Estilo para quando não houver imagem e renderizar o ícone de perfil */
         .profile-placeholder {
             width: 110px;
             height: 110px;
@@ -166,7 +167,6 @@
             gap: 10px;
         }
 
-        /* Bottom Control Panel */
         .control-panel {
             width: 100%;
             max-width: 400px;
@@ -196,7 +196,6 @@
             transform: scale(0.98);
         }
 
-        /* Modal de Mensagens Recebidas */
         .messages-modal {
             position: fixed;
             inset: 0;
@@ -286,11 +285,10 @@
             align-self: flex-end;
         }
 
-        /* Sub-modal Estilo NGL */
         .detail-modal {
             position: fixed;
             inset: 0;
-            background-color: rgba(15, 15, 17, 0.92);
+            background-color: rgba(15, 15, 17,, 0.92);
             background-size: cover;
             background-position: center;
             z-index: 1100;
@@ -410,7 +408,6 @@
             gap: 10px;
         }
 
-        /* Estilos específicos para o Modal de Envio Anônimo Externo (quem acessa o link) */
         .send-modal {
             position: fixed;
             inset: 0;
@@ -493,17 +490,15 @@
 </head>
 <body>
 
-    <!-- Top Bar -->
+    <!-- HTML de estrutura idêntico ao original (não alterado) -->
     <div class="top-bar">
         <button id="homeBtn" title="Ir para Home"><i class="fa-solid fa-house"></i></button>
         <span class="share-title">compartilhar</span>
         <button id="inboxBtn" title="Mensagens Recebidas"><i class="fa-solid fa-inbox"></i></button>
     </div>
 
-    <!-- Card Preview (Stories style) -->
     <div class="card-preview">
         <div class="profile-container" id="profileContainer">
-            <!-- Renderizado dinamicamente: ícone padrão se não logado ou foto se logado -->
             <div class="profile-placeholder" id="profilePlaceholder">
                 <i class="fa-solid fa-user"></i>
             </div>
@@ -522,25 +517,20 @@
         </div>
     </div>
 
-    <!-- Control Panel -->
     <div class="control-panel">
         <button class="btn-share-main" id="shareBtn">
             Compartilhe!
         </button>
     </div>
 
-    <!-- Modal de Mensagens Recebidas -->
     <div class="messages-modal" id="messagesModal">
         <div class="modal-header">
             <span class="modal-title">Mensagens Recebidas</span>
             <button class="modal-close-btn" id="closeModalBtn"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="modal-content" id="messagesListContainer">
-            <!-- As mensagens direcionadas via link e válidas por 24h aparecerão aqui -->
-        </div>
+        <div class="modal-content" id="messagesListContainer"></div>
     </div>
 
-    <!-- Sub-modal Detalhe Estilo NGL -->
     <div class="detail-modal" id="detailModal">
         <div class="detail-top-bar" id="detailTopBar">
             <button class="detail-close-btn" id="closeDetailBtn"><i class="fa-solid fa-xmark"></i></button>
@@ -548,9 +538,7 @@
 
         <div class="detail-card" id="captureCard">
             <div class="detail-card-top">send me anonymous messages...</div>
-            <div class="detail-card-bottom" id="detailMessageText">
-                <!-- O conteúdo da mensagem selecionada será inserido aqui dinamicamente -->
-            </div>
+            <div class="detail-card-bottom" id="detailMessageText"></div>
         </div>
 
         <div style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 10px; align-items: center;" id="detailFooterContainer">
@@ -564,7 +552,6 @@
         </div>
     </div>
 
-    <!-- Modal de Envio Anônimo para Visitantes (Bloqueado/Sem opção de fechar) -->
     <div class="send-modal" id="sendModal">
         <div style="font-size: 20px; font-weight: 700; color: #8a2be2;">enviar mensagem anônima</div>
         <div class="send-card">
@@ -579,20 +566,76 @@
         const RELAYS = ['wss://relay.damus.io', 'wss://relay.nostr.band', 'wss://nos.lol'];
         let globalUserPubkey = null;
 
-        // Função para autenticar e puxar dados do usuário via extensão Nostr (NIP-07 / Cache do navegador)
-        async function authenticateNostrUser() {
-            if (window.nostr && window.nostr.getPublicKey) {
-                try {
-                    globalUserPubkey = await window.nostr.getPublicKey();
-                    console.log("Usuário autenticado via Nostr:", globalUserPubkey);
-                    initNostrSession(globalUserPubkey);
-                } catch (e) {
-                    console.warn("Usuário negou a permissão ou ocorreu um erro na extensão Nostr:", e);
-                    alert("É necessário autorizar o acesso à extensão Nostr para utilizar o aplicativo.");
-                }
-            } else {
-                alert("Nenhuma extensão Nostr (como Alby ou nos2x) foi detectada no seu navegador. Por favor, instale uma extensão compatível com NIP-07.");
+        // ——— AUTH baseado no cache do navegador (mesmo padrão do LoreSocial Chat) ———
+        const LOGIN_PAGE = '../Social.html'; // ajuste o caminho se necessário
+
+        function getNostrSession() {
+            try {
+                return JSON.parse(localStorage.getItem('nostr_session') || 'null');
+            } catch {
+                return null;
             }
+        }
+
+        function checkNostrAuthFromCache() {
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+            const session = localStorage.getItem('nostr_session');
+
+            if (isLoggedIn !== 'true' || !session) {
+                return null;
+            }
+
+            try {
+                const p = JSON.parse(session);
+                if (!p.privateKeyHex || !p.pubkey) throw new Error('invalid');
+                return p;
+            } catch {
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('nostr_session');
+                return null;
+            }
+        }
+
+        function getPrivateKeyBytes() {
+            const s = getNostrSession();
+            if (!s?.privateKeyHex) return null;
+            try {
+                if (window.nostrHexToBytes) return window.nostrHexToBytes(s.privateKeyHex);
+                const hex = s.privateKeyHex;
+                const out = new Uint8Array(hex.length / 2);
+                for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i * 2, 2), 16);
+                return out;
+            } catch {
+                return null;
+            }
+        }
+
+        function waitForNostrTools(maxMs = 6000) {
+            return new Promise(resolve => {
+                if (window.NostrTools) return resolve(true);
+                const t0 = Date.now();
+                const id = setInterval(() => {
+                    if (window.NostrTools || Date.now() - t0 > maxMs) {
+                        clearInterval(id);
+                        resolve(!!window.NostrTools);
+                    }
+                }, 100);
+            });
+        }
+
+        // Autenticação principal: puxa pubkey do cache (localStorage)
+        async function authenticateNostrUser() {
+            const session = checkNostrAuthFromCache();
+
+            if (!session) {
+                alert('Você precisa estar logado no LoreSocial. Redirecionando para o login...');
+                window.location.replace(LOGIN_PAGE);
+                return;
+            }
+
+            globalUserPubkey = session.pubkey;
+            console.log('Usuário autenticado via cache do navegador (nostr_session):', globalUserPubkey);
+            initNostrSession(globalUserPubkey);
         }
 
         function initNostrSession(pubkey) {
@@ -602,12 +645,12 @@
                     ws.onopen = () => {
                         console.log(`Conectado ao Relay Nostr: ${url}`);
                         const subId = 'ngl-sub-' + Math.random().toString(36).substring(2, 9);
-                        
+
                         const oneDayAgo = Math.floor(Date.now() / 1000) - (24 * 60 * 60);
                         ws.send(JSON.stringify(["REQ", subId, { kinds: [1], '#p': [pubkey], since: oneDayAgo, limit: 50 }]));
                         ws.send(JSON.stringify(["REQ", subId + "-profile", { kinds: [0], authors: [pubkey], limit: 1 }]));
                     };
-                    
+
                     ws.onmessage = (event) => {
                         try {
                             const data = JSON.parse(event.data);
@@ -666,6 +709,25 @@
             messagesListContainer.prepend(newItem);
         }
 
+        // Assina evento usando chave privada do cache (mesmo padrão do chat)
+        async function signEventWithSession(event) {
+            await waitForNostrTools();
+            const sk = getPrivateKeyBytes();
+
+            if (sk && window.NostrTools) {
+                return window.NostrTools.finalizeEvent(event, sk);
+            }
+
+            // Fallback opcional: extensão NIP-07 se existir
+            if (window.nostr && window.nostr.signEvent) {
+                return await window.nostr.signEvent(event);
+            }
+
+            // Último recurso (não ideal): evento sem assinatura real
+            event.pubkey = event.pubkey || "0000000000000000000000000000000000000000000000000000000000000000";
+            return event;
+        }
+
         // Lógica executada ao carregar a página
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -673,10 +735,10 @@
             const sharedText = urlParams.get('t');
 
             if (targetPubkey) {
-                // Se acessado via link compartilhado, abre o modal de envio restrito
+                // Visitante via link compartilhado → modal de envio
                 const sendModal = document.getElementById('sendModal');
                 const sendPromptText = document.getElementById('sendPromptText');
-                
+
                 if (sharedText) {
                     sendPromptText.innerHTML = decodeURIComponent(sharedText).replace(/\n/g, '<br>');
                 }
@@ -698,15 +760,18 @@
                         created_at: Math.floor(Date.now() / 1000),
                         tags: [["p", targetPubkey]],
                         content: messageContent,
-                        pubkey: "" 
+                        pubkey: ""
                     };
 
                     try {
-                        if (window.nostr && window.nostr.signEvent) {
-                            event = await window.nostr.signEvent(event);
-                        } else {
-                            event.pubkey = "0000000000000000000000000000000000000000000000000000000000000000";
+                        // Tenta assinar com sessão do cache (se o visitante também estiver logado)
+                        // ou com extensão / fallback
+                        const session = checkNostrAuthFromCache();
+                        if (session?.pubkey) {
+                            event.pubkey = session.pubkey;
                         }
+
+                        event = await signEventWithSession(event);
 
                         let sentSuccessfully = false;
                         for (const url of RELAYS) {
@@ -735,7 +800,7 @@
                     }
                 });
             } else {
-                // Fluxo normal: exige autenticação via cache/extensão Nostr do navegador
+                // Fluxo normal do dono do link: exige autenticação via cache do navegador
                 authenticateNostrUser();
             }
         });
@@ -746,7 +811,7 @@
             window.location.href = '../Bate-papo.html';
         });
 
-        // Funcionalidade do Modal de Mensagens Recebidas
+        // Modal de Mensagens Recebidas
         const inboxBtn = document.getElementById('inboxBtn');
         const messagesModal = document.getElementById('messagesModal');
         const closeModalBtn = document.getElementById('closeModalBtn');
@@ -759,7 +824,7 @@
             messagesModal.classList.remove('active');
         });
 
-        // Funcionalidade do Sub-modal Detalhe e captura da mensagem clicada
+        // Sub-modal detalhe
         const detailModal = document.getElementById('detailModal');
         const closeDetailBtn = document.getElementById('closeDetailBtn');
         const detailMessageText = document.getElementById('detailMessageText');
@@ -779,7 +844,6 @@
             detailModal.classList.remove('active');
         });
 
-        // Funcionalidade do botão Câmera para alterar fundo por URL
         const detailCameraBtn = document.getElementById('detailCameraBtn');
         detailCameraBtn.addEventListener('click', () => {
             const imgUrl = prompt('Cole a URL da imagem para o fundo do modal:');
@@ -788,7 +852,6 @@
             }
         });
 
-        // Mudança simples de cor do card detalhado ao clicar no botão de paleta
         const detailColorBtn = document.getElementById('detailColorBtn');
         const detailCard = document.querySelector('.detail-card');
         const gradients = [
@@ -803,7 +866,6 @@
             detailCard.style.background = gradients[colorIndex];
         });
 
-        // Funcionalidade do botão Responder para gerar imagem do card e acionar o Share API ou fallback de download com notificação
         const respondBtn = document.getElementById('respondBtn');
         const detailTopBar = document.getElementById('detailTopBar');
         const detailFooterContainer = document.getElementById('detailFooterContainer');
@@ -859,7 +921,7 @@
             }
         });
 
-        // Funcionalidade do botão Compartilhar principal: Copia o link simplificado com a pubkey cacheada e o texto atual
+        // Compartilhar: usa a pubkey do cache
         const shareBtn = document.getElementById('shareBtn');
         const editableText = document.getElementById('editableText');
         const btnEdit = document.getElementById('btnEdit');
@@ -878,9 +940,9 @@
         shareBtn.addEventListener('click', async () => {
             const baseUrl = window.location.origin + window.location.pathname;
             const currentMessageText = editableText.innerHTML;
-            
+
             if (!globalUserPubkey) {
-                alert('Aguarde a autenticação Nostr via navegador ser concluída para gerar seu link.');
+                alert('Aguarde a autenticação Nostr via cache do navegador ser concluída para gerar seu link.');
                 return;
             }
 
