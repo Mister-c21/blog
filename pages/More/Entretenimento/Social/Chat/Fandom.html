@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fandoms</title>
+    <!-- Importação do FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Importação do nostr-tools via CDN -->
+    <script src="https://unpkg.com/nostr-tools/lib/nostr.bundle.js"></script>
+    <style>
+        :root {
+            --primary: #7b2cbf;
+            --accent-gradient: linear-gradient(45deg, #3c096c 0%, #5a189a 25%, #7b2cbf 50%, #9d4edd 75%, #c77dff 100%);
+            --bg-main: #ffffff;
+            --bg-card: #f4f4f5;
+            --bg-glass: rgba(244, 244, 245, 0.85);
+            --text-main: #0f0f11;
+            --text-muted: #71717a;
+            --border-color: #e4e4e7;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        nav {
+            width: 80px;
+            background-color: var(--bg-card);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 25px;
+            gap: 20px;
+            border-right: 1px solid var(--border-color);
+            z-index: 10;
+        }
+
+        .nav-icon {
+            width: 48px;
+            height: 48px;
+            background-color: var(--bg-main);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+        }
+
+        .nav-icon:hover, .nav-icon.active {
+            background: var(--accent-gradient);
+            color: #ffffff;
+            border-color: transparent;
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(123, 44, 191, 0.3);
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background-color: var(--bg-main);
+        }
+
+        header {
+            padding: 24px 32px;
+            background-color: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        header h2 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .content {
+            padding: 24px 32px;
+            display: none;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        .search-bar-container {
+            display: flex;
+            align-items: center;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 12px 20px;
+            margin-bottom: 24px;
+            gap: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .search-bar-container:focus-within {
+            border-color: #7b2cbf;
+            box-shadow: 0 0 0 4px rgba(123, 44, 191, 0.15);
+        }
+
+        .search-bar-container i {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        .search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 0.95rem;
+            color: var(--text-main);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .clear-search-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1rem;
+            display: none;
+            padding: 4px;
+            transition: color 0.2s;
+        }
+
+        .clear-search-btn.visible {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .clear-search-btn:hover {
+            color: var(--text-main);
+        }
+
+        .fandoms-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .fandom-card {
+            background-color: var(--bg-card);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            gap: 20px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .fandom-card:hover {
+            border-color: #7b2cbf;
+            transform: translateY(-2px);
+            background: linear-gradient(145deg, #f4f4f5, #eaeaf0);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        .fandom-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            padding: 3px;
+            background: var(--accent-gradient);
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fandom-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid var(--bg-card);
+        }
+
+        .fandom-info h3 {
+            color: var(--text-main);
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+
+        .top-tabs {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 5px 4px 15px 4px;
+            margin-bottom: 16px;
+            scrollbar-width: none;
+            width: 100%;
+        }
+
+        .top-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tab-pill {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            white-space: nowrap;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            transition: all 0.25s ease;
+            flex-shrink: 0;
+        }
+
+        .tab-pill:hover {
+            color: var(--text-main);
+            border-color: var(--text-muted);
+        }
+
+        .tab-pill.active {
+            background: var(--accent-gradient);
+            color: #ffffff;
+            border-color: transparent;
+            box-shadow: 0 4px 15px rgba(123, 44, 191, 0.3);
+        }
+
+        .fandom-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--bg-main);
+            z-index: 2000;
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+            pointer-events: none;
+        }
+
+        .fandom-modal.open {
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .fandom-modal-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            filter: blur(25px) brightness(0.85);
+            transform: scale(1.1);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .fandom-modal-header {
+            padding: 20px 32px;
+            background-color: transparent;
+            backdrop-filter: none;
+            border-bottom: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            touch-action: none;
+        }
+
+        .modal-drag-indicator {
+            width: 48px;
+            height: 5px;
+            background-color: var(--border-color);
+            border-radius: 10px;
+            margin: 12px auto 0 auto;
+            cursor: grab;
+            touch-action: none;
+            position: relative;
+            z-index: 2;
+        }
+
+        .fandom-modal-close {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            font-size: 1.1rem;
+            cursor: pointer;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+
+        .fandom-modal-close:hover {
+            background: #e4e4e7;
+        }
+
+        .fandom-modal-body {
+            padding: 32px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 20px;
+            width: 100%;
+            max-width: 700px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+            box-sizing: border-box;
+        }
+
+        .fandom-modal-body img {
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            object-fit: cover;
+            padding: 4px;
+            background: var(--accent-gradient);
+            box-shadow: 0 10px 25px rgba(123, 44, 191, 0.2);
+        }
+
+        .fandom-modal-body h2 {
+            color: var(--text-main);
+            font-size: 1.8rem;
+            font-weight: 800;
+        }
+
+        .modal-dynamic-content {
+            width: 100%;
+            text-align: left;
+            margin-top: 10px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-main);
+            background-color: var(--bg-card);
+            padding: 24px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            box-sizing: border-box;
+        }
+
+        .audio-progress-wrapper {
+            max-height: 0;
+            opacity: 0;
+            transform: translateY(-6px);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), 
+                        opacity 0.3s ease, 
+                        transform 0.3s ease;
+        }
+
+        .audio-progress-wrapper.active {
+            max-height: 40px;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            nav {
+                order: 2;
+                width: 100%;
+                height: 70px;
+                flex-direction: row;
+                justify-content: space-around;
+                padding-top: 0;
+                border-right: none;
+                border-top: 1px solid var(--border-color);
+                background-color: var(--bg-card);
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                z-index: 1000;
+            }
+
+            .nav-icon {
+                width: 44px;
+                height: 44px;
+                border-radius: 14px;
+            }
+
+            .main-container {
+                order: 1;
+                height: calc(100vh - 70px);
+                padding-bottom: 70px;
+            }
+
+            header {
+                padding: 16px 20px;
+            }
+
+            .content {
+                padding: 16px;
+            }
+
+            .fandom-modal-close {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="home.html" class="nav-icon" title="Página Inicial">
+            <i class="fa-solid fa-house"></i>
+        </a>
+        <div class="nav-icon active" title="Fandoms">
+            <i class="fa-solid fa-heart"></i>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <header>
+            <h2>fandom</h2>
+        </header>
+
+        <div id="community" class="content active">
+            <div class="search-bar-container">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="fandom-search-input" class="search-input" placeholder="Pesquisar fandom (ex: BTS, Harry Potter)..." oninput="handleFandomSearchInput(event)" onkeypress="handleFandomSearch(event)">
+                <button type="button" id="clear-search-btn" class="clear-search-btn" onclick="clearFandomSearch()" title="Limpar busca">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="fandoms-grid" id="api-fandoms-grid">
+                <p style="color: var(--text-muted); text-align: center; padding: 20px;">Carregando fandoms...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="fandomModal" class="fandom-modal">
+        <div id="modal-bg-layer" class="fandom-modal-bg"></div>
+        <div class="modal-drag-indicator" id="modalDragTrigger"></div>
+        <div class="fandom-modal-header" id="modalHeaderTrigger">
+            <h3 id="modal-fandom-title" style="font-size: 1.1rem; font-weight: 700; position: relative; z-index: 2; color: transparent; -webkit-text-fill-color: transparent;">Detalhes</h3>
+            <button class="fandom-modal-close" onclick="closeFandomModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="fandom-modal-body" id="fandom-modal-content"></div>
+    </div>
+
+    <script>
+        let currentSelectedFandom = null;
+        let activeAudioElement = null;
+        let activeTrackIndex = null;
+        let audioProgressInterval = null;
+
+        function validateNostrSession() {
+            const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+            const sessionRaw = localStorage.getItem('nostr_session');
+            let session = null;
+            try {
+                session = sessionRaw ? JSON.parse(sessionRaw) : null;
+            } catch (e) {
+                session = null;
+            }
+
+            if (!isLoggedIn || !session || (!session.privateKeyHex && !window.nostr)) {
+                window.location.href = '../Social.html';
+                return false;
+            }
+            return session;
+        }
+
+        function openFandomModal(fandom) {
+            const session = validateNostrSession();
+            if (!session) return;
+
+            currentSelectedFandom = fandom;
+            const modal = document.getElementById('fandomModal');
+            const bgLayer = document.getElementById('modal-bg-layer');
+            const content = document.getElementById('fandom-modal-content');
+            
+            if (bgLayer) {
+                bgLayer.style.backgroundImage = `url('${fandom.image}')`;
+            }
+
+            content.innerHTML = `
+                <img src="${fandom.image}" alt="${fandom.name}" onerror="this.onerror=null;this.src='https://via.placeholder.com/150x150/f4f4f5/7b2cbf?text=Foto';">
+                <h2>${fandom.name}</h2>
+                <div class="top-tabs" style="justify-content: flex-start; margin-top: 5px;">
+                    <button class="tab-pill active" onclick="filterModalTab('web', this)"><i class="fa-solid fa-globe"></i> Web</button>
+                    <button class="tab-pill" onclick="filterModalTab('wiki', this)"><i class="fa-solid fa-book-open"></i> Wiki</button>
+                    <button class="tab-pill" onclick="filterModalTab('musicas', this)"><i class="fa-solid fa-music"></i> Músicas</button>
+                    <button class="tab-pill" onclick="filterModalTab('noticias', this)"><i class="fa-solid fa-newspaper"></i> Notícias</button>
+                </div>
+                <div id="modal-tab-dynamic-content" class="modal-dynamic-content"></div>
+            `;
+
+            modal.style.transition = 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)';
+            modal.style.transform = 'translateY(0)';
+            modal.classList.add('open');
+
+            const webTabButton = content.querySelector('.top-pill');
+            if (webTabButton) {
+                filterModalTab('web', webTabButton);
+            }
+        }
+
+        async function filterModalTab(tabName, element) {
+            const parentContainer = element.closest('.top-tabs');
+            if (parentContainer) {
+                parentContainer.querySelectorAll('.tab-pill').forEach(pill => pill.classList.remove('active'));
+                element.classList.add('active');
+            }
+
+            const dynamicContainer = document.getElementById('modal-tab-dynamic-content');
+            if (!dynamicContainer || !currentSelectedFandom) return;
+
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+
+            if (activeAudioElement) {
+                activeAudioElement.pause();
+                activeAudioElement = null;
+                if (audioProgressInterval) clearInterval(audioProgressInterval);
+                activeTrackIndex = null;
+            }
+
+            if (tabName === 'web') {
+                const query = encodeURIComponent(currentSelectedFandom.name);
+                dynamicContainer.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                        <h4 style="color: var(--text-main); font-weight: 700;"><i class="fa-solid fa-compass" style="color: #7b2cbf;"></i> Motores de Busca</h4>
+                        <span style="font-size: 0.75rem; color: var(--text-muted); background: var(--bg-card); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 12px;">Redirecionamento Inteligente</span>
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">Escolha onde deseja buscar por <strong>${currentSelectedFandom.name}</strong>:</p>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <a href="https://www.google.com/search?q=${query}" target="_blank" style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-main); padding: 14px 18px; border-radius: 16px; border: 1px solid var(--border-color); text-decoration: none; color: var(--text-main); font-weight: 600; transition: all 0.2s;" onmouseover="this.style.borderColor='#7b2cbf'" onmouseout="this.style.borderColor='var(--border-color)'">
+                            <span><i class="fa-brands fa-google" style="color: #4285F4; margin-right: 10px;"></i> Google</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.85rem; color: var(--text-muted);"></i>
+                        </a>
+                        <a href="https://duckduckgo.com/?q=${query}" target="_blank" style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-main); padding: 14px 18px; border-radius: 16px; border: 1px solid var(--border-color); text-decoration: none; color: var(--text-main); font-weight: 600; transition: all 0.2s;" onmouseover="this.style.borderColor='#7b2cbf'" onmouseout="this.style.borderColor='var(--border-color)'">
+                            <span><i class="fa-solid fa-shield-halved" style="color: #DE5833; margin-right: 10px;"></i> DuckDuckGo</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.85rem; color: var(--text-muted);"></i>
+                        </a>
+                        <a href="https://www.bing.com/search?q=${query}" target="_blank" style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-main); padding: 14px 18px; border-radius: 16px; border: 1px solid var(--border-color); text-decoration: none; color: var(--text-main); font-weight: 600; transition: all 0.2s;" onmouseover="this.style.borderColor='#7b2cbf'" onmouseout="this.style.borderColor='var(--border-color)'">
+                            <span><i class="fa-brands fa-microsoft" style="color: #00A4EF; margin-right: 10px;"></i> Bing</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.85rem; color: var(--text-muted);"></i>
+                        </a>
+                        <a href="https://search.brave.com/search?q=${query}" target="_blank" style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-main); padding: 14px 18px; border-radius: 16px; border: 1px solid var(--border-color); text-decoration: none; color: var(--text-main); font-weight: 600; transition: all 0.2s;" onmouseover="this.style.borderColor='#7b2cbf'" onmouseout="this.style.borderColor='var(--border-color)'">
+                            <span><i class="fa-solid fa-lion" style="color: #FF5500; margin-right: 10px;"></i> Brave Search</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.85rem; color: var(--text-muted);"></i>
+                        </a>
+                    </div>
+                `;
+
+            } else if (tabName === 'wiki') {
+                dynamicContainer.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 20px;">Carregando resumo...</p>`;
+                try {
+                    const response = await fetch(`https://pt.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(currentSelectedFandom.name)}`);
+                    if (!response.ok) throw new Error('Erro ao carregar a wiki');
+                    const pageData = await response.json();
+                    
+                    if (pageData.extract) {
+                        dynamicContainer.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h4 style="color: var(--text-main); font-weight: 700;">Sobre (${pageData.title})</h4>
+                                ${'speechSynthesis' in window ? `
+                                    <div style="display: flex; gap: 6px;">
+                                        <button onclick="playAudioDescription(this)" data-text="${encodeURIComponent(pageData.extract)}" style="background: var(--accent-gradient); color: #fff; border: none; padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 0.75rem; font-weight: 700;"><i class="fa-solid fa-volume-high"></i> Ouvir</button>
+                                        <button onclick="pauseAudioDescription()" style="background-color: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 20px; cursor: pointer; font-size: 0.75rem;"><i class="fa-solid fa-pause"></i></button>
+                                        <button onclick="stopAudioDescription()" style="background-color: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 20px; cursor: pointer; font-size: 0.75rem;"><i class="fa-solid fa-stop"></i></button>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <p style="color: var(--text-muted); font-size: 0.95rem; word-break: break-word; overflow-wrap: break-word;">${pageData.extract}</p>
+                            ${pageData.content_urls && pageData.content_urls.desktop ? `<a href="${pageData.content_urls.desktop.page}" target="_blank" style="display: inline-block; margin-top: 16px; color: #7b2cbf; text-decoration: none; font-weight: 700; font-size: 0.9rem;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Ver artigo completo na Wikipédia</a>` : ''}
+                        `;
+                    } else {
+                        dynamicContainer.innerHTML = `<p style="color: var(--text-muted); text-align: center;">Nenhum resumo encontrado.</p>`;
+                    }
+                } catch (error) {
+                    dynamicContainer.innerHTML = `<p style="color: var(--text-muted); text-align: center;">Não foi possível carregar os dados.</p>`;
+                }
+            } else if (tabName === 'musicas') {
+                dynamicContainer.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 20px;">Buscando sons...</p>`;
+                try {
+                    const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(currentSelectedFandom.name)}&entity=song&limit=5`);
+                    if (!response.ok) throw new Error('Erro');
+                    const data = await response.json();
+
+                    if (data.results && data.results.length > 0) {
+                        let musicHTML = `<h4 style="color: var(--text-main); font-weight: 700; margin-bottom: 14px;">Prévias Populares</h4><div style="display: flex; flex-direction: column; gap: 12px;">`;
+                        
+                        data.results.forEach((song, index) => {
+                            musicHTML += `
+                                <div id="track-card-${index}" style="display: flex; flex-direction: column; background-color: var(--bg-main); padding: 12px 16px; border-radius: 16px; border: 1px solid var(--border-color); gap: 10px; transition: all 0.25s ease;">
+                                    <div style="display: flex; align-items: center; gap: 14px; width: 100%;">
+                                        <div style="position: relative; width: 50px; height: 50px; flex-shrink: 0;">
+                                            <img src="${song.artworkUrl100 || 'https://via.placeholder.com/50x50'}" alt="${song.trackName}" style="width: 100%; height: 100%; border-radius: 12px; object-fit: cover;">
+                                        </div>
+                                        <div style="flex: 1; overflow: hidden;">
+                                            <h5 style="font-size: 0.95rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700;" title="${song.trackName}">${song.trackName}</h5>
+                                            <p style="font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${song.artistName}</p>
+                                        </div>
+                                        ${song.previewUrl ? `
+                                            <button onclick="toggleCustomAudio('${song.previewUrl}', ${index})" id="play-btn-${index}" style="background: var(--accent-gradient); color: #fff; border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(123, 44, 191, 0.3); transition: transform 0.2s;"><i class="fa-solid fa-play" style="margin-left: 2px;"></i></button>
+                                        ` : '<span style="font-size: 0.75rem; color: var(--text-muted);">Indisponível</span>'}
+                                    </div>
+                                    ${song.previewUrl ? `
+                                        <div id="progress-wrapper-${index}" class="audio-progress-wrapper">
+                                            <span id="current-time-${index}" style="font-size: 0.7rem; color: var(--text-muted); min-width: 30px;">0:00</span>
+                                            <div onclick="seekAudio(event, ${index})" style="flex: 1; height: 6px; background-color: var(--border-color); border-radius: 3px; cursor: pointer; position: relative; overflow: hidden;">
+                                                <div id="progress-bar-${index}" style="width: 0%; height: 100%; background: var(--accent-gradient); border-radius: 3px; pointer-events: none; transition: width 0.1s linear;"></div>
+                                            </div>
+                                            <span style="font-size: 0.7rem; color: var(--text-muted); min-width: 30px;">0:30</span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `;
+                        });
+                        musicHTML += `</div>`;
+                        dynamicContainer.innerHTML = musicHTML;
+                    } else {
+                        dynamicContainer.innerHTML = `<p style="color: var(--text-muted); text-align: center;">Nenhuma prévia encontrada.</p>`;
+                    }
+                } catch (error) {
+                    dynamicContainer.innerHTML = `<p style="color: var(--text-muted); text-align: center;">Erro ao carregar músicas.</p>`;
+                }
+            } else if (tabName === 'noticias') {
+                dynamicContainer.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 20px;">Carregando atualizações...</p>`;
+                try {
+                    const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(currentSelectedFandom.name)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+                    const response = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`);
+                    if (!response.ok) throw new Error('Erro');
+                    const data = await response.json();
+
+                    if (data.items && data.items.length > 0) {
+                        let newsHTML = `<h4 style="color: var(--text-main); font-weight: 700; margin-bottom: 14px;">Últimas News</h4><div style="display: flex; flex-direction: column; gap: 10px;">`;
+                        
+                        data.items.slice(0, 5).forEach(article => {
+                            newsHTML += `
+                                <div style="background-color: var(--bg-main); padding: 12px 14px; border-radius: 14px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 6px; overflow: hidden; word-break: break-word; overflow-wrap: break-word;">
+                                    <a href="${article.link}" target="_blank" style="font-size: 0.9rem; font-weight: 700; color: var(--text-main); text-decoration: none;" onmouseover="this.style.color='#7b2cbf'" onmouseout="this.style.color='var(--text-main)'">${article.title}</a>
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted);">
+                                        <span><i class="fa-solid fa-globe"></i> ${article.author || 'Google News'}</span>
+                                        <span>${new Date(article.pubDate).toLocaleDateString('pt-BR')}</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        newsHTML += `</div>`;
+                        dynamicContainer.innerHTML = newsHTML;
+                    } else {
+                        dynamicContainer.innerHTML = `<p style="color: var(--text-muted); text-align: center;">Nenhuma notícia recente.</p>`;
+                    }
+                } catch (error) {
+                    dynamicContainer.innerHTML = `<p style="color: var(--text-muted); text-align: center;">Erro ao carregar notícias.</p>`;
+                }
+            }
+        }
+
+        function toggleCustomAudio(url, index) {
+            const btn = document.getElementById(`play-btn-${index}`);
+            const card = document.getElementById(`track-card-${index}`);
+            const progressWrapper = document.getElementById(`progress-wrapper-${index}`);
+            
+            if (!activeAudioElement) {
+                activeAudioElement = new Audio(url);
+                activeTrackIndex = index;
+                activeAudioElement.play();
+                btn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                card.style.borderColor = '#7b2cbf';
+                card.style.background = 'linear-gradient(145deg, #f4f4f5, #eaeaf0)';
+                if (progressWrapper) progressWrapper.classList.add('active');
+
+                startProgressTracker();
+
+                activeAudioElement.onended = () => {
+                    resetTrackState(index);
+                };
+            } else {
+                if (activeTrackIndex === index && !activeAudioElement.paused) {
+                    activeAudioElement.pause();
+                    btn.innerHTML = '<i class="fa-solid fa-play" style="margin-left: 2px;"></i>';
+                    card.style.borderColor = 'var(--border-color)';
+                    card.style.background = 'var(--bg-main)';
+                    if (progressWrapper) progressWrapper.classList.remove('active');
+                    if (audioProgressInterval) clearInterval(audioProgressInterval);
+                    activeAudioElement = null;
+                    activeTrackIndex = null;
+                } else {
+                    if (activeTrackIndex !== null) {
+                        resetTrackState(activeTrackIndex);
+                    }
+
+                    activeAudioElement.pause();
+                    activeAudioElement = new Audio(url);
+                    activeTrackIndex = index;
+                    activeAudioElement.play();
+                    btn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                    card.style.borderColor = '#7b2cbf';
+                    card.style.background = 'linear-gradient(145deg, #f4f4f5, #eaeaf0)';
+                    if (progressWrapper) progressWrapper.classList.add('active');
+
+                    startProgressTracker();
+
+                    activeAudioElement.onended = () => {
+                        resetTrackState(index);
+                    };
+                }
+            }
+        }
+
+        function startProgressTracker() {
+            if (audioProgressInterval) clearInterval(audioProgressInterval);
+            audioProgressInterval = setInterval(() => {
+                if (!activeAudioElement || activeTrackIndex === null) return;
+                const currentTime = activeAudioElement.currentTime;
+                const duration = activeAudioElement.duration || 30;
+                const percent = (currentTime / duration) * 100;
+
+                const bar = document.getElementById(`progress-bar-${activeTrackIndex}`);
+                const timeText = document.getElementById(`current-time-${activeTrackIndex}`);
+
+                if (bar) bar.style.width = `${percent}%`;
+                if (timeText) {
+                    const mins = Math.floor(currentTime / 60);
+                    const secs = Math.floor(currentTime % 60);
+                    timeText.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                }
+            }, 100);
+        }
+
+        function seekAudio(event, index) {
+            if (!activeAudioElement || activeTrackIndex !== index) return;
+            const container = event.currentTarget;
+            const rect = container.getBoundingClientRect();
+            const clickPosition = (event.clientX - rect.left) / container.offsetWidth;
+            
+            const duration = activeAudioElement.duration || 30;
+            activeAudioElement.currentTime = clickPosition * duration;
+            
+            const bar = document.getElementById(`progress-bar-${index}`);
+            if (bar) bar.style.width = `${clickPosition * 100}%`;
+        }
+
+        function resetTrackState(index) {
+            const btn = document.getElementById(`play-btn-${index}`);
+            const card = document.getElementById(`track-card-${index}`);
+            const progressWrapper = document.getElementById(`progress-wrapper-${index}`);
+            const bar = document.getElementById(`progress-bar-${index}`);
+            const timeText = document.getElementById(`current-time-${index}`);
+
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-play" style="margin-left: 2px;"></i>';
+            if (card) {
+                card.style.borderColor = 'var(--border-color)';
+                card.style.background = 'var(--bg-main)';
+            }
+            if (progressWrapper) progressWrapper.classList.remove('active');
+            if (bar) bar.style.width = '0%';
+            if (timeText) timeText.textContent = '0:00';
+
+            if (audioProgressInterval) clearInterval(audioProgressInterval);
+            activeAudioElement = null;
+            activeTrackIndex = null;
+        }
+
+        function playAudioDescription(buttonElement) {
+            if (!('speechSynthesis' in window)) return;
+            const synth = window.speechSynthesis;
+            if (synth.paused) { synth.resume(); return; }
+            synth.cancel();
+            const textToSpeech = decodeURIComponent(buttonElement.getAttribute('data-text'));
+            const utterance = new SpeechSynthesisUtterance(textToSpeech);
+            utterance.lang = 'pt-BR';
+            synth.speak(utterance);
+        }
+
+        function pauseAudioDescription() {
+            if ('speechSynthesis' in window && window.speechSynthesis.speaking) window.speechSynthesis.pause();
+        }
+
+        function stopAudioDescription() {
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        }
+
+        function closeFandomModal() {
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            if (activeAudioElement) {
+                activeAudioElement.pause();
+                activeAudioElement = null;
+                if (audioProgressInterval) clearInterval(audioProgressInterval);
+                activeTrackIndex = null;
+            }
+            const modal = document.getElementById('fandomModal');
+            modal.style.transition = 'transform 0.25s cubic-bezier(0.32, 0.72, 0, 1)';
+            modal.style.transform = 'translateY(100%)';
+            modal.classList.remove('open');
+            currentSelectedFandom = null;
+        }
+
+        const modalElement = document.getElementById('fandomModal');
+        const headerTrigger = document.getElementById('modalHeaderTrigger');
+        const dragIndicator = document.getElementById('modalDragTrigger');
+        
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+
+        function startDrag(clientY) {
+            startY = clientY;
+            isDragging = true;
+            modalElement.style.transition = 'none';
+        }
+
+        function onDrag(clientY) {
+            if (!isDragging) return;
+            currentY = clientY;
+            const diffY = currentY - startY;
+            if (diffY > 0) modalElement.style.transform = `translateY(${diffY}px)`;
+        }
+
+        function endDrag() {
+            if (!isDragging) return;
+            isDragging = false;
+            const diffY = currentY - startY;
+            modalElement.style.transition = 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)';
+            if (diffY > 100) {
+                closeFandomModal();
+            } else {
+                modalElement.style.transform = 'translateY(0)';
+            }
+            currentY = 0;
+            startY = 0;
+        }
+
+        [headerTrigger, dragIndicator].forEach(target => {
+            target.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientY), {passive: true});
+            target.addEventListener('touchmove', (e) => onDrag(e.touches[0].clientY), {passive: true});
+            target.addEventListener('touchend', () => endDrag(), {passive: true});
+            target.addEventListener('mousedown', (e) => {
+                startDrag(e.clientY);
+                const onMouseMove = (moveEvent) => onDrag(moveEvent.clientY);
+                const onMouseUp = () => {
+                    endDrag();
+                    window.removeEventListener('mousemove', onMouseMove);
+                    window.removeEventListener('mouseup', onMouseUp);
+                };
+                window.addEventListener('mousemove', onMouseMove);
+                window.addEventListener('mouseup', onMouseUp);
+            });
+        });
+
+        function handleFandomSearchInput(event) {
+            const input = event.target;
+            const query = input.value.trim();
+            const clearBtn = document.getElementById('clear-search-btn');
+
+            if (input.value.length > 0) {
+                clearBtn.classList.add('visible');
+            } else {
+                clearBtn.classList.remove('visible');
+            }
+
+            if (query === "") {
+                const cacheKey = 'cached_wiki_fandoms_data_v3';
+                const cachedData = localStorage.getItem(cacheKey);
+                if (cachedData) {
+                    try {
+                        renderFandoms(JSON.parse(cachedData));
+                        return;
+                    } catch (e) {}
+                }
+                fetchWikiFandoms();
+            }
+        }
+
+        function clearFandomSearch() {
+            const input = document.getElementById('fandom-search-input');
+            const clearBtn = document.getElementById('clear-search-btn');
+            
+            input.value = "";
+            clearBtn.classList.remove('visible');
+            
+            const cacheKey = 'cached_wiki_fandoms_data_v3';
+            const cachedData = localStorage.getItem(cacheKey);
+            if (cachedData) {
+                try {
+                    renderFandoms(JSON.parse(cachedData));
+                    return;
+                } catch (e) {}
+            }
+            fetchWikiFandoms();
+        }
+
+        async function handleFandomSearch(event) {
+            if (event.key === 'Enter') {
+                const query = event.target.value.trim();
+                if (!query) return;
+
+                const grid = document.getElementById('api-fandoms-grid');
+                grid.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Buscando...</p>';
+
+                try {
+                    const response = await fetch(`https://pt.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`);
+                    if (!response.ok) throw new Error('Não encontrado');
+                    
+                    const pageData = await response.json();
+                    if (!pageData.title || !pageData.thumbnail) {
+                        grid.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Nenhum resultado com imagem encontrado.</p>';
+                        return;
+                    }
+
+                    renderFandoms([{ name: pageData.title, image: pageData.thumbnail.source }]);
+                } catch (error) {
+                    grid.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Fandom não encontrado.</p>';
+                }
+            }
+        }
+
+        async function fetchWikiFandoms() {
+            const grid = document.getElementById('api-fandoms-grid');
+            const cacheKey = 'cached_wiki_fandoms_data_v3';
+            const cacheTimeKey = 'cached_wiki_fandoms_time_v3';
+            const cachedData = localStorage.getItem(cacheKey);
+            const cachedTime = localStorage.getItem(cacheTimeKey);
+            const now = new Date().getTime();
+
+            if (cachedData && cachedTime && (now - cachedTime < 3600000)) {
+                try {
+                    renderFandoms(JSON.parse(cachedData));
+                    return;
+                } catch (e) { localStorage.removeItem(cacheKey); }
+            }
+
+            try {
+                const fandomQueries = [
+                    { title: "BTS (banda)" },
+                    { title: "Stray Kids" },
+                    { title: "Miraculous: As Aventuras de Ladybug" },
+                    { title: "Harry Potter" },
+                    { title: "Taylor Swift" },
+                    { title: "Naruto" },
+                    { title: "One Piece" },
+                    { title: "Marvel Cinematic Universe" },
+                    { title: "Star Wars" },
+                    { title: "Minecraft" },
+                    { title: "League of Legends" },
+                    { title: "Blackpink" },
+                    { title: "Billie Eilish" },
+                    { title: "Cyberpunk 2077" },
+                    { title: "Genshin Impact" },
+                    { title: "The Witcher" },
+                    { title: "Stranger Things" }
+                ];
+
+                let fandomsArray = [];
+                for (let item of fandomQueries) {
+                    const response = await fetch(`https://pt.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(item.title)}`);
+                    if (response.ok) {
+                        const pageData = await response.json();
+                        if (pageData.title && pageData.thumbnail) {
+                            fandomsArray.push({ name: pageData.title, image: pageData.thumbnail.source });
+                        }
+                    }
+                }
+
+                if (fandomsArray.length === 0) throw new Error('Erro');
+
+                localStorage.setItem(cacheKey, JSON.stringify(fandomsArray));
+                localStorage.setItem(cacheTimeKey, now);
+                renderFandoms(fandomsArray);
+
+            } catch (error) {
+                if (cachedData) {
+                    try { renderFandoms(JSON.parse(cachedData)); return; } catch (e) {}
+                }
+                grid.innerHTML = `<p style="color: var(--text-muted); text-align: center;">Erro ao carregar fandoms.</p>`;
+            }
+        }
+
+        function renderFandoms(fandomsData) {
+            const grid = document.getElementById('api-fandoms-grid');
+            grid.innerHTML = '';
+
+            fandomsData.forEach(fandom => {
+                const card = document.createElement('div');
+                card.className = 'fandom-card';
+                card.onclick = () => openFandomModal(fandom);
+
+                card.innerHTML = `
+                    <div class="fandom-avatar">
+                        <img src="${fandom.image}" alt="${fandom.name}" onerror="this.onerror=null;this.src='https://via.placeholder.com/70x70/f4f4f5/7b2cbf?text=Foto';">
+                    </div>
+                    <div class="fandom-info">
+                        <h3>${fandom.name}</h3>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        fetchWikiFandoms();
+    </script>
+</body>
+</html>
