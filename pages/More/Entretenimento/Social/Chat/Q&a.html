@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mensagens Anônimas</title>
+    <title>Mensagens Anônimas - NGL Style</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script type="module">
@@ -521,9 +521,7 @@
     </div>
 
     <div class="control-panel">
-        <button class="btn-share-main" id="shareBtn">
-            Compartilhe!
-        </button>
+        <button class="btn-share-main" id="shareBtn">Compartilhe!</button>
     </div>
 
     <div class="messages-modal" id="messagesModal">
@@ -549,9 +547,7 @@
                 <button class="detail-tool-btn" id="detailColorBtn"><i class="fa-solid fa-palette"></i></button>
                 <button class="detail-tool-btn" id="detailCameraBtn" title="Alterar fundo por URL"><i class="fa-solid fa-camera"></i></button>
             </div>
-            <button class="btn-respond-main" id="respondBtn">
-                responder
-            </button>
+            <button class="btn-respond-main" id="respondBtn">responder</button>
         </div>
     </div>
 
@@ -567,16 +563,18 @@
     <script>
         const RELAYS = [
             'wss://relay.damus.io',
-            'wss://relay.nostr.band',
             'wss://nos.lol',
+            'wss://relay.nostr.band',
             'wss://relay.primal.net'
         ];
         const LOGIN_PAGE = '../Social.html';
         const SW_PATH = './ngl-sw.js';
+        const STORAGE_KEY = 'ngl_anon_messages_v1';
 
         let globalUserPubkey = null;
+        let nostrPool = null;
+        let liveSub = null;
         const seenEventIds = new Set();
-        const activeSockets = [];
         let swRegistration = null;
 
         function getNostrSession() {
@@ -604,7 +602,7 @@
 
         function getPrivateKeyBytes() {
             const s = getNostrSession();
-            if (!s?.privateKeyHex) return null;
+            if (!s || !s.privateKeyHex) return null;
             try {
                 if (window.nostrHexToBytes) return window.nostrHexToBytes(s.privateKeyHex);
                 const hex = s.privateKeyHex;
@@ -616,17 +614,30 @@
             }
         }
 
-        function waitForNostrTools(maxMs = 8000) {
-            return new Promise(resolve => {
+        function waitForNostrTools(maxMs) {
+            maxMs = maxMs || 10000;
+            return new Promise(function (resolve) {
                 if (window.NostrTools) return resolve(true);
-                const t0 = Date.now();
-                const id = setInterval(() => {
+                var t0 = Date.now();
+                var id = setInterval(function () {
                     if (window.NostrTools || Date.now() - t0 > maxMs) {
                         clearInterval(id);
                         resolve(!!window.NostrTools);
                     }
-                }, 80);
+                }, 50);
             });
+        }
+
+        function normalizePubkey(pk) {
+            if (!pk) return '';
+            var s = String(pk).trim();
+            try {
+                if (s.indexOf('npub1') === 0 && window.NostrTools) {
+                    var decoded = NostrTools.nip19.decode(s);
+                    if (decoded.type === 'npub') s = decoded.data;
+                }
+            } catch (e) {}
+            return s.toLowerCase();
         }
 
         function escapeHtml(s) {
@@ -644,7 +655,7 @@
                 await navigator.serviceWorker.ready;
                 return swRegistration;
             } catch (e) {
-                console.warn('SW não registrado:', e);
+                console.warn('[NGL] SW:', e);
                 return null;
             }
         }
@@ -653,17 +664,17 @@
             if (!('Notification' in window)) return false;
             if (Notification.permission === 'granted') return true;
             if (Notification.permission === 'denied') return false;
-            const result = await Notification.requestPermission();
+            var result = await Notification.requestPermission();
             return result === 'granted';
         }
 
         async function showAnonMessageNotification(text) {
-            const title = 'Mensagem anônima recebida';
-            const body = (text || 'Nova mensagem').slice(0, 160);
-            const payload = {
+            var title = 'Mensagem anônima recebida';
+            var body = (text || 'Nova mensagem').slice(0, 160);
+            var payload = {
                 type: 'SHOW_NOTIFICATION',
-                title,
-                body,
+                title: title,
+                body: body,
                 icon: './Src/FavicoLW.png',
                 tag: 'ngl-anon-msg',
                 url: window.location.href.split('?')[0]
@@ -677,24 +688,22 @@
             if (swRegistration && swRegistration.showNotification && Notification.permission === 'granted') {
                 try {
                     await swRegistration.showNotification(title, {
-                        body,
+                        body: body,
                         icon: payload.icon,
                         tag: payload.tag,
                         renotify: true,
                         data: { url: payload.url }
                     });
                     return;
-                } catch (e) {
-                    console.warn(e);
-                }
+                } catch (e) {}
             }
 
             if (Notification.permission === 'granted') {
                 try {
-                    const n = new Notification(title, { body, tag: 'ngl-anon-msg' });
-                    n.onclick = () => {
+                    var n = new Notification(title, { body: body, tag: 'ngl-anon-msg' });
+                    n.onclick = function () {
                         window.focus();
-                        const modal = document.getElementById('messagesModal');
+                        var modal = document.getElementById('messagesModal');
                         if (modal) modal.classList.add('active');
                         n.close();
                     };
@@ -703,38 +712,95 @@
         }
 
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.addEventListener('message', (event) => {
+            navigator.serviceWorker.addEventListener('message', function (event) {
                 if (event.data && event.data.type === 'OPEN_INBOX') {
-                    const modal = document.getElementById('messagesModal');
+                    var modal = document.getElementById('messagesModal');
                     if (modal) modal.classList.add('active');
                 }
             });
         }
 
-        async function authenticateNostrUser() {
-            const session = checkNostrAuthFromCache();
-            if (!session) {
-                alert('Você precisa estar logado no LoreSocial. Redirecionando…');
-                window.location.replace(LOGIN_PAGE);
-                return;
+        function loadLocalMessages() {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY + '_' + (globalUserPubkey || ''));
+                return raw ? JSON.parse(raw) : [];
+            } catch (e) {
+                return [];
             }
-            globalUserPubkey = session.pubkey;
-            console.log('Autenticado via cache (nostr_session):', globalUserPubkey);
-            await registerServiceWorker();
-            await requestNotificationPermission();
-            initNostrSession(globalUserPubkey);
         }
 
-        function handleIncomingEvent(ev, pubkey) {
+        function saveLocalMessage(entry) {
+            if (!globalUserPubkey) return;
+            var list = loadLocalMessages();
+            if (list.some(function (m) { return m.id === entry.id; })) return;
+            list.unshift(entry);
+            localStorage.setItem(
+                STORAGE_KEY + '_' + globalUserPubkey,
+                JSON.stringify(list.slice(0, 100))
+            );
+        }
+
+        function renderLocalMessages() {
+            var list = loadLocalMessages();
+            list.forEach(function (m) {
+                if (m.id) seenEventIds.add(m.id);
+                addMessageToList(m.content, m.timeStr, false, m.id, true);
+            });
+        }
+
+        function addMessageToList(text, timeStr, notify, eventId, skipSave) {
+            var box = document.getElementById('messagesListContainer');
+            if (!box) return;
+
+            if (eventId) {
+                var existsId = box.querySelector('[data-id="' + eventId + '"]');
+                if (existsId) {
+                    if (notify) showAnonMessageNotification(text);
+                    return;
+                }
+            }
+
+            var items = box.querySelectorAll('.message-item');
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].getAttribute('data-msg') === text && !eventId) {
+                    if (notify) showAnonMessageNotification(text);
+                    return;
+                }
+            }
+
+            var newItem = document.createElement('div');
+            newItem.className = 'message-item';
+            newItem.setAttribute('data-msg', text);
+            if (eventId) newItem.setAttribute('data-id', eventId);
+            newItem.innerHTML =
+                '<span class="message-text">' + escapeHtml(text) + '</span>' +
+                '<span class="message-time">' + (timeStr || 'Agora') + '</span>';
+            box.prepend(newItem);
+
+            if (!skipSave && eventId) {
+                saveLocalMessage({
+                    id: eventId,
+                    content: text,
+                    timeStr: timeStr || 'Agora',
+                    ts: Date.now()
+                });
+            }
+
+            if (notify) showAnonMessageNotification(text);
+        }
+
+        function handleIncomingEvent(ev, myPubkey, fromLive) {
             if (!ev || !ev.id) return;
 
             if (ev.kind === 0 && ev.content) {
                 try {
-                    const profileData = JSON.parse(ev.content);
+                    var profileData = JSON.parse(ev.content);
                     if (profileData.picture) {
-                        const el = document.getElementById('profileContainer');
+                        var el = document.getElementById('profileContainer');
                         if (el) {
-                            el.innerHTML = '<img src="' + escapeHtml(profileData.picture) + '" alt="Perfil" class="profile-pic" id="profileImg">';
+                            el.innerHTML =
+                                '<img src="' + escapeHtml(profileData.picture) +
+                                '" alt="Perfil" class="profile-pic" id="profileImg">';
                         }
                     }
                 } catch (e) {}
@@ -743,222 +809,243 @@
 
             if (ev.kind !== 1 || !ev.content) return;
             if (seenEventIds.has(ev.id)) return;
-            seenEventIds.add(ev.id);
 
-            const now = Math.floor(Date.now() / 1000);
-            const created = ev.created_at || now;
+            var now = Math.floor(Date.now() / 1000);
+            var created = ev.created_at || now;
             if (now - created > 86400) return;
 
-            const pTags = (ev.tags || [])
+            var my = normalizePubkey(myPubkey);
+            var pTags = (ev.tags || [])
                 .filter(function (t) { return t[0] === 'p'; })
-                .map(function (t) { return String(t[1] || '').toLowerCase(); });
+                .map(function (t) { return normalizePubkey(t[1]); });
 
-            if (pTags.indexOf(String(pubkey).toLowerCase()) === -1) return;
-
-            if (String(ev.pubkey || '').toLowerCase() === String(pubkey).toLowerCase()) return;
-
-            const timeStr = new Date(created * 1000).toLocaleTimeString();
-            const isRealtime = (now - created) < 120;
-            addMessageToList(ev.content, timeStr, isRealtime);
-        }
-
-        function bindSocketHandlers(ws, url, pubkey) {
-            const oneDayAgo = Math.floor(Date.now() / 1000) - 86400;
-
-            ws.onopen = function () {
-                console.log('Relay conectado:', url);
-                const subId = 'ngl-' + Math.random().toString(36).slice(2, 10);
-                ws.send(JSON.stringify([
-                    'REQ', subId,
-                    { kinds: [1], '#p': [pubkey], since: oneDayAgo, limit: 50 }
-                ]));
-                ws.send(JSON.stringify([
-                    'REQ', subId + '-profile',
-                    { kinds: [0], authors: [pubkey], limit: 1 }
-                ]));
-            };
-
-            ws.onmessage = function (event) {
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data[0] === 'EVENT' && data[2]) {
-                        handleIncomingEvent(data[2], pubkey);
-                    }
-                } catch (e) {
-                    console.error('Erro no evento Nostr:', e);
-                }
-            };
-
-            ws.onerror = function () {
-                console.warn('Erro relay:', url);
-            };
-
-            ws.onclose = function () {
-                console.warn('Relay caiu:', url, '— reconectando…');
-                setTimeout(function () {
-                    if (globalUserPubkey === pubkey) connectRelay(url, pubkey);
-                }, 4000 + Math.random() * 2000);
-            };
-        }
-
-        function connectRelay(url, pubkey) {
-            for (let i = activeSockets.length - 1; i >= 0; i--) {
-                const s = activeSockets[i];
-                if (s._relayUrl === url && (s.readyState === WebSocket.OPEN || s.readyState === WebSocket.CONNECTING)) {
-                    return;
-                }
-                if (s._relayUrl === url) {
-                    try { s.close(); } catch (e) {}
-                    activeSockets.splice(i, 1);
-                }
+            if (pTags.indexOf(my) === -1) {
+                console.log('[NGL] Evento ignorado (sem #p meu):', ev.id);
+                return;
             }
+
+            if (normalizePubkey(ev.pubkey) === my) return;
+
+            seenEventIds.add(ev.id);
+            var timeStr = new Date(created * 1000).toLocaleTimeString();
+            var isRealtime = fromLive || (now - created) < 180;
+
+            console.log('[NGL] Mensagem recebida:', ev.id, ev.content.slice(0, 40));
+            addMessageToList(ev.content, timeStr, isRealtime, ev.id, false);
+        }
+
+        async function startReceiving(pubkey) {
+            var ok = await waitForNostrTools();
+            if (!ok) {
+                console.error('[NGL] nostr-tools não carregou');
+                alert('Biblioteca Nostr não carregou. Recarregue a página.');
+                return;
+            }
+
+            var pk = normalizePubkey(pubkey);
+            globalUserPubkey = pk;
+
+            if (!nostrPool) nostrPool = new NostrTools.SimplePool();
+
+            if (liveSub && typeof liveSub.close === 'function') {
+                try { liveSub.close(); } catch (e) {}
+            }
+
+            var since = Math.floor(Date.now() / 1000) - 86400;
+            console.log('[NGL] Buscando histórico para', pk);
+
             try {
-                const ws = new WebSocket(url);
-                ws._relayUrl = url;
-                activeSockets.push(ws);
-                bindSocketHandlers(ws, url, pubkey);
-            } catch (e) {
-                console.error('Falha ao conectar', url, e);
-                setTimeout(function () {
-                    if (globalUserPubkey === pubkey) connectRelay(url, pubkey);
-                }, 6000);
-            }
-        }
-
-        function initNostrSession(pubkey) {
-            activeSockets.forEach(function (ws) {
-                try { ws.close(); } catch (e) {}
-            });
-            activeSockets.length = 0;
-            RELAYS.forEach(function (url) {
-                connectRelay(url, pubkey);
-            });
-        }
-
-        function addMessageToList(text, timeStr, notify) {
-            const box = document.getElementById('messagesListContainer');
-            if (!box) return;
-
-            const items = box.querySelectorAll('.message-item');
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].getAttribute('data-msg') === text) {
-                    if (notify) showAnonMessageNotification(text);
-                    return;
-                }
-            }
-
-            const newItem = document.createElement('div');
-            newItem.className = 'message-item';
-            newItem.setAttribute('data-msg', text);
-            newItem.innerHTML =
-                '<span class="message-text">' + escapeHtml(text) + '</span>' +
-                '<span class="message-time">' + (timeStr || 'Agora') + '</span>';
-            box.prepend(newItem);
-
-            if (notify) showAnonMessageNotification(text);
-        }
-
-        async function signEventWithSession(event) {
-            await waitForNostrTools();
-            const sk = getPrivateKeyBytes();
-            if (sk && window.NostrTools) {
-                return window.NostrTools.finalizeEvent(event, sk);
-            }
-            if (window.nostr && window.nostr.signEvent) {
-                return await window.nostr.signEvent(event);
-            }
-            throw new Error('Sem chave para assinar (faça login ou use extensão Nostr)');
-        }
-
-        function publishEventToRelays(event, timeoutMs) {
-            timeoutMs = timeoutMs || 8000;
-            return Promise.all(RELAYS.map(function (url) {
-                return new Promise(function (resolve) {
-                    var settled = false;
-                    var ws;
-                    function done(ok, reason) {
-                        if (settled) return;
-                        settled = true;
-                        try { if (ws) ws.close(); } catch (e) {}
-                        resolve({ url: url, ok: ok, reason: reason });
-                    }
-                    try {
-                        ws = new WebSocket(url);
-                        var timer = setTimeout(function () { done(false, 'timeout'); }, timeoutMs);
-                        ws.onopen = function () {
-                            ws.send(JSON.stringify(['EVENT', event]));
-                        };
-                        ws.onmessage = function (msg) {
-                            try {
-                                var data = JSON.parse(msg.data);
-                                if (data[0] === 'OK' && data[1] === event.id) {
-                                    clearTimeout(timer);
-                                    done(!!data[2], data[3] || '');
-                                }
-                            } catch (e) {}
-                        };
-                        ws.onerror = function () {
-                            clearTimeout(timer);
-                            done(false, 'error');
-                        };
-                    } catch (e) {
-                        done(false, String(e));
-                    }
+                var past = await nostrPool.querySync(RELAYS, {
+                    kinds: [1],
+                    '#p': [pk],
+                    since: since,
+                    limit: 50
                 });
-            }));
+                console.log('[NGL] Histórico bruto:', (past || []).length);
+                (past || [])
+                    .sort(function (a, b) { return (a.created_at || 0) - (b.created_at || 0); })
+                    .forEach(function (ev) { handleIncomingEvent(ev, pk, false); });
+            } catch (e) {
+                console.error('[NGL] Erro histórico:', e);
+            }
+
+            try {
+                var profileEv = await nostrPool.get(RELAYS, { kinds: [0], authors: [pk] });
+                if (profileEv) handleIncomingEvent(profileEv, pk, false);
+            } catch (e) {
+                console.warn('[NGL] Perfil:', e);
+            }
+
+            try {
+                liveSub = nostrPool.subscribeMany(
+                    RELAYS,
+                    [{
+                        kinds: [1],
+                        '#p': [pk],
+                        since: Math.floor(Date.now() / 1000) - 30
+                    }],
+                    {
+                        onevent: function (ev) { handleIncomingEvent(ev, pk, true); },
+                        oneose: function () { console.log('[NGL] Subscription EOSE (ao vivo ativa)'); }
+                    }
+                );
+                console.log('[NGL] Subscription ao vivo iniciada');
+            } catch (e) {
+                console.error('[NGL] Erro subscribe:', e);
+            }
+        }
+
+        async function authenticateNostrUser() {
+            var session = checkNostrAuthFromCache();
+            if (!session) {
+                alert('Você precisa estar logado no LoreSocial. Redirecionando…');
+                window.location.replace(LOGIN_PAGE);
+                return;
+            }
+
+            globalUserPubkey = normalizePubkey(session.pubkey);
+            console.log('[NGL] Auth cache OK:', globalUserPubkey);
+
+            renderLocalMessages();
+            await registerServiceWorker();
+            await requestNotificationPermission();
+            await startReceiving(globalUserPubkey);
         }
 
         async function sendAnonymousMessage(targetPubkey, messageContent) {
-            const session = checkNostrAuthFromCache();
-            let event = {
-                kind: 1,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [
-                    ['p', targetPubkey],
-                    ['client', 'loresocial-ngl']
-                ],
-                content: messageContent
-            };
+            var ok = await waitForNostrTools();
+            if (!ok) throw new Error('nostr-tools não carregou');
 
-            if (session && session.pubkey) {
-                event.pubkey = session.pubkey;
-                event = await signEventWithSession(event);
+            var target = normalizePubkey(targetPubkey);
+            if (!/^[0-9a-f]{64}$/.test(target)) {
+                throw new Error('Pubkey de destino inválida.');
+            }
+
+            var sk = getPrivateKeyBytes();
+            var signed;
+
+            if (sk && window.NostrTools) {
+                signed = NostrTools.finalizeEvent(
+                    {
+                        kind: 1,
+                        created_at: Math.floor(Date.now() / 1000),
+                        tags: [
+                            ['p', target],
+                            ['client', 'loresocial-ngl']
+                        ],
+                        content: messageContent
+                    },
+                    sk
+                );
             } else if (window.nostr && window.nostr.signEvent) {
-                event = await window.nostr.signEvent(event);
+                signed = await window.nostr.signEvent({
+                    kind: 1,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [
+                        ['p', target],
+                        ['client', 'loresocial-ngl']
+                    ],
+                    content: messageContent
+                });
             } else {
-                throw new Error('Para enviar de verdade, entre na conta LoreSocial ou use uma extensão Nostr (Alby/nos2x).');
+                throw new Error(
+                    'Para enviar, faça login no LoreSocial ou use extensão Nostr (Alby/nos2x).'
+                );
             }
 
-            const results = await publishEventToRelays(event);
-            const accepted = results.filter(function (r) { return r.ok; });
-            if (!accepted.length) {
-                console.warn('Publish results:', results);
-                throw new Error('Nenhum relay aceitou o evento. Tente novamente.');
+            if (!signed || !signed.id || !signed.sig) {
+                throw new Error('Evento sem assinatura válida.');
             }
-            console.log('Publicado em:', accepted.map(function (r) { return r.url; }));
-            return event;
+
+            console.log('[NGL] Publicando evento', signed.id, '→', target);
+
+            if (!nostrPool) nostrPool = new NostrTools.SimplePool();
+
+            var pubs = nostrPool.publish(RELAYS, signed);
+            var pubList = Array.isArray(pubs) ? pubs : [pubs];
+            var results = await Promise.allSettled(
+                pubList.map(function (p) {
+                    return Promise.race([
+                        p,
+                        new Promise(function (_, rej) {
+                            setTimeout(function () { rej(new Error('timeout')); }, 10000);
+                        })
+                    ]);
+                })
+            );
+
+            var okCount = results.filter(function (r) { return r.status === 'fulfilled'; }).length;
+            console.log('[NGL] Publish results:', results);
+
+            if (okCount === 0) {
+                var accepted = 0;
+                for (var i = 0; i < RELAYS.length; i++) {
+                    var url = RELAYS[i];
+                    try {
+                        var acceptedOne = await new Promise(function (resolve) {
+                            var done = false;
+                            var ws = new WebSocket(url);
+                            var t = setTimeout(function () {
+                                if (!done) {
+                                    done = true;
+                                    try { ws.close(); } catch (e) {}
+                                    resolve(false);
+                                }
+                            }, 8000);
+                            ws.onopen = function () {
+                                ws.send(JSON.stringify(['EVENT', signed]));
+                            };
+                            ws.onmessage = function (msg) {
+                                try {
+                                    var data = JSON.parse(msg.data);
+                                    if (data[0] === 'OK' && data[1] === signed.id) {
+                                        if (!done) {
+                                            done = true;
+                                            clearTimeout(t);
+                                            try { ws.close(); } catch (e) {}
+                                            resolve(!!data[2]);
+                                        }
+                                    }
+                                } catch (e) {}
+                            };
+                            ws.onerror = function () {
+                                if (!done) {
+                                    done = true;
+                                    clearTimeout(t);
+                                    resolve(false);
+                                }
+                            };
+                        });
+                        if (acceptedOne) accepted++;
+                    } catch (e) {}
+                }
+                if (!accepted) throw new Error('Nenhum relay aceitou o evento.');
+            }
+
+            console.log('[NGL] Publicado com sucesso');
+            return signed;
         }
 
         window.addEventListener('DOMContentLoaded', function () {
-            const urlParams = new URLSearchParams(window.location.search);
-            const targetPubkey = urlParams.get('u');
-            const sharedText = urlParams.get('t');
+            var urlParams = new URLSearchParams(window.location.search);
+            var targetPubkey = urlParams.get('u');
+            var sharedText = urlParams.get('t');
 
             if (targetPubkey) {
-                const sendModal = document.getElementById('sendModal');
-                const sendPromptText = document.getElementById('sendPromptText');
+                var sendModal = document.getElementById('sendModal');
+                var sendPromptText = document.getElementById('sendPromptText');
                 if (sharedText) {
                     sendPromptText.innerHTML = decodeURIComponent(sharedText).replace(/\n/g, '<br>');
                 }
                 sendModal.classList.add('active');
 
                 document.getElementById('sendAnonBtn').addEventListener('click', async function () {
-                    const messageContent = document.getElementById('anonMessageInput').value.trim();
+                    var messageContent = document.getElementById('anonMessageInput').value.trim();
                     if (!messageContent) {
                         alert('Por favor, escreva uma mensagem antes de enviar.');
                         return;
                     }
-                    const btn = document.getElementById('sendAnonBtn');
+                    var btn = document.getElementById('sendAnonBtn');
                     btn.disabled = true;
                     btn.textContent = 'Enviando…';
                     try {
@@ -966,7 +1053,7 @@
                         alert('Mensagem anônima enviada com sucesso!');
                         document.getElementById('anonMessageInput').value = '';
                     } catch (err) {
-                        console.error(err);
+                        console.error('[NGL] Envio:', err);
                         alert(err.message || 'Erro ao enviar mensagem.');
                     } finally {
                         btn.disabled = false;
@@ -982,9 +1069,9 @@
             window.location.href = '../Bate-papo.html';
         });
 
-        const inboxBtn = document.getElementById('inboxBtn');
-        const messagesModal = document.getElementById('messagesModal');
-        const closeModalBtn = document.getElementById('closeModalBtn');
+        var inboxBtn = document.getElementById('inboxBtn');
+        var messagesModal = document.getElementById('messagesModal');
+        var closeModalBtn = document.getElementById('closeModalBtn');
 
         inboxBtn.addEventListener('click', function () {
             messagesModal.classList.add('active');
@@ -993,13 +1080,13 @@
             messagesModal.classList.remove('active');
         });
 
-        const detailModal = document.getElementById('detailModal');
-        const closeDetailBtn = document.getElementById('closeDetailBtn');
-        const detailMessageText = document.getElementById('detailMessageText');
-        const messagesListContainer = document.getElementById('messagesListContainer');
+        var detailModal = document.getElementById('detailModal');
+        var closeDetailBtn = document.getElementById('closeDetailBtn');
+        var detailMessageText = document.getElementById('detailMessageText');
+        var messagesListContainer = document.getElementById('messagesListContainer');
 
         messagesListContainer.addEventListener('click', function (e) {
-            const item = e.target.closest('.message-item');
+            var item = e.target.closest('.message-item');
             if (item) {
                 detailMessageText.innerText = item.getAttribute('data-msg');
                 messagesModal.classList.remove('active');
@@ -1012,36 +1099,36 @@
         });
 
         document.getElementById('detailCameraBtn').addEventListener('click', function () {
-            const imgUrl = prompt('Cole a URL da imagem para o fundo do modal:');
+            var imgUrl = prompt('Cole a URL da imagem para o fundo do modal:');
             if (imgUrl && imgUrl.trim() !== '') {
                 detailModal.style.backgroundImage = "url('" + imgUrl.trim() + "')";
             }
         });
 
-        const detailCard = document.querySelector('.detail-card');
-        const gradients = [
+        var detailCard = document.querySelector('.detail-card');
+        var gradients = [
             'linear-gradient(135deg, #ff9a9e 0%, #fad0c4 99%)',
             'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)',
             'linear-gradient(135deg, #fbc531 0%, #e84118 100%)'
         ];
-        let colorIndex = 0;
+        var colorIndex = 0;
         document.getElementById('detailColorBtn').addEventListener('click', function () {
             colorIndex = (colorIndex + 1) % gradients.length;
             detailCard.style.background = gradients[colorIndex];
         });
 
-        const respondBtn = document.getElementById('respondBtn');
-        const detailTopBar = document.getElementById('detailTopBar');
-        const detailFooterContainer = document.getElementById('detailFooterContainer');
+        var respondBtn = document.getElementById('respondBtn');
+        var detailTopBar = document.getElementById('detailTopBar');
+        var detailFooterContainer = document.getElementById('detailFooterContainer');
 
         respondBtn.addEventListener('click', async function () {
             detailTopBar.style.display = 'none';
             detailFooterContainer.style.display = 'none';
-            const originalBg = detailModal.style.backgroundColor;
+            var originalBg = detailModal.style.backgroundColor;
             detailModal.style.backgroundColor = 'transparent';
 
             try {
-                const canvas = await html2canvas(detailModal, {
+                var canvas = await html2canvas(detailModal, {
                     backgroundColor: null,
                     scale: 2,
                     useCORS: true
@@ -1049,8 +1136,8 @@
 
                 canvas.toBlob(async function (blob) {
                     if (!blob) return;
-                    const file = new File([blob], 'mensagem-ngl.png', { type: 'image/png' });
-                    let shared = false;
+                    var file = new File([blob], 'mensagem-ngl.png', { type: 'image/png' });
+                    var shared = false;
 
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                         try {
@@ -1066,15 +1153,15 @@
                     }
 
                     if (!shared) {
-                        const link = document.createElement('a');
+                        var link = document.createElement('a');
                         link.href = URL.createObjectURL(blob);
                         link.download = 'mensagem-ngl.png';
                         link.click();
-                        alert('Seu navegador não suporta o compartilhamento direto. A imagem foi baixada com sucesso!');
+                        alert('Imagem baixada com sucesso!');
                     }
                 }, 'image/png');
             } catch (error) {
-                console.error('Erro ao gerar print da página:', error);
+                console.error('Erro ao gerar print:', error);
             } finally {
                 detailTopBar.style.display = 'flex';
                 detailFooterContainer.style.display = 'flex';
@@ -1082,8 +1169,8 @@
             }
         });
 
-        const editableText = document.getElementById('editableText');
-        const defaultMessage = 'me mande<br>mensagens<br>anônimas!';
+        var editableText = document.getElementById('editableText');
+        var defaultMessage = 'me mande<br>mensagens<br>anônimas!';
 
         document.getElementById('btnEdit').addEventListener('click', function () {
             editableText.focus();
@@ -1094,27 +1181,29 @@
         });
 
         document.getElementById('shareBtn').addEventListener('click', async function () {
-            const baseUrl = window.location.origin + window.location.pathname;
-            const currentMessageText = editableText.innerHTML;
-
             if (!globalUserPubkey) {
-                alert('Aguarde a autenticação Nostr via cache do navegador ser concluída para gerar seu link.');
+                alert('Aguarde a autenticação Nostr.');
                 return;
             }
-
-            const simplifiedLink = baseUrl + '?u=' + globalUserPubkey + '&t=' + encodeURIComponent(currentMessageText);
+            var baseUrl = window.location.origin + window.location.pathname;
+            var simplifiedLink =
+                baseUrl +
+                '?u=' +
+                globalUserPubkey +
+                '&t=' +
+                encodeURIComponent(editableText.innerHTML);
 
             try {
                 await navigator.clipboard.writeText(simplifiedLink);
-                alert('Link simplificado copiado para a área de transferência!');
+                alert('Link copiado!');
             } catch (err) {
-                const textArea = document.createElement('textarea');
-                textArea.value = simplifiedLink;
-                document.body.appendChild(textArea);
-                textArea.select();
+                var ta = document.createElement('textarea');
+                ta.value = simplifiedLink;
+                document.body.appendChild(ta);
+                ta.select();
                 document.execCommand('copy');
-                document.body.removeChild(textArea);
-                alert('Link simplificado copiado com sucesso!');
+                document.body.removeChild(ta);
+                alert('Link copiado!');
             }
         });
     </script>
