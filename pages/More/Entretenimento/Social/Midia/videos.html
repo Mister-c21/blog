@@ -162,18 +162,18 @@
             right: 0;
         }
 
-        /* Submodal de Comentários para Mobile */
-        #mobileCommentsSubmodal {
+        /* Submodais Genéricos Flutuantes dentro do Player */
+        .submodal-pane {
             position: absolute;
             inset: 0;
             background: #ffffff;
-            z-index: 50;
+            z-index: 60;
             display: flex;
             flex-direction: column;
             transform: translateY(100%);
             transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
         }
-        #mobileCommentsSubmodal.open {
+        .submodal-pane.open {
             transform: translateY(0);
         }
     </style>
@@ -295,7 +295,7 @@
             </div>
 
             <!-- Corpo Principal dividindo conteúdo à esquerda e sugestões à direita no Desktop -->
-            <div class="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden bg-white">
+            <div class="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden bg-white relative">
                 
                 <!-- Coluna da Esquerda: Player, Detalhes e Comentários (Desktop) -->
                 <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col">
@@ -312,12 +312,21 @@
                                     <p id="playerDate" class="text-xs text-gray-400"></p>
                                 </div>
                             </div>
+                            <!-- Contadores Rápidos de Visualizações e Likes -->
+                            <div class="flex items-center gap-3 text-xs text-gray-500">
+                                <button type="button" onclick="openSubmodal('views')" class="hover:text-secondary transition flex items-center gap-1 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-full border border-gray-100">
+                                    <i class="fa-solid fa-eye text-secondary"></i> <span id="viewCountBadge" class="font-medium">0</span> visualizações
+                                </button>
+                                <button type="button" onclick="openSubmodal('likes')" class="hover:text-secondary transition flex items-center gap-1 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-full border border-gray-100">
+                                    <i class="fa-solid fa-heart text-secondary"></i> <span id="likeCountBadge" class="font-medium">0</span> curtidas
+                                </button>
+                            </div>
                         </div>
 
-                        <!-- Container horizontal de opções (Curtir, Compartilhar, Baixar e Botão Comentários Mobile) -->
+                        <!-- Container horizontal de opções -->
                         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 border-y border-gray-100">
                             <button type="button" onclick="likeVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
-                                <i class="fa-regular fa-thumbs-up text-secondary"></i> <span id="likeBtnText">Curtir</span>
+                                <i class="fa-regular fa-heart text-secondary"></i> <span id="likeBtnText">Curtir</span>
                             </button>
                             <button type="button" onclick="shareVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
                                 <i class="fa-solid fa-share text-secondary"></i> Compartilhar
@@ -326,7 +335,7 @@
                                 <i class="fa-solid fa-download text-secondary"></i> Baixar
                             </a>
                             <!-- Botão exclusivo para abrir submodal de comentários no Mobile -->
-                            <button type="button" onclick="openMobileComments()" class="md:hidden flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
+                            <button type="button" onclick="openSubmodal('comments')" class="md:hidden flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
                                 <i class="fa-solid fa-comments text-secondary"></i> Comentários
                             </button>
                         </div>
@@ -372,34 +381,21 @@
                     <div id="relatedListDesktop" class="space-y-3"></div>
                 </div>
 
-            </div>
-        </div>
-
-        <!-- Submodal de Comentários (Apenas para Mobile) -->
-        <div id="mobileCommentsSubmodal">
-            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white shrink-0">
-                <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                    <i class="fa-solid fa-comments text-secondary"></i> Comentários
-                </h2>
-                <button type="button" onclick="closeMobileComments()" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
-                <div class="flex gap-3 items-start">
-                    <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200">
-                        <i class="fa-solid fa-user text-xs text-secondary"></i>
+                <!-- Submodal Genérico (Comentários, Curtidas ou Visualizações) -->
+                <div id="dynamicSubmodal" class="submodal-pane">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white shrink-0">
+                        <h2 id="submodalTitle" class="text-sm font-bold text-gray-900 flex items-center gap-2">
+                            <i class="fa-solid fa-comments text-secondary"></i> Submodal
+                        </h2>
+                        <button type="button" onclick="closeSubmodal()" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
                     </div>
-                    <div class="flex-1 space-y-2">
-                        <input type="text" id="commentInputMobile" placeholder="Adicione um comentário..." 
-                               class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary"
-                               onkeydown="if(event.key==='Enter') submitCommentMobile()">
-                        <div class="flex justify-end gap-2">
-                            <button type="button" onclick="submitCommentMobile()" class="px-4 py-1.5 rounded-full bg-secondary text-white text-xs font-medium">Comentar</button>
-                        </div>
+                    <div id="submodalBody" class="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
+                        <!-- Conteúdo injetado dinamicamente -->
                     </div>
                 </div>
-                <div id="commentsListMobile" class="space-y-3 pt-2"></div>
+
             </div>
         </div>
     </div>
@@ -427,7 +423,8 @@
     let currentPlayingId = null;
     let scrollYBeforeModal = 0;
     
-    const videoComments = {};
+    // Armazenamento simulado/local de interações por vídeo
+    const videoInteractions = {};
 
     function isMobile() {
         return window.matchMedia('(max-width: 767px)').matches;
@@ -765,15 +762,48 @@
         if (mobileList) mobileList.innerHTML = html;
     }
 
-    window.likeVideo = function() {
-        const btn = document.getElementById('likeBtnText');
-        if (btn.textContent === 'Curtir') {
-            btn.textContent = 'Curtido';
-            btn.parentElement.classList.add('text-secondary', 'bg-purple-50');
-        } else {
-            btn.textContent = 'Curtir';
-            btn.parentElement.classList.remove('text-secondary', 'bg-purple-50');
+    function getInteractions(videoId) {
+        if (!videoInteractions[videoId]) {
+            videoInteractions[videoId] = {
+                views: [
+                    { name: 'Ana Souza', time: 'Há 5 min' },
+                    { name: 'Carlos Lima', time: 'Há 12 min' },
+                    { name: 'Beatriz Mendes', time: 'Há 1 hora' }
+                ],
+                likes: [
+                    { name: 'Carlos Lima', time: 'Há 10 min' }
+                ],
+                comments: [
+                    { author: 'Ana Souza', text: 'Excelente vídeo!', time: 'agora' }
+                ],
+                userLiked: false
+            };
         }
+        return videoInteractions[videoId];
+    }
+
+    window.likeVideo = function() {
+        if (!currentPlayingId) return;
+        const data = getInteractions(currentPlayingId);
+        data.userLiked = !data.userLiked;
+
+        const btnText = document.getElementById('likeBtnText');
+        const btnIcon = btnText.parentElement.querySelector('i');
+
+        if (data.userLiked) {
+            btnText.textContent = 'Curtido';
+            btnIcon.classList.remove('fa-regular');
+            btnIcon.classList.add('fa-solid');
+            btnText.parentElement.classList.add('text-secondary', 'bg-purple-50');
+            data.likes.unshift({ name: 'Você', time: 'agora' });
+        } else {
+            btnText.textContent = 'Curtir';
+            btnIcon.classList.remove('fa-solid');
+            btnIcon.classList.add('fa-regular');
+            btnText.parentElement.classList.remove('text-secondary', 'bg-purple-50');
+            data.likes = data.likes.filter(l => l.name !== 'Você');
+        }
+        updateCounters();
     };
 
     window.shareVideo = function() {
@@ -790,61 +820,98 @@
         const text = input?.value.trim();
         if (!text || !currentPlayingId) return;
 
-        if (!videoComments[currentPlayingId]) videoComments[currentPlayingId] = [];
-        videoComments[currentPlayingId].unshift({ author: 'Você', text, time: 'agora' });
+        const data = getInteractions(currentPlayingId);
+        data.comments.unshift({ author: 'Você', text, time: 'agora' });
         input.value = '';
-        renderComments();
+        renderSubmodalContent('comments');
     };
 
     window.submitCommentMobile = function() {
-        const input = document.getElementById('commentInputMobile');
-        const text = input?.value.trim();
-        if (!text || !currentPlayingId) return;
-
-        if (!videoComments[currentPlayingId]) videoComments[currentPlayingId] = [];
-        videoComments[currentPlayingId].unshift({ author: 'Você', text, time: 'agora' });
-        input.value = '';
-        renderComments();
+        window.submitComment();
     };
 
-    function renderComments() {
-        const comments = videoComments[currentPlayingId] || [];
-        const contentHtml = !comments.length 
-            ? `<p class="text-xs text-gray-400 italic">Nenhum comentário ainda. Seja o primeiro a comentar!</p>`
-            : comments.map(c => `
-                <div class="flex gap-3 items-start text-sm">
-                    <div class="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center shrink-0 text-secondary font-bold text-xs">
-                        ${c.author.charAt(0)}
-                    </div>
-                    <div class="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
-                        <div class="flex items-center justify-between">
-                            <span class="font-semibold text-xs text-gray-900">${escapeHtml(c.author)}</span>
-                            <span class="text-[10px] text-gray-400">${escapeHtml(c.time)}</span>
-                        </div>
-                        <p class="text-xs text-gray-700 mt-1">${escapeHtml(c.text)}</p>
-                    </div>
-                </div>
-            `).join('');
-
-        const listDesktop = document.getElementById('commentsList');
-        const listMobile = document.getElementById('commentsListMobile');
-        if (listDesktop) listDesktop.innerHTML = contentHtml;
-        if (listMobile) listMobile.innerHTML = contentHtml;
+    function updateCounters() {
+        if (!currentPlayingId) return;
+        const data = getInteractions(currentPlayingId);
+        document.getElementById('viewCountBadge').textContent = data.views.length;
+        document.getElementById('likeCountBadge').textContent = data.likes.length;
     }
 
-    window.openMobileComments = function() {
-        document.getElementById('mobileCommentsSubmodal').classList.add('open');
-        renderComments();
+    window.openSubmodal = function(type) {
+        const pane = document.getElementById('dynamicSubmodal');
+        pane.classList.add('open');
+        renderSubmodalContent(type);
     };
 
-    window.closeMobileComments = function() {
-        document.getElementById('mobileCommentsSubmodal').classList.remove('open');
+    window.closeSubmodal = function() {
+        const pane = document.getElementById('dynamicSubmodal');
+        pane.classList.remove('open');
     };
+
+    function renderSubmodalContent(type) {
+        const data = getInteractions(currentPlayingId);
+        const titleEl = document.getElementById('submodalTitle');
+        const bodyEl = document.getElementById('submodalBody');
+
+        if (type === 'views') {
+            titleEl.innerHTML = `<i class="fa-solid fa-eye text-secondary"></i> Visualizações (${data.views.length})`;
+            bodyEl.innerHTML = data.views.map(v => `
+                <div class="flex items-center justify-between p-2 rounded-xl bg-gray-50 border border-gray-100">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-secondary text-xs font-bold">${v.name.charAt(0)}</div>
+                        <span class="text-xs font-semibold text-gray-900">${escapeHtml(v.name)}</span>
+                    </div>
+                    <span class="text-[10px] text-gray-400">${escapeHtml(v.time)}</span>
+                </div>
+            `).join('');
+        } else if (type === 'likes') {
+            titleEl.innerHTML = `<i class="fa-solid fa-heart text-secondary"></i> Curtidas (${data.likes.length})`;
+            bodyEl.innerHTML = data.likes.map(l => `
+                <div class="flex items-center justify-between p-2 rounded-xl bg-gray-50 border border-gray-100">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center text-secondary text-xs font-bold">${l.name.charAt(0)}</div>
+                        <span class="text-xs font-semibold text-gray-900">${escapeHtml(l.name)}</span>
+                    </div>
+                    <span class="text-[10px] text-gray-400">${escapeHtml(l.time)}</span>
+                </div>
+            `).join('');
+        } else if (type === 'comments') {
+            titleEl.innerHTML = `<i class="fa-solid fa-comments text-secondary"></i> Comentários (${data.comments.length})`;
+            bodyEl.innerHTML = `
+                <div class="flex gap-2 items-start pb-3 border-b border-gray-100">
+                    <input type="text" id="commentInput" placeholder="Adicione um comentário..." 
+                           class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-800 outline-none focus:border-secondary"
+                           onkeydown="if(event.key==='Enter') submitComment()">
+                    <button type="button" onclick="submitComment()" class="px-3 py-2 rounded-xl bg-secondary text-white text-xs font-medium">Comentar</button>
+                </div>
+                <div class="space-y-3">
+                    ${!data.comments.length ? '<p class="text-xs text-gray-400 italic">Nenhum comentário ainda.</p>' : data.comments.map(c => `
+                        <div class="flex gap-3 items-start text-xs">
+                            <div class="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center shrink-0 text-secondary font-bold">${c.author.charAt(0)}</div>
+                            <div class="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-semibold text-gray-900">${escapeHtml(c.author)}</span>
+                                    <span class="text-[10px] text-gray-400">${escapeHtml(c.time)}</span>
+                                </div>
+                                <p class="text-gray-700 mt-1">${escapeHtml(c.text)}</p>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+    }
 
     window.playVideo = function(id) {
         const v = allVideos.find(x => x.id === id) || filteredVideos.find(x => x.id === id);
         if (!v) return;
         currentPlayingId = v.id;
+
+        // Simula registro de visualização ao abrir
+        const data = getInteractions(v.id);
+        if (!data.views.some(u => u.name === 'Você')) {
+            data.views.unshift({ name: 'Você', time: 'agora' });
+        }
 
         const modal = document.getElementById('videoModal');
         const panel = document.getElementById('videoModalPanel');
@@ -852,7 +919,7 @@
 
         panel.style.transform = '';
         panel.classList.remove('dragging');
-        closeMobileComments();
+        closeSubmodal();
 
         playerEl.innerHTML = `<video src="${escapeHtml(v.videoUrl)}" controls autoplay playsinline></video>`;
 
@@ -866,13 +933,38 @@
         if (downloadBtn) downloadBtn.href = v.videoUrl;
 
         const likeText = document.getElementById('likeBtnText');
-        if (likeText) {
+        const likeIcon = likeText.parentElement.querySelector('i');
+        if (data.userLiked) {
+            likeText.textContent = 'Curtido';
+            likeIcon.classList.remove('fa-regular');
+            likeIcon.classList.add('fa-solid');
+            likeText.parentElement.classList.add('text-secondary', 'bg-purple-50');
+        } else {
             likeText.textContent = 'Curtir';
+            likeIcon.classList.remove('fa-solid');
+            likeIcon.classList.add('fa-regular');
             likeText.parentElement.classList.remove('text-secondary', 'bg-purple-50');
         }
 
+        updateCounters();
         renderRelated();
-        renderComments();
+
+        // Renderiza comentários padrão no desktop se visível
+        const commentsListDesktop = document.getElementById('commentsList');
+        if (commentsListDesktop) {
+            commentsListDesktop.innerHTML = data.comments.map(c => `
+                <div class="flex gap-3 items-start text-sm">
+                    <div class="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center shrink-0 text-secondary font-bold text-xs">${c.author.charAt(0)}</div>
+                    <div class="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                        <div class="flex items-center justify-between">
+                            <span class="font-semibold text-xs text-gray-900">${escapeHtml(c.author)}</span>
+                            <span class="text-[10px] text-gray-400">${escapeHtml(c.time)}</span>
+                        </div>
+                        <p class="text-xs text-gray-700 mt-1">${escapeHtml(c.text)}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
 
         scrollYBeforeModal = window.scrollY;
         document.body.classList.add('modal-open');
@@ -898,7 +990,7 @@
 
         panel.style.transform = '';
         panel.classList.remove('dragging');
-        closeMobileComments();
+        closeSubmodal();
 
         modal.classList.remove('open');
         modal.setAttribute('aria-hidden', 'true');
@@ -924,7 +1016,7 @@
         function onStart(clientY) {
             if (!isMobile()) return;
             if (!document.getElementById('videoModal').classList.contains('open')) return;
-            if (document.getElementById('mobileCommentsSubmodal').classList.contains('open')) return; // Evita conflito no submodal
+            if (document.getElementById('dynamicSubmodal').classList.contains('open')) return; 
             dragging = true;
             startY = clientY;
             currentY = 0;
