@@ -131,7 +131,6 @@
             transition: none;
         }
 
-        /* Handle de arraste (mobile) */
         #modalDragHandle {
             display: none;
             flex-direction: column;
@@ -162,7 +161,6 @@
             right: 0;
         }
 
-        /* Submodais Genéricos Flutuantes dentro do Player */
         .submodal-pane {
             position: absolute;
             inset: 0;
@@ -294,10 +292,8 @@
                 </button>
             </div>
 
-            <!-- Corpo Principal dividindo conteúdo à esquerda e sugestões à direita no Desktop -->
             <div class="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden bg-white relative">
                 
-                <!-- Coluna da Esquerda: Player, Detalhes e Comentários (Desktop) -->
                 <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col">
                     <div id="videoModalPlayer" class="bg-black w-full shrink-0"></div>
 
@@ -312,7 +308,6 @@
                                     <p id="playerDate" class="text-xs text-gray-400"></p>
                                 </div>
                             </div>
-                            <!-- Contadores Rápidos de Visualizações e Likes -->
                             <div class="flex items-center gap-3 text-xs text-gray-500">
                                 <button type="button" onclick="openSubmodal('views')" class="hover:text-secondary transition flex items-center gap-1 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-full border border-gray-100">
                                     <i class="fa-solid fa-eye text-secondary"></i> <span id="viewCountBadge" class="font-medium">0</span> visualizações
@@ -323,7 +318,6 @@
                             </div>
                         </div>
 
-                        <!-- Container horizontal de opções -->
                         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 border-y border-gray-100">
                             <button type="button" onclick="likeVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
                                 <i class="fa-regular fa-heart text-secondary"></i> <span id="likeBtnText">Curtir</span>
@@ -334,7 +328,6 @@
                             <a id="downloadBtn" href="#" target="_blank" download class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
                                 <i class="fa-solid fa-download text-secondary"></i> Baixar
                             </a>
-                            <!-- Botão exclusivo para abrir submodal de comentários no Mobile -->
                             <button type="button" onclick="openSubmodal('comments')" class="md:hidden flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
                                 <i class="fa-solid fa-comments text-secondary"></i> Comentários
                             </button>
@@ -343,7 +336,6 @@
                         <div id="playerDescription"
                              class="text-sm text-gray-600 bg-gray-50 rounded-xl p-3 whitespace-pre-wrap break-words max-h-32 overflow-y-auto border border-gray-100"></div>
 
-                        <!-- Seção de Comentários Visível por padrão no Desktop -->
                         <div class="hidden md:block mt-6 pt-4 border-t border-gray-100 space-y-4">
                             <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2">
                                 <i class="fa-solid fa-comments text-secondary"></i> Comentários
@@ -367,7 +359,6 @@
                             <div id="commentsList" class="space-y-3 pt-2"></div>
                         </div>
 
-                        <!-- Sugestões visíveis em baixo apenas no Mobile -->
                         <div class="block md:hidden pt-4 border-t border-gray-100">
                             <h2 class="text-xs font-semibold text-secondary mb-2 uppercase tracking-wide">Mais vídeos</h2>
                             <div id="relatedListMobile" class="space-y-2"></div>
@@ -375,13 +366,11 @@
                     </div>
                 </div>
 
-                <!-- Coluna da Direita: Sugestões Verticais (Apenas Desktop) -->
                 <div class="hidden md:flex flex-col w-80 lg:w-96 border-l border-gray-200 bg-gray-50/50 p-4 overflow-y-auto no-scrollbar shrink-0">
                     <h2 class="text-xs font-semibold text-secondary mb-3 uppercase tracking-wide">Mais vídeos</h2>
                     <div id="relatedListDesktop" class="space-y-3"></div>
                 </div>
 
-                <!-- Submodal Genérico (Comentários, Curtidas ou Visualizações) -->
                 <div id="dynamicSubmodal" class="submodal-pane">
                     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white shrink-0">
                         <h2 id="submodalTitle" class="text-sm font-bold text-gray-900 flex items-center gap-2">
@@ -391,9 +380,7 @@
                             <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
-                    <div id="submodalBody" class="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
-                        <!-- Conteúdo injetado dinamicamente -->
-                    </div>
+                    <div id="submodalBody" class="flex-1 overflow-y-auto p-4 space-y-4 bg-white"></div>
                 </div>
 
             </div>
@@ -423,8 +410,7 @@
     let currentPlayingId = null;
     let scrollYBeforeModal = 0;
     
-    // Armazenamento simulado/local de interações por vídeo
-    const videoInteractions = {};
+    const videoInteractionsCache = new Map();
 
     function isMobile() {
         return window.matchMedia('(max-width: 767px)').matches;
@@ -762,48 +748,78 @@
         if (mobileList) mobileList.innerHTML = html;
     }
 
-    function getInteractions(videoId) {
-        if (!videoInteractions[videoId]) {
-            videoInteractions[videoId] = {
-                views: [
-                    { name: 'Ana Souza', time: 'Há 5 min' },
-                    { name: 'Carlos Lima', time: 'Há 12 min' },
-                    { name: 'Beatriz Mendes', time: 'Há 1 hora' }
-                ],
-                likes: [
-                    { name: 'Carlos Lima', time: 'Há 10 min' }
-                ],
-                comments: [
-                    { author: 'Ana Souza', text: 'Excelente vídeo!', time: 'agora' }
-                ],
-                userLiked: false
-            };
+    async function loadVideoInteractions(eventId) {
+        if (videoInteractionsCache.has(eventId)) {
+            return videoInteractionsCache.get(eventId);
         }
-        return videoInteractions[videoId];
+
+        try {
+            // Busca reações (kind 7) e comentários/respostas (kind 1) vinculados ao evento do vídeo
+            const events = await pool.querySync(RELAYS, {
+                kinds: [7, 1],
+                '#e': [eventId]
+            });
+
+            const likes = [];
+            const comments = [];
+            const viewsSet = new Set();
+            const pubkeysToFetch = new Set();
+
+            events.forEach(ev => {
+                pubkeysToFetch.add(ev.pubkey);
+                if (ev.kind === 7) {
+                    likes.push({ pubkey: ev.pubkey, time: timeAgo(ev.created_at) });
+                } else if (ev.kind === 1) {
+                    comments.push({ pubkey: ev.pubkey, text: ev.content, time: timeAgo(ev.created_at) });
+                }
+            });
+
+            await fetchProfiles([...pubkeysToFetch]);
+
+            const data = {
+                likes,
+                comments,
+                views: likes.map(l => ({ pubkey: l.pubkey, time: l.time })) // Exemplo baseado em engajamento ou histórico
+            };
+
+            videoInteractionsCache.set(eventId, data);
+            return data;
+        } catch (e) {
+            console.error('Erro ao carregar interações:', e);
+            return { likes: [], comments: [], views: [] };
+        }
     }
 
-    window.likeVideo = function() {
-        if (!currentPlayingId) return;
-        const data = getInteractions(currentPlayingId);
-        data.userLiked = !data.userLiked;
+    window.likeVideo = async function() {
+        const v = allVideos.find(x => x.id === currentPlayingId) || filteredVideos.find(x => x.id === currentPlayingId);
+        if (!v) return;
 
-        const btnText = document.getElementById('likeBtnText');
-        const btnIcon = btnText.parentElement.querySelector('i');
-
-        if (data.userLiked) {
-            btnText.textContent = 'Curtido';
-            btnIcon.classList.remove('fa-regular');
-            btnIcon.classList.add('fa-solid');
-            btnText.parentElement.classList.add('text-secondary', 'bg-purple-50');
-            data.likes.unshift({ name: 'Você', time: 'agora' });
-        } else {
-            btnText.textContent = 'Curtir';
-            btnIcon.classList.remove('fa-solid');
-            btnIcon.classList.add('fa-regular');
-            btnText.parentElement.classList.remove('text-secondary', 'bg-purple-50');
-            data.likes = data.likes.filter(l => l.name !== 'Você');
+        const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
+        if (!session.pubkey || !window.nostr) {
+            alert('Conecte sua carteira Nostr (ex: Alby) para interagir.');
+            return;
         }
-        updateCounters();
+
+        try {
+            const eventTemplate = {
+                kind: 7,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [
+                    ['e', v.eventId],
+                    ['p', v.pubkey]
+                ],
+                content: '+'
+            };
+
+            const signedEvent = await window.nostr.signEvent(eventTemplate);
+            await Promise.allSettled(pool.publish(RELAYS, signedEvent));
+
+            videoInteractionsCache.delete(v.eventId);
+            await updateInteractionUI(v.eventId);
+            alert('Curtida enviada com sucesso para a rede!');
+        } catch (err) {
+            console.error('Erro ao curtir:', err);
+        }
     };
 
     window.shareVideo = function() {
@@ -815,26 +831,67 @@
         }
     };
 
-    window.submitComment = function() {
-        const input = document.getElementById('commentInput');
+    window.submitComment = async function() {
+        const input = document.getElementById('commentInput') || document.getElementById('commentInputMobile');
         const text = input?.value.trim();
-        if (!text || !currentPlayingId) return;
+        const v = allVideos.find(x => x.id === currentPlayingId) || filteredVideos.find(x => x.id === currentPlayingId);
+        if (!text || !v) return;
 
-        const data = getInteractions(currentPlayingId);
-        data.comments.unshift({ author: 'Você', text, time: 'agora' });
-        input.value = '';
-        renderSubmodalContent('comments');
+        const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
+        if (!session.pubkey || !window.nostr) {
+            alert('Conecte sua carteira Nostr para comentar.');
+            return;
+        }
+
+        try {
+            const eventTemplate = {
+                kind: 1,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [
+                    ['e', v.eventId, '', 'reply'],
+                    ['p', v.pubkey]
+                ],
+                content: text
+            };
+
+            const signedEvent = await window.nostr.signEvent(eventTemplate);
+            await Promise.allSettled(pool.publish(RELAYS, signedEvent));
+
+            input.value = '';
+            videoInteractionsCache.delete(v.eventId);
+            await updateInteractionUI(v.eventId);
+            renderSubmodalContent('comments');
+        } catch (err) {
+            console.error('Erro ao comentar:', err);
+        }
     };
 
     window.submitCommentMobile = function() {
         window.submitComment();
     };
 
-    function updateCounters() {
-        if (!currentPlayingId) return;
-        const data = getInteractions(currentPlayingId);
-        document.getElementById('viewCountBadge').textContent = data.views.length;
+    async function updateInteractionUI(eventId) {
+        const data = await loadVideoInteractions(eventId);
+        document.getElementById('viewCountBadge').textContent = Math.max(data.views.length, 1);
         document.getElementById('likeCountBadge').textContent = data.likes.length;
+
+        const commentsListDesktop = document.getElementById('commentsList');
+        if (commentsListDesktop) {
+            commentsListDesktop.innerHTML = !data.comments.length 
+                ? `<p class="text-xs text-gray-400 italic">Nenhum comentário ainda na rede.</p>`
+                : data.comments.map(c => `
+                    <div class="flex gap-3 items-start text-sm">
+                        ${avatarHtml(c.pubkey, 'w-8 h-8')}
+                        <div class="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <span class="font-semibold text-xs text-gray-900">${escapeHtml(displayName(c.pubkey))}</span>
+                                <span class="text-[10px] text-gray-400">${escapeHtml(c.time)}</span>
+                            </div>
+                            <p class="text-xs text-gray-700 mt-1">${escapeHtml(c.text)}</p>
+                        </div>
+                    </div>
+                `).join('');
+        }
     }
 
     window.openSubmodal = function(type) {
@@ -848,29 +905,31 @@
         pane.classList.remove('open');
     };
 
-    function renderSubmodalContent(type) {
-        const data = getInteractions(currentPlayingId);
+    async function renderSubmodalContent(type) {
+        const v = allVideos.find(x => x.id === currentPlayingId) || filteredVideos.find(x => x.id === currentPlayingId);
+        if (!v) return;
+        const data = await loadVideoInteractions(v.eventId);
         const titleEl = document.getElementById('submodalTitle');
         const bodyEl = document.getElementById('submodalBody');
 
         if (type === 'views') {
-            titleEl.innerHTML = `<i class="fa-solid fa-eye text-secondary"></i> Visualizações (${data.views.length})`;
-            bodyEl.innerHTML = data.views.map(v => `
+            titleEl.innerHTML = `<i class="fa-solid fa-eye text-secondary"></i> Visualizações/Interações (${data.views.length})`;
+            bodyEl.innerHTML = !data.views.length ? '<p class="text-xs text-gray-400 italic">Nenhuma interação registrada.</p>' : data.views.map(item => `
                 <div class="flex items-center justify-between p-2 rounded-xl bg-gray-50 border border-gray-100">
                     <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-secondary text-xs font-bold">${v.name.charAt(0)}</div>
-                        <span class="text-xs font-semibold text-gray-900">${escapeHtml(v.name)}</span>
+                        ${avatarHtml(item.pubkey, 'w-8 h-8')}
+                        <span class="text-xs font-semibold text-gray-900">${escapeHtml(displayName(item.pubkey))}</span>
                     </div>
-                    <span class="text-[10px] text-gray-400">${escapeHtml(v.time)}</span>
+                    <span class="text-[10px] text-gray-400">${escapeHtml(item.time)}</span>
                 </div>
             `).join('');
         } else if (type === 'likes') {
             titleEl.innerHTML = `<i class="fa-solid fa-heart text-secondary"></i> Curtidas (${data.likes.length})`;
-            bodyEl.innerHTML = data.likes.map(l => `
+            bodyEl.innerHTML = !data.likes.length ? '<p class="text-xs text-gray-400 italic">Nenhuma curtida na rede.</p>' : data.likes.map(l => `
                 <div class="flex items-center justify-between p-2 rounded-xl bg-gray-50 border border-gray-100">
                     <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center text-secondary text-xs font-bold">${l.name.charAt(0)}</div>
-                        <span class="text-xs font-semibold text-gray-900">${escapeHtml(l.name)}</span>
+                        ${avatarHtml(l.pubkey, 'w-8 h-8')}
+                        <span class="text-xs font-semibold text-gray-900">${escapeHtml(displayName(l.pubkey))}</span>
                     </div>
                     <span class="text-[10px] text-gray-400">${escapeHtml(l.time)}</span>
                 </div>
@@ -879,18 +938,18 @@
             titleEl.innerHTML = `<i class="fa-solid fa-comments text-secondary"></i> Comentários (${data.comments.length})`;
             bodyEl.innerHTML = `
                 <div class="flex gap-2 items-start pb-3 border-b border-gray-100">
-                    <input type="text" id="commentInput" placeholder="Adicione um comentário..." 
+                    <input type="text" id="commentInputMobile" placeholder="Adicione um comentário..." 
                            class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-800 outline-none focus:border-secondary"
-                           onkeydown="if(event.key==='Enter') submitComment()">
-                    <button type="button" onclick="submitComment()" class="px-3 py-2 rounded-xl bg-secondary text-white text-xs font-medium">Comentar</button>
+                           onkeydown="if(event.key==='Enter') submitCommentMobile()">
+                    <button type="button" onclick="submitCommentMobile()" class="px-3 py-2 rounded-xl bg-secondary text-white text-xs font-medium">Comentar</button>
                 </div>
                 <div class="space-y-3">
-                    ${!data.comments.length ? '<p class="text-xs text-gray-400 italic">Nenhum comentário ainda.</p>' : data.comments.map(c => `
+                    ${!data.comments.length ? '<p class="text-xs text-gray-400 italic">Nenhum comentário na rede.</p>' : data.comments.map(c => `
                         <div class="flex gap-3 items-start text-xs">
-                            <div class="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center shrink-0 text-secondary font-bold">${c.author.charAt(0)}</div>
+                            ${avatarHtml(c.pubkey, 'w-8 h-8')}
                             <div class="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
                                 <div class="flex items-center justify-between">
-                                    <span class="font-semibold text-gray-900">${escapeHtml(c.author)}</span>
+                                    <span class="font-semibold text-gray-900">${escapeHtml(displayName(c.pubkey))}</span>
                                     <span class="text-[10px] text-gray-400">${escapeHtml(c.time)}</span>
                                 </div>
                                 <p class="text-gray-700 mt-1">${escapeHtml(c.text)}</p>
@@ -902,16 +961,10 @@
         }
     }
 
-    window.playVideo = function(id) {
+    window.playVideo = async function(id) {
         const v = allVideos.find(x => x.id === id) || filteredVideos.find(x => x.id === id);
         if (!v) return;
         currentPlayingId = v.id;
-
-        // Simula registro de visualização ao abrir
-        const data = getInteractions(v.id);
-        if (!data.views.some(u => u.name === 'Você')) {
-            data.views.unshift({ name: 'Você', time: 'agora' });
-        }
 
         const modal = document.getElementById('videoModal');
         const panel = document.getElementById('videoModalPanel');
@@ -932,39 +985,8 @@
         const downloadBtn = document.getElementById('downloadBtn');
         if (downloadBtn) downloadBtn.href = v.videoUrl;
 
-        const likeText = document.getElementById('likeBtnText');
-        const likeIcon = likeText.parentElement.querySelector('i');
-        if (data.userLiked) {
-            likeText.textContent = 'Curtido';
-            likeIcon.classList.remove('fa-regular');
-            likeIcon.classList.add('fa-solid');
-            likeText.parentElement.classList.add('text-secondary', 'bg-purple-50');
-        } else {
-            likeText.textContent = 'Curtir';
-            likeIcon.classList.remove('fa-solid');
-            likeIcon.classList.add('fa-regular');
-            likeText.parentElement.classList.remove('text-secondary', 'bg-purple-50');
-        }
-
-        updateCounters();
+        await updateInteractionUI(v.eventId);
         renderRelated();
-
-        // Renderiza comentários padrão no desktop se visível
-        const commentsListDesktop = document.getElementById('commentsList');
-        if (commentsListDesktop) {
-            commentsListDesktop.innerHTML = data.comments.map(c => `
-                <div class="flex gap-3 items-start text-sm">
-                    <div class="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center shrink-0 text-secondary font-bold text-xs">${c.author.charAt(0)}</div>
-                    <div class="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
-                        <div class="flex items-center justify-between">
-                            <span class="font-semibold text-xs text-gray-900">${escapeHtml(c.author)}</span>
-                            <span class="text-[10px] text-gray-400">${escapeHtml(c.time)}</span>
-                        </div>
-                        <p class="text-xs text-gray-700 mt-1">${escapeHtml(c.text)}</p>
-                    </div>
-                </div>
-            `).join('');
-        }
 
         scrollYBeforeModal = window.scrollY;
         document.body.classList.add('modal-open');
