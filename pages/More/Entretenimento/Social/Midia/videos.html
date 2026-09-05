@@ -127,39 +127,16 @@
         #videoModal.open #videoModalPanel {
             transform: translateY(0);
         }
-        @media (min-width: 768px) {
-            #videoModalPanel {
-                width: 100% !important;
-                height: 100% !important;
-                max-width: 100% !important;
-                max-height: 100% !important;
-                border-radius: 0 !important;
-            }
-        }
         #videoModalPanel.dragging {
             transition: none;
         }
-        #videoModalPlayer {
-            flex-shrink: 0;
-            background: #000;
-        }
-        #videoModalPlayer video {
-            width: 100%;
-            max-height: min(56vh, 100%);
-            background: #000;
-            display: block;
-        }
-        @media (max-width: 767px) {
-            #videoModalPlayer video {
-                max-height: 42vh;
-            }
-        }
+
         /* Handle de arraste (mobile) */
         #modalDragHandle {
             display: none;
             flex-direction: column;
             align-items: center;
-            padding: 10px 0 4px;
+            padding: 8px 0 2px;
             cursor: grab;
             touch-action: none;
             user-select: none;
@@ -176,6 +153,7 @@
             border-radius: 9999px;
             background: #d1d5db;
         }
+
         body.modal-open {
             overflow: hidden;
             position: fixed;
@@ -183,10 +161,20 @@
             left: 0;
             right: 0;
         }
-        @media (max-width: 767px) {
-            #modalCloseBtn {
-                display: none !important;
-            }
+
+        /* Submodal de Comentários para Mobile */
+        #mobileCommentsSubmodal {
+            position: absolute;
+            inset: 0;
+            background: #ffffff;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        #mobileCommentsSubmodal.open {
+            transform: translateY(0);
         }
     </style>
 </head>
@@ -286,13 +274,13 @@
         </main>
     </div>
 
-    <!-- Modal fullscreen total com opções e comentários estilo YouTube -->
+    <!-- Modal fullscreen total -->
     <div id="videoModal" aria-hidden="true" role="dialog" aria-modal="true">
         <div id="videoModalBackdrop"></div>
         <div id="videoModalPanel">
             <div id="modalDragHandle" aria-hidden="true">
                 <div class="handle-bar"></div>
-                <p class="text-[10px] text-gray-400 mt-1.5">Deslize para baixo para fechar</p>
+                <p class="text-[10px] text-gray-400 mt-1">Deslize para baixo para fechar</p>
             </div>
 
             <div class="flex items-center justify-between px-3 py-2 border-b border-gray-100 shrink-0 bg-white">
@@ -306,69 +294,112 @@
                 </button>
             </div>
 
-            <div class="overflow-y-auto no-scrollbar flex-1 min-h-0 bg-white">
-                <div id="videoModalPlayer" class="bg-black"></div>
+            <!-- Corpo Principal dividindo conteúdo à esquerda e sugestões à direita no Desktop -->
+            <div class="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden bg-white">
+                
+                <!-- Coluna da Esquerda: Player, Detalhes e Comentários (Desktop) -->
+                <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col">
+                    <div id="videoModalPlayer" class="bg-black w-full shrink-0"></div>
 
-                <div class="p-4 space-y-3 max-w-4xl mx-auto w-full">
-                    <h1 id="playerTitle" class="text-base md:text-lg font-bold text-gray-900 leading-snug"></h1>
+                    <div class="p-4 space-y-3 max-w-3xl w-full mx-auto">
+                        <h1 id="playerTitle" class="text-base md:text-lg font-bold text-gray-900 leading-snug"></h1>
 
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <div id="playerAvatar" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200"></div>
-                            <div class="min-w-0">
-                                <p id="playerAuthor" class="font-semibold text-sm text-gray-900 truncate"></p>
-                                <p id="playerDate" class="text-xs text-gray-400"></p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Container horizontal de opções (Curtir, Compartilhar, Baixar) -->
-                    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 border-y border-gray-100">
-                        <button type="button" onclick="likeVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
-                            <i class="fa-regular fa-thumbs-up text-secondary"></i> <span id="likeBtnText">Curtir</span>
-                        </button>
-                        <button type="button" onclick="shareVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
-                            <i class="fa-solid fa-share text-secondary"></i> Compartilhar
-                        </button>
-                        <a id="downloadBtn" href="#" target="_blank" download class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
-                            <i class="fa-solid fa-download text-secondary"></i> Baixar
-                        </a>
-                    </div>
-
-                    <div id="playerDescription"
-                         class="text-sm text-gray-600 bg-gray-50 rounded-xl p-3 whitespace-pre-wrap break-words max-h-32 overflow-y-auto border border-gray-100"></div>
-
-                    <!-- Seção de Comentários estilo YouTube -->
-                    <div class="mt-6 pt-4 border-t border-gray-100 space-y-4">
-                        <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                            <i class="fa-solid fa-comments text-secondary"></i> Comentários
-                        </h2>
-                        
-                        <div class="flex gap-3 items-start">
-                            <div id="commentUserAvatar" class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200">
-                                <i class="fa-solid fa-user text-xs text-secondary"></i>
-                            </div>
-                            <div class="flex-1 space-y-2">
-                                <input type="text" id="commentInput" placeholder="Adicione um comentário..." 
-                                       class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20"
-                                       onkeydown="if(event.key==='Enter') submitComment()">
-                                <div class="flex justify-end gap-2">
-                                    <button type="button" onclick="document.getElementById('commentInput').value=''" class="px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-gray-100 transition">Cancelar</button>
-                                    <button type="button" onclick="submitComment()" class="px-4 py-1.5 rounded-full bg-secondary text-white text-xs font-medium hover:opacity-90 transition">Comentar</button>
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div id="playerAvatar" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200"></div>
+                                <div class="min-w-0">
+                                    <p id="playerAuthor" class="font-semibold text-sm text-gray-900 truncate"></p>
+                                    <p id="playerDate" class="text-xs text-gray-400"></p>
                                 </div>
                             </div>
                         </div>
 
-                        <div id="commentsList" class="space-y-3 pt-2">
-                            <!-- Lista de comentários injetada via JS -->
+                        <!-- Container horizontal de opções (Curtir, Compartilhar, Baixar e Botão Comentários Mobile) -->
+                        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 border-y border-gray-100">
+                            <button type="button" onclick="likeVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
+                                <i class="fa-regular fa-thumbs-up text-secondary"></i> <span id="likeBtnText">Curtir</span>
+                            </button>
+                            <button type="button" onclick="shareVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
+                                <i class="fa-solid fa-share text-secondary"></i> Compartilhar
+                            </button>
+                            <a id="downloadBtn" href="#" target="_blank" download class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
+                                <i class="fa-solid fa-download text-secondary"></i> Baixar
+                            </a>
+                            <!-- Botão exclusivo para abrir submodal de comentários no Mobile -->
+                            <button type="button" onclick="openMobileComments()" class="md:hidden flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
+                                <i class="fa-solid fa-comments text-secondary"></i> Comentários
+                            </button>
+                        </div>
+
+                        <div id="playerDescription"
+                             class="text-sm text-gray-600 bg-gray-50 rounded-xl p-3 whitespace-pre-wrap break-words max-h-32 overflow-y-auto border border-gray-100"></div>
+
+                        <!-- Seção de Comentários Visível por padrão no Desktop -->
+                        <div class="hidden md:block mt-6 pt-4 border-t border-gray-100 space-y-4">
+                            <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                <i class="fa-solid fa-comments text-secondary"></i> Comentários
+                            </h2>
+                            
+                            <div class="flex gap-3 items-start">
+                                <div id="commentUserAvatar" class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200">
+                                    <i class="fa-solid fa-user text-xs text-secondary"></i>
+                                </div>
+                                <div class="flex-1 space-y-2">
+                                    <input type="text" id="commentInput" placeholder="Adicione um comentário..." 
+                                           class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20"
+                                           onkeydown="if(event.key==='Enter') submitComment()">
+                                    <div class="flex justify-end gap-2">
+                                        <button type="button" onclick="document.getElementById('commentInput').value=''" class="px-4 py-1.5 rounded-full text-xs font-medium text-gray-500 hover:bg-gray-100 transition">Cancelar</button>
+                                        <button type="button" onclick="submitComment()" class="px-4 py-1.5 rounded-full bg-secondary text-white text-xs font-medium hover:opacity-90 transition">Comentar</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="commentsList" class="space-y-3 pt-2"></div>
+                        </div>
+
+                        <!-- Sugestões visíveis em baixo apenas no Mobile -->
+                        <div class="block md:hidden pt-4 border-t border-gray-100">
+                            <h2 class="text-xs font-semibold text-secondary mb-2 uppercase tracking-wide">Mais vídeos</h2>
+                            <div id="relatedListMobile" class="space-y-2"></div>
                         </div>
                     </div>
+                </div>
 
-                    <div class="pt-4">
-                        <h2 class="text-xs font-semibold text-secondary mb-2 uppercase tracking-wide">Mais vídeos</h2>
-                        <div id="relatedList" class="space-y-2 max-h-48 overflow-y-auto no-scrollbar"></div>
+                <!-- Coluna da Direita: Sugestões Verticais (Apenas Desktop) -->
+                <div class="hidden md:flex flex-col w-80 lg:w-96 border-l border-gray-200 bg-gray-50/50 p-4 overflow-y-auto no-scrollbar shrink-0">
+                    <h2 class="text-xs font-semibold text-secondary mb-3 uppercase tracking-wide">Mais vídeos</h2>
+                    <div id="relatedListDesktop" class="space-y-3"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Submodal de Comentários (Apenas para Mobile) -->
+        <div id="mobileCommentsSubmodal">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white shrink-0">
+                <h2 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <i class="fa-solid fa-comments text-secondary"></i> Comentários
+                </h2>
+                <button type="button" onclick="closeMobileComments()" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
+                <div class="flex gap-3 items-start">
+                    <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200">
+                        <i class="fa-solid fa-user text-xs text-secondary"></i>
+                    </div>
+                    <div class="flex-1 space-y-2">
+                        <input type="text" id="commentInputMobile" placeholder="Adicione um comentário..." 
+                               class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary"
+                               onkeydown="if(event.key==='Enter') submitCommentMobile()">
+                        <div class="flex justify-end gap-2">
+                            <button type="button" onclick="submitCommentMobile()" class="px-4 py-1.5 rounded-full bg-secondary text-white text-xs font-medium">Comentar</button>
+                        </div>
                     </div>
                 </div>
+                <div id="commentsListMobile" class="space-y-3 pt-2"></div>
             </div>
         </div>
     </div>
@@ -396,7 +427,6 @@
     let currentPlayingId = null;
     let scrollYBeforeModal = 0;
     
-    // Armazenamento local simulado de comentários por vídeo
     const videoComments = {};
 
     function isMobile() {
@@ -713,13 +743,11 @@
     }
 
     function renderRelated() {
-        const list = document.getElementById('relatedList');
-        if (!list) return;
         const others = filteredVideos.filter(v => v.id !== currentPlayingId).slice(0, 12);
-        list.innerHTML = others.map(v => `
+        const html = others.map(v => `
             <button type="button" onclick="playVideo('${escapeHtml(v.id)}')"
-                    class="flex gap-2 w-full text-left hover:bg-gray-50 rounded-lg p-1.5 transition border border-transparent hover:border-gray-100">
-                <div class="w-40 shrink-0 aspect-video rounded-lg overflow-hidden bg-gray-100 border border-gray-100">
+                    class="flex gap-2 w-full text-left hover:bg-gray-100/80 rounded-lg p-1.5 transition border border-transparent">
+                <div class="w-36 md:w-40 shrink-0 aspect-video rounded-lg overflow-hidden bg-gray-100 border border-gray-100">
                     <video src="${escapeHtml(v.videoUrl)}" muted preload="metadata" class="w-full h-full object-cover"
                            onloadeddata="this.currentTime=0.1"></video>
                 </div>
@@ -729,10 +757,14 @@
                     <p class="text-[10px] text-gray-400">${timeAgo(v.created_at)}</p>
                 </div>
             </button>
-        `).join('') || '<p class="text-xs text-gray-400">Nenhum outro vídeo.</p>';
+        `).join('') || '<p class="text-xs text-gray-400 p-2">Nenhum outro vídeo.</p>';
+
+        const desktopList = document.getElementById('relatedListDesktop');
+        const mobileList = document.getElementById('relatedListMobile');
+        if (desktopList) desktopList.innerHTML = html;
+        if (mobileList) mobileList.innerHTML = html;
     }
 
-    // Funções de Interação (Curtir, Compartilhar, Comentários)
     window.likeVideo = function() {
         const btn = document.getElementById('likeBtnText');
         if (btn.textContent === 'Curtir') {
@@ -755,48 +787,59 @@
 
     window.submitComment = function() {
         const input = document.getElementById('commentInput');
-        const text = input.value.trim();
+        const text = input?.value.trim();
         if (!text || !currentPlayingId) return;
 
-        if (!videoComments[currentPlayingId]) {
-            videoComments[currentPlayingId] = [];
-        }
+        if (!videoComments[currentPlayingId]) videoComments[currentPlayingId] = [];
+        videoComments[currentPlayingId].unshift({ author: 'Você', text, time: 'agora' });
+        input.value = '';
+        renderComments();
+    };
 
-        videoComments[currentPlayingId].unshift({
-            author: 'Você',
-            text: text,
-            time: 'agora'
-        });
+    window.submitCommentMobile = function() {
+        const input = document.getElementById('commentInputMobile');
+        const text = input?.value.trim();
+        if (!text || !currentPlayingId) return;
 
+        if (!videoComments[currentPlayingId]) videoComments[currentPlayingId] = [];
+        videoComments[currentPlayingId].unshift({ author: 'Você', text, time: 'agora' });
         input.value = '';
         renderComments();
     };
 
     function renderComments() {
-        const list = document.getElementById('commentsList');
-        if (!list || !currentPlayingId) return;
         const comments = videoComments[currentPlayingId] || [];
-
-        if (!comments.length) {
-            list.innerHTML = `<p class="text-xs text-gray-400 italic">Nenhum comentário ainda. Seja o primeiro a comentar!</p>`;
-            return;
-        }
-
-        list.innerHTML = comments.map(c => `
-            <div class="flex gap-3 items-start text-sm">
-                <div class="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center shrink-0 text-secondary font-bold text-xs">
-                    ${c.author.charAt(0)}
-                </div>
-                <div class="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
-                    <div class="flex items-center justify-between">
-                        <span class="font-semibold text-xs text-gray-900">${escapeHtml(c.author)}</span>
-                        <span class="text-[10px] text-gray-400">${escapeHtml(c.time)}</span>
+        const contentHtml = !comments.length 
+            ? `<p class="text-xs text-gray-400 italic">Nenhum comentário ainda. Seja o primeiro a comentar!</p>`
+            : comments.map(c => `
+                <div class="flex gap-3 items-start text-sm">
+                    <div class="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center shrink-0 text-secondary font-bold text-xs">
+                        ${c.author.charAt(0)}
                     </div>
-                    <p class="text-xs text-gray-700 mt-1">${escapeHtml(c.text)}</p>
+                    <div class="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                        <div class="flex items-center justify-between">
+                            <span class="font-semibold text-xs text-gray-900">${escapeHtml(c.author)}</span>
+                            <span class="text-[10px] text-gray-400">${escapeHtml(c.time)}</span>
+                        </div>
+                        <p class="text-xs text-gray-700 mt-1">${escapeHtml(c.text)}</p>
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `).join('');
+
+        const listDesktop = document.getElementById('commentsList');
+        const listMobile = document.getElementById('commentsListMobile');
+        if (listDesktop) listDesktop.innerHTML = contentHtml;
+        if (listMobile) listMobile.innerHTML = contentHtml;
     }
+
+    window.openMobileComments = function() {
+        document.getElementById('mobileCommentsSubmodal').classList.add('open');
+        renderComments();
+    };
+
+    window.closeMobileComments = function() {
+        document.getElementById('mobileCommentsSubmodal').classList.remove('open');
+    };
 
     window.playVideo = function(id) {
         const v = allVideos.find(x => x.id === id) || filteredVideos.find(x => x.id === id);
@@ -809,9 +852,9 @@
 
         panel.style.transform = '';
         panel.classList.remove('dragging');
+        closeMobileComments();
 
-        playerEl.innerHTML = `
-            <video src="${escapeHtml(v.videoUrl)}" controls autoplay playsinline></video>`;
+        playerEl.innerHTML = `<video src="${escapeHtml(v.videoUrl)}" controls autoplay playsinline></video>`;
 
         document.getElementById('playerTitle').textContent = extractTitle(v.content, 120);
         document.getElementById('playerAuthor').textContent = displayName(v.pubkey);
@@ -819,11 +862,9 @@
         document.getElementById('playerDescription').textContent = v.content || '';
         document.getElementById('playerAvatar').innerHTML = avatarHtml(v.pubkey, 'w-10 h-10');
         
-        // Atualiza link de download
         const downloadBtn = document.getElementById('downloadBtn');
         if (downloadBtn) downloadBtn.href = v.videoUrl;
 
-        // Reseta botão de curtida
         const likeText = document.getElementById('likeBtnText');
         if (likeText) {
             likeText.textContent = 'Curtir';
@@ -857,6 +898,7 @@
 
         panel.style.transform = '';
         panel.classList.remove('dragging');
+        closeMobileComments();
 
         modal.classList.remove('open');
         modal.setAttribute('aria-hidden', 'true');
@@ -882,6 +924,7 @@
         function onStart(clientY) {
             if (!isMobile()) return;
             if (!document.getElementById('videoModal').classList.contains('open')) return;
+            if (document.getElementById('mobileCommentsSubmodal').classList.contains('open')) return; // Evita conflito no submodal
             dragging = true;
             startY = clientY;
             currentY = 0;
