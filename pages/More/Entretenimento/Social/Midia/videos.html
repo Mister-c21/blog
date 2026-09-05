@@ -754,7 +754,6 @@
         }
 
         try {
-            // Busca reações (kind 7) e comentários/respostas (kind 1) vinculados ao evento do vídeo
             const events = await pool.querySync(RELAYS, {
                 kinds: [7, 1],
                 '#e': [eventId]
@@ -762,7 +761,6 @@
 
             const likes = [];
             const comments = [];
-            const viewsSet = new Set();
             const pubkeysToFetch = new Set();
 
             events.forEach(ev => {
@@ -779,7 +777,7 @@
             const data = {
                 likes,
                 comments,
-                views: likes.map(l => ({ pubkey: l.pubkey, time: l.time })) // Exemplo baseado em engajamento ou histórico
+                views: likes.map(l => ({ pubkey: l.pubkey, time: l.time }))
             };
 
             videoInteractionsCache.set(eventId, data);
@@ -803,6 +801,7 @@
         try {
             const eventTemplate = {
                 kind: 7,
+                pubkey: session.pubkey,
                 created_at: Math.floor(Date.now() / 1000),
                 tags: [
                     ['e', v.eventId],
@@ -846,6 +845,7 @@
         try {
             const eventTemplate = {
                 kind: 1,
+                pubkey: session.pubkey,
                 created_at: Math.floor(Date.now() / 1000),
                 tags: [
                     ['e', v.eventId, '', 'reply'],
@@ -935,9 +935,18 @@
                 </div>
             `).join('');
         } else if (type === 'comments') {
+            let sessionAvatarHtml = `<div class="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0"><i class="fa-solid fa-user text-xs text-secondary"></i></div>`;
+            try {
+                const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
+                if (session.avatarUrl) {
+                    sessionAvatarHtml = `<img src="${escapeHtml(session.avatarUrl)}" class="w-8 h-8 rounded-full object-cover" alt="">`;
+                }
+            } catch {}
+
             titleEl.innerHTML = `<i class="fa-solid fa-comments text-secondary"></i> Comentários (${data.comments.length})`;
             bodyEl.innerHTML = `
-                <div class="flex gap-2 items-start pb-3 border-b border-gray-100">
+                <div class="flex gap-2 items-center pb-3 border-b border-gray-100">
+                    ${sessionAvatarHtml}
                     <input type="text" id="commentInputMobile" placeholder="Adicione um comentário..." 
                            class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-800 outline-none focus:border-secondary"
                            onkeydown="if(event.key==='Enter') submitCommentMobile()">
@@ -1108,6 +1117,9 @@
             if (session.avatarUrl) {
                 const el = document.getElementById('userAvatarHeader');
                 if (el) el.innerHTML = `<img src="${escapeHtml(session.avatarUrl)}" class="w-full h-full object-cover" alt="">`;
+                
+                const commentEl = document.getElementById('commentUserAvatar');
+                if (commentEl) commentEl.innerHTML = `<img src="${escapeHtml(session.avatarUrl)}" class="w-full h-full object-cover" alt="">`;
             }
         } catch {}
     }
