@@ -412,6 +412,21 @@
     
     const videoInteractionsCache = new Map();
 
+    // ========== NOVO: helper de usuário logado (mínima alteração) ==========
+    function getLoggedUser() {
+        try {
+            const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
+            if (session.pubkey && window.nostr) {
+                return {
+                    pubkey: session.pubkey,
+                    name: session.name || session.display_name || '',
+                    avatarUrl: session.avatarUrl || session.picture || ''
+                };
+            }
+        } catch {}
+        return null;
+    }
+
     function isMobile() {
         return window.matchMedia('(max-width: 767px)').matches;
     }
@@ -792,8 +807,8 @@
         const v = allVideos.find(x => x.id === currentPlayingId) || filteredVideos.find(x => x.id === currentPlayingId);
         if (!v) return;
 
-        const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
-        if (!session.pubkey || !window.nostr) {
+        const user = getLoggedUser();
+        if (!user) {
             alert('Conecte sua carteira Nostr (ex: Alby) para interagir.');
             return;
         }
@@ -801,7 +816,7 @@
         try {
             const eventTemplate = {
                 kind: 7,
-                pubkey: session.pubkey,
+                pubkey: user.pubkey,
                 created_at: Math.floor(Date.now() / 1000),
                 tags: [
                     ['e', v.eventId],
@@ -813,11 +828,26 @@
             const signedEvent = await window.nostr.signEvent(eventTemplate);
             await Promise.allSettled(pool.publish(RELAYS, signedEvent));
 
-            videoInteractionsCache.delete(v.eventId);
+            // Atualiza cache local imediatamente com dados do usuário logado
+            const cached = videoInteractionsCache.get(v.eventId) || { likes: [], comments: [], views: [] };
+            if (!cached.likes.some(l => l.pubkey === user.pubkey)) {
+                cached.likes.unshift({ pubkey: user.pubkey, time: 'agora' });
+                cached.views.unshift({ pubkey: user.pubkey, time: 'agora' });
+                // Garante que o perfil do usuário logado esteja no cache
+                if (user.name || user.avatarUrl) {
+                    profileCache.set(user.pubkey, {
+                        name: user.name || profileCache.get(user.pubkey)?.name || '',
+                        picture: user.avatarUrl || profileCache.get(user.pubkey)?.picture || ''
+                    });
+                }
+                videoInteractionsCache.set(v.eventId, cached);
+            }
+
             await updateInteractionUI(v.eventId);
-            alert('Curtida enviada com sucesso para a rede!');
+            document.getElementById('likeBtnText').textContent = 'Curtido';
         } catch (err) {
             console.error('Erro ao curtir:', err);
+            alert('Erro ao enviar curtida. Verifique sua carteira.');
         }
     };
 
@@ -836,8 +866,8 @@
         const v = allVideos.find(x => x.id === currentPlayingId) || filteredVideos.find(x => x.id === currentPlayingId);
         if (!text || !v) return;
 
-        const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
-        if (!session.pubkey || !window.nostr) {
+        const user = getLoggedUser();
+        if (!user) {
             alert('Conecte sua carteira Nostr para comentar.');
             return;
         }
@@ -845,7 +875,7 @@
         try {
             const eventTemplate = {
                 kind: 1,
-                pubkey: session.pubkey,
+                pubkey: user.pubkey,
                 created_at: Math.floor(Date.now() / 1000),
                 tags: [
                     ['e', v.eventId, '', 'reply'],
@@ -858,11 +888,27 @@
             await Promise.allSettled(pool.publish(RELAYS, signedEvent));
 
             input.value = '';
-            videoInteractionsCache.delete(v.eventId);
+
+            // Atualiza cache local imediatamente com dados do usuário logado
+            const cached = videoInteractionsCache.get(v.eventId) || { likes: [], comments: [], views: [] };
+            cached.comments.unshift({
+                pubkey: user.pubkey,
+                text: text,
+                time: 'agora'
+            });
+            if (user.name || user.avatarUrl) {
+                profileCache.set(user.pubkey, {
+                    name: user.name || profileCache.get(user.pubkey)?.name || '',
+                    picture: user.avatarUrl || profileCache.get(user.pubkey)?.picture || ''
+                });
+            }
+            videoInteractionsCache.set(v.eventId, cached);
+
             await updateInteractionUI(v.eventId);
             renderSubmodalContent('comments');
         } catch (err) {
             console.error('Erro ao comentar:', err);
+            alert('Erro ao enviar comentário. Verifique sua carteira.');
         }
     };
 
@@ -935,13 +981,12 @@
                 </div>
             `).join('');
         } else if (type === 'comments') {
+            // Usa informações do usuário logado
             let sessionAvatarHtml = `<div class="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0"><i class="fa-solid fa-user text-xs text-secondary"></i></div>`;
-            try {
-                const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
-                if (session.avatarUrl) {
-                    sessionAvatarHtml = `<img src="${escapeHtml(session.avatarUrl)}" class="w-8 h-8 rounded-full object-cover" alt="">`;
-                }
-            } catch {}
+            const user = getLoggedUser();
+            if (user?.avatarUrl) {
+                sessionAvatarHtml = `<img src="${escapeHtml(user.avatarUrl)}" class="w-8 h-8 rounded-full object-cover" alt="">`;
+            }
 
             titleEl.innerHTML = `<i class="fa-solid fa-comments text-secondary"></i> Comentários (${data.comments.length})`;
             bodyEl.innerHTML = `
@@ -993,6 +1038,9 @@
         
         const downloadBtn = document.getElementById('downloadBtn');
         if (downloadBtn) downloadBtn.href = v.videoUrl;
+
+        // Reseta texto do botão de curtir
+        document.getElementById('likeBtnText').textContent = 'Curtir';
 
         await updateInteractionUI(v.eventId);
         renderRelated();
@@ -1111,17 +1159,30 @@
         }
     })();
 
+    // ========== Atualizado: usa informações do usuário logado ==========
     function loadSessionAvatar() {
-        try {
-            const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
-            if (session.avatarUrl) {
-                const el = document.getElementById('userAvatarHeader');
-                if (el) el.innerHTML = `<img src="${escapeHtml(session.avatarUrl)}" class="w-full h-full object-cover" alt="">`;
-                
-                const commentEl = document.getElementById('commentUserAvatar');
-                if (commentEl) commentEl.innerHTML = `<img src="${escapeHtml(session.avatarUrl)}" class="w-full h-full object-cover" alt="">`;
-            }
-        } catch {}
+        const user = getLoggedUser();
+        if (!user) return;
+
+        // Header
+        const el = document.getElementById('userAvatarHeader');
+        if (el && user.avatarUrl) {
+            el.innerHTML = `<img src="${escapeHtml(user.avatarUrl)}" class="w-full h-full object-cover" alt="">`;
+        }
+
+        // Avatar da área de comentários (desktop)
+        const commentEl = document.getElementById('commentUserAvatar');
+        if (commentEl && user.avatarUrl) {
+            commentEl.innerHTML = `<img src="${escapeHtml(user.avatarUrl)}" class="w-full h-full object-cover" alt="">`;
+        }
+
+        // Garante que o perfil do usuário logado esteja no cache para displayName/avatarHtml
+        if (user.pubkey) {
+            profileCache.set(user.pubkey, {
+                name: user.name || '',
+                picture: user.avatarUrl || ''
+            });
+        }
     }
 
     loadSessionAvatar();
