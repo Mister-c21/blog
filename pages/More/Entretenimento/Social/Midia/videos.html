@@ -1,1168 +1,1031 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LorePlay - Vídeos</title>
-    <link rel="icon" type="image/png" href="./Src/FavicoLP.png">
-    <link rel="apple-touch-icon" href="./Src/FavicoLP.png">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#ffffff',
-                        secondary: '#7c3aed',
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        body {
-            background: #ffffff;
-            color: #1f2937;
-        }
-        .video-thumb {
-            aspect-ratio: 16 / 9;
-            background: #f3f4f6;
-            position: relative;
-            overflow: hidden;
-            border-radius: 12px;
-        }
-        .video-thumb video,
-        .video-thumb img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .video-thumb .play-overlay {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0,0,0,0.35);
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        .video-card:hover .play-overlay { opacity: 1; }
-        .duration-badge {
-            position: absolute;
-            bottom: 8px;
-            right: 8px;
-            background: rgba(0,0,0,0.75);
-            color: #fff;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-        .sidebar-link.active {
-            background: #f5f3ff;
-            color: #7c3aed;
-            font-weight: 600;
-        }
-        .chip {
-            white-space: nowrap;
-            padding: 0.4rem 0.9rem;
-            border-radius: 9999px;
-            background: #f3f4f6;
-            color: #4b5563;
-            font-size: 0.8rem;
-            font-weight: 500;
-            border: 1px solid transparent;
-            transition: all 0.15s;
-        }
-        .chip:hover { background: #e5e7eb; }
-        .chip.active {
-            background: #7c3aed;
-            color: #ffffff;
-        }
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>LorePlay - Vídeos</title>
+ <link rel="icon" type="image/png" href="./Src/FavicoLP.png">
+ <link rel="apple-touch-icon" href="./Src/FavicoLP.png">
+ <script src="https://cdn.tailwindcss.com"></script>
+ <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+ <script>
+ tailwind.config = {
+ theme: {
+ extend: {
+ colors: {
+ primary: '#ffffff',
+ secondary: '#7c3aed',
+ }
+ }
+ }
+ }
+ </script>
+ <style>
+ .no-scrollbar::-webkit-scrollbar { display: none; }
+ .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+ body {
+ background: #ffffff;
+ color: #1f2937;
+ }
+ .video-thumb {
+ aspect-ratio: 16 / 9;
+ background: #f3f4f6;
+ position: relative;
+ overflow: hidden;
+ border-radius: 12px;
+ }
+ .video-thumb video,
+ .video-thumb img {
+ width: 100%;
+ height: 100%;
+ object-fit: cover;
+ }
+ .video-thumb .play-overlay {
+ position: absolute;
+ inset: 0;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ background: rgba(0,0,0,0.35);
+ opacity: 0;
+ transition: opacity 0.2s;
+ }
+ .video-card:hover .play-overlay { opacity: 1; }
+ .duration-badge {
+ position: absolute;
+ bottom: 8px;
+ right: 8px;
+ background: rgba(0,0,0,0.75);
+ color: #fff;
+ font-size: 11px;
+ font-weight: 600;
+ padding: 2px 6px;
+ border-radius: 4px;
+ }
+ .sidebar-link.active {
+ background: #f5f3ff;
+ color: #7c3aed;
+ font-weight: 600;
+ }
+ .chip {
+ white-space: nowrap;
+ padding: 0.4rem 0.9rem;
+ border-radius: 9999px;
+ background: #f3f4f6;
+ color: #4b5563;
+ font-size: 0.8rem;
+ font-weight: 500;
+ border: 1px solid transparent;
+ transition: all 0.15s;
+ }
+ .chip:hover { background: #e5e7eb; }
+ .chip.active {
+ background: #7c3aed;
+ color: #ffffff;
+ }
 
-        #videoModal {
-            position: fixed;
-            inset: 0;
-            z-index: 100;
-            display: flex;
-            align-items: stretch;
-            justify-content: stretch;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
-        #videoModal.open {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        #videoModalBackdrop {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.45);
-            backdrop-filter: blur(2px);
-        }
-        #videoModalPanel {
-            position: relative;
-            z-index: 1;
-            width: 100%;
-            height: 100%;
-            max-height: 100%;
-            margin: 0;
-            background: #ffffff;
-            border-radius: 0;
-            border: none;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            box-shadow: none;
-            transform: translateY(100%);
-            transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
-            will-change: transform;
-        }
-        #videoModal.open #videoModalPanel {
-            transform: translateY(0);
-        }
-        #videoModalPanel.dragging {
-            transition: none;
-        }
+ #videoModal {
+ position: fixed;
+ inset: 0;
+ z-index: 100;
+ display: flex;
+ align-items: stretch;
+ justify-content: stretch;
+ opacity: 0;
+ pointer-events: none;
+ transition: opacity 0.3s ease;
+ }
+ #videoModal.open {
+ opacity: 1;
+ pointer-events: auto;
+ }
+ #videoModalBackdrop {
+ position: absolute;
+ inset: 0;
+ background: rgba(0, 0, 0, 0.45);
+ backdrop-filter: blur(2px);
+ }
+ #videoModalPanel {
+ position: relative;
+ z-index: 1;
+ width: 100%;
+ height: 100%;
+ max-height: 100%;
+ margin: 0;
+ background: #ffffff;
+ border-radius: 0;
+ border: none;
+ overflow: hidden;
+ display: flex;
+ flex-direction: column;
+ box-shadow: none;
+ transform: translateY(100%);
+ transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+ will-change: transform;
+ }
+ #videoModal.open #videoModalPanel {
+ transform: translateY(0);
+ }
+ #videoModalPanel.dragging {
+ transition: none;
+ }
 
-        #modalDragHandle {
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            padding: 8px 0 2px;
-            cursor: grab;
-            touch-action: none;
-            user-select: none;
-            flex-shrink: 0;
-        }
-        @media (max-width: 767px) {
-            #modalDragHandle {
-                display: flex;
-            }
-        }
-        #modalDragHandle .handle-bar {
-            width: 40px;
-            height: 4px;
-            border-radius: 9999px;
-            background: #d1d5db;
-        }
+ #modalDragHandle {
+ display: none;
+ flex-direction: column;
+ align-items: center;
+ padding: 8px 0 2px;
+ cursor: grab;
+ touch-action: none;
+ user-select: none;
+ flex-shrink: 0;
+ }
+ @media (max-width: 767px) {
+ #modalDragHandle {
+ display: flex;
+ }
+ }
+ #modalDragHandle .handle-bar {
+ width: 40px;
+ height: 4px;
+ border-radius: 9999px;
+ background: #d1d5db;
+ }
 
-        body.modal-open {
-            overflow: hidden;
-            position: fixed;
-            width: 100%;
-            left: 0;
-            right: 0;
-        }
-
-        .submodal-pane {
-            position: absolute;
-            inset: 0;
-            background: #ffffff;
-            z-index: 60;
-            display: flex;
-            flex-direction: column;
-            transform: translateY(100%);
-            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-        }
-        .submodal-pane.open {
-            transform: translateY(0);
-        }
-    </style>
+ body.modal-open {
+ overflow: hidden;
+ position: fixed;
+ width: 100%;
+ left: 0;
+ right: 0;
+ }
+ </style>
 </head>
 <body class="min-h-screen flex flex-col bg-white text-gray-800">
 
-    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200">
-        <div class="flex items-center gap-3 px-3 md:px-4 h-14">
-            <button type="button" id="menuToggle" class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700 md:hidden shrink-0" aria-label="Menu">
-                <i class="fa-solid fa-bars"></i>
-            </button>
-            <a href="../../Social.html" class="flex items-center gap-2 shrink-0 mr-2">
-                <i class="fa-solid fa-feather text-secondary text-xl"></i>
-                <span class="font-bold text-lg tracking-tight hidden sm:inline text-gray-900">Lore<span class="text-secondary">Videos</span></span>
-            </a>
-
-            <div class="flex-1 min-w-0 max-w-[11rem] sm:max-w-xs md:max-w-md lg:max-w-lg mx-auto flex items-center gap-2">
-                <div class="flex flex-1 min-w-0 items-center bg-gray-50 border border-gray-200 rounded-full overflow-hidden focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
-                    <input type="search" id="searchInput" placeholder="Pesquisar vídeos Nostr..."
-                           class="flex-1 min-w-0 bg-transparent px-3 sm:px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 outline-none"
-                           onkeydown="if(event.key==='Enter') searchVideos()">
-                    <button type="button" onclick="searchVideos()" class="shrink-0 px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 border-l border-gray-200 text-gray-500 hover:text-secondary transition">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                    </button>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-1 shrink-0">
-                <a href="../../Social.html" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-gray-100 text-sm text-gray-500 hover:text-secondary transition" title="Voltar ao Feed">
-                    <i class="fa-solid fa-house"></i>
-                    <span class="hidden lg:inline">Feed</span>
-                </a>
-                <a href="imagens.html" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-gray-100 text-sm text-gray-500 hover:text-secondary transition">
-                    <i class="fa-solid fa-image"></i>
-                    <span class="hidden lg:inline">Imagens</span>
-                </a>
-                <div id="userAvatarHeader" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-secondary text-sm overflow-hidden ml-1 border border-gray-200">
-                    <i class="fa-solid fa-user"></i>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <div class="flex flex-1 min-h-0">
-        <aside id="sidebar" class="fixed md:sticky top-14 left-0 z-40 h-[calc(100vh-3.5rem)] w-60 bg-white border-r border-gray-200 p-3 transform -translate-x-full md:translate-x-0 transition-transform duration-200 overflow-y-auto no-scrollbar">
-            <nav class="space-y-1">
-                <a href="../../Social.html" class="sidebar-link flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition">
-                    <i class="fa-solid fa-house w-5 text-center"></i> Início (Feed)
-                </a>
-                <a href="videos.html" class="sidebar-link active flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm hover:bg-gray-100 transition">
-                    <i class="fa-solid fa-play w-5 text-center text-secondary"></i> Vídeos
-                </a>
-                <a href="imagens.html" class="sidebar-link flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition">
-                    <i class="fa-solid fa-image w-5 text-center"></i> Imagens
-                </a>
-                <a href="links.html" class="sidebar-link flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition">
-                    <i class="fa-solid fa-link w-5 text-center"></i> Links
-                </a>
-                <div class="border-t border-gray-100 my-3"></div>
-                <p class="px-3 text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-1">Explorar</p>
-                <button type="button" onclick="filterByTag('')" class="sidebar-link w-full flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition text-left">
-                    <i class="fa-solid fa-fire w-5 text-center text-secondary"></i> Em alta
-                </button>
-                <button type="button" onclick="filterByTag('nostr')" class="sidebar-link w-full flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition text-left">
-                    <i class="fa-solid fa-hashtag w-5 text-center text-secondary"></i> #nostr
-                </button>
-                <button type="button" onclick="filterByTag('video')" class="sidebar-link w-full flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition text-left">
-                    <i class="fa-solid fa-film w-5 text-center text-secondary"></i> #video
-                </button>
-            </nav>
-            <p class="px-3 mt-6 text-[11px] text-gray-400">Vídeos da rede Nostr · LoreSocial</p>
-        </aside>
-        <div id="sidebarOverlay" class="fixed inset-0 bg-black/40 z-30 hidden md:hidden" onclick="closeSidebar()"></div>
-
-        <main class="flex-1 min-w-0 p-3 md:p-5 pb-20 bg-gray-50">
-            <div class="flex gap-2 overflow-x-auto no-scrollbar mb-4 pb-1">
-                <button type="button" class="chip active" data-filter="" onclick="setChipFilter(this, '')">Todos</button>
-                <button type="button" class="chip" data-filter="nostr" onclick="setChipFilter(this, 'nostr')">Nostr</button>
-                <button type="button" class="chip" data-filter="bitcoin" onclick="setChipFilter(this, 'bitcoin')">Bitcoin</button>
-                <button type="button" class="chip" data-filter="video" onclick="setChipFilter(this, 'video')">Video</button>
-                <button type="button" class="chip" data-filter="music" onclick="setChipFilter(this, 'music')">Música</button>
-                <button type="button" class="chip" data-filter="art" onclick="setChipFilter(this, 'art')">Arte</button>
-            </div>
-
-            <section id="gridSection">
-                <div id="statusBar" class="flex items-center gap-2 text-sm text-gray-500 mb-4">
-                    <i class="fa-solid fa-spinner fa-spin text-secondary"></i>
-                    <span>Conectando aos relays Nostr...</span>
-                </div>
-                <div id="videoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6">
-                </div>
-                <div id="loadMoreWrap" class="hidden text-center py-8">
-                    <button type="button" onclick="loadMoreVideos()" class="px-5 py-2.5 rounded-full bg-white border border-gray-200 hover:border-secondary/40 hover:text-secondary text-sm font-medium text-gray-700 transition shadow-sm">
-                        Carregar mais
-                    </button>
-                </div>
-            </section>
-        </main>
-    </div>
-
-    <!-- Modal fullscreen total -->
-    <div id="videoModal" aria-hidden="true" role="dialog" aria-modal="true">
-        <div id="videoModalBackdrop"></div>
-        <div id="videoModalPanel">
-            <div id="modalDragHandle" aria-hidden="true">
-                <div class="handle-bar"></div>
-                <p class="text-[10px] text-gray-400 mt-1">Deslize para baixo para fechar</p>
-            </div>
-
-            <div class="flex items-center justify-between px-3 py-2 border-b border-gray-100 shrink-0 bg-white">
-                <span class="text-xs text-gray-400 font-medium truncate pr-2">
-                    <i class="fa-solid fa-play text-secondary mr-1"></i> LoreVideos · Nostr
-                </span>
-                <button type="button" id="modalCloseBtn" onclick="closePlayer()"
-                        class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600 transition"
-                        aria-label="Fechar">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
-            </div>
-
-            <div class="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden bg-white relative">
-                
-                <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col">
-                    <div id="videoModalPlayer" class="bg-black w-full shrink-0"></div>
-
-                    <div class="p-4 space-y-3 max-w-3xl w-full mx-auto">
-                        <h1 id="playerTitle" class="text-base md:text-lg font-bold text-gray-900 leading-snug"></h1>
-
-                        <div class="flex flex-wrap items-center justify-between gap-3">
-                            <div class="flex items-center gap-3 min-w-0">
-                                <div id="playerAvatar" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200"></div>
-                                <div class="min-w-0">
-                                    <p id="playerAuthor" class="font-semibold text-sm text-gray-900 truncate"></p>
-                                    <p id="playerDate" class="text-xs text-gray-400"></p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3 text-xs text-gray-500">
-                                <button type="button" onclick="openSubmodal('views')" class="hover:text-secondary transition flex items-center gap-1 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-full border border-gray-100">
-                                    <i class="fa-solid fa-eye text-secondary"></i> <span id="viewCountBadge" class="font-medium">0</span> visualizações
-                                </button>
-                                <button type="button" onclick="openSubmodal('likes')" class="hover:text-secondary transition flex items-center gap-1 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-full border border-gray-100">
-                                    <i class="fa-solid fa-heart text-secondary"></i> <span id="likeCountBadge" class="font-medium">0</span> curtidas
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 border-y border-gray-100">
-                            <button type="button" id="likeBtn" onclick="likeVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
-                                <i id="likeBtnIcon" class="fa-regular fa-heart text-secondary"></i> <span id="likeBtnText">Curtir</span>
-                            </button>
-                            <button type="button" onclick="shareVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
-                                <i class="fa-solid fa-share text-secondary"></i> Compartilhar
-                            </button>
-                            <a id="downloadBtn" href="#" target="_blank" download class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
-                                <i class="fa-solid fa-download text-secondary"></i> Baixar
-                            </a>
-                        </div>
-
-                        <div id="playerDescription"
-                             class="text-sm text-gray-600 bg-gray-50 rounded-xl p-3 whitespace-pre-wrap break-words max-h-32 overflow-y-auto border border-gray-100"></div>
-
-                        <div class="block md:hidden pt-4 border-t border-gray-100">
-                            <h2 class="text-xs font-semibold text-secondary mb-2 uppercase tracking-wide">Mais vídeos</h2>
-                            <div id="relatedListMobile" class="space-y-2"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="hidden md:flex flex-col w-80 lg:w-96 border-l border-gray-200 bg-gray-50/50 p-4 overflow-y-auto no-scrollbar shrink-0">
-                    <h2 class="text-xs font-semibold text-secondary mb-3 uppercase tracking-wide">Mais vídeos</h2>
-                    <div id="relatedListDesktop" class="space-y-3"></div>
-                </div>
-
-                <div id="dynamicSubmodal" class="submodal-pane">
-                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white shrink-0">
-                        <h2 id="submodalTitle" class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                            <i class="fa-solid fa-heart text-secondary"></i> Submodal
-                        </h2>
-                        <button type="button" onclick="closeSubmodal()" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    </div>
-                    <div id="submodalBody" class="flex-1 overflow-y-auto p-4 space-y-4 bg-white"></div>
-                </div>
-
-            </div>
-        </div>
-    </div>
-
-    <script type="module">
-    import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
-    import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
-
-    const RELAYS = [
-        'wss://relay.damus.io',
-        'wss://nos.lol',
-        'wss://relay.nostr.band',
-        'wss://relay.primal.net'
-    ];
-
-    const VIDEO_EXT = /\.(mp4|webm|mov|m4v|ogg)(\?[^\s]*)?$/i;
-    const pool = new NostrTools.SimplePool();
-    const profileCache = new Map();
-
-    let allVideos = [];
-    let filteredVideos = [];
-    let oldestTimestamp = Math.floor(Date.now() / 1000);
-    let isLoading = false;
-    let activeFilter = '';
-    let currentPlayingId = null;
-    let scrollYBeforeModal = 0;
-
-    const videoInteractionsCache = new Map();
-    const userLikedMap = new Map();
-    const userLikeEventIdMap = new Map();
-
-    let currentUserData = {
-        pubkey: '',
-        privateKey: null,
-        nickname: '',
-        avatarUrl: ''
-    };
-
-    function loadSessionFromNostr() {
-        try {
-            const session = localStorage.getItem('nostr_session');
-            if (!session) return;
-            const parsed = JSON.parse(session);
-            if (!parsed.privateKeyHex || !parsed.pubkey) return;
-
-            currentUserData.privateKey = hexToBytes(parsed.privateKeyHex);
-            currentUserData.pubkey = parsed.pubkey;
-            currentUserData.nickname = parsed.nickname || '';
-            currentUserData.avatarUrl = parsed.avatarUrl || '';
-
-            if (currentUserData.pubkey) {
-                const cleanName = (currentUserData.nickname || '').replace(/^@/, '');
-                profileCache.set(currentUserData.pubkey, {
-                    name: cleanName,
-                    picture: currentUserData.avatarUrl || ''
-                });
-            }
-        } catch (e) {
-            console.error('Erro ao carregar sessão:', e);
-        }
-    }
-
-    function isUserLoggedIn() {
-        return !!(currentUserData.privateKey && currentUserData.pubkey);
-    }
-
-    function getMyUsername() {
-        if (currentUserData.nickname) {
-            return currentUserData.nickname.startsWith('@')
-                ? currentUserData.nickname
-                : '@' + currentUserData.nickname;
-        }
-        const p = profileCache.get(currentUserData.pubkey);
-        if (p?.name) return '@' + p.name;
-        if (currentUserData.pubkey) return '@' + currentUserData.pubkey.slice(0, 10) + '…';
-        return '@você';
-    }
-
-    function isMobile() {
-        return window.matchMedia('(max-width: 767px)').matches;
-    }
-
-    window.closeSidebar = function() {
-        document.getElementById('sidebar').classList.add('-translate-x-full');
-        document.getElementById('sidebarOverlay').classList.add('hidden');
-    };
-    document.getElementById('menuToggle')?.addEventListener('click', () => {
-        const sb = document.getElementById('sidebar');
-        const ov = document.getElementById('sidebarOverlay');
-        sb.classList.toggle('-translate-x-full');
-        ov.classList.toggle('hidden');
-    });
-
-    function escapeHtml(text) {
-        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-        return String(text ?? '').replace(/[&<>"']/g, m => map[m]);
-    }
-
-    function setStatus(html) {
-        const el = document.getElementById('statusBar');
-        if (el) el.innerHTML = html;
-    }
-
-    function timeAgo(ts) {
-        const s = Math.floor(Date.now() / 1000) - ts;
-        if (s < 60) return 'agora';
-        if (s < 3600) return Math.floor(s / 60) + ' min';
-        if (s < 86400) return Math.floor(s / 3600) + ' h';
-        if (s < 604800) return Math.floor(s / 86400) + ' d';
-        return new Date(ts * 1000).toLocaleDateString('pt-BR');
-    }
-
-    function extractTitle(content, max = 80) {
-        const clean = String(content || '')
-            .replace(/https?:\/\/[^\s]+/gi, '')
-            .replace(/\s+/g, ' ')
-            .trim();
-        if (!clean) return 'Vídeo Nostr';
-        return clean.length > max ? clean.slice(0, max) + '…' : clean;
-    }
-
-    function extractVideoUrls(ev) {
-        const urls = new Set();
-        if (ev.tags) {
-            ev.tags.forEach(tag => {
-                if ((tag[0] === 'video' || tag[0] === 'url' || tag[0] === 'r' || tag[0] === 'imeta') && tag[1] && VIDEO_EXT.test(tag[1])) {
-                    urls.add(tag[1].split(/\s/)[0]);
-                }
-                if (tag[0] === 'imeta') {
-                    tag.forEach(part => {
-                        const m = String(part).match(/url\s+(https?:\/\/\S+)/i);
-                        if (m && VIDEO_EXT.test(m[1])) urls.add(m[1]);
-                    });
-                }
-            });
-        }
-        const content = ev.content || '';
-        const matches = content.match(/https?:\/\/[^\s<>"']+/gi) || [];
-        matches.forEach(u => {
-            const clean = u.replace(/[.,;:!?)]+$/, '');
-            if (VIDEO_EXT.test(clean)) urls.add(clean);
-        });
-        return Array.from(urls);
-    }
-
-    function eventHashtags(ev) {
-        const tags = new Set();
-        (ev.tags || []).forEach(t => {
-            if (t[0] === 't' && t[1]) tags.add(String(t[1]).toLowerCase());
-        });
-        const m = String(ev.content || '').match(/#[\p{L}\p{N}_]+/gu) || [];
-        m.forEach(h => tags.add(h.slice(1).toLowerCase()));
-        return tags;
-    }
-
-    async function fetchProfiles(pubkeys) {
-        const missing = pubkeys.filter(pk => pk && !profileCache.has(pk));
-        if (!missing.length) return;
-        try {
-            const events = await pool.querySync(RELAYS, {
-                kinds: [0],
-                authors: missing,
-                limit: missing.length
-            });
-            const latest = new Map();
-            (events || []).forEach(ev => {
-                const prev = latest.get(ev.pubkey);
-                if (!prev || ev.created_at > prev.created_at) latest.set(ev.pubkey, ev);
-            });
-            latest.forEach((ev, pubkey) => {
-                try {
-                    const data = JSON.parse(ev.content || '{}');
-                    profileCache.set(pubkey, {
-                        name: data.name || data.display_name || '',
-                        picture: data.picture || data.image || ''
-                    });
-                } catch {
-                    profileCache.set(pubkey, { name: '', picture: '' });
-                }
-            });
-            missing.forEach(pk => {
-                if (!profileCache.has(pk)) profileCache.set(pk, { name: '', picture: '' });
-            });
-        } catch (e) {
-            console.error('Perfis:', e);
-        }
-    }
-
-    function displayName(pubkey) {
-        if (currentUserData.pubkey && pubkey === currentUserData.pubkey) {
-            return getMyUsername();
-        }
-        const p = profileCache.get(pubkey);
-        if (p?.name) return '@' + p.name;
-        return '@' + pubkey.slice(0, 10) + '…';
-    }
-
-    function avatarHtml(pubkey, sizeClass = 'w-9 h-9') {
-        let pic = profileCache.get(pubkey)?.picture;
-        if (currentUserData.pubkey && pubkey === currentUserData.pubkey && currentUserData.avatarUrl) {
-            pic = currentUserData.avatarUrl;
-        }
-        if (pic) {
-            return `<img src="${escapeHtml(pic)}" class="${sizeClass} rounded-full object-cover" alt="" loading="lazy"
-                onerror="this.outerHTML='<div class=\\'${sizeClass} rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center\\'><i class=\\'fa-solid fa-user text-xs text-secondary\\'></i></div>'">`;
-        }
-        return `<div class="${sizeClass} rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0"><i class="fa-solid fa-user text-xs text-secondary"></i></div>`;
-    }
-
-    async function fetchVideoEvents(until) {
-        const filters = [
-            { kinds: [1], limit: 80, ...(until ? { until } : {}) },
-            { kinds: [1], '#t': ['video'], limit: 40, ...(until ? { until } : {}) },
-            { kinds: [1], '#t': ['videos'], limit: 20, ...(until ? { until } : {}) }
-        ];
-        const results = await Promise.allSettled(
-            filters.map(f => pool.querySync(RELAYS, f))
-        );
-        const map = new Map();
-        results.forEach(r => {
-            if (r.status === 'fulfilled' && r.value) {
-                r.value.forEach(ev => map.set(ev.id, ev));
-            }
-        });
-        return Array.from(map.values());
-    }
-
-    function eventsToVideoItems(events) {
-        const items = [];
-        events.forEach(ev => {
-            const urls = extractVideoUrls(ev);
-            if (!urls.length) return;
-            urls.forEach((url, i) => {
-                items.push({
-                    id: ev.id + (i ? '-' + i : ''),
-                    eventId: ev.id,
-                    pubkey: ev.pubkey,
-                    created_at: ev.created_at,
-                    content: ev.content || '',
-                    videoUrl: url,
-                    tags: eventHashtags(ev)
-                });
-            });
-        });
-        return items;
-    }
-
-    async function loadInitial() {
-        if (isLoading) return;
-        isLoading = true;
-        setStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>Buscando vídeos nos relays...</span>`);
-
-        try {
-            const events = await fetchVideoEvents();
-            const items = eventsToVideoItems(events);
-            items.sort((a, b) => b.created_at - a.created_at);
-
-            const seen = new Set();
-            allVideos = items.filter(v => {
-                if (seen.has(v.videoUrl)) return false;
-                seen.add(v.videoUrl);
-                return true;
-            });
-
-            if (allVideos.length) {
-                oldestTimestamp = Math.min(...allVideos.map(v => v.created_at));
-            }
-
-            const pubs = [...new Set(allVideos.map(v => v.pubkey))];
-            await fetchProfiles(pubs);
-
-            applyFilter(activeFilter);
-            document.getElementById('loadMoreWrap').classList.remove('hidden');
-
-            if (!allVideos.length) {
-                setStatus(`<i class="fa-solid fa-video-slash text-gray-400"></i><span>Nenhum vídeo encontrado. Tente carregar mais ou outro filtro.</span>`);
-            } else {
-                setStatus(`<span class="text-gray-500">${filteredVideos.length} vídeo(s) · rede Nostr</span>`);
-            }
-        } catch (e) {
-            console.error(e);
-            setStatus(`<i class="fa-solid fa-triangle-exclamation text-amber-500"></i><span>Falha ao conectar. Recarregue a página.</span>`);
-        } finally {
-            isLoading = false;
-        }
-    }
-
-    window.loadMoreVideos = async function() {
-        if (isLoading) return;
-        isLoading = true;
-        setStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>Carregando mais...</span>`);
-        try {
-            const events = await fetchVideoEvents(oldestTimestamp - 1);
-            const items = eventsToVideoItems(events);
-            const seen = new Set(allVideos.map(v => v.videoUrl));
-            const newOnes = items.filter(v => !seen.has(v.videoUrl));
-            if (newOnes.length) {
-                oldestTimestamp = Math.min(oldestTimestamp, ...newOnes.map(v => v.created_at));
-                allVideos = allVideos.concat(newOnes).sort((a, b) => b.created_at - a.created_at);
-                await fetchProfiles([...new Set(newOnes.map(v => v.pubkey))]);
-            }
-            applyFilter(activeFilter);
-            setStatus(`<span class="text-gray-500">${filteredVideos.length} vídeo(s)</span>`);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            isLoading = false;
-        }
-    };
-
-    function applyFilter(tag) {
-        activeFilter = (tag || '').toLowerCase();
-        if (!activeFilter) {
-            filteredVideos = allVideos.slice();
-        } else {
-            filteredVideos = allVideos.filter(v => {
-                if (v.tags.has(activeFilter)) return true;
-                return (v.content || '').toLowerCase().includes(activeFilter);
-            });
-        }
-        renderGrid();
-        if (currentPlayingId) renderRelated();
-    }
-
-    window.filterByTag = function(tag) {
-        document.querySelectorAll('.chip').forEach(c => {
-            c.classList.toggle('active', (c.dataset.filter || '') === (tag || ''));
-        });
-        applyFilter(tag);
-        setStatus(`<span class="text-gray-500">${filteredVideos.length} vídeo(s)${tag ? ' · #' + escapeHtml(tag) : ''}</span>`);
-        closeSidebar();
-    };
-
-    window.setChipFilter = function(btn, tag) {
-        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-        btn.classList.add('active');
-        applyFilter(tag);
-        setStatus(`<span class="text-gray-500">${filteredVideos.length} vídeo(s)${tag ? ' · #' + escapeHtml(tag) : ''}</span>`);
-    };
-
-    window.searchVideos = function() {
-        const q = (document.getElementById('searchInput')?.value || '').trim().toLowerCase().replace(/^#/, '');
-        if (!q) {
-            applyFilter('');
-            document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', !c.dataset.filter));
-            return;
-        }
-        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-        filteredVideos = allVideos.filter(v => {
-            const name = (profileCache.get(v.pubkey)?.name || '').toLowerCase();
-            return v.tags.has(q) ||
-                (v.content || '').toLowerCase().includes(q) ||
-                name.includes(q) ||
-                v.videoUrl.toLowerCase().includes(q);
-        });
-        renderGrid();
-        setStatus(`<span class="text-gray-500">${filteredVideos.length} resultado(s) para “${escapeHtml(q)}”</span>`);
-    };
-
-    function renderGrid() {
-        const grid = document.getElementById('videoGrid');
-        if (!filteredVideos.length) {
-            grid.innerHTML = `
-                <div class="col-span-full text-center py-16 text-gray-400">
-                    <i class="fa-solid fa-video-slash text-4xl mb-3 opacity-50"></i>
-                    <p class="text-sm">Nenhum vídeo neste filtro.</p>
-                </div>`;
-            return;
-        }
-
-        grid.innerHTML = filteredVideos.map(v => {
-            const title = extractTitle(v.content);
-            const name = displayName(v.pubkey);
-            return `
-            <article class="video-card cursor-pointer group bg-white rounded-2xl border border-gray-100 p-2 shadow-sm hover:shadow-md hover:border-secondary/20 transition" onclick="playVideo('${escapeHtml(v.id)}')">
-                <div class="video-thumb border border-gray-100">
-                    <video src="${escapeHtml(v.videoUrl)}" muted preload="metadata" playsinline
-                           onloadeddata="this.currentTime=0.1"></video>
-                    <div class="play-overlay">
-                        <div class="w-12 h-12 rounded-full bg-secondary/90 flex items-center justify-center shadow-lg">
-                            <i class="fa-solid fa-play text-white ml-0.5"></i>
-                        </div>
-                    </div>
-                    <span class="duration-badge"><i class="fa-solid fa-play text-[9px] mr-1"></i>Vídeo</span>
-                </div>
-                <div class="flex gap-3 mt-3 px-1 pb-1">
-                    ${avatarHtml(v.pubkey)}
-                    <div class="min-w-0 flex-1">
-                        <h3 class="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug group-hover:text-secondary transition">${escapeHtml(title)}</h3>
-                        <p class="text-xs text-gray-500 mt-1 truncate">${escapeHtml(name)}</p>
-                        <p class="text-[11px] text-gray-400">${timeAgo(v.created_at)}</p>
-                    </div>
-                </div>
-            </article>`;
-        }).join('');
-    }
-
-    function renderRelated() {
-        const others = filteredVideos.filter(v => v.id !== currentPlayingId).slice(0, 12);
-        const html = others.map(v => `
-            <button type="button" onclick="playVideo('${escapeHtml(v.id)}')"
-                    class="flex gap-2 w-full text-left hover:bg-gray-100/80 rounded-lg p-1.5 transition border border-transparent">
-                <div class="w-36 md:w-40 shrink-0 aspect-video rounded-lg overflow-hidden bg-gray-100 border border-gray-100">
-                    <video src="${escapeHtml(v.videoUrl)}" muted preload="metadata" class="w-full h-full object-cover"
-                           onloadeddata="this.currentTime=0.1"></video>
-                </div>
-                <div class="min-w-0 flex-1 py-0.5">
-                    <p class="text-xs font-semibold text-gray-900 line-clamp-2 leading-snug">${escapeHtml(extractTitle(v.content, 60))}</p>
-                    <p class="text-[11px] text-gray-500 mt-1 truncate">${escapeHtml(displayName(v.pubkey))}</p>
-                    <p class="text-[10px] text-gray-400">${timeAgo(v.created_at)}</p>
-                </div>
-            </button>
-        `).join('') || '<p class="text-xs text-gray-400 p-2">Nenhum outro vídeo.</p>';
-
-        const desktopList = document.getElementById('relatedListDesktop');
-        const mobileList = document.getElementById('relatedListMobile');
-        if (desktopList) desktopList.innerHTML = html;
-        if (mobileList) mobileList.innerHTML = html;
-    }
-
-    async function loadVideoInteractions(eventId) {
-        try {
-            const events = await pool.querySync(RELAYS, {
-                kinds: [7],
-                '#e': [eventId]
-            });
-
-            const likes = [];
-            const pubkeysToFetch = new Set();
-            let myLikeEventId = null;
-
-            events.forEach(ev => {
-                pubkeysToFetch.add(ev.pubkey);
-                if (ev.kind === 7) {
-                    likes.push({
-                        pubkey: ev.pubkey,
-                        time: timeAgo(ev.created_at),
-                        eventId: ev.id
-                    });
-                    if (currentUserData.pubkey && ev.pubkey === currentUserData.pubkey) {
-                        myLikeEventId = ev.id;
-                        userLikedMap.set(eventId, true);
-                        userLikeEventIdMap.set(eventId, ev.id);
-                    }
-                }
-            });
-
-            if (!myLikeEventId) {
-                userLikedMap.set(eventId, false);
-                userLikeEventIdMap.delete(eventId);
-            }
-
-            await fetchProfiles([...pubkeysToFetch]);
-
-            if (currentUserData.pubkey) {
-                const cleanName = (currentUserData.nickname || '').replace(/^@/, '');
-                if (cleanName || currentUserData.avatarUrl) {
-                    profileCache.set(currentUserData.pubkey, {
-                        name: cleanName || profileCache.get(currentUserData.pubkey)?.name || '',
-                        picture: currentUserData.avatarUrl || profileCache.get(currentUserData.pubkey)?.picture || ''
-                    });
-                }
-            }
-
-            const data = {
-                likes,
-                views: likes.map(l => ({ pubkey: l.pubkey, time: l.time }))
-            };
-
-            videoInteractionsCache.set(eventId, data);
-            return data;
-        } catch (e) {
-            console.error('Erro ao carregar interações:', e);
-            return { likes: [], views: [] };
-        }
-    }
-
-    function updateLikeButtonUI(isLiked) {
-        const btn = document.getElementById('likeBtn');
-        const icon = document.getElementById('likeBtnIcon');
-        const text = document.getElementById('likeBtnText');
-        if (!btn || !icon || !text) return;
-
-        if (isLiked) {
-            icon.className = 'fa-solid fa-heart text-red-500';
-            text.textContent = 'Descurtir';
-            btn.classList.add('text-red-500');
-        } else {
-            icon.className = 'fa-regular fa-heart text-secondary';
-            text.textContent = 'Curtir';
-            btn.classList.remove('text-red-500');
-        }
-    }
-
-    window.likeVideo = async function() {
-        const v = allVideos.find(x => x.id === currentPlayingId) || filteredVideos.find(x => x.id === currentPlayingId);
-        if (!v) return;
-
-        if (!isUserLoggedIn()) {
-            alert('Faça login com sua chave privada primeiro (no Feed/Social).');
-            return;
-        }
-
-        const alreadyLiked = userLikedMap.get(v.eventId) || false;
-
-        if (alreadyLiked) {
-            const likeEventId = userLikeEventIdMap.get(v.eventId);
-            if (!likeEventId) {
-                userLikedMap.set(v.eventId, false);
-                updateLikeButtonUI(false);
-                const cached = videoInteractionsCache.get(v.eventId);
-                if (cached) {
-                    cached.likes = cached.likes.filter(l => l.pubkey !== currentUserData.pubkey);
-                    cached.views = cached.views.filter(l => l.pubkey !== currentUserData.pubkey);
-                    videoInteractionsCache.set(v.eventId, cached);
-                    await updateInteractionUI(v.eventId);
-                }
-                return;
-            }
-
-            try {
-                const deletionTemplate = {
-                    kind: 5,
-                    created_at: Math.floor(Date.now() / 1000),
-                    tags: [['e', likeEventId]],
-                    content: 'unlike'
-                };
-                const signedDeletion = NostrTools.finalizeEvent(deletionTemplate, currentUserData.privateKey);
-                await Promise.any(pool.publish(RELAYS, signedDeletion));
-
-                userLikedMap.set(v.eventId, false);
-                userLikeEventIdMap.delete(v.eventId);
-
-                const cached = videoInteractionsCache.get(v.eventId) || { likes: [], views: [] };
-                cached.likes = cached.likes.filter(l => l.pubkey !== currentUserData.pubkey);
-                cached.views = cached.views.filter(l => l.pubkey !== currentUserData.pubkey);
-                videoInteractionsCache.set(v.eventId, cached);
-
-                updateLikeButtonUI(false);
-                await updateInteractionUI(v.eventId);
-            } catch (err) {
-                console.error('Erro ao descurtir:', err);
-                alert('Erro ao remover curtida. Tente novamente.');
-            }
-            return;
-        }
-
-        const tags = [
-            ['e', v.eventId],
-            ['p', v.pubkey]
-        ];
-
-        const eventTemplate = {
-            kind: 7,
-            created_at: Math.floor(Date.now() / 1000),
-            tags,
-            content: '+'
-        };
-
-        try {
-            const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
-            await Promise.any(pool.publish(RELAYS, signedEvent));
-
-            userLikedMap.set(v.eventId, true);
-            userLikeEventIdMap.set(v.eventId, signedEvent.id);
-
-            const cached = videoInteractionsCache.get(v.eventId) || { likes: [], views: [] };
-            if (!cached.likes.some(l => l.pubkey === currentUserData.pubkey)) {
-                cached.likes.unshift({
-                    pubkey: currentUserData.pubkey,
-                    time: 'agora',
-                    eventId: signedEvent.id
-                });
-                cached.views.unshift({ pubkey: currentUserData.pubkey, time: 'agora' });
-                videoInteractionsCache.set(v.eventId, cached);
-            }
-
-            const cleanName = (currentUserData.nickname || '').replace(/^@/, '');
-            profileCache.set(currentUserData.pubkey, {
-                name: cleanName || profileCache.get(currentUserData.pubkey)?.name || '',
-                picture: currentUserData.avatarUrl || profileCache.get(currentUserData.pubkey)?.picture || ''
-            });
-
-            updateLikeButtonUI(true);
-            await updateInteractionUI(v.eventId);
-        } catch (err) {
-            console.error('Erro ao curtir:', err);
-            alert('Erro ao enviar curtida. Tente novamente.');
-        }
-    };
-
-    window.shareVideo = function() {
-        if (navigator.share) {
-            navigator.share({ title: document.getElementById('playerTitle').textContent, url: window.location.href }).catch(() => {});
-        } else {
-            navigator.clipboard.writeText(window.location.href);
-            alert('Link copiado para a área de transferência!');
-        }
-    };
-
-    async function updateInteractionUI(eventId) {
-        const data = await loadVideoInteractions(eventId);
-        document.getElementById('viewCountBadge').textContent = Math.max(data.views.length, 1);
-        document.getElementById('likeCountBadge').textContent = data.likes.length;
-
-        const isLiked = userLikedMap.get(eventId) || false;
-        updateLikeButtonUI(isLiked);
-    }
-
-    window.openSubmodal = function(type) {
-        const pane = document.getElementById('dynamicSubmodal');
-        pane.classList.add('open');
-        renderSubmodalContent(type);
-    };
-
-    window.closeSubmodal = function() {
-        const pane = document.getElementById('dynamicSubmodal');
-        pane.classList.remove('open');
-    };
-
-    async function renderSubmodalContent(type) {
-        const v = allVideos.find(x => x.id === currentPlayingId) || filteredVideos.find(x => x.id === currentPlayingId);
-        if (!v) return;
-        const data = await loadVideoInteractions(v.eventId);
-        const titleEl = document.getElementById('submodalTitle');
-        const bodyEl = document.getElementById('submodalBody');
-
-        if (type === 'views') {
-            titleEl.innerHTML = `<i class="fa-solid fa-eye text-secondary"></i> Visualizações/Interações (${data.views.length})`;
-            bodyEl.innerHTML = !data.views.length ? '<p class="text-xs text-gray-400 italic">Nenhuma interação registrada.</p>' : data.views.map(item => `
-                <div class="flex items-center justify-between p-2 rounded-xl bg-gray-50 border border-gray-100">
-                    <div class="flex items-center gap-3">
-                        ${avatarHtml(item.pubkey, 'w-8 h-8')}
-                        <span class="text-xs font-semibold text-gray-900">${escapeHtml(displayName(item.pubkey))}</span>
-                    </div>
-                    <span class="text-[10px] text-gray-400">${escapeHtml(item.time)}</span>
-                </div>
-            `).join('');
-        } else if (type === 'likes') {
-            titleEl.innerHTML = `<i class="fa-solid fa-heart text-secondary"></i> Curtidas (${data.likes.length})`;
-            bodyEl.innerHTML = !data.likes.length ? '<p class="text-xs text-gray-400 italic">Nenhuma curtida na rede.</p>' : data.likes.map(l => `
-                <div class="flex items-center justify-between p-2 rounded-xl bg-gray-50 border border-gray-100">
-                    <div class="flex items-center gap-3">
-                        ${avatarHtml(l.pubkey, 'w-8 h-8')}
-                        <span class="text-xs font-semibold text-gray-900">${escapeHtml(displayName(l.pubkey))}</span>
-                    </div>
-                    <span class="text-[10px] text-gray-400">${escapeHtml(l.time)}</span>
-                </div>
-            `).join('');
-        }
-    }
-
-    window.playVideo = async function(id) {
-        const v = allVideos.find(x => x.id === id) || filteredVideos.find(x => x.id === id);
-        if (!v) return;
-        currentPlayingId = v.id;
-
-        const modal = document.getElementById('videoModal');
-        const panel = document.getElementById('videoModalPanel');
-        const playerEl = document.getElementById('videoModalPlayer');
-
-        panel.style.transform = '';
-        panel.classList.remove('dragging');
-        closeSubmodal();
-
-        playerEl.innerHTML = `<video src="${escapeHtml(v.videoUrl)}" controls autoplay playsinline></video>`;
-
-        document.getElementById('playerTitle').textContent = extractTitle(v.content, 120);
-        document.getElementById('playerAuthor').textContent = displayName(v.pubkey);
-        document.getElementById('playerDate').textContent = timeAgo(v.created_at) + ' · Nostr';
-        document.getElementById('playerDescription').textContent = v.content || '';
-        document.getElementById('playerAvatar').innerHTML = avatarHtml(v.pubkey, 'w-10 h-10');
-
-        const downloadBtn = document.getElementById('downloadBtn');
-        if (downloadBtn) downloadBtn.href = v.videoUrl;
-
-        updateLikeButtonUI(false);
-
-        await updateInteractionUI(v.eventId);
-        renderRelated();
-
-        scrollYBeforeModal = window.scrollY;
-        document.body.classList.add('modal-open');
-        document.body.style.top = `-${scrollYBeforeModal}px`;
-
-        modal.classList.add('open');
-        modal.setAttribute('aria-hidden', 'false');
-    };
-
-    window.closePlayer = function() {
-        currentPlayingId = null;
-        const modal = document.getElementById('videoModal');
-        const panel = document.getElementById('videoModalPanel');
-        const playerEl = document.getElementById('videoModalPlayer');
-
-        const vid = playerEl?.querySelector('video');
-        if (vid) {
-            vid.pause();
-            vid.removeAttribute('src');
-            vid.load();
-        }
-        if (playerEl) playerEl.innerHTML = '';
-
-        panel.style.transform = '';
-        panel.classList.remove('dragging');
-        closeSubmodal();
-
-        modal.classList.remove('open');
-        modal.setAttribute('aria-hidden', 'true');
-
-        document.body.classList.remove('modal-open');
-        document.body.style.top = '';
-        window.scrollTo(0, scrollYBeforeModal);
-    };
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !isMobile()) closePlayer();
-    });
-
-    (function setupMobileSwipeClose() {
-        const panel = document.getElementById('videoModalPanel');
-        const handle = document.getElementById('modalDragHandle');
-        if (!panel || !handle) return;
-
-        let startY = 0;
-        let currentY = 0;
-        let dragging = false;
-
-        function onStart(clientY) {
-            if (!isMobile()) return;
-            if (!document.getElementById('videoModal').classList.contains('open')) return;
-            if (document.getElementById('dynamicSubmodal').classList.contains('open')) return;
-            dragging = true;
-            startY = clientY;
-            currentY = 0;
-            panel.classList.add('dragging');
-        }
-
-        function onMove(clientY) {
-            if (!dragging) return;
-            const dy = clientY - startY;
-            currentY = Math.max(0, dy);
-            panel.style.transform = `translateY(${currentY}px)`;
-        }
-
-        function onEnd() {
-            if (!dragging) return;
-            dragging = false;
-            panel.classList.remove('dragging');
-
-            const threshold = Math.min(140, window.innerHeight * 0.22);
-            if (currentY >= threshold) {
-                panel.style.transition = 'transform 0.28s ease-out';
-                panel.style.transform = 'translateY(100%)';
-                setTimeout(() => {
-                    panel.style.transition = '';
-                    closePlayer();
-                }, 280);
-            } else {
-                panel.style.transition = 'transform 0.25s ease-out';
-                panel.style.transform = 'translateY(0)';
-                setTimeout(() => {
-                    panel.style.transition = '';
-                    panel.style.transform = '';
-                }, 250);
-            }
-            currentY = 0;
-        }
-
-        handle.addEventListener('touchstart', (e) => {
-            if (e.touches[0]) onStart(e.touches[0].clientY);
-        }, { passive: true });
-
-        handle.addEventListener('touchmove', (e) => {
-            if (!dragging || !e.touches[0]) return;
-            onMove(e.touches[0].clientY);
-        }, { passive: true });
-
-        handle.addEventListener('touchend', onEnd);
-        handle.addEventListener('touchcancel', onEnd);
-
-        const headerBar = panel.querySelector('.border-b.border-gray-100');
-        if (headerBar) {
-            headerBar.addEventListener('touchstart', (e) => {
-                if (e.touches[0]) onStart(e.touches[0].clientY);
-            }, { passive: true });
-            headerBar.addEventListener('touchmove', (e) => {
-                if (!dragging || !e.touches[0]) return;
-                onMove(e.touches[0].clientY);
-            }, { passive: true });
-            headerBar.addEventListener('touchend', onEnd);
-            headerBar.addEventListener('touchcancel', onEnd);
-        }
-    })();
-
-    function loadSessionAvatar() {
-        if (!currentUserData.avatarUrl) return;
-
-        const el = document.getElementById('userAvatarHeader');
-        if (el) {
-            el.innerHTML = `<img src="${escapeHtml(currentUserData.avatarUrl)}" class="w-full h-full object-cover" alt="">`;
-        }
-    }
-
-    loadSessionFromNostr();
-    loadSessionAvatar();
-    loadInitial();
-    </script>
+ <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200">
+ <div class="flex items-center gap-3 px-3 md:px-4 h-14">
+ <button type="button" id="menuToggle" class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700 md:hidden shrink-0" aria-label="Menu">
+ <i class="fa-solid fa-bars"></i>
+ </button>
+ <a href="../../Social.html" class="flex items-center gap-2 shrink-0 mr-2">
+ <i class="fa-solid fa-feather text-secondary text-xl"></i>
+ <span class="font-bold text-lg tracking-tight hidden sm:inline text-gray-900">Lore<span class="text-secondary">Videos</span></span>
+ </a>
+
+ <div class="flex-1 min-w-0 max-w-[11rem] sm:max-w-xs md:max-w-md lg:max-w-lg mx-auto flex items-center gap-2">
+ <div class="flex flex-1 min-w-0 items-center bg-gray-50 border border-gray-200 rounded-full overflow-hidden focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
+ <input type="search" id="searchInput" placeholder="Pesquisar vídeos Nostr..."
+ class="flex-1 min-w-0 bg-transparent px-3 sm:px-4 py-2 text-sm text-gray-800 placeholder:text-gray-400 outline-none"
+ onkeydown="if(event.key==='Enter') searchVideos()">
+ <button type="button" onclick="searchVideos()" class="shrink-0 px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 border-l border-gray-200 text-gray-500 hover:text-secondary transition">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ </button>
+ </div>
+ </div>
+
+ <div class="flex items-center gap-1 shrink-0">
+ <a href="../../Social.html" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-gray-100 text-sm text-gray-500 hover:text-secondary transition" title="Voltar ao Feed">
+ <i class="fa-solid fa-house"></i>
+ <span class="hidden lg:inline">Feed</span>
+ </a>
+ <a href="imagens.html" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-gray-100 text-sm text-gray-500 hover:text-secondary transition">
+ <i class="fa-solid fa-image"></i>
+ <span class="hidden lg:inline">Imagens</span>
+ </a>
+ <div id="userAvatarHeader" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-secondary text-sm overflow-hidden ml-1 border border-gray-200">
+ <i class="fa-solid fa-user"></i>
+ </div>
+ </div>
+ </div>
+ </header>
+
+ <div class="flex flex-1 min-h-0">
+ <aside id="sidebar" class="fixed md:sticky top-14 left-0 z-40 h-[calc(100vh-3.5rem)] w-60 bg-white border-r border-gray-200 p-3 transform -translate-x-full md:translate-x-0 transition-transform duration-200 overflow-y-auto no-scrollbar">
+ <nav class="space-y-1">
+ <a href="../../Social.html" class="sidebar-link flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition">
+ <i class="fa-solid fa-house w-5 text-center"></i> Início (Feed)
+ </a>
+ <a href="videos.html" class="sidebar-link active flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm hover:bg-gray-100 transition">
+ <i class="fa-solid fa-play w-5 text-center text-secondary"></i> Vídeos
+ </a>
+ <a href="imagens.html" class="sidebar-link flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition">
+ <i class="fa-solid fa-image w-5 text-center"></i> Imagens
+ </a>
+ <a href="links.html" class="sidebar-link flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition">
+ <i class="fa-solid fa-link w-5 text-center"></i> Links
+ </a>
+ <div class="border-t border-gray-100 my-3"></div>
+ <p class="px-3 text-[11px] uppercase tracking-wider text-gray-400 font-semibold mb-1">Explorar</p>
+ <button type="button" onclick="filterByTag('')" class="sidebar-link w-full flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition text-left">
+ <i class="fa-solid fa-fire w-5 text-center text-secondary"></i> Em alta
+ </button>
+ <button type="button" onclick="filterByTag('nostr')" class="sidebar-link w-full flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition text-left">
+ <i class="fa-solid fa-hashtag w-5 text-center text-secondary"></i> #nostr
+ </button>
+ <button type="button" onclick="filterByTag('video')" class="sidebar-link w-full flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition text-left">
+ <i class="fa-solid fa-film w-5 text-center text-secondary"></i> #video
+ </button>
+ </nav>
+ <p class="px-3 mt-6 text-[11px] text-gray-400">Vídeos da rede Nostr · LoreSocial</p>
+ </aside>
+ <div id="sidebarOverlay" class="fixed inset-0 bg-black/40 z-30 hidden md:hidden" onclick="closeSidebar()"></div>
+
+ <main class="flex-1 min-w-0 p-3 md:p-5 pb-20 bg-gray-50">
+ <div class="flex gap-2 overflow-x-auto no-scrollbar mb-4 pb-1">
+ <button type="button" class="chip active" data-filter="" onclick="setChipFilter(this, '')">Todos</button>
+ <button type="button" class="chip" data-filter="nostr" onclick="setChipFilter(this, 'nostr')">Nostr</button>
+ <button type="button" class="chip" data-filter="bitcoin" onclick="setChipFilter(this, 'bitcoin')">Bitcoin</button>
+ <button type="button" class="chip" data-filter="video" onclick="setChipFilter(this, 'video')">Video</button>
+ <button type="button" class="chip" data-filter="music" onclick="setChipFilter(this, 'music')">Música</button>
+ <button type="button" class="chip" data-filter="art" onclick="setChipFilter(this, 'art')">Arte</button>
+ </div>
+
+ <section id="gridSection">
+ <div id="statusBar" class="flex items-center gap-2 text-sm text-gray-500 mb-4">
+ <i class="fa-solid fa-spinner fa-spin text-secondary"></i>
+ <span>Conectando aos relays Nostr...</span>
+ </div>
+ <div id="videoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6">
+ </div>
+ <div id="loadMoreWrap" class="hidden text-center py-8">
+ <button type="button" onclick="loadMoreVideos()" class="px-5 py-2.5 rounded-full bg-white border border-gray-200 hover:border-secondary/40 hover:text-secondary text-sm font-medium text-gray-700 transition shadow-sm">
+ Carregar mais
+ </button>
+ </div>
+ </section>
+ </main>
+ </div>
+
+ <!-- Modal fullscreen total -->
+ <div id="videoModal" aria-hidden="true" role="dialog" aria-modal="true">
+ <div id="videoModalBackdrop"></div>
+ <div id="videoModalPanel">
+ <div id="modalDragHandle" aria-hidden="true">
+ <div class="handle-bar"></div>
+ <p class="text-[10px] text-gray-400 mt-1">Deslize para baixo para fechar</p>
+ </div>
+
+ <div class="flex items-center justify-between px-3 py-2 border-b border-gray-100 shrink-0 bg-white">
+ <span class="text-xs text-gray-400 font-medium truncate pr-2">
+ <i class="fa-solid fa-play text-secondary mr-1"></i> LoreVideos · Nostr
+ </span>
+ <button type="button" id="modalCloseBtn" onclick="closePlayer()"
+ class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600 transition"
+ aria-label="Fechar">
+ <i class="fa-solid fa-xmark text-lg"></i>
+ </button>
+ </div>
+
+ <div class="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden bg-white relative">
+ 
+ <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col">
+ <div id="videoModalPlayer" class="bg-black w-full shrink-0"></div>
+
+ <div class="p-4 space-y-3 max-w-3xl w-full mx-auto">
+ <h1 id="playerTitle" class="text-base md:text-lg font-bold text-gray-900 leading-snug"></h1>
+
+ <div class="flex flex-wrap items-center justify-between gap-3">
+ <div class="flex items-center gap-3 min-w-0">
+ <div id="playerAvatar" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200"></div>
+ <div class="min-w-0">
+ <p id="playerAuthor" class="font-semibold text-sm text-gray-900 truncate"></p>
+ <p id="playerDate" class="text-xs text-gray-400"></p>
+ </div>
+ </div>
+ </div>
+
+ <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 border-y border-gray-100">
+ <button type="button" id="likeBtn" onclick="likeVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
+ <i id="likeBtnIcon" class="fa-regular fa-heart text-secondary"></i> <span id="likeBtnText">Curtir</span>
+ </button>
+ <button type="button" onclick="shareVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
+ <i class="fa-solid fa-share text-secondary"></i> Compartilhar
+ </button>
+ <a id="downloadBtn" href="#" target="_blank" download class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
+ <i class="fa-solid fa-download text-secondary"></i> Baixar
+ </a>
+ </div>
+
+ <div id="playerDescription"
+ class="text-sm text-gray-600 bg-gray-50 rounded-xl p-3 whitespace-pre-wrap break-words max-h-32 overflow-y-auto border border-gray-100"></div>
+
+ <div class="block md:hidden pt-4 border-t border-gray-100">
+ <h2 class="text-xs font-semibold text-secondary mb-2 uppercase tracking-wide">Mais vídeos</h2>
+ <div id="relatedListMobile" class="space-y-2"></div>
+ </div>
+ </div>
+ </div>
+
+ <div class="hidden md:flex flex-col w-80 lg:w-96 border-l border-gray-200 bg-gray-50/50 p-4 overflow-y-auto no-scrollbar shrink-0">
+ <h2 class="text-xs font-semibold text-secondary mb-3 uppercase tracking-wide">Mais vídeos</h2>
+ <div id="relatedListDesktop" class="space-y-3"></div>
+ </div>
+
+ </div>
+ </div>
+ </div>
+
+ <script type="module">
+ import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+ import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+
+ const RELAYS = [
+ 'wss://relay.damus.io',
+ 'wss://nos.lol',
+ 'wss://relay.nostr.band',
+ 'wss://relay.primal.net'
+ ];
+
+ const VIDEO_EXT = /\.(mp4|webm|mov|m4v|ogg)(\?[^\s]*)?$/i;
+ const pool = new NostrTools.SimplePool();
+ const profileCache = new Map();
+
+ let allVideos = [];
+ let filteredVideos = [];
+ let oldestTimestamp = Math.floor(Date.now() / 1000);
+ let isLoading = false;
+ let activeFilter = '';
+ let currentPlayingId = null;
+ let scrollYBeforeModal = 0;
+
+ const userLikedMap = new Map();
+ const userLikeEventIdMap = new Map();
+
+ let currentUserData = {
+ pubkey: '',
+ privateKey: null,
+ nickname: '',
+ avatarUrl: ''
+ };
+
+ function loadSessionFromNostr() {
+ try {
+ const session = localStorage.getItem('nostr_session');
+ if (!session) return;
+ const parsed = JSON.parse(session);
+ if (!parsed.privateKeyHex || !parsed.pubkey) return;
+
+ currentUserData.privateKey = hexToBytes(parsed.privateKeyHex);
+ currentUserData.pubkey = parsed.pubkey;
+ currentUserData.nickname = parsed.nickname || '';
+ currentUserData.avatarUrl = parsed.avatarUrl || '';
+
+ if (currentUserData.pubkey) {
+ const cleanName = (currentUserData.nickname || '').replace(/^@/, '');
+ profileCache.set(currentUserData.pubkey, {
+ name: cleanName,
+ picture: currentUserData.avatarUrl || ''
+ });
+ }
+ } catch (e) {
+ console.error('Erro ao carregar sessão:', e);
+ }
+ }
+
+ function isUserLoggedIn() {
+ return !!(currentUserData.privateKey && currentUserData.pubkey);
+ }
+
+ function getMyUsername() {
+ if (currentUserData.nickname) {
+ return currentUserData.nickname.startsWith('@')
+ ? currentUserData.nickname
+ : '@' + currentUserData.nickname;
+ }
+ const p = profileCache.get(currentUserData.pubkey);
+ if (p?.name) return '@' + p.name;
+ if (currentUserData.pubkey) return '@' + currentUserData.pubkey.slice(0, 10) + '…';
+ return '@você';
+ }
+
+ function isMobile() {
+ return window.matchMedia('(max-width: 767px)').matches;
+ }
+
+ window.closeSidebar = function() {
+ document.getElementById('sidebar').classList.add('-translate-x-full');
+ document.getElementById('sidebarOverlay').classList.add('hidden');
+ };
+ document.getElementById('menuToggle')?.addEventListener('click', () => {
+ const sb = document.getElementById('sidebar');
+ const ov = document.getElementById('sidebarOverlay');
+ sb.classList.toggle('-translate-x-full');
+ ov.classList.toggle('hidden');
+ });
+
+ function escapeHtml(text) {
+ const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+ return String(text ?? '').replace(/[&<>"']/g, m => map[m]);
+ }
+
+ function setStatus(html) {
+ const el = document.getElementById('statusBar');
+ if (el) el.innerHTML = html;
+ }
+
+ function timeAgo(ts) {
+ const s = Math.floor(Date.now() / 1000) - ts;
+ if (s < 60) return 'agora';
+ if (s < 3600) return Math.floor(s / 60) + ' min';
+ if (s < 86400) return Math.floor(s / 3600) + ' h';
+ if (s < 604800) return Math.floor(s / 86400) + ' d';
+ return new Date(ts * 1000).toLocaleDateString('pt-BR');
+ }
+
+ function extractTitle(content, max = 80) {
+ const clean = String(content || '')
+ .replace(/https?:\/\/[^\s]+/gi, '')
+ .replace(/\s+/g, ' ')
+ .trim();
+ if (!clean) return 'Vídeo Nostr';
+ return clean.length > max ? clean.slice(0, max) + '…' : clean;
+ }
+
+ function extractVideoUrls(ev) {
+ const urls = new Set();
+ if (ev.tags) {
+ ev.tags.forEach(tag => {
+ if ((tag[0] === 'video' || tag[0] === 'url' || tag[0] === 'r' || tag[0] === 'imeta') && tag[1] && VIDEO_EXT.test(tag[1])) {
+ urls.add(tag[1].split(/\s/)[0]);
+ }
+ if (tag[0] === 'imeta') {
+ tag.forEach(part => {
+ const m = String(part).match(/url\s+(https?:\/\/\S+)/i);
+ if (m && VIDEO_EXT.test(m[1])) urls.add(m[1]);
+ });
+ }
+ });
+ }
+ const content = ev.content || '';
+ const matches = content.match(/https?:\/\/[^\s<>"']+/gi) || [];
+ matches.forEach(u => {
+ const clean = u.replace(/[.,;:!?)]+$/, '');
+ if (VIDEO_EXT.test(clean)) urls.add(clean);
+ });
+ return Array.from(urls);
+ }
+
+ function eventHashtags(ev) {
+ const tags = new Set();
+ (ev.tags || []).forEach(t => {
+ if (t[0] === 't' && t[1]) tags.add(String(t[1]).toLowerCase());
+ });
+ const m = String(ev.content || '').match(/#[\p{L}\p{N}_]+/gu) || [];
+ m.forEach(h => tags.add(h.slice(1).toLowerCase()));
+ return tags;
+ }
+
+ async function fetchProfiles(pubkeys) {
+ const missing = pubkeys.filter(pk => pk && !profileCache.has(pk));
+ if (!missing.length) return;
+ try {
+ const events = await pool.querySync(RELAYS, {
+ kinds: [0],
+ authors: missing,
+ limit: missing.length
+ });
+ const latest = new Map();
+ (events || []).forEach(ev => {
+ const prev = latest.get(ev.pubkey);
+ if (!prev || ev.created_at > prev.created_at) latest.set(ev.pubkey, ev);
+ });
+ latest.forEach((ev, pubkey) => {
+ try {
+ const data = JSON.parse(ev.content || '{}');
+ profileCache.set(pubkey, {
+ name: data.name || data.display_name || '',
+ picture: data.picture || data.image || ''
+ });
+ } catch {
+ profileCache.set(pubkey, { name: '', picture: '' });
+ }
+ });
+ missing.forEach(pk => {
+ if (!profileCache.has(pk)) profileCache.set(pk, { name: '', picture: '' });
+ });
+ } catch (e) {
+ console.error('Perfis:', e);
+ }
+ }
+
+ function displayName(pubkey) {
+ if (currentUserData.pubkey && pubkey === currentUserData.pubkey) {
+ return getMyUsername();
+ }
+ const p = profileCache.get(pubkey);
+ if (p?.name) return '@' + p.name;
+ return '@' + pubkey.slice(0, 10) + '…';
+ }
+
+ function avatarHtml(pubkey, sizeClass = 'w-9 h-9') {
+ let pic = profileCache.get(pubkey)?.picture;
+ if (currentUserData.pubkey && pubkey === currentUserData.pubkey && currentUserData.avatarUrl) {
+ pic = currentUserData.avatarUrl;
+ }
+ if (pic) {
+ return `<img src="${escapeHtml(pic)}" class="${sizeClass} rounded-full object-cover" alt="" loading="lazy"
+ onerror="this.outerHTML='<div class=\\'${sizeClass} rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center\\'><i class=\\'fa-solid fa-user text-xs text-secondary\\'></i></div>'">`;
+ }
+ return `<div class="${sizeClass} rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0"><i class="fa-solid fa-user text-xs text-secondary"></i></div>`;
+ }
+
+ async function fetchVideoEvents(until) {
+ const filters = [
+ { kinds: [1], limit: 80, ...(until ? { until } : {}) },
+ { kinds: [1], '#t': ['video'], limit: 40, ...(until ? { until } : {}) },
+ { kinds: [1], '#t': ['videos'], limit: 20, ...(until ? { until } : {}) }
+ ];
+ const results = await Promise.allSettled(
+ filters.map(f => pool.querySync(RELAYS, f))
+ );
+ const map = new Map();
+ results.forEach(r => {
+ if (r.status === 'fulfilled' && r.value) {
+ r.value.forEach(ev => map.set(ev.id, ev));
+ }
+ });
+ return Array.from(map.values());
+ }
+
+ function eventsToVideoItems(events) {
+ const items = [];
+ events.forEach(ev => {
+ const urls = extractVideoUrls(ev);
+ if (!urls.length) return;
+ urls.forEach((url, i) => {
+ items.push({
+ id: ev.id + (i ? '-' + i : ''),
+ eventId: ev.id,
+ pubkey: ev.pubkey,
+ created_at: ev.created_at,
+ content: ev.content || '',
+ videoUrl: url,
+ tags: eventHashtags(ev)
+ });
+ });
+ });
+ return items;
+ }
+
+ async function loadInitial() {
+ if (isLoading) return;
+ isLoading = true;
+ setStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>Buscando vídeos nos relays...</span>`);
+
+ try {
+ const events = await fetchVideoEvents();
+ const items = eventsToVideoItems(events);
+ items.sort((a, b) => b.created_at - a.created_at);
+
+ const seen = new Set();
+ allVideos = items.filter(v => {
+ if (seen.has(v.videoUrl)) return false;
+ seen.add(v.videoUrl);
+ return true;
+ });
+
+ if (allVideos.length) {
+ oldestTimestamp = Math.min(...allVideos.map(v => v.created_at));
+ }
+
+ const pubs = [...new Set(allVideos.map(v => v.pubkey))];
+ await fetchProfiles(pubs);
+
+ applyFilter(activeFilter);
+ document.getElementById('loadMoreWrap').classList.remove('hidden');
+
+ if (!allVideos.length) {
+ setStatus(`<i class="fa-solid fa-video-slash text-gray-400"></i><span>Nenhum vídeo encontrado. Tente carregar mais ou outro filtro.</ span>`);
+ } else {
+ setStatus(`<span class="text-gray-500">${filteredVideos.length} vídeo(s) · rede Nostr</span>`);
+ }
+ } catch (e) {
+ console.error(e);
+ setStatus(`<i class="fa-solid fa-triangle-exclamation text-amber-500"></i><span>Falha ao conectar. Recarregue a página.</span>`);
+ } finally {
+ isLoading = false;
+ }
+ }
+
+ window.loadMoreVideos = async function() {
+ if (isLoading) return;
+ isLoading = true;
+ setStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>Carregando mais...</span>`);
+ try {
+ const events = await fetchVideoEvents(oldestTimestamp - 1);
+ const items = eventsToVideoItems(events);
+ const seen = new Set(allVideos.map(v => v.videoUrl));
+ const newOnes = items.filter(v => !seen.has(v.videoUrl));
+ if (newOnes.length) {
+ oldestTimestamp = Math.min(oldestTimestamp, ...newOnes.map(v => v.created_at));
+ allVideos = allVideos.concat(newOnes).sort((a, b) => b.created_at - a.created_at);
+ await fetchProfiles([...new Set(newOnes.map(v => v.pubkey))]);
+ }
+ applyFilter(activeFilter);
+ setStatus(`<span class="text-gray-500">${filteredVideos.length} vídeo(s)</span>`);
+ } catch (e) {
+ console.error(e);
+ } finally {
+ isLoading = false;
+ }
+ };
+
+ function applyFilter(tag) {
+ activeFilter = (tag || '').toLowerCase();
+ if (!activeFilter) {
+ filteredVideos = allVideos.slice();
+ } else {
+ filteredVideos = allVideos.filter(v => {
+ if (v.tags.has(activeFilter)) return true;
+ return (v.content || '').toLowerCase().includes(activeFilter);
+ });
+ }
+ renderGrid();
+ if (currentPlayingId) renderRelated();
+ }
+
+ window.filterByTag = function(tag) {
+ document.querySelectorAll('.chip').forEach(c => {
+ c.classList.toggle('active', (c.dataset.filter || '') === (tag || ''));
+ });
+ applyFilter(tag);
+ setStatus(`<span class="text-gray-500">${filteredVideos.length} vídeo(s)${tag ? ' · #' + escapeHtml(tag) : ''}</span>`);
+ closeSidebar();
+ };
+
+ window.setChipFilter = function(btn, tag) {
+ document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+ btn.classList.add('active');
+ applyFilter(tag);
+ setStatus(`<span class="text-gray-500">${filteredVideos.length} vídeo(s)${tag ? ' · #' + escapeHtml(tag) : ''}</span>`);
+ };
+
+ window.searchVideos = function() {
+ const q = (document.getElementById('searchInput')?.value || '').trim().toLowerCase().replace(/^#/, '');
+ if (!q) {
+ applyFilter('');
+ document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', !c.dataset.filter));
+ return;
+ }
+ document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+ filteredVideos = allVideos.filter(v => {
+ const name = (profileCache.get(v.pubkey)?.name || '').toLowerCase();
+ return v.tags.has(q) ||
+ (v.content || '').toLowerCase().includes(q) ||
+ name.includes(q) ||
+ v.videoUrl.toLowerCase().includes(q);
+ });
+ renderGrid();
+ setStatus(`<span class="text-gray-500">${filteredVideos.length} resultado(s) para “${escapeHtml(q)}”</span>`);
+ };
+
+ function renderGrid() {
+ const grid = document.getElementById('videoGrid');
+ if (!filteredVideos.length) {
+ grid.innerHTML = `
+ <div class="col-span-full text-center py-16 text-gray-400">
+ <i class="fa-solid fa-video-slash text-4xl mb-3 opacity-50"></i>
+ <p class="text-sm">Nenhum vídeo neste filtro.</p>
+ </div>`;
+ return;
+ }
+
+ grid.innerHTML = filteredVideos.map(v => {
+ const title = extractTitle(v.content);
+ const name = displayName(v.pubkey);
+ return `
+ <article class="video-card cursor-pointer group bg-white rounded-2xl border border-gray-100 p-2 shadow-sm hover:shadow-md hover:border-secondary/20 transition" onclick="playVideo('${escapeHtml(v.id)}')">
+ <div class="video-thumb border border-gray-100">
+ <video src="${escapeHtml(v.videoUrl)}" muted preload="metadata" playsinline
+ onloadeddata="this.currentTime=0.1"></video>
+ <div class="play-overlay">
+ <div class="w-12 h-12 rounded-full bg-secondary/90 flex items-center justify-center shadow-lg">
+ <i class="fa-solid fa-play text-white ml-0.5"></i>
+ </div>
+ </div>
+ <span class="duration-badge"><i class="fa-solid fa-play text-[9px] mr-1"></i>Vídeo</span>
+ </div>
+ <div class="flex gap-3 mt-3 px-1 pb-1">
+ ${avatarHtml(v.pubkey)}
+ <div class="min-w-0 flex-1">
+ <h3 class="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug group-hover:text-secondary transition">${escapeHtml(title)}</h3>
+ <p class="text-xs text-gray-500 mt-1 truncate">${escapeHtml(name)}</p>
+ <p class="text-[11px] text-gray-400">${timeAgo(v.created_at)}</p>
+ </div>
+ </div>
+ </article>`;
+ }).join('');
+ }
+
+ function renderRelated() {
+ const others = filteredVideos.filter(v => v.id !== currentPlayingId).slice(0, 12);
+ const html = others.map(v => `
+ <button type="button" onclick="playVideo('${escapeHtml(v.id)}')"
+ class="flex gap-2 w-full text-left hover:bg-gray-100/80 rounded-lg p-1.5 transition border border-transparent">
+ <div class="w-36 md:w-40 shrink-0 aspect-video rounded-lg overflow-hidden bg-gray-100 border border-gray-100">
+ <video src="${escapeHtml(v.videoUrl)}" muted preload="metadata" class="w-full h-full object-cover"
+ onloadeddata="this.currentTime=0.1"></video>
+ </div>
+ <div class="min-w-0 flex-1 py-0.5">
+ <p class="text-xs font-semibold text-gray-900 line-clamp-2 leading-snug">${escapeHtml(extractTitle(v.content, 60))}</p>
+ <p class="text-[11px] text-gray-500 mt-1 truncate">${escapeHtml(displayName(v.pubkey))}</p>
+ <p class="text-[10px] text-gray-400">${timeAgo(v.created_at)}</p>
+ </div>
+ </button>
+ `).join('') || '<p class="text-xs text-gray-400 p-2">Nenhum outro vídeo.</p>';
+
+ const desktopList = document.getElementById('relatedListDesktop');
+ const mobileList = document.getElementById('relatedListMobile');
+ if (desktopList) desktopList.innerHTML = html;
+ if (mobileList) mobileList.innerHTML = html;
+ }
+
+ // Carrega só o necessário para saber se o usuário logado já curtiu (sem contadores)
+ async function loadMyLikeState(eventId) {
+ try {
+ if (!currentUserData.pubkey) {
+ userLikedMap.set(eventId, false);
+ userLikeEventIdMap.delete(eventId);
+ return;
+ }
+
+ const events = await pool.querySync(RELAYS, {
+ kinds: [7],
+ '#e': [eventId],
+ authors: [currentUserData.pubkey]
+ });
+
+ let myLikeEventId = null;
+ (events || []).forEach(ev => {
+ if (ev.kind === 7 && ev.pubkey === currentUserData.pubkey) {
+ myLikeEventId = ev.id;
+ }
+ });
+
+ if (myLikeEventId) {
+ userLikedMap.set(eventId, true);
+ userLikeEventIdMap.set(eventId, myLikeEventId);
+ } else {
+ userLikedMap.set(eventId, false);
+ userLikeEventIdMap.delete(eventId);
+ }
+ } catch (e) {
+ console.error('Erro ao carregar estado do like:', e);
+ userLikedMap.set(eventId, false);
+ }
+ }
+
+ function updateLikeButtonUI(isLiked) {
+ const btn = document.getElementById('likeBtn');
+ const icon = document.getElementById('likeBtnIcon');
+ const text = document.getElementById('likeBtnText');
+ if (!btn || !icon || !text) return;
+
+ if (isLiked) {
+ icon.className = 'fa-solid fa-heart text-red-500';
+ text.textContent = 'Descurtir';
+ btn.classList.add('text-red-500');
+ } else {
+ icon.className = 'fa-regular fa-heart text-secondary';
+ text.textContent = 'Curtir';
+ btn.classList.remove('text-red-500');
+ }
+ }
+
+ window.likeVideo = async function() {
+ const v = allVideos.find(x => x.id === currentPlayingId) || filteredVideos.find(x => x.id === currentPlayingId);
+ if (!v) return;
+
+ if (!isUserLoggedIn()) {
+ alert('Faça login com sua chave privada primeiro (no Feed/Social).');
+ return;
+ }
+
+ const alreadyLiked = userLikedMap.get(v.eventId) || false;
+
+ if (alreadyLiked) {
+ const likeEventId = userLikeEventIdMap.get(v.eventId);
+ if (!likeEventId) {
+ userLikedMap.set(v.eventId, false);
+ updateLikeButtonUI(false);
+ return;
+ }
+
+ try {
+ const deletionTemplate = {
+ kind: 5,
+ created_at: Math.floor(Date.now() / 1000),
+ tags: [['e', likeEventId]],
+ content: 'unlike'
+ };
+ const signedDeletion = NostrTools.finalizeEvent(deletionTemplate, currentUserData.privateKey);
+ await Promise.any(pool.publish(RELAYS, signedDeletion));
+
+ userLikedMap.set(v.eventId, false);
+ userLikeEventIdMap.delete(v.eventId);
+ updateLikeButtonUI(false);
+ } catch (err) {
+ console.error('Erro ao descurtir:', err);
+ alert('Erro ao remover curtida. Tente novamente.');
+ }
+ return;
+ }
+
+ const tags = [
+ ['e', v.eventId],
+ ['p', v.pubkey]
+ ];
+
+ const eventTemplate = {
+ kind: 7,
+ created_at: Math.floor(Date.now() / 1000),
+ tags,
+ content: '+'
+ };
+
+ try {
+ const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
+ await Promise.any(pool.publish(RELAYS, signedEvent));
+
+ userLikedMap.set(v.eventId, true);
+ userLikeEventIdMap.set(v.eventId, signedEvent.id);
+
+ const cleanName = (currentUserData.nickname || '').replace(/^@/, '');
+ profileCache.set(currentUserData.pubkey, {
+ name: cleanName || profileCache.get(currentUserData.pubkey)?.name || '',
+ picture: currentUserData.avatarUrl || profileCache.get(currentUserData.pubkey)?.picture || ''
+ });
+
+ updateLikeButtonUI(true);
+ } catch (err) {
+ console.error('Erro ao curtir:', err);
+ alert('Erro ao enviar curtida. Tente novamente.');
+ }
+ };
+
+ window.shareVideo = function() {
+ if (navigator.share) {
+ navigator.share({ title: document.getElementById('playerTitle').textContent, url: window.location.href }).catch(() => {});
+ } else {
+ navigator.clipboard.writeText(window.location.href);
+ alert('Link copiado para a área de transferência!');
+ }
+ };
+
+ window.playVideo = async function(id) {
+ const v = allVideos.find(x => x.id === id) || filteredVideos.find(x => x.id === id);
+ if (!v) return;
+ currentPlayingId = v.id;
+
+ const modal = document.getElementById('videoModal');
+ const panel = document.getElementById('videoModalPanel');
+ const playerEl = document.getElementById('videoModalPlayer');
+
+ panel.style.transform = '';
+ panel.classList.remove('dragging');
+
+ playerEl.innerHTML = `<video src="${escapeHtml(v.videoUrl)}" controls autoplay playsinline></video>`;
+
+ document.getElementById('playerTitle').textContent = extractTitle(v.content, 120);
+ document.getElementById('playerAuthor').textContent = displayName(v.pubkey);
+ document.getElementById('playerDate').textContent = timeAgo(v.created_at) + ' · Nostr';
+ document.getElementById('playerDescription').textContent = v.content || '';
+ document.getElementById('playerAvatar').innerHTML = avatarHtml(v.pubkey, 'w-10 h-10');
+
+ const downloadBtn = document.getElementById('downloadBtn');
+ if (downloadBtn) downloadBtn.href = v.videoUrl;
+
+ updateLikeButtonUI(false);
+ await loadMyLikeState(v.eventId);
+ updateLikeButtonUI(userLikedMap.get(v .eventId) || false);
+
+ renderRelated();
+
+ scrollYBeforeModal = window.scrollY;
+ document.body.classList.add('modal-open');
+ document.body.style.top = `-${scrollYBeforeModal}px`;
+
+ modal.classList.add('open');
+ modal.setAttribute('aria-hidden', 'false');
+ };
+
+ window.closePlayer = function() {
+ currentPlayingId = null;
+ const modal = document.getElementById('videoModal');
+ const panel = document.getElementById('videoModalPanel');
+ const playerEl = document.getElementById('videoModalPlayer');
+
+ const vid = playerEl?.querySelector('video');
+ if (vid) {
+ vid.pause();
+ vid.removeAttribute('src');
+ vid.load();
+ }
+ if (playerEl) playerEl.innerHTML = '';
+
+ panel.style.transform = '';
+ panel.classList.remove('dragging');
+
+ modal.classList.remove('open');
+ modal.setAttribute('aria-hidden', 'true');
+
+ document.body.classList.remove('modal-open');
+ document.body.style.top = '';
+ window.scrollTo(0, scrollYBeforeModal);
+ };
+
+ document.addEventListener('keydown', (e) => {
+ if (e.key === 'Escape' && !isMobile()) closePlayer();
+ });
+
+ (function setupMobileSwipeClose() {
+ const panel = document.getElementById('videoModalPanel');
+ const handle = document.getElementById('modalDragHandle');
+ if (!panel || !handle) return;
+
+ let startY = 0;
+ let currentY = 0;
+ let dragging = false;
+
+ function onStart(clientY) {
+ if (!isMobile()) return;
+ if (!document.getElementById('videoModal').classList.contains('open')) return;
+ dragging = true;
+ startY = clientY;
+ currentY = 0;
+ panel.classList.add('dragging');
+ }
+
+ function onMove(clientY) {
+ if (!dragging) return;
+ const dy = clientY - startY;
+ currentY = Math.max(0, dy);
+ panel.style.transform = `translateY(${currentY}px)`;
+ }
+
+ function onEnd() {
+ if (!dragging) return;
+ dragging = false;
+ panel.classList.remove('dragging');
+
+ const threshold = Math.min(140, window.innerHeight * 0.22);
+ if (currentY >= threshold) {
+ panel.style.transition = 'transform 0.28s ease-out';
+ panel.style.transform = 'translateY(100%)';
+ setTimeout(() => {
+ panel.style.transition = '';
+ closePlayer();
+ }, 280);
+ } else {
+ panel.style.transition = 'transform 0.25s ease-out';
+ panel.style.transform = 'translateY(0)';
+ setTimeout(() => {
+ panel.style.transition = '';
+ panel.style.transform = '';
+ }, 250);
+ }
+ currentY = 0;
+ }
+
+ handle.addEventListener('touchstart', (e) => {
+ if (e.touches[0]) onStart(e.touches[0].clientY);
+ }, { passive: true });
+
+ handle.addEventListener('touchmove', (e) => {
+ if (!dragging || !e.touches[0]) return;
+ onMove(e.touches[0].clientY);
+ }, { passive: true });
+
+ handle.addEventListener('touchend', onEnd);
+ handle.addEventListener('touchcancel', onEnd);
+
+ const headerBar = panel.querySelector('.border-b.border-gray-100');
+ if (headerBar) {
+ headerBar.addEventListener('touchstart', (e) => {
+ if (e.touches[0]) onStart(e.touches[0].clientY);
+ }, { passive: true });
+ headerBar.addEventListener('touchmove', (e) => {
+ if (!dragging || !e.touches[0]) return;
+ onMove(e.touches[0].clientY);
+ }, { passive: true });
+ headerBar.addEventListener('touchend', onEnd);
+ headerBar.addEventListener('touchcancel', onEnd);
+ }
+ })();
+
+ function loadSessionAvatar() {
+ if (!currentUserData.avatarUrl) return;
+
+ const el = document.getElementById('userAvatarHeader');
+ if (el) {
+ el.innerHTML = `<img src="${escapeHtml(currentUserData.avatarUrl)}" class="w-full h-full object-cover" alt="">`;
+ }
+ }
+
+ loadSessionFromNostr();
+ loadSessionAvatar();
+ loadInitial();
+ </script>
 </body>
 </html>
