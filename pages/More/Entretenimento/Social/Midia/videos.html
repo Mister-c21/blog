@@ -84,7 +84,6 @@
             color: #ffffff;
         }
 
-        /* ========== Modal fullscreen total ========== */
         #videoModal {
             position: fixed;
             inset: 0;
@@ -319,8 +318,8 @@
                         </div>
 
                         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 border-y border-gray-100">
-                            <button type="button" onclick="likeVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
-                                <i class="fa-regular fa-heart text-secondary"></i> <span id="likeBtnText">Curtir</span>
+                            <button type="button" id="likeBtn" onclick="likeVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
+                                <i id="likeBtnIcon" class="fa-regular fa-heart text-secondary"></i> <span id="likeBtnText">Curtir</span>
                             </button>
                             <button type="button" onclick="shareVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
                                 <i class="fa-solid fa-share text-secondary"></i> Compartilhar
@@ -411,8 +410,11 @@
     let scrollYBeforeModal = 0;
 
     const videoInteractionsCache = new Map();
+    // Guarda se o usuário logado curtiu cada vídeo e o id do evento de like/comentário
+    const userLikedMap = new Map(); // eventId -> true/false
+    const userLikeEventIdMap = new Map(); // eventId do vídeo -> id do kind 7
+    const userCommentEventIds = new Map(); // id do comentário (kind 1) -> true (é meu)
 
-    // ========== Sessão igual ao Social.html ==========
     let currentUserData = {
         pubkey: '',
         privateKey: null,
@@ -433,8 +435,9 @@
             currentUserData.avatarUrl = parsed.avatarUrl || '';
 
             if (currentUserData.pubkey) {
+                const cleanName = (currentUserData.nickname || '').replace(/^@/, '');
                 profileCache.set(currentUserData.pubkey, {
-                    name: (currentUserData.nickname || '').replace(/^@/, ''),
+                    name: cleanName,
                     picture: currentUserData.avatarUrl || ''
                 });
             }
@@ -445,6 +448,18 @@
 
     function isUserLoggedIn() {
         return !!(currentUserData.privateKey && currentUserData.pubkey);
+    }
+
+    function getMyUsername() {
+        if (currentUserData.nickname) {
+            return currentUserData.nickname.startsWith('@')
+                ? currentUserData.nickname
+                : '@' + currentUserData.nickname;
+        }
+        const p = profileCache.get(currentUserData.pubkey);
+        if (p?.name) return '@' + p.name;
+        if (currentUserData.pubkey) return '@' + currentUserData.pubkey.slice(0, 10) + '…';
+        return '@você';
     }
 
     function isMobile() {
@@ -558,13 +573,20 @@
     }
 
     function displayName(pubkey) {
+        // Se for o usuário logado, prioriza o username da sessão
+        if (currentUserData.pubkey && pubkey === currentUserData.pubkey) {
+            return getMyUsername();
+        }
         const p = profileCache.get(pubkey);
         if (p?.name) return '@' + p.name;
         return '@' + pubkey.slice(0, 10) + '…';
     }
 
     function avatarHtml(pubkey, sizeClass = 'w-9 h-9') {
-        const pic = profileCache.get(pubkey)?.picture;
+        let pic = profileCache.get(pubkey)?.picture;
+        if (currentUserData.pubkey && pubkey === currentUserData.pubkey && currentUserData.avatarUrl) {
+            pic = currentUserData.avatarUrl;
+        }
         if (pic) {
             return `<img src="${escapeHtml(pic)}" class="${sizeClass} rounded-full object-cover" alt="" loading="lazy"
                 onerror="this.outerHTML='<div class=\\'${sizeClass} rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center\\'><i class=\\'fa-solid fa-user text-xs text-secondary\\'></i></div>'">`;
@@ -784,10 +806,7 @@
     }
 
     async function loadVideoInteractions(eventId) {
-        if (videoInteractionsCache.has(eventId)) {
-            return videoInteractionsCache.get(eventId);
-        }
-
+        // Sempre busca de novo para manter likes/comentários atualizados
         try {
             const events = await pool.querySync(RELAYS, {
                 kinds: [7, 1],
@@ -797,17 +816,53 @@
             const likes = [];
             const comments = [];
             const pubkeysToFetch = new Set();
+            let myLikeEventId = null;
 
             events.forEach(ev => {
                 pubkeysToFetch.add(ev.pubkey);
                 if (ev.kind === 7) {
-                    likes.push({ pubkey: ev.pubkey, time: timeAgo(ev.created_at) });
+                    likes.push({
+                        pubkey: ev.pubkey,
+                        time: timeAgo(ev.created_at),
+                        eventId: ev.id
+                    });
+                    if (currentUserData.pubkey && ev.pubkey === currentUserData.pubkey) {
+                        myLikeEventId = ev.id;
+                        userLikedMap.set(eventId, true);
+                        userLikeEventIdMap.set(eventId, ev.id);
+                    }
                 } else if (ev.kind === 1) {
-                    comments.push({ pubkey: ev.pubkey, text: ev.content, time: timeAgo(ev.created_at) });
+                    comments.push({
+                        pubkey: ev.pubkey,
+                        text: ev.content,
+                        time: timeAgo(ev.created_at),
+                        eventId: ev.id,
+                        isMine: currentUserData.pubkey && ev.pubkey === currentUserData.pubkey
+                    });
+                    if (currentUserData.pubkey && ev.pubkey === currentUserData.pubkey) {
+                        userCommentEventIds.set(ev.id, true);
+                    }
                 }
             });
 
+            // Se não encontrou like meu, marca como não curtido
+            if (!myLikeEventId) {
+                userLikedMap.set(eventId, false);
+                userLikeEventIdMap.delete(eventId);
+            }
+
             await fetchProfiles([...pubkeysToFetch]);
+
+            // Garante perfil do usuário logado
+            if (currentUserData.pubkey) {
+                const cleanName = (currentUserData.nickname || '').replace(/^@/, '');
+                if (cleanName || currentUserData.avatarUrl) {
+                    profileCache.set(currentUserData.pubkey, {
+                        name: cleanName || profileCache.get(currentUserData.pubkey)?.name || '',
+                        picture: currentUserData.avatarUrl || profileCache.get(currentUserData.pubkey)?.picture || ''
+                    });
+                }
+            }
 
             const data = {
                 likes,
@@ -823,7 +878,24 @@
         }
     }
 
-    // ========== CURTIR (igual ao Social.html) ==========
+    function updateLikeButtonUI(isLiked) {
+        const btn = document.getElementById('likeBtn');
+        const icon = document.getElementById('likeBtnIcon');
+        const text = document.getElementById('likeBtnText');
+        if (!btn || !icon || !text) return;
+
+        if (isLiked) {
+            icon.className = 'fa-solid fa-heart text-red-500';
+            text.textContent = 'Descurtir';
+            btn.classList.add('text-red-500');
+        } else {
+            icon.className = 'fa-regular fa-heart text-secondary';
+            text.textContent = 'Curtir';
+            btn.classList.remove('text-red-500');
+        }
+    }
+
+    // ========== CURTIR / DESCURTIR ==========
     window.likeVideo = async function() {
         const v = allVideos.find(x => x.id === currentPlayingId) || filteredVideos.find(x => x.id === currentPlayingId);
         if (!v) return;
@@ -833,6 +905,56 @@
             return;
         }
 
+        const alreadyLiked = userLikedMap.get(v.eventId) || false;
+
+        // ========== DESCURTIR ==========
+        if (alreadyLiked) {
+            const likeEventId = userLikeEventIdMap.get(v.eventId);
+            if (!likeEventId) {
+                // fallback: só atualiza localmente
+                userLikedMap.set(v.eventId, false);
+                updateLikeButtonUI(false);
+                const cached = videoInteractionsCache.get(v.eventId);
+                if (cached) {
+                    cached.likes = cached.likes.filter(l => l.pubkey !== currentUserData.pubkey);
+                    cached.views = cached.views.filter(l => l.pubkey !== currentUserData.pubkey);
+                    videoInteractionsCache.set(v.eventId, cached);
+                    await updateInteractionUI(v.eventId);
+                }
+                return;
+            }
+
+            try {
+                // NIP-09: deletion request
+                const deletionTemplate = {
+                    kind: 5,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [
+                        ['e', likeEventId]
+                    ],
+                    content: 'unlike'
+                };
+                const signedDeletion = NostrTools.finalizeEvent(deletionTemplate, currentUserData.privateKey);
+                await Promise.any(pool.publish(RELAYS, signedDeletion));
+
+                userLikedMap.set(v.eventId, false);
+                userLikeEventIdMap.delete(v.eventId);
+
+                const cached = videoInteractionsCache.get(v.eventId) || { likes: [], comments: [], views: [] };
+                cached.likes = cached.likes.filter(l => l.pubkey !== currentUserData.pubkey);
+                cached.views = cached.views.filter(l => l.pubkey !== currentUserData.pubkey);
+                videoInteractionsCache.set(v.eventId, cached);
+
+                updateLikeButtonUI(false);
+                await updateInteractionUI(v.eventId);
+            } catch (err) {
+                console.error('Erro ao descurtir:', err);
+                alert('Erro ao remover curtida. Tente novamente.');
+            }
+            return;
+        }
+
+        // ========== CURTIR ==========
         const tags = [
             ['e', v.eventId],
             ['p', v.pubkey]
@@ -849,23 +971,29 @@
             const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
             await Promise.any(pool.publish(RELAYS, signedEvent));
 
+            userLikedMap.set(v.eventId, true);
+            userLikeEventIdMap.set(v.eventId, signedEvent.id);
+
             const cached = videoInteractionsCache.get(v.eventId) || { likes: [], comments: [], views: [] };
             if (!cached.likes.some(l => l.pubkey === currentUserData.pubkey)) {
-                cached.likes.unshift({ pubkey: currentUserData.pubkey, time: 'agora' });
+                cached.likes.unshift({
+                    pubkey: currentUserData.pubkey,
+                    time: 'agora',
+                    eventId: signedEvent.id
+                });
                 cached.views.unshift({ pubkey: currentUserData.pubkey, time: 'agora' });
                 videoInteractionsCache.set(v.eventId, cached);
             }
 
-            if (currentUserData.nickname || currentUserData.avatarUrl) {
-                profileCache.set(currentUserData.pubkey, {
-                    name: (currentUserData.nickname || '').replace(/^@/, '') || profileCache.get(currentUserData.pubkey)?.name || '',
-                    picture: currentUserData.avatarUrl || profileCache.get(currentUserData.pubkey)?.picture || ''
-                });
-            }
+            // Garante username no cache
+            const cleanName = (currentUserData.nickname || '').replace(/^@/, '');
+            profileCache.set(currentUserData.pubkey, {
+                name: cleanName || profileCache.get(currentUserData.pubkey)?.name || '',
+                picture: currentUserData.avatarUrl || profileCache.get(currentUserData.pubkey)?.picture || ''
+            });
 
+            updateLikeButtonUI(true);
             await updateInteractionUI(v.eventId);
-            const likeBtnText = document.getElementById('likeBtnText');
-            if (likeBtnText) likeBtnText.textContent = 'Curtido';
         } catch (err) {
             console.error('Erro ao curtir:', err);
             alert('Erro ao enviar curtida. Tente novamente.');
@@ -881,7 +1009,7 @@
         }
     };
 
-    // ========== COMENTAR (igual ao Social.html) ==========
+    // ========== COMENTAR ==========
     window.submitComment = async function() {
         const input = document.getElementById('commentInput') || document.getElementById('commentInputMobile');
         const text = input?.value.trim();
@@ -911,18 +1039,23 @@
 
             input.value = '';
 
+            userCommentEventIds.set(signedEvent.id, true);
+
             const cached = videoInteractionsCache.get(v.eventId) || { likes: [], comments: [], views: [] };
             cached.comments.unshift({
                 pubkey: currentUserData.pubkey,
                 text: text,
-                time: 'agora'
+                time: 'agora',
+                eventId: signedEvent.id,
+                isMine: true
             });
-            if (currentUserData.nickname || currentUserData.avatarUrl) {
-                profileCache.set(currentUserData.pubkey, {
-                    name: (currentUserData.nickname || '').replace(/^@/, '') || profileCache.get(currentUserData.pubkey)?.name || '',
-                    picture: currentUserData.avatarUrl || profileCache.get(currentUserData.pubkey)?.picture || ''
-                });
-            }
+
+            const cleanName = (currentUserData.nickname || '').replace(/^@/, '');
+            profileCache.set(currentUserData.pubkey, {
+                name: cleanName || profileCache.get(currentUserData.pubkey)?.name || '',
+                picture: currentUserData.avatarUrl || profileCache.get(currentUserData.pubkey)?.picture || ''
+            });
+
             videoInteractionsCache.set(v.eventId, cached);
 
             await updateInteractionUI(v.eventId);
@@ -939,27 +1072,84 @@
         window.submitComment();
     };
 
+    // ========== APAGAR COMENTÁRIO PRÓPRIO ==========
+    window.deleteMyComment = async function(commentEventId, videoEventId) {
+        if (!isUserLoggedIn()) {
+            alert('Faça login primeiro.');
+            return;
+        }
+        if (!confirm('Remover este comentário?')) return;
+
+        try {
+            const deletionTemplate = {
+                kind: 5,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [
+                    ['e', commentEventId]
+                ],
+                content: 'delete comment'
+            };
+            const signedDeletion = NostrTools.finalizeEvent(deletionTemplate, currentUserData.privateKey);
+            await Promise.any(pool.publish(RELAYS, signedDeletion));
+
+            userCommentEventIds.delete(commentEventId);
+
+            const cached = videoInteractionsCache.get(videoEventId);
+            if (cached) {
+                cached.comments = cached.comments.filter(c => c.eventId !== commentEventId);
+                videoInteractionsCache.set(videoEventId, cached);
+            }
+
+            await updateInteractionUI(videoEventId);
+            if (document.getElementById('dynamicSubmodal')?.classList.contains('open')) {
+                renderSubmodalContent('comments');
+            }
+        } catch (err) {
+            console.error('Erro ao apagar comentário:', err);
+            alert('Erro ao remover comentário. Tente novamente.');
+        }
+    };
+
+    function renderCommentsHtml(comments, videoEventId) {
+        if (!comments.length) {
+            return `<p class="text-xs text-gray-400 italic">Nenhum comentário ainda na rede.</p>`;
+        }
+        return comments.map(c => {
+            const isMine = c.isMine || (currentUserData.pubkey && c.pubkey === currentUserData.pubkey);
+            const deleteBtn = isMine
+                ? `<button type="button" onclick="deleteMyComment('${escapeHtml(c.eventId)}', '${escapeHtml(videoEventId)}')"
+                        class="text-[10px] text-red-500 hover:underline ml-2" title="Remover meu comentário">
+                        <i class="fa-solid fa-trash"></i> Remover
+                   </button>`
+                : '';
+            return `
+                <div class="flex gap-3 items-start text-sm">
+                    ${avatarHtml(c.pubkey, 'w-8 h-8')}
+                    <div class="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                        <div class="flex items-center justify-between flex-wrap gap-1">
+                            <span class="font-semibold text-xs text-gray-900">${escapeHtml(displayName(c.pubkey))}</span>
+                            <div class="flex items-center">
+                                <span class="text-[10px] text-gray-400">${escapeHtml(c.time)}</span>
+                                ${deleteBtn}
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-700 mt-1">${escapeHtml(c.text)}</p>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
     async function updateInteractionUI(eventId) {
         const data = await loadVideoInteractions(eventId);
         document.getElementById('viewCountBadge').textContent = Math.max(data.views.length, 1);
         document.getElementById('likeCountBadge').textContent = data.likes.length;
 
+        const isLiked = userLikedMap.get(eventId) || false;
+        updateLikeButtonUI(isLiked);
+
         const commentsListDesktop = document.getElementById('commentsList');
         if (commentsListDesktop) {
-            commentsListDesktop.innerHTML = !data.comments.length
-                ? `<p class="text-xs text-gray-400 italic">Nenhum comentário ainda na rede.</p>`
-                : data.comments.map(c => `
-                    <div class="flex gap-3 items-start text-sm">
-                        ${avatarHtml(c.pubkey, 'w-8 h-8')}
-                        <div class="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
-                            <div class="flex items-center justify-between">
-                                <span class="font-semibold text-xs text-gray-900">${escapeHtml(displayName(c.pubkey))}</span>
-                                <span class="text-[10px] text-gray-400">${escapeHtml(c.time)}</span>
-                            </div>
-                            <p class="text-xs text-gray-700 mt-1">${escapeHtml(c.text)}</p>
-                        </div>
-                    </div>
-                `).join('');
+            commentsListDesktop.innerHTML = renderCommentsHtml(data.comments, eventId);
         }
     }
 
@@ -1019,18 +1209,7 @@
                     <button type="button" onclick="submitCommentMobile()" class="px-3 py-2 rounded-xl bg-secondary text-white text-xs font-medium">Comentar</button>
                 </div>
                 <div class="space-y-3">
-                    ${!data.comments.length ? '<p class="text-xs text-gray-400 italic">Nenhum comentário na rede.</p>' : data.comments.map(c => `
-                        <div class="flex gap-3 items-start text-xs">
-                            ${avatarHtml(c.pubkey, 'w-8 h-8')}
-                            <div class="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-semibold text-gray-900">${escapeHtml(displayName(c.pubkey))}</span>
-                                    <span class="text-[10px] text-gray-400">${escapeHtml(c.time)}</span>
-                                </div>
-                                <p class="text-gray-700 mt-1">${escapeHtml(c.text)}</p>
-                            </div>
-                        </div>
-                    `).join('')}
+                    ${renderCommentsHtml(data.comments, v.eventId)}
                 </div>
             `;
         }
@@ -1060,8 +1239,7 @@
         const downloadBtn = document.getElementById('downloadBtn');
         if (downloadBtn) downloadBtn.href = v.videoUrl;
 
-        const likeBtnText = document.getElementById('likeBtnText');
-        if (likeBtnText) likeBtnText.textContent = 'Curtir';
+        updateLikeButtonUI(false);
 
         await updateInteractionUI(v.eventId);
         renderRelated();
