@@ -161,9 +161,6 @@
         }
 
         /* ========== SHORTS ========== */
-        body.shorts-mode {
-            overflow: hidden;
-        }
         #shortsSection {
             display: none;
         }
@@ -174,18 +171,16 @@
             display: block;
         }
         body.shorts-mode main {
-            padding: 0 !important;
-            background: #000 !important;
-            overflow: hidden;
-        }
-        body.shorts-mode .chips-row {
-            display: none !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            padding-bottom: 0 !important;
+            background: #0a0a0a !important;
         }
 
         /* Mobile: full-screen vertical snap */
         #shortsFeedMobile {
             display: none;
-            height: calc(100dvh - 3.5rem);
+            height: calc(100dvh - 3.5rem - 52px);
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
             -webkit-overflow-scrolling: touch;
@@ -198,9 +193,13 @@
             body.shorts-mode #shortsFeedDesktop {
                 display: none !important;
             }
+            body.shorts-mode main {
+                padding-top: 0.5rem !important;
+            }
         }
         .short-slide {
-            height: calc(100dvh - 3.5rem);
+            height: calc(100dvh - 3.5rem - 52px);
+            min-height: calc(100dvh - 3.5rem - 52px);
             scroll-snap-align: start;
             scroll-snap-stop: always;
             position: relative;
@@ -259,23 +258,20 @@
         .short-action-btn i {
             font-size: 1.25rem;
         }
-        .short-action-btn span {
-            font-size: 10px;
-            margin-top: 2px;
-            font-weight: 600;
-        }
 
-        /* Desktop: coluna central estilo Shorts */
+        /* Desktop: coluna central com cards 9:16 estáveis */
         #shortsFeedDesktop {
             display: none;
-            height: calc(100vh - 3.5rem);
+            width: 100%;
+            min-height: calc(100vh - 3.5rem - 80px);
             overflow-y: auto;
             background: #0a0a0a;
-            padding: 1.5rem 1rem 3rem;
+            padding: 1.25rem 1rem 3rem;
+            box-sizing: border-box;
         }
         @media (min-width: 768px) {
             body.shorts-mode #shortsFeedDesktop {
-                display: flex;
+                display: flex !important;
                 flex-direction: column;
                 align-items: center;
                 gap: 2rem;
@@ -286,20 +282,24 @@
         }
         .short-card-desktop {
             width: 100%;
-            max-width: 380px;
-            background: #111;
+            max-width: 360px;
+            flex-shrink: 0;
+            background: #141414;
             border-radius: 16px;
             overflow: hidden;
-            border: 1px solid #222;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            border: 1px solid #2a2a2a;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.45);
         }
         .short-card-desktop .short-player-wrap {
             position: relative;
-            aspect-ratio: 9 / 16;
-            max-height: min(72vh, 640px);
+            width: 100%;
+            /* altura explícita evita colapso em linhas finas */
+            height: min(640px, 72vh);
+            min-height: 420px;
             background: #000;
         }
         .short-card-desktop video {
+            display: block;
             width: 100%;
             height: 100%;
             object-fit: contain;
@@ -309,6 +309,12 @@
             padding: 12px 14px 14px;
             background: #141414;
             color: #e5e5e5;
+        }
+        .shorts-empty {
+            color: #9ca3af;
+            text-align: center;
+            padding: 4rem 1.5rem;
+            font-size: 0.875rem;
         }
     </style>
 </head>
@@ -383,7 +389,8 @@
         <div id="sidebarOverlay" class="fixed inset-0 bg-black/40 z-30 hidden md:hidden" onclick="closeSidebar()"></div>
 
         <main class="flex-1 min-w-0 p-3 md:p-5 pb-20 bg-gray-50">
-            <div class="chips-row flex gap-2 overflow-x-auto no-scrollbar mb-4 pb-1">
+            <!-- Chips sempre visíveis (inclusive em curtos) para poder sair do modo -->
+            <div class="chips-row flex gap-2 overflow-x-auto no-scrollbar mb-4 pb-1 px-3 md:px-0">
                 <button type="button" class="chip active" data-filter="" onclick="setChipFilter(this, '')">Todos</button>
                 <button type="button" class="chip" data-filter="shorts" onclick="setChipFilter(this, 'shorts')">
                     <i class="fa-solid fa-bolt mr-1 text-[11px]"></i>Curtos
@@ -409,7 +416,6 @@
                 </div>
             </section>
 
-            <!-- Feed de vídeos curtos (Shorts) -->
             <section id="shortsSection">
                 <div id="shortsFeedMobile" class="no-scrollbar"></div>
                 <div id="shortsFeedDesktop" class="no-scrollbar"></div>
@@ -417,7 +423,6 @@
         </main>
     </div>
 
-    <!-- Modal fullscreen (feed normal) -->
     <div id="videoModal" aria-hidden="true" role="dialog" aria-modal="true">
         <div id="videoModalBackdrop"></div>
         <div id="videoModalPanel">
@@ -438,13 +443,10 @@
             </div>
 
             <div class="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden bg-white relative">
-                
                 <div class="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col">
                     <div id="videoModalPlayer" class="bg-black w-full shrink-0"></div>
-
                     <div class="p-4 space-y-3 max-w-3xl w-full mx-auto">
                         <h1 id="playerTitle" class="text-base md:text-lg font-bold text-gray-900 leading-snug"></h1>
-
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <div class="flex items-center gap-3 min-w-0">
                                 <div id="playerAvatar" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200"></div>
@@ -454,7 +456,6 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 border-y border-gray-100">
                             <button type="button" id="likeBtn" onclick="likeVideo()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm font-medium text-gray-700 transition shrink-0">
                                 <i id="likeBtnIcon" class="fa-regular fa-heart text-secondary"></i> <span id="likeBtnText">Curtir</span>
@@ -466,22 +467,18 @@
                                 <i class="fa-solid fa-download text-secondary"></i> Baixar
                             </a>
                         </div>
-
                         <div id="playerDescription"
                              class="text-sm text-gray-600 bg-gray-50 rounded-xl p-3 whitespace-pre-wrap break-words max-h-32 overflow-y-auto border border-gray-100"></div>
-
                         <div class="block md:hidden pt-4 border-t border-gray-100">
                             <h2 class="text-xs font-semibold text-secondary mb-2 uppercase tracking-wide">Mais vídeos</h2>
                             <div id="relatedListMobile" class="space-y-2"></div>
                         </div>
                     </div>
                 </div>
-
                 <div class="hidden md:flex flex-col w-80 lg:w-96 border-l border-gray-200 bg-gray-50/50 p-4 overflow-y-auto no-scrollbar shrink-0">
                     <h2 class="text-xs font-semibold text-secondary mb-3 uppercase tracking-wide">Mais vídeos</h2>
                     <div id="relatedListDesktop" class="space-y-3"></div>
                 </div>
-
             </div>
         </div>
     </div>
@@ -509,6 +506,7 @@
     let currentPlayingId = null;
     let scrollYBeforeModal = 0;
     let isShortsMode = false;
+    let shortsObserver = null;
 
     const userLikedMap = new Map();
     const userLikeEventIdMap = new Map();
@@ -799,13 +797,19 @@
         document.body.classList.add('shorts-mode');
         closePlayer();
         renderShortsFeed();
-        setupShortsAutoplay();
+        if (isMobile()) {
+            requestAnimationFrame(() => setupShortsAutoplay());
+        }
     }
 
     function exitShortsMode() {
         isShortsMode = false;
         document.body.classList.remove('shorts-mode');
         pauseAllShortsVideos();
+        if (shortsObserver) {
+            try { shortsObserver.disconnect(); } catch {}
+            shortsObserver = null;
+        }
     }
 
     function applyFilter(tag) {
@@ -909,9 +913,8 @@
         }).join('');
     }
 
-    // ========== SHORTS FEED ==========
     function renderShortsFeed() {
-        const list = filteredVideos.length ? filteredVideos : allVideos;
+        const list = (filteredVideos.length ? filteredVideos : allVideos).slice(0, 40);
         renderShortsMobile(list);
         renderShortsDesktop(list);
     }
@@ -921,7 +924,7 @@
         if (!feed) return;
 
         if (!list.length) {
-            feed.innerHTML = `<div class="short-slide text-white text-center px-6"><p class="text-sm text-gray-400">Nenhum vídeo curto encontrado.</p></div>`;
+            feed.innerHTML = `<div class="short-slide"><p class="shorts-empty">Nenhum vídeo curto encontrado.</p></div>`;
             return;
         }
 
@@ -968,7 +971,7 @@
         if (!feed) return;
 
         if (!list.length) {
-            feed.innerHTML = `<div class="text-center text-gray-400 py-20"><p class="text-sm">Nenhum vídeo curto encontrado.</p></div>`;
+            feed.innerHTML = `<div class="shorts-empty">Nenhum vídeo curto encontrado.</div>`;
             return;
         }
 
@@ -985,8 +988,9 @@
                         loop
                         muted
                         controls
-                        preload="${idx < 2 ? 'auto' : 'metadata'}"
+                        preload="${idx < 3 ? 'metadata' : 'none'}"
                         class="short-video-desktop"
+                        poster=""
                     ></video>
                 </div>
                 <div class="short-meta">
@@ -998,7 +1002,7 @@
                         </div>
                     </div>
                     <p class="text-sm text-gray-300 leading-snug line-clamp-3 mb-3">${escapeHtml(title)}</p>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
                         <button type="button" onclick="likeShortFromFeed('${escapeHtml(v.id)}')"
                             class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 text-xs text-white transition">
                             <i class="${liked ? 'fa-solid fa-heart text-red-500' : 'fa-regular fa-heart'}"></i>
@@ -1038,7 +1042,11 @@
         const feed = document.getElementById('shortsFeedMobile');
         if (!feed) return;
 
-        const observer = new IntersectionObserver((entries) => {
+        if (shortsObserver) {
+            try { shortsObserver.disconnect(); } catch {}
+        }
+
+        shortsObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 const video = entry.target.querySelector('video.short-video');
                 if (!video) return;
@@ -1059,7 +1067,7 @@
             threshold: [0.6]
         });
 
-        feed.querySelectorAll('.short-slide').forEach(slide => observer.observe(slide));
+        feed.querySelectorAll('.short-slide').forEach(slide => shortsObserver.observe(slide));
     }
 
     window.likeShortFromFeed = async function(videoId) {
@@ -1073,7 +1081,6 @@
 
         currentPlayingId = v.id;
         await likeVideo();
-        // Re-render shorts para atualizar ícone de like
         if (isShortsMode) renderShortsFeed();
     };
 
@@ -1385,7 +1392,6 @@
 
     function loadSessionAvatar() {
         if (!currentUserData.avatarUrl) return;
-
         const el = document.getElementById('userAvatarHeader');
         if (el) {
             el.innerHTML = `<img src="${escapeHtml(currentUserData.avatarUrl)}" class="w-full h-full object-cover" alt="">`;
