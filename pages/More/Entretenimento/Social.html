@@ -620,6 +620,10 @@
     const JIKAN_BASE = 'https://api.jikan.moe/v4';
     let selectedMalAvatarUrl = null;
 
+    // Cache exclusivo da aba Meus posts (somente posts da chave do usuário)
+    let myPostsCache = [];
+    let isLoadingMyPosts = false;
+
     const BLOCKED_DOMAINS = [
         'pornhub.com', 'xvideos.com', 'xnxx.com', 'xhamster.com', 'redtube.com',
         'youporn.com', 'tube8.com', 'spankbang.com', 'onlyfans.com', 'fansly.com',
@@ -1367,6 +1371,180 @@
         return (p && p.picture) ? p.picture : '';
     }
 
+    // ============================================================
+    // FUNÇÃO PRINCIPAL DA ABA "MEUS POSTS"
+    // Busca EXCLUSIVAMENTE os posts da chave do usuário logado
+    // ============================================================
+    async function fetchMyPosts() {
+        if (!currentUserData.pubkey || !pool || isLoadingMyPosts) return;
+
+        isLoadingMyPosts = true;
+        const feedMeusPosts = document.getElementById('feed-meus-posts');
+
+        if (feedMeusPosts) {
+            feedMeusPosts.innerHTML = `
+                <div class="p-6 text-center space-y-2">
+                    <i class="fa-solid fa-spinner fa-spin text-2xl text-secondary mb-1"></i>
+                    <p class="text-xs text-gray-500">Buscando suas publicações na rede...</p>
+                </div>`;
+        }
+
+        try {
+            // Query exclusiva pela chave pública do usuário logado
+            const fromRelays = await pool.querySync(RELAYS, {
+                kinds: [1],
+                authors: [currentUserData.pubkey],   // ← somente esta chave
+                limit: 50
+            });
+
+            let userPosts = [];
+            if (fromRelays?.length) {
+                userPosts = Array.from(new Map(fromRelays.map(e => [e.id, e])).values());
+            }
+
+            userPosts.sort((a, b) => b.created_at - a.created_at);
+            userPosts = userPosts.slice(0, 50);
+
+            myPostsCache = userPosts;
+
+            if (userPosts.length) {
+                fetchReactionsForPosts(userPosts.map(e => e.id));
+            }
+
+            renderMyPostsOnly();
+        } catch (e) {
+            console.error('Erro ao buscar meus posts:', e);
+            if (feedMeusPosts) {
+                feedMeusPosts.innerHTML = `
+                    <div class="p-6 text-center space-y-2">
+                        <i class="fa-solid fa-triangle-exclamation text-2xl text-amber-500 mb-1"></i>
+                        <p class="text-xs text-gray-500">Erro ao carregar suas publicações.</p>
+                    </div>`;
+            }
+        } finally {
+            isLoadingMyPosts = false;
+        }
+    }
+
+    function renderMyPostsOnly() {
+        const feedMeusPosts = document.getElementById('feed-meus-posts');
+        if (!feedMeusPosts) return;
+
+        if (!myPostsCache.length) {
+            feedMeusPosts.innerHTML = `
+                <div class="p-6 text-center space-y-2">
+                    <i class="fa-solid fa-pen-to-square text-3xl text-gray-300 mb-1"></i>
+                    <h3 class="font-bold text-sm text-gray-900">Seus posts</h3>
+                    <p class="text-xs text-gray-500">As publicações que você fez aparecerão nesta aba.</p>
+                </div>`;
+            return;
+        }
+
+        fetchProfiles([currentUserData.pubkey]).then(() => {
+            let html = '';
+            let count = 0;
+
+            myPostsCache.forEach(ev => {
+                // Garantia extra: só mostra se for realmente da chave do usuário
+                if (ev.pubkey.toLowerCase() !== currentUserData.pubkey.toLowerCase()) return;
+
+                const p = profileCache.get(ev.pubkey);
+                if (!p || !p.name || p.name.trim() === '') return;
+                if (isLinkOnlyPost(ev)) return;
+
+                const isSensitive = isExplicitEvent(ev);
+                const displayName = '@' + p.name;
+                const timeAgo = new Date(ev.created_at * 1000).toLocaleDateString('pt-BR');
+
+                const likesSet = postLikesCache.get(ev.id) || new Set();
+                const likesCount = likesSet.size;
+                const isLikedByMe = userLikesMap.get(ev.id) || false;
+
+                const { cleanContent, mediaHtml } = extractMediaAndCleanText(ev);
+
+                let textSectionHtml = '';
+                if (cleanContent) {
+                    const limit = 300;
+                    const linkedContent = linkifyAndEscape(cleanContent);
+                    if (cleanContent.length > limit) {
+                        const shortContent = linkifyAndEscape(cleanContent.substring(0, limit) + '...');
+                        textSectionHtml = `
+                            <div class="post-content-container mb-2">
+                                <p class="post-text-short text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">${shortContent}</p>
+                                <p class="post-text-full text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed hidden">${linkedContent}</p>
+                                <button onclick="toggleReadMore(this)" class="text-xs font-semibold text-secondary mt-1 hover:underline focus:outline-none">Ler mais</button>
+                            </div>`;
+                    } else {
+                        textSectionHtml = `<p class="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-2">${linkedContent}</p>`;
+                    }
+                }
+
+                const authorPicture = getProfilePicture(ev.pubkey);
+                const avatarHtml = authorPicture
+                    ? `<img src="${escapeHtml(authorPicture)}" class="w-full h-full object-cover" alt="Avatar" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');">
+                       <i class="fa-solid fa-user hidden"></i>`
+                    : `<i class="fa-solid fa-user"></i>`;
+
+                const warningBadge = (safeMode && isSensitive)
+                    ? `<div class="mb-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+                        <i class="fa-solid fa-shield-halved"></i> Conteúdo sensível protegido
+                       </div>`
+                    : '';
+
+                const likeBtnClass = isLikedByMe
+                    ? 'flex items-center gap-1.5 text-red-500 transition'
+                    : 'flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition';
+                const likeIconClass = isLikedByMe ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+                const escapedContentForShare = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const escapedContentForTranslate = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                html += `
+                <div class="p-4 hover:bg-gray-50/60 transition duration-150">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary font-bold overflow-hidden relative cursor-pointer hover:opacity-90 transition" onclick="openUserProfileModal('${ev.pubkey}')" title="Ver perfil">
+                            ${avatarHtml}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="font-bold text-sm text-gray-900 font-mono cursor-pointer hover:text-secondary hover:underline transition" onclick="openUserProfileModal('${ev.pubkey}')">${displayName}</span>
+                                    <span class="text-xs text-gray-400">·</span>
+                                    <span class="text-xs text-gray-400">${timeAgo}</span>
+                                    <button onclick="translatePostText('${ev.id}', '${escapedContentForTranslate}')" class="text-[11px] text-secondary hover:underline font-medium ml-1">Traduzir</button>
+                                </div>
+                            </div>
+                            ${warningBadge}
+                            ${textSectionHtml}
+                            <div id="translation-${ev.id}" class="hidden mb-2"></div>
+                            ${mediaHtml}
+                            <div class="flex items-center justify-between text-gray-400 text-xs max-w-sm pt-3">
+                                <button onclick="openCommentsModal('${ev.id}', '${ev.pubkey}')" class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-regular fa-comment"></i><span id="comment-count-${ev.id}">0</span></button>
+                                <div class="flex items-center gap-2">
+                                    <button id="like-btn-${ev.id}" onclick="toggleLikePost('${ev.id}', '${ev.pubkey}')" class="${likeBtnClass}"><i class="${likeIconClass}"></i><span id="like-count-${ev.id}">${likesCount}</span></button>
+                                    <button onclick="openLikesModal('${ev.id}')" class="text-[11px] text-gray-400 hover:underline" title="Ver quem curtiu">(ver)</button>
+                                </div>
+                                <button onclick="sharePost('${ev.id}', '${escapedContentForShare}')" class="flex items-center gap-1.5 hover:text-secondary transition" title="Compartilhar post">
+                                    <i class="fa-solid fa-share-nodes"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+                count++;
+            });
+
+            feedMeusPosts.innerHTML = count > 0
+                ? html
+                : `<div class="p-6 text-center space-y-2">
+                    <i class="fa-solid fa-pen-to-square text-3xl text-gray-300 mb-1"></i>
+                    <h3 class="font-bold text-sm text-gray-900">Seus posts</h3>
+                    <p class="text-xs text-gray-500">As publicações que você fez aparecerão nesta aba.</p>
+                   </div>`;
+
+            if (safeMode) setTimeout(() => scanAndClassifyImages(), 400);
+        });
+    }
+
     window.openUserProfileModal = async function(pubkey) {
         if (!pubkey) return;
 
@@ -1677,6 +1855,7 @@
         localStorage.removeItem('nostr_session');
         currentUserData = { pubkey: '', privateKey: null, nickname: '@anonimo', avatarUrl: '' };
         followingList.clear();
+        myPostsCache = [];
         const aboutInput = document.getElementById('profileAboutInput');
         if (aboutInput) aboutInput.value = '';
         updateProfileAboutDisplay('');
@@ -1782,6 +1961,8 @@
             removeSelectedFile();
             switchSection('feed');
             await fetchNostrFeed();
+            // Atualiza a aba Meus posts após publicar
+            fetchMyPosts();
         } catch (err) {
             console.error(err);
             alert('Erro ao publicar nos relays. Tente novamente.');
@@ -2497,11 +2678,8 @@
 
     function _renderFeedsInternal() {
         const feedParaVoce = document.getElementById('feed-para-voce');
-        const feedMeusPosts = document.getElementById('feed-meus-posts');
 
         let htmlParaVoce = '';
-        let htmlMeusPosts = '';
-        let countMeusPosts = 0;
 
         cachedEvents.forEach(ev => {
             const p = profileCache.get(ev.pubkey);
@@ -2511,7 +2689,6 @@
             const isSensitive = isExplicitEvent(ev);
             const displayName = '@' + p.name;
             const timeAgo = new Date(ev.created_at * 1000).toLocaleDateString('pt-BR');
-            const isSelf = currentUserData.pubkey && ev.pubkey.toLowerCase() === currentUserData.pubkey.toLowerCase();
 
             const likesSet = postLikesCache.get(ev.id) || new Set();
             const likesCount = likesSet.size;
@@ -2587,10 +2764,6 @@
             </div>`;
 
             htmlParaVoce += postCard;
-            if (isSelf) {
-                htmlMeusPosts += postCard;
-                countMeusPosts++;
-            }
         });
 
         feedParaVoce.innerHTML = htmlParaVoce || `
@@ -2598,16 +2771,6 @@
                 <i class="fa-solid fa-shield-halved text-3xl text-gray-300 mb-1"></i>
                 <p class="text-xs text-gray-500">Nenhum post de usuário com username encontrado.</p>
             </div>`;
-
-        if (feedMeusPosts) {
-            feedMeusPosts.innerHTML = countMeusPosts > 0
-                ? htmlMeusPosts
-                : `<div class="p-6 text-center space-y-2">
-                    <i class="fa-solid fa-pen-to-square text-3xl text-gray-300 mb-1"></i>
-                    <h3 class="font-bold text-sm text-gray-900">Seus posts</h3>
-                    <p class="text-xs text-gray-500">As publicações que você fez aparecerão nesta aba.</p>
-                   </div>`;
-        }
 
         if (safeMode) setTimeout(() => scanAndClassifyImages(), 500);
     }
@@ -2665,6 +2828,9 @@
         }
     };
 
+    // ============================================================
+    // switchFeedTab – chama a busca exclusiva pela chave do usuário
+    // ============================================================
     window.switchFeedTab = function(tabName) {
         const tabs = ['para-voce', 'meus-posts'];
         const feeds = {
@@ -2688,6 +2854,11 @@
                 ind.className = 'absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-transparent rounded-full';
             }
         });
+
+        // Quando abrir a aba Meus posts → busca exclusivamente pela chave do usuário
+        if (tabName === 'meus-posts') {
+            fetchMyPosts();
+        }
     };
 
     function openAuthModal() {
