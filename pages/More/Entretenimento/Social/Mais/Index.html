@@ -294,7 +294,7 @@
             cursor: default;
         }
 
-        /* Modal de Iframe */
+        /* Modal Estilo React Native (Fluido e com Física de Mola) */
         .iframe-modal {
             position: fixed;
             top: 0;
@@ -303,14 +303,15 @@
             height: 100vh;
             background-color: var(--primary-color);
             z-index: 1000;
-            display: none;
+            display: flex;
             flex-direction: column;
             transform: translateY(100%);
-            transition: transform 0.3s ease-out;
+            /* Curva cúbica customizada para dar o efeito "spring" (mola) semelhante ao React Native */
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform;
         }
 
         .iframe-modal.open {
-            display: flex;
             transform: translateY(0);
         }
 
@@ -321,19 +322,53 @@
             padding: 12px 16px;
             border-bottom: 1px solid var(--border-color);
             background-color: var(--primary-color);
+            cursor: grab;
+            user-select: none;
+        }
+
+        .iframe-header:active {
+            cursor: grabbing;
+        }
+
+        /* Indicador visual de arraste (pílula estilo iOS/React Native) opcional no topo */
+        .iframe-header::after {
+            content: '';
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 36px;
+            height: 4px;
+            background-color: var(--border-color);
+            border-radius: 2px;
+        }
+
+        @media (min-width: 768px) {
+            .iframe-header::after {
+                display: none; /* Some no desktop */
+            }
         }
 
         .iframe-header span {
             font-weight: 600;
             font-size: 14px;
+            margin-top: 4px;
         }
 
+        /* Botão de fechar visível apenas no desktop */
         .close-modal-btn {
             background: none;
             border: none;
             font-size: 18px;
             cursor: pointer;
             color: var(--text-main);
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .close-modal-btn {
+                display: block;
+            }
         }
 
         .iframe-content {
@@ -385,7 +420,6 @@
         <div class="ads-container">
             <span class="ad-tag">Ad</span>
             <div class="ads-content">
-                <!-- Insira seu script ou iframe de anúncios (Google AdSense, banner, etc.) aqui -->
                 <p style="font-size: 12px; color: var(--text-muted);">Espaço reservado para anúncios</p>
             </div>
         </div>
@@ -409,7 +443,7 @@
             </div>
         </div>
 
-        <!-- Lista Vertical de Dropdown (Rede, Dados, Monetização) -->
+        <!-- Lista Vertical de Dropdown -->
         <div class="vertical-dropdown-container">
             <div class="dropdown-item">
                 <div class="dropdown-header" onclick="toggleDropdown(this)">
@@ -417,10 +451,11 @@
                     <i class="fa-solid fa-chevron-down"></i>
                 </div>
                 <div class="dropdown-content">
-                    <p>A rede ultilizada é descentralizada via Norst,
+                    <p>
+                       A rede ultilizada é descentralizada via Norst,
                        ou seja os seus dados não ficam restritos a nossos servidores podendo acessar os mesmos por meio
-                        de qualquer aplicação web, ou não, que faça uso da mesma arquitetura/rede Norst.
-                    </p>
+                       de qualquer aplicação web, ou não, que faça uso da mesma arquitetura/rede Norst.
+                   </p>
                 </div>
             </div>
             <div class="dropdown-item">
@@ -437,7 +472,6 @@
                     </p>
                 </div>
             </div>
-            
         </div>
     </div>
 
@@ -451,50 +485,73 @@
     </div>
 
     <script>
-        // Função de redirecionamento da seta
         function goBack() {
             window.location.href = "../../Social.html";
         }
 
-        // Função para alternar o Dropdown
         function toggleDropdown(headerElement) {
             const dropdownItem = headerElement.parentElement;
             dropdownItem.classList.toggle('active');
         }
 
-        // Funções do Modal e Iframe
+        const modal = document.getElementById('resourceModal');
+
         function openModal(title, url) {
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('resourceIframe').src = url;
-            document.getElementById('resourceModal').classList.add('open');
+            modal.classList.add('open');
         }
 
         function closeModal() {
-            document.getElementById('resourceModal').classList.remove('open');
+            modal.style.transition = 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+            modal.style.transform = 'translateY(100%)';
+            modal.classList.remove('open');
             setTimeout(() => {
                 document.getElementById('resourceIframe').src = "";
+                modal.style.transform = ''; // limpa o inline style
+                modal.style.transition = '';
             }, 300);
         }
 
-        // Suporte a Swipe para fechar de baixo para cima (Mobile)
+        // Lógica de Arraste Fluido (Acompanhando o dedo em tempo real)
         let touchStartY = 0;
-        let touchEndY = 0;
-        const modal = document.getElementById('resourceModal');
+        let currentY = 0;
+        let isDragging = false;
+        const modalHeader = document.getElementById('modalHeaderHandle');
 
-        modal.addEventListener('touchstart', function(event) {
-            touchStartY = event.changedTouches[0].screenY;
-        }, false);
+        modalHeader.addEventListener('touchstart', function(event) {
+            touchStartY = event.touches[0].clientY;
+            isDragging = true;
+            modal.style.transition = 'none'; // Remove o delay para seguir o dedo instantaneamente
+        }, { passive: true });
 
-        modal.addEventListener('touchend', function(event) {
-            touchEndY = event.changedTouches[0].screenY;
-            handleSwipeGesture();
-        }, false);
+        modalHeader.addEventListener('touchmove', function(event) {
+            if (!isDragging) return;
+            currentY = event.touches[0].clientY;
+            let deltaY = currentY - touchStartY;
 
-        function handleSwipeGesture() {
-            if (touchStartY - touchEndY > 80) {
-                closeModal();
+            // Permite apenas arrastar para baixo
+            if (deltaY > 0) {
+                modal.style.transform = `translateY(${deltaY}px)`;
             }
-        }
+        }, { passive: true });
+
+        modalHeader.addEventListener('touchend', function(event) {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            let deltaY = currentY - touchStartY;
+            modal.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+
+            // Se arrastou mais de 120px para baixo, fecha o modal, senão volta ao topo suavemente
+            if (deltaY > 120) {
+                closeModal();
+            } else {
+                modal.style.transform = 'translateY(0)';
+            }
+            currentY = 0;
+            touchStartY = 0;
+        }, { passive: true });
     </script>
 </body>
 </html>
