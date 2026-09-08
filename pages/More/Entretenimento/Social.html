@@ -166,6 +166,113 @@
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Embeds responsivos (estilo Iframely) */
+        .iframely-embed {
+            margin-top: 0.75rem;
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+        .iframely-responsive {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 56.25%;
+            overflow: hidden;
+        }
+        .iframely-responsive.ratio-square { padding-bottom: 100%; }
+        .iframely-responsive.ratio-spotify { padding-bottom: 152px; height: auto; }
+        .iframely-responsive iframe,
+        .iframely-responsive > * {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+        .iframely-responsive.ratio-spotify iframe {
+            height: 152px;
+        }
+        .embed-link-card {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            align-items: center;
+            text-decoration: none;
+            color: inherit;
+            transition: background 0.15s;
+        }
+        .embed-link-card:hover { background: #f3f4f6; }
+        .embed-link-card .embed-card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            background: #ede9fe;
+            color: #7c3aed;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 18px;
+        }
+        .embed-link-card .embed-card-body { min-width: 0; flex: 1; }
+        .embed-link-card .embed-card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #111827;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .embed-link-card .embed-card-url {
+            font-size: 11px;
+            color: #6b7280;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Embeds de redes sociais (altura variável) */
+        .iframely-responsive.ratio-social {
+            position: relative;
+            width: 100%;
+            height: auto;
+            padding-bottom: 0;
+            min-height: 320px;
+        }
+        .iframely-responsive.ratio-social iframe {
+            position: relative;
+            width: 100%;
+            height: 520px;
+            min-height: 320px;
+            border: 0;
+        }
+        .iframely-responsive.ratio-social.ratio-instagram iframe {
+            height: 620px;
+        }
+        .iframely-responsive.ratio-social.ratio-facebook iframe {
+            height: 540px;
+        }
+        .iframely-responsive.ratio-social.ratio-twitter iframe {
+            height: 500px;
+        }
+        .iframely-responsive.ratio-social.ratio-tiktok iframe {
+            height: 720px;
+        }
+        .social-embed-native {
+            margin-top: 0.75rem;
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            padding: 8px;
+        }
+        .social-embed-native blockquote {
+            margin: 0;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col md:flex-row">
@@ -327,7 +434,8 @@
                     <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
                         <img id="imagePreview" class="w-full max-h-80 object-contain hidden" alt="Preview da imagem">
                         <video id="videoPreview" class="w-full max-h-80 object-contain hidden" controls></video>
-                        <button type="button" onclick="removeSelectedFile()" class="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition" title="Remover mídia">
+                        <div id="embedPreview" class="hidden p-0"></div>
+                        <button type="button" onclick="removeSelectedFile()" class="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition z-10" title="Remover mídia">
                             <i class="fa-solid fa-xmark text-sm"></i>
                         </button>
                     </div>
@@ -336,33 +444,23 @@
                 <div class="px-4 pb-3 space-y-3">
                     <div class="space-y-1">
                         <label class="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                            <i class="fa-solid fa-image text-green-500"></i> URL da imagem
+                            <i class="fa-solid fa-link text-secondary"></i> Anexar link / embed
                         </label>
                         <div class="flex gap-2">
-                            <input type="url" id="mediaImageUrlInput" placeholder="https://... (png, jpg, gif, webp...)"
+                            <input type="url" id="mediaEmbedUrlInput"
+                                   placeholder="Cole qualquer URL (X, Instagram, Facebook, YouTube, imagem…)"
                                    class="w-full text-xs px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20"
-                                   oninput="handleMediaUrlInput('image')">
-                            <button type="button" onclick="handleMediaUrlInput('image')"
-                                    class="px-3 py-2.5 bg-green-500/10 text-green-600 text-xs font-semibold rounded-xl hover:bg-green-500 hover:text-white transition flex-shrink-0">
-                                Usar
+                                   oninput="handleEmbedUrlInput()"
+                                   onkeydown="if(event.key==='Enter'){event.preventDefault(); handleEmbedUrlInput(true);}">
+                            <button type="button" onclick="handleEmbedUrlInput(true)"
+                                    class="px-3 py-2.5 bg-secondary/10 text-secondary text-xs font-semibold rounded-xl hover:bg-secondary hover:text-white transition flex-shrink-0">
+                                Anexar
                             </button>
                         </div>
+                        <p class="text-[11px] text-gray-400">
+                            Embeds nativos por plataforma: X/Twitter, Instagram, Facebook, YouTube, Vimeo, Spotify, TikTok, imagens e vídeos.
+                        </p>
                     </div>
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                            <i class="fa-solid fa-video text-blue-500"></i> URL do vídeo
-                        </label>
-                        <div class="flex gap-2">
-                            <input type="url" id="mediaVideoUrlInput" placeholder="https://... (mp4, webm...)"
-                                   class="w-full text-xs px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20"
-                                   oninput="handleMediaUrlInput('video')">
-                            <button type="button" onclick="handleMediaUrlInput('video')"
-                                    class="px-3 py-2.5 bg-blue-500/10 text-blue-600 text-xs font-semibold rounded-xl hover:bg-blue-500 hover:text-white transition flex-shrink-0">
-                                Usar
-                            </button>
-                        </div>
-                    </div>
-                    <p class="text-[11px] text-gray-400">Use uma URL pública (nostr.build, imgur, catbox, etc.). Não é possível enviar arquivos do dispositivo.</p>
                 </div>
 
                 <div class="p-4 bg-gray-50 border-t border-gray-100">
@@ -546,7 +644,6 @@
         </div>
     </div>
 
-    <!-- Modal Preferências do Feed -->
     <div id="feedPreferencesModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center transition-opacity duration-300 opacity-0 pointer-events-none p-0 md:p-4">
         <div id="feedPreferencesModalContent" class="bg-white w-full md:max-w-md max-h-[85vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full md:translate-y-4 transition-transform duration-300">
             <div class="p-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
@@ -589,7 +686,6 @@
                     <label class="text-xs font-semibold text-gray-700">Temas de interesse</label>
                     <p class="text-[11px] text-gray-500">Toque para selecionar. O feed prioriza posts com esses temas (hashtags).</p>
                     <div id="prefThemesList" class="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
-                        <!-- preenchido via JS -->
                     </div>
                 </div>
 
@@ -798,8 +894,6 @@
         });
     });
 
-    // ========== Preferências do feed (rede Nostr + temas) ==========
-
     function renderPrefThemesList() {
         const list = document.getElementById('prefThemesList');
         if (!list) return;
@@ -983,27 +1077,97 @@
             return;
         }
 
+        const text = String(textToTranslate || '').trim();
+        if (!text) {
+            translationContainer.innerHTML = `<span class="text-xs text-gray-400">Nada para traduzir.</span>`;
+            translationContainer.classList.remove('hidden');
+            return;
+        }
+
+        const maxLen = 4500;
+        const textToSend = text.length > maxLen ? text.slice(0, maxLen) : text;
+
         translationContainer.innerHTML = `<span class="text-xs text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i> Traduzindo...</span>`;
         translationContainer.classList.remove('hidden');
 
-        try {
-            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=pt&dt=t&q=${encodeURIComponent(textToTranslate)}`;
+        async function tryMyMemory(q) {
+            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(q)}&langpair=autodetect|pt`;
             const response = await fetch(url);
+            if (!response.ok) throw new Error('MyMemory HTTP ' + response.status);
             const data = await response.json();
-
-            if (data && data[0]) {
-                const translatedText = data[0].map(item => item[0]).join('');
-                translationContainer.innerHTML = `
-                    <div class="mt-2 p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-700">
-                        <span class="font-semibold text-[10px] text-secondary block mb-1">Tradução automática:</span>
-                        ${escapeHtml(translatedText)}
-                    </div>`;
-            } else {
-                translationContainer.innerHTML = `<span class="text-xs text-red-500">Não foi possível traduzir.</span>`;
+            const translated = data?.responseData?.translatedText;
+            if (!translated || /INVALID|QUERY LENGTH|MYMEMORY WARNING/i.test(translated)) {
+                throw new Error('MyMemory sem tradução válida');
             }
+            return translated;
+        }
+
+        async function tryLingva(q) {
+            const url = `https://lingva.ml/api/v1/auto/pt/${encodeURIComponent(q)}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Lingva HTTP ' + response.status);
+            const data = await response.json();
+            if (!data?.translation) throw new Error('Lingva sem tradução');
+            return data.translation;
+        }
+
+        async function tryLibreTranslate(q) {
+            const response = await fetch('https://libretranslate.com/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    q: q,
+                    source: 'auto',
+                    target: 'pt',
+                    format: 'text'
+                })
+            });
+            if (!response.ok) throw new Error('LibreTranslate HTTP ' + response.status);
+            const data = await response.json();
+            if (!data?.translatedText) throw new Error('LibreTranslate sem tradução');
+            return data.translatedText;
+        }
+
+        try {
+            let translatedText = null;
+            const errors = [];
+
+            try {
+                translatedText = await tryMyMemory(textToSend);
+            } catch (e) {
+                errors.push(e);
+            }
+
+            if (!translatedText) {
+                try {
+                    translatedText = await tryLingva(textToSend);
+                } catch (e) {
+                    errors.push(e);
+                }
+            }
+
+            if (!translatedText) {
+                try {
+                    translatedText = await tryLibreTranslate(textToSend);
+                } catch (e) {
+                    errors.push(e);
+                }
+            }
+
+            if (!translatedText) {
+                console.error('Falha em todos os serviços de tradução:', errors);
+                translationContainer.innerHTML = `<span class="text-xs text-red-500">Não foi possível traduzir no momento. Tente de novo em instantes.</span>`;
+                return;
+            }
+
+            translationContainer.innerHTML = `
+                <div class="mt-2 p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-700">
+                    <span class="font-semibold text-[10px] text-secondary block mb-1">Tradução automática:</span>
+                    ${escapeHtml(translatedText)}
+                </div>`;
         } catch (e) {
             console.error('Erro na tradução:', e);
-            translationContainer.innerHTML = `<span class="text-xs text-red-500">Erro ao conectar com o serviço de tradução.</span>`;
+            translationContainer.innerHTML = `<span class="text-xs text-red-500">Erro ao traduzir. Tente novamente.</span>`;
         }
     };
 
@@ -1240,6 +1404,283 @@
         </div>`;
     }
 
+    function parseEmbedUrl(rawUrl) {
+        if (!rawUrl || !/^https?:\/\//i.test(rawUrl)) return null;
+        let url;
+        try { url = new URL(rawUrl.trim()); } catch { return null; }
+        const host = url.hostname.replace(/^www\./, '').toLowerCase();
+        const path = url.pathname;
+        const href = url.href;
+
+        // YouTube
+        let ytId = null;
+        if (host === 'youtu.be') {
+            ytId = path.slice(1).split('/')[0];
+        } else if (host.includes('youtube.com')) {
+            if (url.searchParams.get('v')) ytId = url.searchParams.get('v');
+            else if (path.startsWith('/embed/')) ytId = path.split('/')[2];
+            else if (path.startsWith('/shorts/')) ytId = path.split('/')[2];
+            else if (path.startsWith('/live/')) ytId = path.split('/')[2];
+        }
+        if (ytId && /^[\w-]{6,}$/.test(ytId)) {
+            return {
+                type: 'iframe',
+                provider: 'youtube',
+                url: href,
+                embedSrc: `https://www.youtube.com/embed/${ytId}`,
+                ratio: '16:9'
+            };
+        }
+
+        // Vimeo
+        if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+            const m = path.match(/\/(?:video\/)?(\d+)/);
+            if (m) {
+                return {
+                    type: 'iframe',
+                    provider: 'vimeo',
+                    url: href,
+                    embedSrc: `https://player.vimeo.com/video/${m[1]}`,
+                    ratio: '16:9'
+                };
+            }
+        }
+
+        // X / Twitter
+        if (host === 'twitter.com' || host === 'x.com' || host === 'mobile.twitter.com' || host === 'mobile.x.com') {
+            const m = path.match(/\/(?:i\/web\/)?status(?:es)?\/(\d+)/) || path.match(/\/[^/]+\/status(?:es)?\/(\d+)/);
+            if (m && m[1]) {
+                const tweetId = m[1];
+                return {
+                    type: 'social',
+                    provider: 'twitter',
+                    url: `https://x.com/i/status/${tweetId}`,
+                    tweetId,
+                    embedSrc: `https://platform.twitter.com/embed/Tweet.html?id=${tweetId}`,
+                    ratio: 'twitter'
+                };
+            }
+        }
+
+        // Instagram
+        if (host === 'instagram.com' || host === 'instagr.am') {
+            const m = path.match(/\/(p|reel|reels|tv)\/([A-Za-z0-9_-]+)/);
+            if (m && m[2]) {
+                const kind = m[1] === 'reels' ? 'reel' : m[1];
+                const code = m[2];
+                const postUrl = `https://www.instagram.com/${kind}/${code}/`;
+                return {
+                    type: 'social',
+                    provider: 'instagram',
+                    url: postUrl,
+                    embedSrc: `https://www.instagram.com/${kind}/${code}/embed/captioned/`,
+                    ratio: 'instagram'
+                };
+            }
+        }
+
+        // Facebook
+        if (
+            host === 'facebook.com' ||
+            host === 'm.facebook.com' ||
+            host === 'web.facebook.com' ||
+            host === 'fb.watch' ||
+            host === 'fb.com'
+        ) {
+            const isVideo =
+                path.includes('/videos/') ||
+                path.includes('/watch') ||
+                host === 'fb.watch' ||
+                url.searchParams.has('v');
+
+            const postUrl = href;
+            if (isVideo) {
+                return {
+                    type: 'social',
+                    provider: 'facebook',
+                    url: postUrl,
+                    embedSrc: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(postUrl)}&show_text=true&width=500`,
+                    ratio: 'facebook'
+                };
+            }
+            return {
+                type: 'social',
+                provider: 'facebook',
+                url: postUrl,
+                embedSrc: `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(postUrl)}&show_text=true&width=500`,
+                ratio: 'facebook'
+            };
+        }
+
+        // Spotify
+        if (host === 'open.spotify.com') {
+            const m = path.match(/\/(track|album|playlist|episode|show)\/([a-zA-Z0-9]+)/);
+            if (m) {
+                return {
+                    type: 'iframe',
+                    provider: 'spotify',
+                    url: href,
+                    embedSrc: `https://open.spotify.com/embed/${m[1]}/${m[2]}`,
+                    ratio: 'spotify'
+                };
+            }
+        }
+
+        // SoundCloud
+        if (host.includes('soundcloud.com')) {
+            return {
+                type: 'iframe',
+                provider: 'soundcloud',
+                url: href,
+                embedSrc: `https://w.soundcloud.com/player/?url=${encodeURIComponent(href)}&color=%237c3aed&auto_play=false`,
+                ratio: 'spotify'
+            };
+        }
+
+        // Twitch
+        if (host === 'twitch.tv' || host === 'www.twitch.tv') {
+            const parts = path.split('/').filter(Boolean);
+            if (parts[0] === 'videos' && parts[1]) {
+                return {
+                    type: 'iframe',
+                    provider: 'twitch',
+                    url: href,
+                    embedSrc: `https://player.twitch.tv/?video=${parts[1]}&parent=${location.hostname || 'localhost'}`,
+                    ratio: '16:9'
+                };
+            }
+            if (parts[0] && parts[0] !== 'directory') {
+                return {
+                    type: 'iframe',
+                    provider: 'twitch',
+                    url: href,
+                    embedSrc: `https://player.twitch.tv/?channel=${parts[0]}&parent=${location.hostname || 'localhost'}`,
+                    ratio: '16:9'
+                };
+            }
+        }
+
+        // TikTok
+        if (host === 'tiktok.com' || host === 'www.tiktok.com' || host === 'vm.tiktok.com') {
+            const m = path.match(/\/video\/(\d+)/) || path.match(/\/@[^/]+\/video\/(\d+)/);
+            if (m && m[1]) {
+                return {
+                    type: 'social',
+                    provider: 'tiktok',
+                    url: href,
+                    embedSrc: `https://www.tiktok.com/embed/v2/${m[1]}`,
+                    ratio: 'tiktok'
+                };
+            }
+        }
+
+        // Imagem
+        if (/\.(png|jpe?g|gif|webp|avif|bmp|svg)(\?.*)?$/i.test(path) || /\.(png|jpe?g|gif|webp)(\?|$)/i.test(href)) {
+            return { type: 'image', provider: 'image', url: url.href };
+        }
+
+        // Vídeo
+        if (/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(path) || /\.(mp4|webm)(\?|$)/i.test(href)) {
+            return { type: 'video', provider: 'video', url: url.href };
+        }
+
+        return {
+            type: 'link',
+            provider: 'link',
+            url: url.href,
+            title: host,
+            displayUrl: url.href.replace(/^https?:\/\//i, '')
+        };
+    }
+
+    function buildResponsiveEmbedHtml(info, { safe = false } = {}) {
+        if (!info) return '';
+
+        if (info.type === 'image') {
+            return buildImageHtml(info.url);
+        }
+        if (info.type === 'video') {
+            return buildVideoHtml(info.url);
+        }
+
+        if ((info.type === 'iframe' || info.type === 'social') && info.embedSrc) {
+            if (safe && safeMode) {
+                return `
+                <div class="mt-3 safe-video-blocked border border-gray-700" onclick="revealEmbed(this, '${escapeHtml(info.embedSrc)}', '${info.ratio || '16:9'}', '${escapeHtml(info.provider || '')}')">
+                    <i class="fa-solid fa-play text-2xl opacity-80"></i>
+                    <div class="text-sm font-semibold">Embed bloqueado</div>
+                    <div class="text-[11px] opacity-80">${escapeHtml(info.provider || 'mídia')} · clique para carregar</div>
+                </div>`;
+            }
+
+            let ratioClass = '';
+            if (info.ratio === 'spotify') ratioClass = 'ratio-spotify';
+            else if (info.ratio === '1:1') ratioClass = 'ratio-square';
+            else if (info.type === 'social' || ['twitter', 'instagram', 'facebook', 'tiktok'].includes(info.provider)) {
+                ratioClass = `ratio-social ratio-${info.provider || 'social'}`;
+            }
+
+            const allowAttrs = info.provider === 'facebook'
+                ? 'autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share'
+                : 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+
+            return `
+            <div class="iframely-embed mt-3">
+                <div class="iframely-responsive ${ratioClass}">
+                    <iframe src="${escapeHtml(info.embedSrc)}"
+                            allow="${allowAttrs}"
+                            allowfullscreen
+                            loading="lazy"
+                            scrolling="no"
+                            title="Embed ${escapeHtml(info.provider || '')}"></iframe>
+                </div>
+            </div>`;
+        }
+
+        if (safe && safeMode) {
+            return `<span class="safe-link-disabled break-all">${escapeHtml(info.url)}</span>
+                    <span class="safe-link-reveal" onclick="revealLink(this.previousElementSibling, '${escapeHtml(info.url)}')">[Revelar link]</span>`;
+        }
+        return `
+        <div class="iframely-embed mt-3">
+            <a href="${escapeHtml(info.url)}" target="_blank" rel="noopener noreferrer" class="embed-link-card">
+                <div class="embed-card-icon"><i class="fa-solid fa-link"></i></div>
+                <div class="embed-card-body">
+                    <div class="embed-card-title">${escapeHtml(info.title || 'Link')}</div>
+                    <div class="embed-card-url">${escapeHtml(info.displayUrl || info.url)}</div>
+                </div>
+                <i class="fa-solid fa-arrow-up-right-from-square text-gray-400 text-xs"></i>
+            </a>
+        </div>`;
+    }
+
+    window.revealEmbed = function(container, embedSrc, ratio, provider) {
+        if (!askUserConfirmation('Tem certeza que deseja carregar este embed?')) return;
+
+        let ratioClass = '';
+        if (ratio === 'spotify') ratioClass = 'ratio-spotify';
+        else if (ratio === '1:1') ratioClass = 'ratio-square';
+        else if (['twitter', 'instagram', 'facebook', 'tiktok'].includes(provider) || ratio === 'twitter' || ratio === 'instagram' || ratio === 'facebook' || ratio === 'tiktok') {
+            ratioClass = `ratio-social ratio-${provider || ratio || 'social'}`;
+        }
+
+        const allowAttrs = provider === 'facebook'
+            ? 'autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share'
+            : 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+
+        container.outerHTML = `
+            <div class="iframely-embed mt-3">
+                <div class="iframely-responsive ${ratioClass}">
+                    <iframe src="${escapeHtml(embedSrc)}"
+                            allow="${allowAttrs}"
+                            allowfullscreen
+                            loading="lazy"
+                            scrolling="no"
+                            title="Embed ${escapeHtml(provider || '')}"></iframe>
+                </div>
+            </div>`;
+    };
+
     window.carouselGo = function(carouselId, direction) {
         const root = document.getElementById(carouselId);
         if (!root) return;
@@ -1303,24 +1744,47 @@
     function extractMediaAndCleanText(ev) {
         const mediaItems = [];
         let cleanContent = ev.content || '';
+        const seen = new Set();
+
+        function pushMedia(html, key) {
+            if (!html || (key && seen.has(key))) return;
+            if (key) seen.add(key);
+            mediaItems.push(html);
+        }
 
         if (ev.tags && ev.tags.length > 0) {
             ev.tags.forEach(tag => {
                 if (tag[0] === 'image' && tag[1]) {
-                    mediaItems.push(buildImageHtml(tag[1]));
+                    pushMedia(buildImageHtml(tag[1]), tag[1]);
                     cleanContent = cleanContent.replace(tag[1], '');
                 } else if (tag[0] === 'video' && tag[1]) {
-                    mediaItems.push(buildVideoHtml(tag[1]));
+                    pushMedia(buildVideoHtml(tag[1]), tag[1]);
                     cleanContent = cleanContent.replace(tag[1], '');
+                } else if ((tag[0] === 'r' || tag[0] === 'url') && tag[1]) {
+                    const info = parseEmbedUrl(tag[1]);
+                    if (info && info.type !== 'link') {
+                        pushMedia(buildResponsiveEmbedHtml(info, { safe: true }), tag[1]);
+                        cleanContent = cleanContent.replace(tag[1], '');
+                    }
                 }
             });
         }
 
-        const urlRegex = /(https?:\/\/[^\s]+\.(?:png|jpg|jpeg|gif|webp|mp4|webm))/gi;
-        cleanContent = cleanContent.replace(urlRegex, (url) => {
-            if (url.match(/\.(mp4|webm)$/i)) mediaItems.push(buildVideoHtml(url));
-            else mediaItems.push(buildImageHtml(url));
+        const mediaFileRegex = /(https?:\/\/[^\s]+\.(?:png|jpg|jpeg|gif|webp|mp4|webm))(?:\?[^\s]*)?/gi;
+        cleanContent = cleanContent.replace(mediaFileRegex, (url) => {
+            if (url.match(/\.(mp4|webm)$/i)) pushMedia(buildVideoHtml(url), url);
+            else pushMedia(buildImageHtml(url), url);
             return '';
+        });
+
+        const anyUrlRegex = /(https?:\/\/[^\s]+)/gi;
+        cleanContent = cleanContent.replace(anyUrlRegex, (url) => {
+            const info = parseEmbedUrl(url);
+            if (info && (info.type === 'iframe' || info.type === 'social' || info.type === 'image' || info.type === 'video')) {
+                pushMedia(buildResponsiveEmbedHtml(info, { safe: true }), url);
+                return '';
+            }
+            return url;
         });
 
         const mediaHtml = mediaItems.length >= 2
@@ -1498,12 +1962,8 @@
         const p = profileCache.get(currentUserData.pubkey) || {};
         const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
 
-        if (aboutInput) {
-            aboutInput.value = p.about || session.about || '';
-        }
-        if (urlInput) {
-            urlInput.value = currentUserData.avatarUrl || p.picture || session.avatarUrl || '';
-        }
+        if (aboutInput) aboutInput.value = p.about || session.about || '';
+        if (urlInput) urlInput.value = currentUserData.avatarUrl || p.picture || session.avatarUrl || '';
 
         const previewUrl = urlInput?.value || currentUserData.avatarUrl || '';
         updateEditAvatarPreview(previewUrl);
@@ -1677,7 +2137,6 @@
 
             userPosts.sort((a, b) => b.created_at - a.created_at);
             userPosts = userPosts.slice(0, 50);
-
             myPostsCache = userPosts;
 
             if (userPosts.length) {
@@ -2203,12 +2662,16 @@
 
         let tags = [];
         if (selectedFileUrl) {
-            if (selectedFileType === 'image') {
+            const info = window.__selectedEmbedInfo || parseEmbedUrl(selectedFileUrl);
+            if (info?.type === 'image') {
                 tags.push(['image', selectedFileUrl]);
-                contentText += `\n${selectedFileUrl}`;
-            } else if (selectedFileType === 'video') {
+            } else if (info?.type === 'video') {
                 tags.push(['video', selectedFileUrl]);
-                contentText += `\n${selectedFileUrl}`;
+            } else if (info?.type === 'iframe' || info?.type === 'social' || info?.type === 'link') {
+                tags.push(['r', selectedFileUrl]);
+            }
+            if (!contentText.includes(selectedFileUrl)) {
+                contentText += (contentText ? '\n' : '') + selectedFileUrl;
             }
         }
 
@@ -2242,60 +2705,79 @@
         }
     };
 
-    window.handleMediaUrlInput = function(type) {
-        const imageInput = document.getElementById('mediaImageUrlInput');
-        const videoInput = document.getElementById('mediaVideoUrlInput');
+    window.handleEmbedUrlInput = function(force) {
+        const input = document.getElementById('mediaEmbedUrlInput');
+        const url = (input?.value || '').trim();
         const previewContainer = document.getElementById('filePreviewContainer');
         const imagePreview = document.getElementById('imagePreview');
         const videoPreview = document.getElementById('videoPreview');
+        const embedPreview = document.getElementById('embedPreview');
 
-        if (type === 'image') {
-            const url = (imageInput?.value || '').trim();
-            if (!url) {
-                if (selectedFileType === 'image') removeSelectedFile();
-                return;
-            }
-            if (!/^https?:\/\//i.test(url)) {
-                alert('A URL da imagem deve começar com http:// ou https://');
-                return;
-            }
-            if (videoInput) videoInput.value = '';
-            selectedFileUrl = url;
-            selectedFileType = 'image';
-            imagePreview.src = url;
+        if (!url) {
+            if (selectedFileUrl) removeSelectedFile();
+            return;
+        }
+        if (!/^https?:\/\//i.test(url)) {
+            if (force) alert('A URL deve começar com http:// ou https://');
+            return;
+        }
+
+        const info = parseEmbedUrl(url);
+        if (!info) {
+            if (force) alert('URL inválida.');
+            return;
+        }
+
+        selectedFileUrl = info.url;
+        selectedFileType = info.type;
+        window.__selectedEmbedInfo = info;
+
+        imagePreview.classList.add('hidden');
+        imagePreview.removeAttribute('src');
+        videoPreview.classList.add('hidden');
+        videoPreview.removeAttribute('src');
+        embedPreview.classList.add('hidden');
+        embedPreview.innerHTML = '';
+
+        if (info.type === 'image') {
+            imagePreview.src = info.url;
             imagePreview.classList.remove('hidden');
-            videoPreview.classList.add('hidden');
-            videoPreview.removeAttribute('src');
-            previewContainer.classList.remove('hidden');
-        } else if (type === 'video') {
-            const url = (videoInput?.value || '').trim();
-            if (!url) {
-                if (selectedFileType === 'video') removeSelectedFile();
-                return;
-            }
-            if (!/^https?:\/\//i.test(url)) {
-                alert('A URL do vídeo deve começar com http:// ou https://');
-                return;
-            }
-            if (imageInput) imageInput.value = '';
-            selectedFileUrl = url;
-            selectedFileType = 'video';
-            videoPreview.src = url;
+        } else if (info.type === 'video') {
+            videoPreview.src = info.url;
             videoPreview.classList.remove('hidden');
-            imagePreview.classList.add('hidden');
-            imagePreview.removeAttribute('src');
-            previewContainer.classList.remove('hidden');
+        } else {
+            embedPreview.innerHTML = buildResponsiveEmbedHtml(info, { safe: false });
+            embedPreview.classList.remove('hidden');
+        }
+
+        previewContainer.classList.remove('hidden');
+    };
+
+    window.handleMediaUrlInput = function(type) {
+        const imageInput = document.getElementById('mediaImageUrlInput');
+        const videoInput = document.getElementById('mediaVideoUrlInput');
+        const embedInput = document.getElementById('mediaEmbedUrlInput');
+        if (type === 'image' && imageInput?.value) {
+            if (embedInput) embedInput.value = imageInput.value;
+            handleEmbedUrlInput(true);
+        } else if (type === 'video' && videoInput?.value) {
+            if (embedInput) embedInput.value = videoInput.value;
+            handleEmbedUrlInput(true);
         }
     };
 
     window.removeSelectedFile = function() {
+        const embedInput = document.getElementById('mediaEmbedUrlInput');
         const imageInput = document.getElementById('mediaImageUrlInput');
         const videoInput = document.getElementById('mediaVideoUrlInput');
+        if (embedInput) embedInput.value = '';
         if (imageInput) imageInput.value = '';
         if (videoInput) videoInput.value = '';
+
         document.getElementById('filePreviewContainer').classList.add('hidden');
         const imagePreview = document.getElementById('imagePreview');
         const videoPreview = document.getElementById('videoPreview');
+        const embedPreview = document.getElementById('embedPreview');
         if (imagePreview) {
             imagePreview.classList.add('hidden');
             imagePreview.removeAttribute('src');
@@ -2304,8 +2786,14 @@
             videoPreview.classList.add('hidden');
             videoPreview.removeAttribute('src');
         }
+        if (embedPreview) {
+            embedPreview.classList.add('hidden');
+            embedPreview.innerHTML = '';
+        }
+
         selectedFileUrl = null;
         selectedFileType = null;
+        window.__selectedEmbedInfo = null;
     };
 
     window.toggleLikePost = async function(postId, authorPubkey) {
@@ -3030,7 +3518,7 @@
             const escapedContentForShare = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const escapedContentForTranslate = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-            const postCard = `
+            htmlParaVoce += `
             <div class="p-4 hover:bg-gray-50/60 transition duration-150">
                 <div class="flex items-start gap-3">
                     <div class="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary font-bold overflow-hidden relative cursor-pointer hover:opacity-90 transition" onclick="openUserProfileModal('${ev.pubkey}')" title="Ver perfil">
@@ -3062,8 +3550,6 @@
                     </div>
                 </div>
             </div>`;
-
-            htmlParaVoce += postCard;
         });
 
         feedParaVoce.innerHTML = htmlParaVoce || `
@@ -3192,6 +3678,6 @@
                     <span class="safe-link-reveal" onclick="revealLink(this.previousElementSibling, '${url}')">[Revelar link]</span>`;
         });
     }
-    </script>
+</script>
 </body>
 </html>
