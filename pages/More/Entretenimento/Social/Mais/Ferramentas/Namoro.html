@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MatchVibe - Feed de Perfis</title>
+    <!-- Ícones do FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-bg: #FFFFFF;
+            --secondary-color: #7B2CBF; /* Violeta principal */
+            --secondary-light: #9D4EDD; /* Violeta claro */
+            --secondary-gradient: linear-gradient(135deg, #7B2CBF, #5A189A);
+            --text-color: #212529;
+            --text-muted: #6C757D;
+            --card-bg: #FFFFFF;
+            --shadow: 0 10px 25px rgba(123, 44, 191, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Cabeçalho */
+        header {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: var(--primary-bg);
+            border-bottom: 1px solid #eee;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header-icons i {
+            font-size: 1.3rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .header-icons i:hover {
+            color: var(--secondary-color);
+        }
+
+        /* Container do Feed / Cartão */
+        .feed-container {
+            width: 100%;
+            max-width: 420px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px 10px;
+            position: relative;
+        }
+
+        .profile-card {
+            width: 100%;
+            height: 480px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            border: 1px solid #f0e6ff;
+            cursor: grab;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            touch-action: none;
+            z-index: 3;
+        }
+
+        .profile-card:active {
+            cursor: grabbing;
+        }
+
+        .profile-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Gradiente para sombrear o texto em cima da foto */
+        .profile-gradient-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60%;
+            background: linear-gradient(to top, rgba(0,0,0,0.85) 10%, rgba(0,0,0,0) 100%);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .profile-info {
+            position: relative;
+            z-index: 3;
+            padding: 20px;
+            color: #FFFFFF;
+            pointer-events: none;
+        }
+
+        .profile-name-age {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+
+        .profile-bio {
+            font-size: 0.95rem;
+            opacity: 0.9;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+
+        .profile-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(5px);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Botões de Ação (Tinder Style) */
+        .actions-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            max-width: 360px;
+            padding: 20px 0;
+            z-index: 5;
+        }
+
+        .btn {
+            background: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:active {
+            transform: scale(0.9);
+        }
+
+        .btn-dislike {
+            width: 55px;
+            height: 55px;
+            color: #e63946;
+            font-size: 1.3rem;
+            border: 1px solid #ffe5e8;
+        }
+
+        .btn-like {
+            width: 65px;
+            height: 65px;
+            color: #FFFFFF;
+            background: var(--secondary-gradient);
+            font-size: 1.6rem;
+            box-shadow: 0 8px 20px rgba(123, 44, 191, 0.3);
+        }
+
+        /* Sistema de Partículas com Emojis */
+        .particle-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            overflow: visible;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .particle {
+            position: absolute;
+            font-size: 1.2rem;
+            animation: explode 0.6s ease-out forwards;
+        }
+
+        @keyframes explode {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--dx), var(--dy)) scale(0.5);
+                opacity: 0;
+            }
+        }
+
+        /* Responsividade para desktop centralizado */
+        @media (min-width: 500px) {
+            body {
+                background-color: #f7f3ff;
+            }
+            header, .feed-container {
+                background: var(--primary-bg);
+                box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            }
+            header {
+                max-width: 420px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Cabeçalho -->
+    <header>
+        <div class="header-icons">
+            <i class="fa-regular fa-user"></i>
+        </div>
+        <div class="header-icons">
+            <i class="fa-regular fa-comment-dots"></i>
+        </div>
+    </header>
+
+    <!-- Área do Feed (Cartão) -->
+    <div class="feed-container">
+        <!-- Container para as partículas de emoji -->
+        <div class="particle-container" id="particleContainer"></div>
+
+        <div class="profile-card" id="profileCard">
+            <!-- Imagem de perfil de exemplo -->
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80" alt="Foto de Perfil" class="profile-image" id="profileImg">
+            <div class="profile-gradient-overlay"></div>
+            
+            <div class="profile-info">
+                <div class="profile-name-age" id="profileNameAge">
+                    Juliana, 24
+                </div>
+                <div class="profile-bio" id="profileBio">
+                    Amante de café, cachorros e viagens. Procurando alguém para ir a shows de indie rock. 🎸☕
+                </div>
+                <div class="profile-tags" id="profileTags">
+                    <span class="tag">Música</span>
+                    <span class="tag">Café</span>
+                    <span class="tag">Viagens</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botões de Ação (Recusar / Curtir) -->
+        <div class="actions-container">
+            <button class="btn btn-dislike" title="Dislike" onclick="triggerSwipe('left')">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <button class="btn btn-like" title="Like" onclick="triggerSwipe('right')">
+                <i class="fa-solid fa-heart"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Lista de perfis para simular a troca ao deslizar
+        const profiles = [
+            {
+                name: "Juliana, 24",
+                bio: "Amante de café, cachorros e viagens. Procurando alguém para ir a shows de indie rock. 🎸☕",
+                image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+                tags: ["Música", "Café", "Viagens"]
+            },
+            {
+                name: "Lucas, 27",
+                bio: "Desenvolvedor de software por dia, skatista por hobby. Curto uma cerveja artesanal e filmes cult. 🛹🍻",
+                image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80",
+                tags: ["Tecnologia", "Skate", "Cinema"]
+            },
+            {
+                name: "Mariana, 23",
+                bio: "Fotógrafa e viciada em praia. Se você gosta de pôr do sol e boas conversas, já temos assunto. 📸🌅",
+                image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80",
+                tags: ["Fotografia", "Praia", "Arte"]
+            }
+        ];
+
+        let currentIndex = 0;
+        const card = document.getElementById('profileCard');
+        const imgEl = document.getElementById('profileImg');
+        const nameAgeEl = document.getElementById('profileNameAge');
+        const bioEl = document.getElementById('profileBio');
+        const tagsEl = document.getElementById('profileTags');
+        const particleContainer = document.getElementById('particleContainer');
+
+        function updateProfileContent() {
+            currentIndex = (currentIndex + 1) % profiles.length;
+            const p = profiles[currentIndex];
+            imgEl.src = p.image;
+            nameAgeEl.textContent = p.name;
+            bioEl.textContent = p.bio;
+            tagsEl.innerHTML = p.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+        }
+
+        // Função de explosão com emojis correspondentes
+        function createParticles(isLike) {
+            particleContainer.innerHTML = '';
+            const emojis = isLike ? ['❤️', '💜', '💖', '✨'] : ['❌', '💔', '✖️'];
+            const particleCount = 12;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * 100 + 40;
+                const dx = Math.cos(angle) * distance;
+                const dy = Math.sin(angle) * distance;
+
+                particle.style.setProperty('--dx', `${dx}px`);
+                particle.style.setProperty('--dy', `${dy}px`);
+
+                particleContainer.appendChild(particle);
+            }
+
+            setTimeout(() => {
+                particleContainer.innerHTML = '';
+            }, 600);
+        }
+
+        // Lógica de Arrastar (Swipe com Mouse e Toque)
+        let startX = 0;
+        let startY = 0;
+        let currentX = 0;
+        let currentY = 0;
+        let isDragging = false;
+
+        function onStart(e) {
+            isDragging = true;
+            startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+            startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+            card.style.transition = 'none';
+        }
+
+        function onMove(e) {
+            if (!isDragging) return;
+            currentX = (e.type.includes('mouse') ? e.clientX : e.touches[0].clientX) - startX;
+            currentY = (e.type.includes('mouse') ? e.clientY : e.touches[0].clientY) - startY;
+            const rotate = currentX * 0.05;
+            card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotate}deg)`;
+        }
+
+        function onEnd() {
+            if (!isDragging) return;
+            isDragging = false;
+            card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+
+            if (currentX > 100) {
+                // Like (Direita)
+                createParticles(true);
+                card.style.transform = `translate(500px, ${currentY}px) rotate(30deg)`;
+                card.style.opacity = '0';
+                setTimeout(resetCard, 300);
+            } else if (currentX < -100) {
+                // Dislike (Esquerda)
+                createParticles(false);
+                card.style.transform = `translate(-500px, ${currentY}px) rotate(-30deg)`;
+                card.style.opacity = '0';
+                setTimeout(resetCard, 300);
+            } else {
+                card.style.transform = `translate(0px, 0px) rotate(0deg)`;
+            }
+            currentX = 0;
+            currentY = 0;
+        }
+
+        function resetCard() {
+            updateProfileContent();
+            card.style.transition = 'none';
+            card.style.transform = 'translate(0px, 0px) rotate(0deg)';
+            card.style.opacity = '1';
+        }
+
+        // Ação via cliques nos botões
+        window.triggerSwipe = function(direction) {
+            card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+            if(direction === 'right') {
+                createParticles(true);
+                card.style.transform = 'translate(500px, 0px) rotate(30deg)';
+            } else if(direction === 'left') {
+                createParticles(false);
+                card.style.transform = 'translate(-500px, 0px) rotate(-30deg)';
+            }
+            card.style.opacity = '0';
+            setTimeout(resetCard, 300);
+        }
+
+        card.addEventListener('mousedown', onStart);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onEnd);
+
+        card.addEventListener('touchstart', onStart);
+        window.addEventListener('touchmove', onMove);
+        window.addEventListener('touchend', onEnd);
+    </script>
+</body>
+</html>
