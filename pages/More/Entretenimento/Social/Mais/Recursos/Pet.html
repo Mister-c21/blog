@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Pet Virtual - Nostr</title>
+    <!-- Importação do Nostr Tools via CDN e FontAwesome para ícones -->
+    <script src="https://cdn.jsdelivr.net/npm/nostr-tools@2.7.2/lib/nostr.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #f1f5f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            color: #1e293b;
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        /* Barra de Status & Header Moderna */
+        .status-bar {
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid #f1f5f9;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .pet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            border: 2px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            color: #7c3aed;
+            font-size: 14px;
+        }
+        .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+        .pet-info-text h2 {
+            font-size: 15px;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+        .pet-info-text span {
+            font-size: 11px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .header-btns {
+            display: flex;
+            gap: 6px;
+        }
+
+        .icon-btn {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #475569;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .icon-btn:hover { background: #f1f5f9; color: #7c3aed; border-color: #cbd5e1; transform: scale(1.05); }
+
+        /* Barras de Estatísticas Redesenhadas */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .stat-card {
+            background: #f8fafc;
+            padding: 8px 10px;
+            border-radius: 12px;
+            border: 1px solid #f1f5f9;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 5px;
+            background-color: #e2e8f0;
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
+            border-radius: 99px;
+        }
+
+        #hunger-fill { background-color: #f59e0b; }
+        #happiness-fill { background-color: #ec4899; }
+        #energy-fill { background-color: #0ea5e9; }
+
+        /* Palco do Pet Dinâmico */
+        .pet-stage {
+            flex: 1;
+            background: radial-gradient(circle at center, #ffffff 0%, #f8fafc 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            flex-direction: column;
+            gap: 16px;
+            padding: 20px;
+        }
+
+        .message-bubble {
+            background: #1e293b;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateY(12px) scale(0.95);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: 85%;
+            text-align: center;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .message-bubble.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        /* Estilização Base do Pet (Blob Padrão) */
+        .pet {
+            width: 130px;
+            height: 150px;
+            background: var(--pet-color, #ffffff);
+            border: 3.5px solid #1e293b;
+            border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
+            position: relative;
+            box-shadow: inset -8px -8px 0px rgba(0,0,0,0.05), 0 15px 35px rgba(0,0,0,0.08);
+            transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.3s ease;
+            cursor: pointer;
+        }
+
+        /* Variações de Espécie */
+        .pet.species-cat {
+            border-radius: 40% 40% 45% 45% / 50% 50% 50% 50%;
+        }
+        .pet.species-cat::before, .pet.species-cat::after {
+            content: '';
+            position: absolute;
+            top: -16px;
+            width: 0;
+            height: 0;
+            border-left: 16px solid transparent;
+            border-right: 16px solid transparent;
+            border-bottom: 26px solid var(--pet-color, #ffffff);
+            filter: drop-shadow(0 -2.5px 0 #1e293b);
+        }
+        .pet.species-cat::before { left: 10px; transform: rotate(-15deg); }
+        .pet.species-cat::after { right: 10px; transform: rotate(15deg); }
+
+        .pet.species-dog {
+            border-radius: 45% 45% 45% 45% / 55% 55% 45% 45%;
+        }
+        .pet.species-dog::before, .pet.species-dog::after {
+            content: '';
+            position: absolute;
+            top: 25px;
+            width: 22px;
+            height: 38px;
+            background: var(--pet-color, #ffffff);
+            border: 3px solid #1e293b;
+            border-radius: 50%;
+        }
+        .pet.species-dog::before { left: -14px; transform: rotate(15deg); }
+        .pet.species-dog::after { right: -14px; transform: rotate(-15deg); }
+
+        .pet:active { transform: scale(0.92) rotate(-3deg); }
+        .pet.speaking { animation: bouncePet 0.35s infinite alternate ease-in-out; }
+        .pet.singing { animation: groovePet 0.4s infinite alternate ease-in-out; }
+
+        @keyframes bouncePet {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-12px); }
+        }
+
+        @keyframes groovePet {
+            0% { transform: rotate(-6deg) scale(1); }
+            100% { transform: rotate(6deg) scale(1.06); }
+        }
+
+        /* Olhos */
+        .eye {
+            width: 20px;
+            height: 28px;
+            background: var(--eye-color, #1e293b);
+            border-radius: 50%;
+            position: absolute;
+            top: 42px;
+            transition: all 0.2s ease;
+        }
+        .eye.left { left: 32px; }
+        .eye.right { right: 32px; }
+
+        .eye::after {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 5px;
+            left: 4px;
+        }
+
+        .pet.eyes-angry .eye { border-radius: 2px !important; transform: rotate(15deg); }
+        .pet.eyes-angry .eye.right { transform: rotate(-15deg); }
+        .pet.eyes-wink .eye.right { height: 4px; top: 52px; border-radius: 2px; }
+        .pet.eyes-wink .eye.right::after { display: none; }
+
+        /* Boca */
+        .mouth {
+            width: 16px;
+            height: 8px;
+            border-bottom: 2.5px solid #1e293b;
+            border-radius: 0 0 20px 20px;
+            position: absolute;
+            bottom: 48px;
+            left: 53px;
+            transition: all 0.15s;
+        }
+
+        .pet.face-mean .mouth { border-bottom: none; border-top: 2.5px solid #1e293b; border-radius: 20px 20px 0 0; bottom: 50px; }
+        .pet.face-neutral .mouth { width: 14px; height: 2.5px; background: #1e293b; border: none; bottom: 50px; left: 55px; }
+        .pet.face-mixed .mouth { width: 14px; height: 6px; border-radius: 50%; border: 2px solid #1e293b; bottom: 48px; left: 55px; }
+        .pet.speaking .mouth, .pet.singing .mouth { width: 14px !important; height: 14px !important; background: #1e293b !important; border-radius: 50% !important; bottom: 46px !important; left: 55px !important; border: none !important; }
+        .pet.sleeping .eye { height: 3px !important; top: 52px !important; border-radius: 2px !important; transform: none !important; }
+        .pet.sleeping .eye::after { display: none; }
+
+        .hat {
+            position: absolute;
+            top: -32px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 36px;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .heart {
+            position: absolute;
+            color: #ec4899;
+            font-size: 22px;
+            animation: floatUp 0.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(0.4); opacity: 1; }
+            100% { transform: translateY(-75px) scale(1.3); opacity: 0; }
+        }
+
+        /* Caixa de Digitação / Fala */
+        .speak-panel {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            max-width: 340px;
+            background: #ffffff;
+            padding: 6px;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+        }
+
+        .speak-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            outline: none;
+            font-size: 13px;
+            background: transparent;
+            color: #1e293b;
+        }
+
+        .speak-btn {
+            background: #7c3aed;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .speak-btn:hover { background: #6d28d9; }
+        .speak-btn:active { transform: scale(0.95); }
+
+        /* Barra de Ações Inferior */
+        .actions-bar {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            padding: 16px 20px;
+            background: #ffffff;
+            border-top: 1px solid #f1f5f9;
+            z-index: 10;
+        }
+
+        .btn {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 10px 0;
+            border-radius: 14px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn span {
+            font-size: 10px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .btn:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            transform: translateY(-2px);
+            color: #7c3aed;
+        }
+
+        /* Modal Redesenhado */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.45);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .modal-content {
+            background: #ffffff;
+            width: 90%;
+            max-width: 400px;
+            padding: 24px;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-height: 85vh;
+            overflow-y: auto;
+            animation: scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes scaleUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 10px;
+        }
+
+        .modal-header h3 { font-size: 17px; font-weight: 700; color: #0f172a; }
+
+        .close-icon-btn {
+            background: #f1f5f9;
+            border: none;
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: #64748b;
+            transition: background 0.2s;
+        }
+        .close-icon-btn:hover { background: #e2e8f0; color: #1e293b; }
+
+        .custom-section {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .custom-section label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+        }
+
+        .palette-grid {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .color-option {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            border: 2px solid #e2e8f0;
+            cursor: pointer;
+            transition: transform 0.15s, border-color 0.15s;
+        }
+        .color-option:hover { transform: scale(1.1); border-color: #7c3aed; }
+
+        .custom-select, .custom-input-color {
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1.5px solid #e2e8f0;
+            font-size: 13px;
+            outline: none;
+            background: #f8fafc;
+            color: #1e293b;
+            transition: border-color 0.2s;
+        }
+        .custom-select:focus, .custom-input-color:focus { border-color: #7c3aed; background: #fff; }
+
+        .save-modal-btn {
+            background: #7c3aed;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 6px;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .save-modal-btn:hover { background: #6d28d9; }
+        .save-modal-btn:active { transform: scale(0.98); }
+
+        .nostr-sync-status {
+            font-size: 11px;
+            color: #10b981;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        @media (min-width: 768px) {
+            body { background-color: #e2e8f0; }
+            .container {
+                max-width: 440px;
+                height: 85vh;
+                max-height: 820px;
+                border-radius: 32px;
+                border: 4px solid #ffffff;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="mainContainer">
+        <!-- Barra de Status / Header -->
+        <div class="status-bar">
+            <div class="pet-header">
+                <div class="header-profile">
+                    <div id="userAvatarHeader" class="user-avatar">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div class="pet-info-text">
+                        <h2 id="petNameDisplay">Meu Pet</h2>
+                        <span>Companheiro Nostr</span>
+                    </div>
+                </div>
+                <div class="header-btns">
+                    <button class="icon-btn" onclick="sincronizarNostrManual()" title="Sincronizar Nostr"><i class="fa-solid fa-rotate"></i></button>
+                    <button class="icon-btn" onclick="abrirModal()" title="Customizar"><i class="fa-solid fa-palette"></i></button>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label"><span>Fome</span> <span id="hunger-text">100%</span></div>
+                    <div class="progress-bar"><div class="progress-fill" id="hunger-fill"></div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label"><span>Humor</span> <span id="happiness-text">100%</span></div>
+                    <div class="progress-bar"><div class="progress-fill" id="happiness-fill"></div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label"><span>Energia</span> <span id="energy-text">100%</span></div>
+                    <div class="progress-bar"><div class="progress-fill" id="energy-fill"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Palco Principal do Pet -->
+        <div class="pet-stage" id="stage">
+            <div class="message-bubble" id="msg">Olá! Pronto para brincar?</div>
+            
+            <div class="pet" id="pet" onclick="fazerCarinho(event)">
+                <div class="hat" id="petHat"></div>
+                <div class="eye left"></div>
+                <div class="eye right"></div>
+                <div class="mouth" id="mouth"></div>
+            </div>
+
+            <div class="speak-panel">
+                <input type="text" id="speechInput" class="speak-input" placeholder="Digite algo para o pet falar..." />
+                <button class="speak-btn" onclick="fazerPetFalar()">Enviar</button>
+            </div>
+        </div>
+
+        <!-- Barra de Ações Inferior -->
+        <div class="actions-bar">
+            <button class="btn" onclick="alimentar()"><i class="fa-solid fa-apple-whole text-amber-500"></i><span>Alimentar</span></button>
+            <button class="btn" onclick="brincar()"><i class="fa-solid fa-futbol text-emerald-500"></i><span>Brincar</span></button>
+            <button class="btn" onclick="cantarMusica()"><i class="fa-solid fa-music text-purple-500"></i><span>Cantar</span></button>
+            <button class="btn" onclick="dormir()"><i class="fa-solid fa-moon text-blue-500"></i><span>Dormir</span></button>
+            <button class="btn" onclick="banho()"><i class="fa-solid fa-shower text-cyan-500"></i><span>Banho</span></button>
+        </div>
+    </div>
+
+    <!-- Modal de Customização -->
+    <div class="modal-overlay" id="customizeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Customizar Pet</h3>
+                <button class="close-icon-btn" onclick="fecharModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="custom-section">
+                <label>Nome do Pet</label>
+                <input type="text" id="inputName" class="custom-select" oninput="mudarNome(this.value)" />
+            </div>
+
+            <div class="custom-section">
+                <label>Espécie / Aparência</label>
+                <select id="selectSpecies" class="custom-select" onchange="mudarEspecie(this.value)">
+                    <option value="blob">Padrão (Blob)</option>
+                    <option value="cat">Gato 🐱</option>
+                    <option value="dog">Cachorro 🐶</option>
+                </select>
+            </div>
+
+            <div class="custom-section">
+                <label>Cor do Corpo</label>
+                <div class="palette-grid">
+                    <div class="color-option" style="background:#ffffff;" onclick="mudarCor('#ffffff')"></div>
+                    <div class="color-option" style="background:#ffccd5;" onclick="mudarCor('#ffccd5')"></div>
+                    <div class="color-option" style="background:#e0f2fe;" onclick="mudarCor('#e0f2fe')"></div>
+                    <div class="color-option" style="background:#fef08a;" onclick="mudarCor('#fef08a')"></div>
+                    <div class="color-option" style="background:#e9d5ff;" onclick="mudarCor('#e9d5ff')"></div>
+                    <div class="color-option" style="background:#e2e8f0;" onclick="mudarCor('#e2e8f0')"></div>
+                </div>
+                <input type="color" id="customColorPicker" class="custom-input-color" onchange="mudarCor(this.value)" />
+            </div>
+
+            <div class="custom-section">
+                <label>Expressão & Olhos</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <select id="selectFace" class="custom-select" onchange="mudarCara(this.value)">
+                        <option value="friendly">Simpática</option>
+                        <option value="mean">Malvada</option>
+                        <option value="neutral">Neutra</option>
+                        <option value="mixed">Mista</option>
+                    </select>
+                    <select id="selectEyes" class="custom-select" onchange="mudarOlhosFormato(this.value)">
+                        <option value="normal">Normais</option>
+                        <option value="angry">Sérios</option>
+                        <option value="wink">Piscadinha</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="custom-section">
+                <label>Cor dos Olhos & Acessório</label>
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 8px;">
+                    <input type="color" id="customEyeColor" class="custom-input-color" value="#1e293b" onchange="mudarCorOlhos(this.value)" />
+                    <select id="selectHat" class="custom-select" onchange="mudarChapeu(this.value)">
+                        <option value="">Sem Acessório</option>
+                        <option value="🎩">Cartola</option>
+                        <option value="👑">Coroa</option>
+                        <option value="🎓">Formatura</option>
+                        <option value="🎀">Laço</option>
+                        <option value="🧢">Boné</option>
+                    </select>
+                </div>
+            </div>
+
+            <hr style="border:0; border-top:1px solid #f1f5f9; margin:4px 0;">
+            
+            <div class="custom-section">
+                <label>Sincronização Nostr (Chave nsec)</label>
+                <div style="display: flex; gap: 6px;">
+                    <input type="password" id="inputNsec" class="custom-select" placeholder="nsec1..." style="flex:1;" />
+                    <button class="speak-btn" style="padding: 0 10px;" onclick="gerarChavesNostr()">Gerar</button>
+                </div>
+                <span class="nostr-sync-status" id="nostrStatus">Local</span>
+            </div>
+
+            <button class="save-modal-btn" onclick="fecharModal()">Salvar Alterações</button>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_RELAYS = ['wss://relay.damus.io', 'wss://relay.nostr.band', 'wss://nos.lol'];
+
+        let privateKeyHex = localStorage.getItem('nostr_nsec') || '';
+        let petData = JSON.parse(localStorage.getItem('petData')) || {
+            name: "Pouzinho",
+            species: "blob",
+            hunger: 100,
+            happiness: 100,
+            energy: 100,
+            color: "#ffffff",
+            eyeColor: "#1e293b",
+            face: "friendly",
+            eyes: "normal",
+            hat: "",
+            isSleeping: false,
+            lastLogin: Date.now()
+        };
+
+        const tresDiasMs = 3 * 24 * 60 * 60 * 1000;
+        if (Date.now() - petData.lastLogin > tresDiasMs) {
+            alert("Infelizmente você ficou mais de 3 dias ausente e seu pet partiu... Um novo pet nasceu!");
+            petData = {
+                name: "Pouzinho",
+                species: "blob",
+                hunger: 100,
+                happiness: 100,
+                energy: 100,
+                color: "#ffffff",
+                eyeColor: "#1e293b",
+                face: "friendly",
+                eyes: "normal",
+                hat: "",
+                isSleeping: false,
+                lastLogin: Date.now()
+            };
+        }
+
+        if (!localStorage.getItem('petData') && !privateKeyHex) {
+            let nomeEscolhido = prompt("Dê um nome para o seu novo pet virtual:", "Pou");
+            if (nomeEscolhido) petData.name = nomeEscolhido;
+        }
+
+        let currentAudio = null;
+        const petElement = document.getElementById('pet');
+        const msgElement = document.getElementById('msg');
+        const speechInput = document.getElementById('speechInput');
+        const petNameDisplay = document.getElementById('petNameDisplay');
+        const petHat = document.getElementById('petHat');
+        const customizeModal = document.getElementById('customizeModal');
+
+        function abrirModal() {
+            document.getElementById('inputName').value = petData.name;
+            document.getElementById('selectSpecies').value = petData.species || 'blob';
+            document.getElementById('selectFace').value = petData.face;
+            document.getElementById('selectEyes').value = petData.eyes;
+            document.getElementById('selectHat').value = petData.hat;
+            document.getElementById('customColorPicker').value = petData.color.startsWith('#') ? petData.color : '#ffffff';
+            document.getElementById('customEyeColor').value = petData.eyeColor;
+            
+            if (privateKeyHex && window.NostrTools) {
+                try {
+                    document.getElementById('inputNsec').value = NostrTools.nip19.nsecEncode(privateKeyHex);
+                } catch(e) {}
+            }
+            customizeModal.style.display = 'flex';
+        }
+
+        function fecharModal() {
+            let nsecInput = document.getElementById('inputNsec').value.trim();
+            if (nsecInput && window.NostrTools) {
+                try {
+                    if (nsecInput.startsWith('nsec')) {
+                        let decoded = NostrTools.nip19.decode(nsecInput);
+                        privateKeyHex = decoded.data;
+                        localStorage.setItem('nostr_nsec', privateKeyHex);
+                        document.getElementById('nostrStatus').innerText = "Salvo!";
+                        publicarNoNostr();
+                    }
+                } catch(err) {
+                    alert("Chave nsec inválida!");
+                }
+            }
+            customizeModal.style.display = 'none';
+        }
+
+        function gerarChavesNostr() {
+            if (window.NostrTools) {
+                let sk = NostrTools.generatePrivateKey();
+                privateKeyHex = sk;
+                localStorage.setItem('nostr_nsec', privateKeyHex);
+                document.getElementById('inputNsec').value = NostrTools.nip19.nsecEncode(sk);
+                document.getElementById('nostrStatus').innerText = "Nova chave!";
+                publicarNoNostr();
+            }
+        }
+
+        async function carregarPerfilNostrDoUser() {
+            if (!privateKeyHex || !window.NostrTools) return;
+            try {
+                let pk = NostrTools.getPublicKey(privateKeyHex);
+                let pool = new NostrTools.SimplePool();
+                
+                let events = await pool.querySync(DEFAULT_RELAYS, {
+                    kinds: [0],
+                    authors: [pk],
+                    limit: 1
+                });
+
+                if (events && events.length > 0) {
+                    events.sort((a, b) => b.created_at - a.created_at);
+                    let profileData = JSON.parse(events[0].content || '{}');
+                    
+                    const sessionData = {
+                        name: profileData.name || profileData.display_name || '',
+                        avatarUrl: profileData.picture || profileData.image || ''
+                    };
+                    localStorage.setItem('nostr_session', JSON.stringify(sessionData));
+                    loadSessionAvatar();
+                }
+                pool.close(DEFAULT_RELAYS);
+            } catch(e) {
+                console.error("Erro ao puxar perfil Nostr:", e);
+            }
+        }
+
+        async function publicarNoNostr() {
+            if (!privateKeyHex || !window.NostrTools) return;
+            try {
+                let pk = NostrTools.getPublicKey(privateKeyHex);
+                let eventTemplate = {
+                    kind: 30078,
+                    pubkey: pk,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [["d", "meu-pet-virtual-state"]],
+                    content: JSON.stringify(petData)
+                };
+                let signedEvent = NostrTools.finalizeEvent(eventTemplate, privateKeyHex);
+
+                let pool = new NostrTools.SimplePool();
+                await pool.publish(DEFAULT_RELAYS, signedEvent);
+                document.getElementById('nostrStatus').innerText = "Sincronizado!";
+                pool.close(DEFAULT_RELAYS);
+            } catch(e) {
+                console.error("Erro ao publicar:", e);
+            }
+        }
+
+        async function sincronizarNostrManual() {
+            let nsecInput = prompt("Cole sua chave privada (nsec) para sincronizar:", "");
+            if (!nsecInput) return;
+            try {
+                let decoded = NostrTools.nip19.decode(nsecInput.trim());
+                privateKeyHex = decoded.data;
+                localStorage.setItem('nostr_nsec', privateKeyHex);
+                
+                let pk = NostrTools.getPublicKey(privateKeyHex);
+                let pool = new NostrTools.SimplePool();
+                showMessage("Buscando dados... 🌐");
+                
+                let events = await pool.querySync(DEFAULT_RELAYS, {
+                    kinds: [30078],
+                    authors: [pk],
+                    "#d": ["meu-pet-virtual-state"]
+                });
+
+                if (events && events.length > 0) {
+                    events.sort((a, b) => b.created_at - a.created_at);
+                    let remoteData = JSON.parse(events[0].content);
+                    if (remoteData) {
+                        petData = remoteData;
+                        updateUI();
+                        showMessage("Sincronizado com sucesso! ✨");
+                    }
+                } else {
+                    showMessage("Nenhum dado encontrado.");
+                }
+                pool.close(DEFAULT_RELAYS);
+                await carregarPerfilNostrDoUser();
+            } catch(e) {
+                alert("Chave inválida.");
+            }
+        }
+
+        function salvarJogo() {
+            petData.lastLogin = Date.now();
+            localStorage.setItem('petData', JSON.stringify(petData));
+            if (privateKeyHex) publicarNoNostr();
+        }
+
+        function updateUI() {
+            petNameDisplay.innerText = petData.name;
+            petElement.style.setProperty('--pet-color', petData.color);
+            petElement.style.setProperty('--eye-color', petData.eyeColor);
+            petHat.innerText = petData.hat;
+
+            petElement.className = 'pet';
+            if (petData.species && petData.species !== 'blob') {
+                petElement.classList.add(`species-${petData.species}`);
+            }
+
+            if (petData.isSleeping) {
+                petElement.classList.add('sleeping');
+            } else {
+                if (petData.face !== 'friendly') petElement.classList.add(`face-${petData.face}`);
+                if (petData.eyes !== 'normal') petElement.classList.add(`eyes-${petData.eyes}`);
+            }
+
+            document.getElementById('hunger-fill').style.width = petData.hunger + '%';
+            document.getElementById('hunger-text').innerText = Math.round(petData.hunger) + '%';
+            document.getElementById('happiness-fill').style.width = petData.happiness + '%';
+            document.getElementById('happiness-text').innerText = Math.round(petData.happiness) + '%';
+            document.getElementById('energy-fill').style.width = petData.energy + '%';
+            document.getElementById('energy-text').innerText = Math.round(petData.energy) + '%';
+
+            salvarJogo();
+        }
+
+        function mudarNome(val) { petData.name = val || "Pet"; updateUI(); }
+        function mudarEspecie(s) { petData.species = s; updateUI(); }
+        function mudarCor(c) { petData.color = c; updateUI(); }
+        function mudarCorOlhos(c) { petData.eyeColor = c; updateUI(); }
+        function mudarCara(f) { petData.face = f; updateUI(); }
+        function mudarOlhosFormato(e) { petData.eyes = e; updateUI(); }
+        function mudarChapeu(h) { petData.hat = h; updateUI(); }
+
+        function showMessage(text) {
+            msgElement.innerText = text;
+            msgElement.classList.add('show');
+            setTimeout(() => { msgElement.classList.remove('show'); }, 2500);
+        }
+
+        async function cantarMusica() {
+            if (petData.isSleeping) { showMessage("Zzz... Dormindo!"); return; }
+            const musicaNome = prompt("Qual música você quer que o pet cante?");
+            if (!musicaNome) return;
+
+            showMessage("Buscando som... 🎶");
+            try {
+                const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(musicaNome)}&entity=song&limit=1`);
+                const data = await response.json();
+
+                if (data.results && data.results.length > 0) {
+                    const track = data.results[0];
+                    showMessage(`Cantando: ${track.trackName} 🎤`);
+
+                    if (currentAudio) currentAudio.pause();
+                    currentAudio = new Audio(track.previewUrl);
+                    petElement.classList.add('singing');
+                    currentAudio.play();
+
+                    currentAudio.onended = () => {
+                        petElement.classList.remove('singing');
+                        showMessage("Curtiu? 🎵");
+                    };
+
+                    petData.happiness = Math.min(100, petData.happiness + 15);
+                    updateUI();
+                } else {
+                    showMessage("Não encontrei! 😢");
+                }
+            } catch (error) {
+                showMessage("Erro de conexão! 🌐");
+            }
+        }
+
+        function fazerPetFalar() {
+            if (petData.isSleeping) { showMessage("Ele está dormindo!"); return; }
+            const texto = speechInput.value.trim();
+            if (!texto) { showMessage("Digite alguma coisa!"); return; }
+
+            showMessage(texto);
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(texto);
+                utterance.lang = 'pt-BR';
+                utterance.pitch = 1.8;
+                utterance.rate = 1.1;
+                utterance.onstart = () => petElement.classList.add('speaking');
+                utterance.onend = () => petElement.classList.remove('speaking');
+                window.speechSynthesis.speak(utterance);
+            } else {
+                petElement.classList.add('speaking');
+                setTimeout(() => petElement.classList.remove('speaking'), 1500);
+            }
+
+            speechInput.value = "";
+            petData.happiness = Math.min(100, petData.happiness + 2);
+            updateUI();
+        }
+
+        speechInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') fazerPetFalar();
+        });
+
+        function fazerCarinho(event) {
+            if (petData.isSleeping) { showMessage("Shhh... Dormindo! 💤"); return; }
+            petData.happiness = Math.min(100, petData.happiness + 4);
+            updateUI();
+            showMessage("Mmm... ❤️");
+
+            const heart = document.createElement('div');
+            heart.classList.add('heart');
+            heart.innerHTML = '❤️';
+            
+            const rect = petElement.getBoundingClientRect();
+            const x = event.clientX ? event.clientX - rect.left : rect.width / 2;
+            const y = event.clientY ? event.clientY - rect.top : 20;
+
+            heart.style.left = `${x}px`;
+            heart.style.top = `${y}px`;
+            petElement.appendChild(heart);
+            setTimeout(() => heart.remove(), 900);
+        }
+
+        function alimentar() {
+            if (petData.isSleeping) return;
+            petData.hunger = Math.min(100, petData.hunger + 20);
+            petData.happiness = Math.min(100, petData.happiness + 5);
+            showMessage("Delícia! 🍎");
+            updateUI();
+        }
+
+        function brincar() {
+            if (petData.isSleeping) return;
+            if (petData.energy < 15) { showMessage("Estou cansado! 😴"); return; }
+            petData.happiness = Math.min(100, petData.happiness + 25);
+            petData.energy = Math.max(0, petData.energy - 15);
+            showMessage("Legal! ⚽");
+            updateUI();
+        }
+
+        function dormir() {
+            petData.isSleeping = !petData.isSleeping;
+            if (petData.isSleeping) {
+                if (currentAudio) currentAudio.pause();
+                showMessage("Zzz...");
+                let sleepInterval = setInterval(() => {
+                    if (!petData.isSleeping) { clearInterval(sleepInterval); return; }
+                    petData.energy = Math.min(100, petData.energy + 10);
+                    updateUI();
+                    if (petData.energy >= 100) {
+                        petData.isSleeping = false;
+                        showMessage("Acordei! ☀️");
+                        clearInterval(sleepInterval);
+                        updateUI();
+                    }
+                }, 1000);
+            }
+            updateUI();
+        }
+
+        function banho() {
+            if (petData.isSleeping) return;
+            petData.happiness = Math.min(100, petData.happiness + 10);
+            showMessage("Limpinho! ✨");
+            updateUI();
+        }
+
+        setInterval(() => {
+            if (!petData.isSleeping) {
+                petData.hunger = Math.max(0, petData.hunger - 1);
+                petData.happiness = Math.max(0, petData.happiness - 1);
+                petData.energy = Math.max(0, petData.energy - 0.5);
+                updateUI();
+            }
+        }, 3000);
+
+        function loadSessionAvatar() {
+            try {
+                const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
+                if (session.avatarUrl) {
+                    const el = document.getElementById('userAvatarHeader');
+                    if (el) el.innerHTML = `<img src="${session.avatarUrl}" alt="Avatar">`;
+                }
+            } catch {}
+        }
+
+        async function initNostrLoad() {
+            loadSessionAvatar();
+            if (privateKeyHex && window.NostrTools) {
+                try {
+                    let pk = NostrTools.getPublicKey(privateKeyHex);
+                    let pool = new NostrTools.SimplePool();
+                    let events = await pool.querySync(DEFAULT_RELAYS, {
+                        kinds: [30078],
+                        authors: [pk],
+                        "#d": ["meu-pet-virtual-state"]
+                    });
+                    if (events && events.length > 0) {
+                        events.sort((a, b) => b.created_at - a.created_at);
+                        let remoteData = JSON.parse(events[0].content);
+                        if (remoteData) petData = remoteData;
+                    }
+                    pool.close(DEFAULT_RELAYS);
+                    await carregarPerfilNostrDoUser();
+                } catch(e) {
+                    console.error("Erro no boot:", e);
+                }
+            }
+            updateUI();
+        }
+
+        initNostrLoad();
+    </script>
+</body>
+</html>
