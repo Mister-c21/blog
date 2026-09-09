@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudBox - Seu Armazenamento em Nuvem</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#ffffff',       // Branco principal
+                        secondary: '#7c3aed',     // Violeta (Violet-600)
+                        secondaryHover: '#6d28d9',// Violeta escuro
+                        lightViolet: '#f5f3ff',   // Violeta bem claro para fundos
+                        darkText: '#1f2937'       // Texto escuro para contraste
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-lightViolet text-darkText font-sans min-h-screen flex flex-col pb-20 md:pb-0">
+
+    <!-- Container Principal (Layout Estilo App) -->
+    <div class="flex flex-1 overflow-hidden relative">
+
+        <!-- Barra Lateral (Sidebar) -->
+        <aside class="w-64 bg-primary border-r border-gray-200 hidden md:flex flex-col justify-between p-6">
+            <div>
+                <!-- Logo -->
+                <div class="flex items-center space-x-3 mb-8">
+                    <div class="bg-secondary text-primary p-2.5 rounded-xl shadow-md">
+                        <i class="fa-solid fa-cloud text-xl"></i>
+                    </div>
+                    <span class="text-xl font-bold text-darkText tracking-wide">Cloud<span class="text-secondary">Box</span></span>
+                </div>
+
+                <!-- Menu de Navegação -->
+                <nav class="space-y-2">
+                    <a href="#" onclick="switchMainView('meus-arquivos', event)" id="nav-meus-arquivos" class="flex items-center space-x-3 px-4 py-3 bg-lightViolet text-secondary font-semibold rounded-xl transition">
+                        <i class="fa-solid fa-folder-open"></i>
+                        <span>Meus Arquivos</span>
+                    </a>
+                    <a href="#" onclick="switchMainView('comunidade', event)" id="nav-comunidade" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-secondary rounded-xl transition">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Comunidade</span>
+                    </a>
+                    <a href="#" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-secondary rounded-xl transition">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <span>Recentes</span>
+                    </a>
+                    <a href="#" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-secondary rounded-xl transition">
+                        <i class="fa-solid fa-star"></i>
+                        <span>Favoritos</span>
+                    </a>
+                    <a href="#" class="flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-secondary rounded-xl transition">
+                        <i class="fa-solid fa-trash"></i>
+                        <span>Lixeira</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Widget de Armazenamento -->
+            <div class="bg-lightViolet p-4 rounded-2xl border border-violet-100">
+                <div class="flex justify-between text-sm font-medium mb-2">
+                    <span class="text-gray-700">Armazenamento</span>
+                    <span class="text-secondary font-bold">15 GB / 1024 GB</span>
+                </div>
+                <!-- Barra de Progresso -->
+                <div class="w-full bg-gray-200 h-2.5 rounded-full overflow-hidden mb-3">
+                    <div class="bg-secondary h-2.5 rounded-full w-[15%]"></div>
+                </div>
+                <button class="w-full bg-secondary hover:bg-secondaryHover text-primary text-sm font-medium py-2 rounded-xl shadow-sm transition">
+                    Expandir Plano
+                </button>
+            </div>
+        </aside>
+
+        <!-- Área de Conteúdo Principal -->
+        <main class="flex-1 flex flex-col overflow-y-auto">
+            
+            <!-- Barra Superior (Header) -->
+            <header class="bg-primary border-b border-gray-200 px-8 py-4 grid grid-cols-3 items-center shadow-xs">
+                <!-- Botão de Upload apenas com ícone na extremidade esquerda -->
+                <div class="flex items-center">
+                    <button onclick="triggerUpload()" title="Fazer Upload" class="bg-secondary hover:bg-secondaryHover text-primary w-10 h-10 rounded-xl font-medium shadow-md shadow-violet-200 transition flex items-center justify-center">
+                        <i class="fa-solid fa-cloud-arrow-up text-base"></i>
+                    </button>
+                    <input type="file" id="fileInput" class="hidden" multiple onchange="handleFileUpload(event)">
+                </div>
+
+                <!-- Barra de Pesquisa (Centralizada) -->
+                <div class="relative w-48 md:w-64 justify-self-center">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </span>
+                    <input type="text" placeholder="Pesquisar..." class="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-secondary focus:bg-primary transition">
+                </div>
+
+                <!-- Perfil do Usuário / Ações (Alinhado à direita) -->
+                <div class="flex items-center justify-end space-x-4">
+                    <div class="flex items-center space-x-3">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100" alt="Avatar" class="w-10 h-10 rounded-full object-cover border-2 border-secondary">
+                        <span class="hidden md:inline font-medium text-sm">Juliana Silva</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Seção de Conteúdo -->
+            <div class="p-8">
+                
+                <!-- VISÃO: Meus Arquivos -->
+                <div id="view-meus-arquivos">
+                    <!-- Título da Seção -->
+                    <div class="mb-8">
+                        <h1 class="text-2xl font-bold text-darkText">Meus Arquivos</h1>
+                    </div>
+
+                    <!-- Feed Estilo Google Fotos com Abas (Apenas Imagens e Vídeos) -->
+                    <div>
+                        <!-- Cabeçalho das Abas -->
+                        <div class="flex items-center mb-6 border-b border-gray-200 pb-2">
+                            <div class="flex space-x-6">
+                                <button onclick="switchTab('imagens')" id="tab-imagens" class="font-bold text-secondary border-b-2 border-secondary pb-2 transition">Imagens</button>
+                                <button onclick="switchTab('videos')" id="tab-videos" class="font-medium text-gray-500 hover:text-secondary pb-2 transition">Vídeos</button>
+                            </div>
+                        </div>
+
+                        <!-- Conteúdo da Aba: Imagens -->
+                        <div id="content-imagens" class="space-y-6">
+                            <div>
+                                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Hoje</h3>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5">
+                                    <div onclick="openViewer('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800', 'image', 'Abstrato Neon.jpg', '4.1 MB', '9 de set. de 2026')" class="relative group aspect-square bg-gray-100 overflow-hidden rounded-lg cursor-pointer">
+                                        <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400" alt="Foto" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                                        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex justify-between p-2 items-start" onclick="event.stopPropagation()">
+                                            <span class="text-[10px] text-white bg-black/40 px-1.5 py-0.5 rounded">4.1 MB</span>
+                                            <div class="flex space-x-1">
+                                                <button onclick="openInfoPanel('Abstrato Neon.jpg', '4.1 MB', '9 de set. de 2026', 'Imagem JPEG')" class="text-white hover:text-violet-300 bg-black/40 p-1 rounded" title="Informações"><i class="fa-solid fa-circle-info text-xs"></i></button>
+                                                <button class="text-white hover:text-red-400 bg-black/40 p-1 rounded"><i class="fa-solid fa-trash text-xs"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div onclick="openViewer('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800', 'image', 'Praia Tropical.jpg', '2.8 MB', '9 de set. de 2026')" class="relative group aspect-square bg-gray-100 overflow-hidden rounded-lg cursor-pointer">
+                                        <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400" alt="Foto" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                                        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex justify-between p-2 items-start" onclick="event.stopPropagation()">
+                                            <span class="text-[10px] text-white bg-black/40 px-1.5 py-0.5 rounded">2.8 MB</span>
+                                            <div class="flex space-x-1">
+                                                <button onclick="openInfoPanel('Praia Tropical.jpg', '2.8 MB', '9 de set. de 2026', 'Imagem JPEG')" class="text-white hover:text-violet-300 bg-black/40 p-1 rounded" title="Informações"><i class="fa-solid fa-circle-info text-xs"></i></button>
+                                                <button class="text-white hover:text-red-400 bg-black/40 p-1 rounded"><i class="fa-solid fa-trash text-xs"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Conteúdo da Aba: Vídeos -->
+                        <div id="content-videos" class="space-y-6 hidden">
+                            <div>
+                                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Recentes</h3>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5">
+                                    <div onclick="openViewer('https://www.w3schools.com/html/mov_bbb.mp4', 'video', 'Big Buck Bunny.mp4', '14.5 MB', '9 de set. de 2026')" class="relative group aspect-square bg-gray-900 overflow-hidden rounded-lg cursor-pointer flex items-center justify-center">
+                                        <div class="absolute top-2 right-2 text-white bg-black/60 px-1.5 py-0.5 rounded text-[10px] flex items-center space-x-1">
+                                            <i class="fa-solid fa-play text-[8px]"></i>
+                                            <span>02:45</span>
+                                        </div>
+                                        <i class="fa-solid fa-film text-gray-500 text-3xl"></i>
+                                        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex justify-end p-2 items-start space-x-1" onclick="event.stopPropagation()">
+                                            <button onclick="openInfoPanel('Big Buck Bunny.mp4', '14.5 MB', '9 de set. de 2026', 'Vídeo MP4')" class="text-white hover:text-violet-300 bg-black/40 p-1 rounded" title="Informações"><i class="fa-solid fa-circle-info text-xs"></i></button>
+                                            <button class="text-white hover:text-red-400 bg-black/40 p-1 rounded"><i class="fa-solid fa-trash text-xs"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VISÃO: Arquivos da Comunidade -->
+                <div id="view-comunidade" class="hidden">
+                    <div class="mb-8">
+                        <h1 class="text-2xl font-bold text-darkText">Arquivos da Comunidade</h1>
+                        <p class="text-sm text-gray-500 mt-1">Explore mídias compartilhadas publicamente por outros usuários.</p>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Públicos em Destaque</h3>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5">
+                                <div onclick="openViewer('https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800', 'image', 'Montanha Alpina.jpg', '5.2 MB', '8 de set. de 2026')" class="relative group aspect-square bg-gray-100 overflow-hidden rounded-lg cursor-pointer">
+                                    <img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400" alt="Comunidade" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex justify-between p-2 items-start" onclick="event.stopPropagation()">
+                                        <span class="text-[10px] text-white bg-black/40 px-1.5 py-0.5 rounded">Por Carlos</span>
+                                        <button onclick="openInfoPanel('Montanha Alpina.jpg', '5.2 MB', '8 de set. de 2026', 'Comunidade')" class="text-white hover:text-violet-300 bg-black/40 p-1 rounded" title="Informações"><i class="fa-solid fa-circle-info text-xs"></i></button>
+                                    </div>
+                                </div>
+                                <div onclick="openViewer('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800', 'image', 'Floresta Nebulosa.jpg', '3.9 MB', '7 de set. de 2026')" class="relative group aspect-square bg-gray-100 overflow-hidden rounded-lg cursor-pointer">
+                                    <img src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400" alt="Comunidade" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex justify-between p-2 items-start" onclick="event.stopPropagation()">
+                                        <span class="text-[10px] text-white bg-black/40 px-1.5 py-0.5 rounded">Por Ana</span>
+                                        <button onclick="openInfoPanel('Floresta Nebulosa.jpg', '3.9 MB', '7 de set. de 2026', 'Comunidade')" class="text-white hover:text-violet-300 bg-black/40 p-1 rounded" title="Informações"><i class="fa-solid fa-circle-info text-xs"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- Menu Flutuante de Informações (De baixo para cima com suporte a toque mobile) -->
+        <div id="infoPanel" class="absolute bottom-0 left-0 right-0 bg-primary border-t border-gray-200 shadow-2xl rounded-t-3xl z-40 transform translate-y-full transition-transform duration-300 flex flex-col p-6 max-w-xl mx-auto">
+            
+            <!-- Alça indicativa de arraste para mobile -->
+            <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
+
+            <!-- Cabeçalho do Painel -->
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-darkText text-lg">Detalhes do Arquivo</h3>
+                <!-- Botão de Fechar visível APENAS em desktop -->
+                <button onclick="closeInfoPanel()" class="hidden md:block text-gray-400 hover:text-darkText p-2 rounded-lg transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Informações Detalhadas -->
+            <div class="space-y-3 text-sm mb-6">
+                <div class="flex justify-between border-b border-gray-100 pb-2">
+                    <span class="text-gray-400 font-semibold uppercase text-xs">Nome</span>
+                    <span id="infoName" class="font-medium text-darkText">Nenhum selecionado</span>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 pb-2">
+                    <span class="text-gray-400 font-semibold uppercase text-xs">Tipo</span>
+                    <span id="infoType" class="font-medium text-darkText">-</span>
+                </div>
+                <div class="flex justify-between border-b border-gray-100 pb-2">
+                    <span class="text-gray-400 font-semibold uppercase text-xs">Tamanho</span>
+                    <span id="infoSize" class="font-medium text-darkText">-</span>
+                </div>
+                <div class="flex justify-between pb-2">
+                    <span class="text-gray-400 font-semibold uppercase text-xs">Data</span>
+                    <span id="infoDate" class="font-medium text-darkText">-</span>
+                </div>
+            </div>
+
+            <!-- Ações rápidas no painel -->
+            <div class="flex space-x-3">
+                <button class="flex-1 bg-lightViolet hover:bg-violet-100 text-secondary text-sm font-medium py-2.5 rounded-xl transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-download"></i>
+                    <span>Baixar</span>
+                </button>
+                <button class="bg-red-50 hover:bg-red-100 text-red-500 px-4 py-2.5 rounded-xl transition">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Barra Inferior Flutuante (Estilo Google Fotos Mobile com Comunidade) -->
+    <div class="md:hidden fixed bottom-4 left-4 right-4 bg-primary/90 backdrop-blur-md border border-gray-200 shadow-xl rounded-2xl py-3 px-6 flex justify-around items-center z-50">
+        <a href="#" onclick="switchMainView('meus-arquivos', event)" id="mobile-tab-fotos" class="flex flex-col items-center text-secondary">
+            <i class="fa-solid fa-images text-lg"></i>
+            <span class="text-[10px] font-bold mt-1">Fotos</span>
+        </a>
+        <a href="#" onclick="switchMainView('comunidade', event)" id="mobile-tab-comunidade" class="flex flex-col items-center text-gray-400 hover:text-secondary">
+            <i class="fa-solid fa-users text-lg"></i>
+            <span class="text-[10px] font-medium mt-1">Comunidade</span>
+        </a>
+    </div>
+
+    <!-- Modal de Visualização de Arquivo -->
+    <div id="fileViewerModal" class="fixed inset-0 bg-black z-50 hidden flex flex-col justify-between text-white">
+        <!-- Barra Superior do Modal -->
+        <div class="flex justify-between items-center px-4 py-4 bg-gradient-to-b from-black/80 to-transparent">
+            <div class="flex items-center space-x-4">
+                <button onclick="closeViewer()" class="text-white text-lg p-2"><i class="fa-solid fa-arrow-left"></i></button>
+                <div>
+                    <p id="modalDate" class="text-sm font-medium">9 de set.</p>
+                    <p class="text-xs text-gray-400">00:57</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-5">
+                <button class="text-white text-lg"><i class="fa-regular fa-star"></i></button>
+                <button class="text-white text-lg"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+            </div>
+        </div>
+
+        <!-- Área de Exibição do Mídia -->
+        <div class="flex-1 flex items-center justify-center overflow-hidden px-2">
+            <div id="viewerContentContainer" class="max-w-full max-h-full flex items-center justify-center">
+                <!-- Conteúdo injetado via JS -->
+            </div>
+        </div>
+
+        <!-- Barra Inferior de Ações do Modal -->
+        <div class="bg-gradient-to-t from-black/90 to-transparent pt-6 pb-6 px-6 flex justify-around items-center text-center">
+            <button class="flex flex-col items-center text-gray-300 hover:text-white transition">
+                <i class="fa-solid fa-share-nodes text-lg mb-1"></i>
+                <span class="text-[11px]">Compartilhar</span>
+            </button>
+            <button class="flex flex-col items-center text-gray-300 hover:text-white transition">
+                <i class="fa-solid fa-sliders text-lg mb-1"></i>
+                <span class="text-[11px]">Editar</span>
+            </button>
+            <button class="flex flex-col items-center text-gray-300 hover:text-white transition">
+                <i class="fa-solid fa-plus text-lg mb-1"></i>
+                <span class="text-[11px]">Adicionar a</span>
+            </button>
+            <button class="flex flex-col items-center text-gray-300 hover:text-white transition">
+                <i class="fa-solid fa-trash-can text-lg mb-1"></i>
+                <span class="text-[11px]">Lixeira</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Script JavaScript -->
+    <script>
+        function triggerUpload() {
+            document.getElementById('fileInput').click();
+        }
+
+        // Função para alternar entre "Meus Arquivos" e "Comunidade" sem mexer no resto
+        function switchMainView(viewName, event) {
+            if (event) event.preventDefault();
+
+            const viewMeus = document.getElementById('view-meus-arquivos');
+            const viewComunidade = document.getElementById('view-comunidade');
+
+            const navMeus = document.getElementById('nav-meus-arquivos');
+            const navComunidade = document.getElementById('nav-comunidade');
+
+            const mobileTabFotos = document.getElementById('mobile-tab-fotos');
+            const mobileTabComunidade = document.getElementById('mobile-tab-comunidade');
+
+            if (viewName === 'comunidade') {
+                viewMeus.classList.add('hidden');
+                viewComunidade.classList.remove('hidden');
+
+                // Estilos Desktop Sidebar
+                navComunidade.className = "flex items-center space-x-3 px-4 py-3 bg-lightViolet text-secondary font-semibold rounded-xl transition";
+                navMeus.className = "flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-secondary rounded-xl transition";
+
+                // Estilos Mobile Bottom Nav
+                mobileTabComunidade.className = "flex flex-col items-center text-secondary";
+                mobileTabFotos.className = "flex flex-col items-center text-gray-400 hover:text-secondary";
+            } else {
+                viewComunidade.classList.add('hidden');
+                viewMeus.classList.remove('hidden');
+
+                // Estilos Desktop Sidebar
+                navMeus.className = "flex items-center space-x-3 px-4 py-3 bg-lightViolet text-secondary font-semibold rounded-xl transition";
+                navComunidade.className = "flex items-center space-x-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-secondary rounded-xl transition";
+
+                // Estilos Mobile Bottom Nav
+                mobileTabFotos.className = "flex flex-col items-center text-secondary";
+                mobileTabComunidade.className = "flex flex-col items-center text-gray-400 hover:text-secondary";
+            }
+        }
+
+        function switchTab(tabName) {
+            document.getElementById('content-imagens').classList.add('hidden');
+            document.getElementById('content-videos').classList.add('hidden');
+
+            document.getElementById('tab-imagens').className = "font-medium text-gray-500 hover:text-secondary pb-2 transition";
+            document.getElementById('tab-videos').className = "font-medium text-gray-500 hover:text-secondary pb-2 transition";
+
+            document.getElementById('content-' + tabName).classList.remove('hidden');
+            document.getElementById('tab-' + tabName).className = "font-bold text-secondary border-b-2 border-secondary pb-2 transition";
+        }
+
+        function openViewer(src, type, name, size, date) {
+            const modal = document.getElementById('fileViewerModal');
+            const container = document.getElementById('viewerContentContainer');
+            container.innerHTML = '';
+
+            if (type === 'image') {
+                container.innerHTML = `<img src="${src}" class="max-h-[75vh] max-w-full object-contain rounded-md" alt="Visualização">`;
+            } else {
+                container.innerHTML = `<video src="${src}" class="max-h-[75vh] max-w-full rounded-md" controls autoplay></video>`;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeViewer() {
+            const modal = document.getElementById('fileViewerModal');
+            modal.classList.add('hidden');
+            const container = document.getElementById('viewerContentContainer');
+            container.innerHTML = '';
+        }
+
+        function openInfoPanel(name, size, date, type) {
+            document.getElementById('infoName').innerText = name;
+            document.getElementById('infoSize').innerText = size;
+            document.getElementById('infoDate').innerText = date;
+            document.getElementById('infoType').innerText = type;
+
+            const panel = document.getElementById('infoPanel');
+            panel.classList.remove('translate-y-full');
+        }
+
+        function closeInfoPanel() {
+            const panel = document.getElementById('infoPanel');
+            panel.classList.add('translate-y-full');
+        }
+
+        // Gestos de toque (Swipe down) para fechar no Mobile
+        let touchStartY = 0;
+        let touchEndY = 0;
+        const infoPanel = document.getElementById('infoPanel');
+
+        infoPanel.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        infoPanel.addEventListener('touchmove', (e) => {
+            touchEndY = e.touches[0].clientY;
+        }, { passive: true });
+
+        infoPanel.addEventListener('touchend', () => {
+            if (touchEndY - touchStartY > 50) {
+                closeInfoPanel();
+            }
+            touchStartY = 0;
+            touchEndY = 0;
+        });
+
+        function handleFileUpload(event) {
+            const files = event.target.files;
+            if (files.length === 0) return;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileSize = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+                const fileName = file.name;
+                const fileDate = 'Hoje';
+                
+                if (file.name.match(/\.(jpg|png|jpeg)$/i)) {
+                    const container = document.querySelector('#content-imagens > div > div');
+                    const card = document.createElement('div');
+                    card.className = "relative group aspect-square bg-gray-100 overflow-hidden rounded-lg cursor-pointer";
+                    card.onclick = () => openViewer(URL.createObjectURL(file), 'image', fileName, fileSize, fileDate);
+                    card.innerHTML = `
+                        <div class="w-full h-full flex items-center justify-center bg-gray-200">
+                            <i class="fa-solid fa-image text-gray-400 text-xl"></i>
+                        </div>
+                        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex justify-between p-2 items-start" onclick="event.stopPropagation()">
+                            <span class="text-[10px] text-white bg-black/40 px-1.5 py-0.5 rounded">${fileSize}</span>
+                            <div class="flex space-x-1">
+                                <button onclick="openInfoPanel('${fileName}', '${fileSize}', '${fileDate}', 'Imagem')" class="text-white hover:text-violet-300 bg-black/40 p-1 rounded" title="Informações"><i class="fa-solid fa-circle-info text-xs"></i></button>
+                                <button class="text-white hover:text-red-400 bg-black/40 p-1 rounded"><i class="fa-solid fa-trash text-xs"></i></button>
+                            </div>
+                        </div>
+                    `;
+                    container.prepend(card);
+                } else if (file.name.match(/\.(mp4|mov|avi)$/i)) {
+                    const container = document.querySelector('#content-videos > div > div');
+                    const card = document.createElement('div');
+                    card.className = "relative group aspect-square bg-gray-900 overflow-hidden rounded-lg cursor-pointer flex items-center justify-center";
+                    card.onclick = () => openViewer(URL.createObjectURL(file), 'video', fileName, fileSize, fileDate);
+                    card.innerHTML = `
+                        <div class="absolute top-2 right-2 text-white bg-black/60 px-1.5 py-0.5 rounded text-[10px] flex items-center space-x-1">
+                            <i class="fa-solid fa-play text-[8px]"></i>
+                            <span>00:30</span>
+                        </div>
+                        <i class="fa-solid fa-film text-gray-500 text-3xl"></i>
+                        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex justify-end p-2 items-start space-x-1" onclick="event.stopPropagation()">
+                            <button onclick="openInfoPanel('${fileName}', '${fileSize}', '${fileDate}', 'Vídeo')" class="text-white hover:text-violet-300 bg-black/40 p-1 rounded" title="Informações"><i class="fa-solid fa-circle-info text-xs"></i></button>
+                            <button class="text-white hover:text-red-400 bg-black/40 p-1 rounded"><i class="fa-solid fa-trash text-xs"></i></button>
+                        </div>
+                    `;
+                    container.prepend(card);
+                } else {
+                    alert('Por favor, envie apenas arquivos de imagem (jpg, png) ou vídeo (mp4, mov).');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
