@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comunidade - Grupo (Responsivo UX)</title>
+    <!-- FontAwesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f0f2f5;
+            --color-violet: #7c3aed; /* Violeta principal */
+            --color-violet-hover: #6d28d9;
+            --color-violet-light: #ede9fe;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-secondary);
+            color: var(--text-main);
+        }
+
+        /* --- LAYOUT GERAL DO APP COM SIDEBAR FIXA NO DESKTOP --- */
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* --- SIDEBAR LATERAL DE GRUPOS --- */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 2000;
+            display: none;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .hamburger-sidebar {
+            width: 300px;
+            height: 100vh;
+            background-color: var(--bg-primary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--color-violet);
+        }
+
+        .sidebar-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 6px;
+            display: none; /* Oculto no desktop pois ela fica sempre aberta */
+        }
+
+        /* Barra de Busca na Sidebar com Botão de Limpar */
+        .sidebar-search-container {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-primary);
+        }
+
+        .sidebar-search-box {
+            display: flex;
+            align-items: center;
+            background-color: var(--bg-secondary);
+            border-radius: 6px;
+            padding: 8px 12px;
+            gap: 8px;
+            position: relative;
+        }
+
+        .sidebar-search-box i.fa-magnifying-glass {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .sidebar-search-input {
+            border: none;
+            background: none;
+            outline: none;
+            width: 100%;
+            font-size: 14px;
+            color: var(--text-main);
+        }
+
+        .sidebar-clear-search {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 13px;
+            display: none;
+            padding: 2px;
+        }
+
+        .sidebar-clear-search:hover {
+            color: var(--text-main);
+        }
+
+        /* Top Tab Bars dentro da Sidebar */
+        .sidebar-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-primary);
+        }
+
+        .sidebar-tab-item {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: color 0.2s;
+        }
+
+        .sidebar-tab-item.active {
+            color: var(--color-violet);
+            border-bottom-color: var(--color-violet);
+        }
+
+        .sidebar-content-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .sidebar-tab-pane {
+            display: none;
+        }
+
+        .sidebar-tab-pane.active-pane {
+            display: block;
+        }
+
+        .sidebar-group-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: background-color 0.2s;
+            margin-bottom: 4px;
+        }
+
+        .sidebar-group-item:hover {
+            background-color: var(--bg-secondary);
+        }
+
+        .sidebar-group-item.active-group {
+            background-color: var(--color-violet-light);
+            color: var(--color-violet);
+            font-weight: 600;
+        }
+
+        .sidebar-group-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background-color: var(--color-violet);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .sidebar-group-name {
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sidebar-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--bg-primary);
+        }
+
+        .sidebar-create-btn {
+            width: 100%;
+            background-color: var(--color-violet);
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .sidebar-create-btn:hover {
+            background-color: var(--color-violet-hover);
+        }
+
+        /* --- CONTEÚDO PRINCIPAL À DIREITA DA SIDEBAR --- */
+        .main-content-wrapper {
+            flex-grow: 1;
+            min-width: 0;
+        }
+
+        /* Botão hambúrguer no desktop (opcional, caso queira esconder já que a barra está aberta) */
+        .hamburger-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--text-main);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            display: none; /* Oculto no desktop já que a sidebar está fixa */
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- CABEÇALHO DO GRUPO --- */
+        .group-header-container {
+            background-color: var(--bg-primary);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .group-header-content {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .group-info {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .group-details {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .group-text-info h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .group-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .btn-secondary {
+            background-color: var(--bg-secondary);
+            color: var(--text-main);
+        }
+
+        /* Navegação do Grupo */
+        .group-nav {
+            display: flex;
+            gap: 8px;
+            border-top: 1px solid var(--border-color);
+            padding: 0 20px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .nav-item {
+            padding: 14px 10px;
+            color: var(--text-muted);
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            font-size: 14px;
+        }
+
+        .nav-item.active {
+            color: var(--color-violet);
+            border-bottom-color: var(--color-violet);
+        }
+
+        .desktop-hidden {
+            display: none;
+        }
+
+        /* --- SEÇÕES DA TOP TAB BAR --- */
+        .tab-section {
+            display: none;
+        }
+
+        .tab-section.active-section {
+            display: block;
+        }
+
+        /* --- CONTAINER DOS CARDS --- */
+        .main-container {
+            max-width: 900px;
+            margin: 20px auto;
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 20px;
+            padding: 0 16px;
+            position: relative;
+        }
+
+        .main-container > div:last-child {
+            width: 100%;
+        }
+
+        .card {
+            background-color: var(--bg-primary);
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--text-main);
+        }
+
+        .about-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .about-item i {
+            color: var(--color-violet);
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--color-violet-light);
+            color: var(--color-violet);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .post-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .post-author-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .post-author-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .post-time {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .post-body {
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .post-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+        }
+
+        .post-footer-actions {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            flex-grow: 1;
+            padding: 8px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .action-btn:hover {
+            background-color: var(--bg-secondary);
+        }
+
+        .action-btn.liked {
+            color: var(--color-violet);
+        }
+
+        /* Estilo para Lista de Membros */
+        .member-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .member-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .member-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .member-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .member-role {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* FAB Button de Postar */
+        .feed-fab-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background-color: var(--color-violet);
+            color: white;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            z-index: 1000;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+
+        .feed-fab-btn:hover {
+            background-color: var(--color-violet-hover);
+            transform: scale(1.05);
+        }
+
+        /* --- MEDIA QUERY PARA MOBILE --- */
+        @media (max-width: 768px) {
+            .app-layout {
+                display: block;
+            }
+
+            /* No mobile, a sidebar vira gaveta flutuante sobre a tela */
+            .hamburger-sidebar {
+                position: fixed;
+                top: 0;
+                left: -320px;
+                width: 320px;
+                height: 100%;
+                z-index: 2001;
+                box-shadow: 4px 0 12px rgba(0,0,0,0.1);
+                transition: left 0.3s ease;
+            }
+
+            .hamburger-sidebar.mobile-active {
+                left: 0;
+            }
+
+            .sidebar-close {
+                display: block; /* Botão de fechar aparece apenas no mobile */
+            }
+
+            .hamburger-btn {
+                display: flex; /* Botão hambúrguer reaparece no cabeçalho mobile */
+            }
+
+            .desktop-sidebar {
+                display: none;
+            }
+
+            .desktop-hidden {
+                display: block;
+            }
+
+            .main-container {
+                grid-template-columns: 1fr;
+                padding: 0 8px;
+                margin: 10px auto;
+            }
+
+            .group-text-info h1 {
+                font-size: 20px;
+            }
+
+            .group-info {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .group-actions {
+                width: 100%;
+            }
+
+            .group-actions .btn {
+                flex: 1;
+                justify-content: center;
+            }
+
+            .feed-fab-btn {
+                bottom: 20px;
+                right: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- OVERLAY (Usado apenas no mobile quando abrir a gaveta) -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- ESTRUTURA PRINCIPAL COM LAYOUT FLEX -->
+    <div class="app-layout">
+
+        <!-- SIDEBAR DE GRUPOS (Fixa e aberta lado a lado no Desktop / Gaveta no Mobile) -->
+        <aside id="hamburgerSidebar" class="hamburger-sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">Grupos</span>
+                <button class="sidebar-close" onclick="toggleSidebar()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- BARRA DE BUSCA DE GRUPOS NA SIDEBAR -->
+            <div class="sidebar-search-container">
+                <div class="sidebar-search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="sidebarSearchInput" class="sidebar-search-input" placeholder="Buscar grupos..." onkeyup="filterGroups()">
+                    <button id="sidebarClearBtn" class="sidebar-clear-search" onclick="clearSearch()" title="Limpar busca">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TOP TAB BARS DA SIDEBAR -->
+            <div class="sidebar-tabs">
+                <div class="sidebar-tab-item active" onclick="switchSidebarTab('comunidade', this)">Comunidade</div>
+                <div class="sidebar-tab-item" onclick="switchSidebarTab('meus-grupos', this)">Meus Grupos</div>
+            </div>
+
+            <!-- CONTEÚDO DAS ABAS DA SIDEBAR -->
+            <div class="sidebar-content-area" id="sidebarContentArea">
+                <!-- ABA 1: COMUNIDADE -->
+                <div id="sidebar-pane-comunidade" class="sidebar-tab-pane active-pane">
+                    <a href="#" class="sidebar-group-item active-group searchable-group">
+                        <div class="sidebar-group-avatar">DW</div>
+                        <div class="sidebar-group-name">Desenvolvedores Web & UI/UX</div>
+                    </a>
+                    <a href="#" class="sidebar-group-item searchable-group">
+                        <div class="sidebar-group-avatar" style="background-color: #10b981;">JS</div>
+                        <div class="sidebar-group-name">JavaScript Brasil Oficial</div>
+                    </a>
+                    <a href="#" class="sidebar-group-item searchable-group">
+                        <div class="sidebar-group-avatar" style="background-color: #f43f5e;">UI</div>
+                        <div class="sidebar-group-name">UI/UX Designers & Figma</div>
+                    </a>
+                    <a href="#" class="sidebar-group-item searchable-group">
+                        <div class="sidebar-group-avatar" style="background-color: #f59e0b;">RE</div>
+                        <div class="sidebar-group-name">React & React Native Devs</div>
+                    </a>
+                    <a href="#" class="sidebar-group-item searchable-group">
+                        <div class="sidebar-group-avatar" style="background-color: #3b82f6;">PY</div>
+                        <div class="sidebar-group-name">Python para Iniciantes</div>
+                    </a>
+                    <a href="#" class="sidebar-group-item searchable-group">
+                        <div class="sidebar-group-avatar" style="background-color: #8b5cf6;">MK</div>
+                        <div class="sidebar-group-name">Marketing Digital & SEO</div>
+                    </a>
+                </div>
+
+                <!-- ABA 2: MEUS GRUPOS -->
+                <div id="sidebar-pane-meus-grupos" class="sidebar-tab-pane">
+                    <a href="#" class="sidebar-group-item active-group searchable-group">
+                        <div class="sidebar-group-avatar">DW</div>
+                        <div class="sidebar-group-name">Desenvolvedores Web & UI/UX</div>
+                    </a>
+                    <a href="#" class="sidebar-group-item searchable-group">
+                        <div class="sidebar-group-avatar" style="background-color: #10b981;">JS</div>
+                        <div class="sidebar-group-name">JavaScript Brasil Oficial</div>
+                    </a>
+                    <a href="#" class="sidebar-group-item searchable-group">
+                        <div class="sidebar-group-avatar" style="background-color: #f59e0b;">RE</div>
+                        <div class="sidebar-group-name">React & React Native Devs</div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- RODAPÉ DA SIDEBAR -->
+            <div class="sidebar-footer">
+                <button class="sidebar-create-btn" onclick="alert('Abrir modal/página de criação de grupo')">
+                    <i class="fa-solid fa-plus"></i> Criar Grupo
+                </button>
+            </div>
+        </aside>
+
+        <!-- WRAPPER DO CONTEÚDO PRINCIPAL (Fica ao lado da sidebar) -->
+        <div class="main-content-wrapper">
+            
+            <!-- CABEÇALHO DO GRUPO -->
+            <div class="group-header-container">
+                <div class="group-header-content">
+                    <div class="group-info">
+                        <div class="group-details">
+                            <!-- BOTÃO HAMBÚRGUER (Visível apenas no mobile) -->
+                            <button class="hamburger-btn" onclick="toggleSidebar()" title="Abrir lista de grupos">
+                                <i class="fa-solid fa-bars"></i>
+                            </button>
+                            <div class="group-text-info">
+                                <h1>Desenvolvedores Web & UI/UX</h1>
+                            </div>
+                        </div>
+                        <div class="group-actions">
+                            <button class="btn btn-secondary"><i class="fa-solid fa-check"></i> Participando</button>
+                        </div>
+                    </div>
+
+                    <!-- MENU DA TOP TAB BAR -->
+                    <div class="group-nav">
+                        <div class="nav-item active" onclick="switchTab('posts', this)">Posts</div>
+                        <div class="nav-item" onclick="switchTab('membros', this)">Membros</div>
+                        <div class="nav-item desktop-hidden" onclick="switchTab('sobre', this)">Informações/Sobre</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTEÚDO PRINCIPAL -->
+            <div class="main-container">
+                
+                <!-- BARRA LATERAL (Apenas Desktop) -->
+                <div class="desktop-sidebar">
+                    <div class="card">
+                        <div class="card-title">Sobre</div>
+                        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+                            Um espaço dedicado para compartilhar dicas, códigos e projetos utilizando branco e violeta.
+                        </p>
+                        <div class="about-item">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span><strong>Público</strong><br>Qualquer pessoa pode ver publicações.</span>
+                        </div>
+                        <div class="about-item">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <span><strong>Geral</strong> · Brasil</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ÁREA DE CONTEÚDO DINÂMICO (SEÇÕES) -->
+                <div>
+                    
+                    <!-- SEÇÃO 1: POSTS -->
+                    <div id="section-posts" class="tab-section active-section">
+                        <div class="card">
+                            <div class="post-header">
+                                <div class="post-author-info">
+                                    <div class="avatar" style="background-color: var(--color-violet); color: white;">JS</div>
+                                    <div>
+                                        <div class="post-author-name">Juliana Silva</div>
+                                        <div class="post-time">Há 2 horas</div>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-ellipsis" style="color: var(--text-muted); cursor: pointer;"></i>
+                            </div>
+                            
+                            <div class="post-body">
+                                Sidebar fixa e aberta ao lado do container principal no desktop ajustada com sucesso! ✨
+                            </div>
+
+                            <div class="post-stats">
+                                <span><i class="fa-solid fa-thumbs-up" style="color: var(--color-violet);"></i> 34</span>
+                                <span>8 comentários</span>
+                            </div>
+
+                            <div class="post-footer-actions">
+                                <button class="action-btn liked"><i class="fa-regular fa-thumbs-up"></i> Curtir</button>
+                                <button class="action-btn"><i class="fa-regular fa-comment"></i> Comentar</button>
+                                <button class="action-btn"><i class="fa-solid fa-share"></i> Partilhar</button>
+                            </div>
+                        </div>
+
+                        <!-- FAB BUTTON DE POSTAR -->
+                        <button class="feed-fab-btn" onclick="alert('Abrir modal/página para criar post')" title="Criar nova publicação">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                    </div>
+
+                    <!-- SEÇÃO 2: MEMBROS -->
+                    <div id="section-membros" class="tab-section">
+                        <div class="card">
+                            <div class="card-title">Membros em destaque</div>
+                            
+                            <div class="member-list-item">
+                                <div class="member-info">
+                                    <div class="avatar" style="background-color: var(--color-violet); color: white;">JS</div>
+                                    <div>
+                                        <div class="member-name">Juliana Silva</div>
+                                        <div class="member-role">Administradora · Entrou em 2022</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="member-list-item">
+                                <div class="member-info">
+                                    <div class="avatar">CM</div>
+                                    <div>
+                                        <div class="member-name">Carlos Mendes</div>
+                                        <div class="member-role">Moderador · Entrou em 2023</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="member-list-item">
+                                <div class="member-info">
+                                    <div class="avatar">AR</div>
+                                    <div>
+                                        <div class="member-name">Ana Rodrigues</div>
+                                        <div class="member-role">Membro ativo</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEÇÃO 3: INFORMAÇÕES/SOBRE -->
+                    <div id="section-sobre" class="tab-section">
+                        <div class="card">
+                            <div class="card-title">Sobre este grupo</div>
+                            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">
+                                Um espaço dedicado para compartilhar dicas, códigos e projetos utilizando branco e violeta. Discutimos tendências de UI/UX, desenvolvimento front-end e boas práticas de programação.
+                            </p>
+                            <div class="about-item" style="margin-bottom: 16px;">
+                                <i class="fa-solid fa-shield-halved"></i>
+                                <span><strong>Privacidade</strong><br>Público. Qualquer pessoa pode ver quem faz parte do grupo e o que é publicado.</span>
+                            </div>
+                            <div class="about-item" style="margin-bottom: 16px;">
+                                <i class="fa-solid fa-eye"></i>
+                                <span><strong>Visibilidade</strong><br>O grupo está visível para todos nas buscas.</span>
+                            </div>
+                            <div class="about-item">
+                                <i class="fa-solid fa-location-dot"></i>
+                                <span><strong>Localização</strong><br>Geral · Brasil</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- SCRIPTS -->
+    <script>
+        // Função para abrir/fechar o menu lateral (Usado principalmente no mobile)
+        function toggleSidebar() {
+            const sidebar = document.getElementById('hamburgerSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('mobile-active');
+            overlay.classList.toggle('active');
+        }
+
+        // Função para alternar as abas/filtros da Sidebar
+        function switchSidebarTab(paneName, element) {
+            const tabItems = document.querySelectorAll('.sidebar-tab-item');
+            tabItems.forEach(item => item.classList.remove('active'));
+
+            element.classList.add('active');
+
+            const panes = document.querySelectorAll('.sidebar-tab-pane');
+            panes.forEach(pane => pane.classList.remove('active-pane'));
+
+            const targetPane = document.getElementById('sidebar-pane-' + paneName);
+            if (targetPane) {
+                targetPane.classList.add('active-pane');
+            }
+
+            filterGroups();
+        }
+
+        // Função para filtrar os grupos na sidebar
+        function filterGroups() {
+            const input = document.getElementById('sidebarSearchInput');
+            const clearBtn = document.getElementById('sidebarClearBtn');
+            const filter = input.value.toLowerCase();
+            
+            if (filter.length > 0) {
+                clearBtn.style.display = 'block';
+            } else {
+                clearBtn.style.display = 'none';
+            }
+
+            const activePane = document.querySelector('.sidebar-tab-pane.active-pane');
+            const items = activePane.querySelectorAll('.sidebar-group-item');
+
+            items.forEach(item => {
+                const name = item.querySelector('.sidebar-group-name').textContent.toLowerCase();
+                if (name.includes(filter)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Função para limpar o campo de busca de grupos
+        function clearSearch() {
+            const input = document.getElementById('sidebarSearchInput');
+            input.value = '';
+            filterGroups();
+            input.focus();
+        }
+
+        // Função para alternar as abas principais do Grupo
+        function switchTab(tabName, element) {
+            const navItems = document.querySelectorAll('.group-nav .nav-item');
+            navItems.forEach(item => item.classList.remove('active'));
+
+            element.classList.add('active');
+
+            const sections = document.querySelectorAll('.tab-section');
+            sections.forEach(section => section.classList.remove('active-section'));
+
+            const targetSection = document.getElementById('section-' + tabName);
+            if (targetSection) {
+                targetSection.classList.add('active-section');
+            }
+        }
+    </script>
+
+</body>
+</html>
