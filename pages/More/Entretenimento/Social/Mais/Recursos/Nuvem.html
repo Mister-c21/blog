@@ -492,17 +492,33 @@
             const modal = document.getElementById('fileViewerModal');
             const container = document.getElementById('viewerContentContainer');
             container.innerHTML = '';
+
             if (type === 'image') {
                 container.innerHTML = `<img src="${src}" class="max-h-[75vh] max-w-full object-contain rounded-md" alt="Visualização">`;
             } else {
-                container.innerHTML = `<video src="${src}" class="max-h-[75vh] max-w-full rounded-md" controls autoplay></video>`;
+                container.innerHTML = `<video src="${src}" class="max-h-[75vh] max-w-full rounded-md" controls autoplay playsinline></video>`;
             }
+
+            if (date) {
+                const modalDate = document.getElementById('modalDate');
+                if (modalDate) modalDate.textContent = date;
+            }
+
             modal.classList.remove('hidden');
         }
 
         function closeViewer() {
-            document.getElementById('fileViewerModal').classList.add('hidden');
-            document.getElementById('viewerContentContainer').innerHTML = '';
+            const modal = document.getElementById('fileViewerModal');
+            modal.classList.add('hidden');
+            const container = document.getElementById('viewerContentContainer');
+            // pausa vídeo se estiver tocando
+            const video = container.querySelector('video');
+            if (video) {
+                video.pause();
+                video.removeAttribute('src');
+                video.load();
+            }
+            container.innerHTML = '';
         }
 
         function openInfoPanel(name, size, date, type) {
@@ -544,46 +560,54 @@
                 const fileSize = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
                 const fileName = file.name;
                 const fileDate = 'Hoje';
-                
-                if (file.name.match(/\.(jpg|png|jpeg)$/i)) {
+                const objectUrl = URL.createObjectURL(file);
+                const safeName = fileName.replace(/'/g, "\\'");
+
+                if (file.name.match(/\.(jpg|png|jpeg|gif|webp|bmp)$/i)) {
                     const container = document.querySelector('#content-imagens > div > div');
                     const card = document.createElement('div');
                     card.className = "relative group aspect-square bg-gray-100 overflow-hidden rounded-lg cursor-pointer";
-                    card.onclick = () => openViewer(URL.createObjectURL(file), 'image', fileName, fileSize, fileDate);
+                    card.onclick = () => openViewer(objectUrl, 'image', fileName, fileSize, fileDate);
                     card.innerHTML = `
-                        <div class="w-full h-full flex items-center justify-center bg-gray-200">
-                            <i class="fa-solid fa-image text-gray-400 text-xl"></i>
-                        </div>
+                        <img src="${objectUrl}" alt="${safeName}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                         <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex justify-between p-2 items-start" onclick="event.stopPropagation()">
                             <span class="text-[10px] text-white bg-black/40 px-1.5 py-0.5 rounded">${fileSize}</span>
                             <div class="flex space-x-1">
-                                <button onclick="openInfoPanel('${fileName}', '${fileSize}', '${fileDate}', 'Imagem')" class="text-white hover:text-violet-300 bg-black/40 p-1 rounded" title="Informações"><i class="fa-solid fa-circle-info text-xs"></i></button>
+                                <button onclick="openInfoPanel('${safeName}', '${fileSize}', '${fileDate}', 'Imagem')" class="text-white hover:text-violet-300 bg-black/40 p-1 rounded" title="Informações"><i class="fa-solid fa-circle-info text-xs"></i></button>
                                 <button class="text-white hover:text-red-400 bg-black/40 p-1 rounded"><i class="fa-solid fa-trash text-xs"></i></button>
                             </div>
                         </div>
                     `;
                     container.prepend(card);
-                } else if (file.name.match(/\.(mp4|mov|avi)$/i)) {
+                } else if (file.name.match(/\.(mp4|mov|avi|webm|mkv)$/i)) {
                     const container = document.querySelector('#content-videos > div > div');
                     const card = document.createElement('div');
                     card.className = "relative group aspect-square bg-gray-900 overflow-hidden rounded-lg cursor-pointer flex items-center justify-center";
-                    card.onclick = () => openViewer(URL.createObjectURL(file), 'video', fileName, fileSize, fileDate);
+                    card.onclick = () => openViewer(objectUrl, 'video', fileName, fileSize, fileDate);
                     card.innerHTML = `
+                        <video src="${objectUrl}" class="w-full h-full object-cover" muted preload="metadata"></video>
+                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div class="bg-black/50 rounded-full w-10 h-10 flex items-center justify-center">
+                                <i class="fa-solid fa-play text-white text-sm"></i>
+                            </div>
+                        </div>
                         <div class="absolute top-2 right-2 text-white bg-black/60 px-1.5 py-0.5 rounded text-[10px] flex items-center space-x-1">
                             <i class="fa-solid fa-play text-[8px]"></i>
-                            <span>00:30</span>
+                            <span>Vídeo</span>
                         </div>
-                        <i class="fa-solid fa-film text-gray-500 text-3xl"></i>
                         <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex justify-end p-2 items-start space-x-1" onclick="event.stopPropagation()">
-                            <button onclick="openInfoPanel('${fileName}', '${fileSize}', '${fileDate}', 'Vídeo')" class="text-white hover:text-violet-300 bg-black/40 p-1 rounded" title="Informações"><i class="fa-solid fa-circle-info text-xs"></i></button>
+                            <button onclick="openInfoPanel('${safeName}', '${fileSize}', '${fileDate}', 'Vídeo')" class="text-white hover:text-violet-300 bg-black/40 p-1 rounded" title="Informações"><i class="fa-solid fa-circle-info text-xs"></i></button>
                             <button class="text-white hover:text-red-400 bg-black/40 p-1 rounded"><i class="fa-solid fa-trash text-xs"></i></button>
                         </div>
                     `;
                     container.prepend(card);
                 } else {
-                    alert('Por favor, envie apenas arquivos de imagem (jpg, png) ou vídeo (mp4, mov).');
+                    URL.revokeObjectURL(objectUrl);
+                    alert('Por favor, envie apenas arquivos de imagem (jpg, png, gif, webp) ou vídeo (mp4, mov, webm).');
                 }
             }
+
+            event.target.value = '';
         }
     </script>
 </body>
