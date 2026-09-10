@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recompensa Diária - Curts</title>
+    <!-- Ícones do FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #FFFFFF;         /* Cor Principal (Branco) */
+            --secondary: #7C3AED;       /* Cor Secundária (Violeta) */
+            --secondary-hover: #6D28D9; 
+            --bg-color: #F8FAFC;        /* Fundo limpo e suave */
+            --text-main: #1E293B;       
+            --text-muted: #64748B;      
+            --border-color: #E2E8F0;    
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        /* Container Principal do App */
+        .app-wrapper {
+            width: 100%;
+            max-width: 480px; /* Padrão Mobile por padrão */
+            background-color: var(--primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.04);
+        }
+
+        /* Topo / Header */
+        header {
+            padding: 16px 20px;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        header h2 {
+            font-size: 1.15rem;
+            color: var(--secondary);
+            font-weight: 700;
+        }
+
+        /* Conteúdo Principal */
+        .content {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding-bottom: 40px;
+        }
+
+        /* Banner de Destaque */
+        .hero-banner {
+            background: linear-gradient(135deg, #EDE9FE 0%, #F5F3FF 100%);
+            border: 1px solid #DDD6FE;
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        .hero-banner i {
+            font-size: 2.2rem;
+            color: #F59E0B; /* Cor dourada combinando com moedas */
+            margin-bottom: 8px;
+        }
+
+        .hero-banner h3 {
+            font-size: 1.1rem;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .hero-banner p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .section-count {
+            font-size: 0.75rem;
+            color: var(--secondary);
+            font-weight: 700;
+        }
+
+        /* Grid de Recompensas (Moedas e Cristais) */
+        .rewards-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .reward-card {
+            background: var(--primary);
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            height: 240px;
+        }
+
+        /* Dias já resgatados */
+        .reward-card.claimed {
+            border-color: #CBD5E1;
+            opacity: 0.7;
+        }
+
+        /* Dia atual disponível para resgate */
+        .reward-card.available {
+            border-color: var(--secondary);
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.25);
+            animation: pulse-glow 2s infinite;
+        }
+
+        /* Destaque especial para o dia de cristais (Dia 12) */
+        .reward-card.crystal-day.available {
+            border-color: #3B82F6; /* Azul cristalino/mágico */
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.35);
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4); }
+            70% { box-shadow: 0 0 0 8px rgba(124, 58, 237, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); }
+        }
+
+        /* Dias futuros bloqueados */
+        .reward-card.locked {
+            border-style: dashed;
+            border-color: #CBD5E1;
+            background: #F1F5F9;
+        }
+
+        /* Imagem de Fundo do Card */
+        .reward-img-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #E2E8F0;
+            z-index: 1;
+        }
+
+        .reward-card.locked .reward-img-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #F1F5F9;
+        }
+
+        .reward-img-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .reward-card.locked .reward-img-container i {
+            font-size: 2.5rem;
+            color: #94A3B8;
+        }
+
+        /* Gradiente de Legibilidade */
+        .reward-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60%;
+            background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.85) 100%);
+            z-index: 2;
+        }
+
+        .reward-day {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #FFFFFF;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            padding: 2px 8px;
+            border-radius: 6px;
+            z-index: 3;
+        }
+
+        .status-tag {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 6px;
+            z-index: 3;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            color: #FFFFFF;
+        }
+
+        .reward-card.available .status-tag {
+            background: var(--secondary);
+            color: var(--primary);
+        }
+
+        .reward-card.crystal-day .status-tag {
+            background: #3B82F6;
+            color: var(--primary);
+        }
+
+        /* Detalhes na parte inferior */
+        .reward-details {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            z-index: 3;
+            color: #FFFFFF;
+        }
+
+        .reward-details h4 {
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .reward-details h4 i.fa-coins {
+            color: #F59E0B; /* Moeda Dourada */
+        }
+
+        .reward-details h4 i.fa-gem {
+            color: #38BDF8; /* Cristal Azul Brilhante */
+        }
+
+        .reward-details p {
+            font-size: 0.75rem;
+            color: #E2E8F0;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+
+        /* Ajuste visual para cards bloqueados */
+        .reward-card.locked .reward-details h4,
+        .reward-card.locked .reward-details p {
+            color: var(--text-main);
+            text-shadow: none;
+            text-align: center;
+        }
+
+        .reward-card.locked .reward-details {
+            position: relative;
+            margin-top: auto;
+            margin-bottom: 16px;
+            z-index: 3;
+        }
+
+        /* Botão de Resgatar Geral na Base */
+        .action-container {
+            margin-top: auto;
+            padding-top: 10px;
+        }
+
+        .btn-claim-all {
+            width: 100%;
+            background-color: var(--secondary);
+            color: var(--primary);
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .btn-claim-all:hover {
+            background-color: var(--secondary-hover);
+        }
+
+        .btn-claim-all:active {
+            transform: scale(0.98);
+        }
+
+        /* ==========================================
+           ADAPTAÇÃO UX PARA DESKTOP
+           ========================================== */
+        @media (min-width: 768px) {
+            body {
+                background-color: #EDE9FE;
+                align-items: center;
+                padding: 30px 0;
+            }
+
+            .app-wrapper {
+                max-width: 650px;
+                min-height: 85vh;
+                border-radius: 20px;
+                border: 1px solid var(--border-color);
+                overflow: hidden;
+            }
+
+            .rewards-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 16px;
+            }
+
+            .reward-card {
+                height: 260px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-wrapper">
+        <!-- Topo -->
+        <header>
+            <h2>Recompensa Diária</h2>
+        </header>
+
+        <!-- Conteúdo -->
+        <div class="content">
+            
+            <div class="hero-banner">
+                <i class="fa-solid fa-coins"></i>
+                <h3>Ciclo de 12 Dias de Recompensas!</h3>
+                <p>Colete moedas diariamente e alcance o <strong>Dia 12</strong> para desbloquear a recompensa suprema de <strong>3 Cristais</strong>!</p>
+            </div>
+
+            <div class="section-header">
+                <span class="section-label">Check-in Ciclo 12 Dias</span>
+                <span class="section-count">Dia 3 de 12</span>
+            </div>
+
+            <!-- Grid de Recompensas (12 Dias - Moedas e Cristais no Dia 12) -->
+            <div class="rewards-grid">
+                
+                <!-- Dia 1 (Resgatado) -->
+                <div class="reward-card claimed" onclick="alert('Dia 1 já resgatado!')">
+                    <span class="reward-day">Dia 1</span>
+                    <span class="status-tag">Resgatado</span>
+                    <div class="reward-img-container">
+                        <img src="https://images.unsplash.com/photo-1621416894569-0f39ed31d247?auto=format&fit=crop&w=400&q=80" alt="Dia 1">
+                    </div>
+                    <div class="reward-overlay"></div>
+                    <div class="reward-details">
+                        <h4><i class="fa-solid fa-coins"></i> 50 Moedas</h4>
+                        <p>Início do ciclo</p>
+                    </div>
+                </div>
+
+                <!-- Dia 2 (Resgatado) -->
+                <div class="reward-card claimed" onclick="alert('Dia 2 já resgatado!')">
+                    <span class="reward-day">Dia 2</span>
+                    <span class="status-tag">Resgatado</span>
+                    <div class="reward-img-container">
+                        <img src="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=400&q=80" alt="Dia 2">
+                    </div>
+                    <div class="reward-overlay"></div>
+                    <div class="reward-details">
+                        <h4><i class="fa-solid fa-coins"></i> 80 Moedas</h4>
+                        <p>Bônus de visita</p>
+                    </div>
+                </div>
+
+                <!-- Dia 3 (Disponível Agora) -->
+                <div class="reward-card available" onclick="alert('Parabéns! Você resgatou 100 moedas do Dia 3!')">
+                    <span class="reward-day">Dia 3 ⭐</span>
+                    <span class="status-tag">Disponível</span>
+                    <div class="reward-img-container">
+                        <img src="https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=400&q=80" alt="Dia 3">
+                    </div>
+                    <div class="reward-overlay"></div>
+                    <div class="reward-details">
+                        <h4><i class="fa-solid fa-coins"></i> 100 Moedas</h4>
+                        <p>Resgatar Agora</p>
+                    </div>
+                </div>
+
+                <!-- Dias 4 a 11 (Bloqueados / Moedas progressivas) -->
+                <div class="reward-card locked" onclick="alert('Disponível nos próximos dias!')">
+                    <span class="reward-day" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Dia 4</span>
+                    <span class="status-tag" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Bloqueado</span>
+                    <div class="reward-img-container"><i class="fa-solid fa-lock"></i></div>
+                    <div class="reward-details">
+                        <h4><i class="fa-solid fa-coins"></i> 120 Moedas</h4>
+                        <p>Em breve</p>
+                    </div>
+                </div>
+
+                <div class="reward-card locked" onclick="alert('Disponível nos próximos dias!')">
+                    <span class="reward-day" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Dia 5</span>
+                    <span class="status-tag" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Bloqueado</span>
+                    <div class="reward-img-container"><i class="fa-solid fa-lock"></i></div>
+                    <div class="reward-details">
+                        <h4><i class="fa-solid fa-coins"></i> 150 Moedas</h4>
+                        <p>Em breve</p>
+                    </div>
+                </div>
+
+                <div class="reward-card locked" onclick="alert('Disponível nos próximos dias!')">
+                    <span class="reward-day" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Dia 6</span>
+                    <span class="status-tag" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Bloqueado</span>
+                    <div class="reward-img-container"><i class="fa-solid fa-lock"></i></div>
+                    <div class="reward-details">
+                        <h4><i class="fa-solid fa-coins"></i> 180 Moedas</h4>
+                        <p>Em breve</p>
+                    </div>
+                </div>
+
+                <div class="reward-card locked" onclick="alert('Disponível nos próximos dias!')">
+                    <span class="reward-day" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Dia 7</span>
+                    <span class="status-tag" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Bloqueado</span>
+                    <div class="reward-img-container"><i class="fa-solid fa-lock"></i></div>
+                    <div class="reward-details">
+                        <h4><i class="fa-solid fa-coins"></i> 200 Moedas</h4>
+                        <p>Em breve</p>
+                    </div>
+                </div>
+
+                <div class="reward-card locked" onclick="alert('Disponível nos próximos dias!')">
+                    <span class="reward-day" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Dia 8</span>
+                    <span class="status-tag" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Bloqueado</span>
+                    <div class="reward-img-container"><i class="fa-solid fa-lock"></i></div>
+                    <div class="reward-details">
+                        <h4><i class="fa-solid fa-coins"></i> 250 Moedas</h4>
+                        <p>Em breve</p>
+                    </div>
+                </div>
+
+                <div class="reward-card locked" onclick="alert('Disponível nos próximos dias!')">
+                    <span class="reward-day" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Dia 9</span>
+                    <span class="status-tag" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Bloqueado</span>
+                    <div class="reward-img-container"><i class="fa-solid fa-lock"></i></div>
+                    <div class="reward-details">
+                        <h4><i class="fa-solid fa-coins"></i> 300 Moedas</h4>
+                        <p>Em breve</p>
+                    </div>
+                </div>
+
+                <div class="reward-card locked" onclick="alert('Disponível nos próximos dias!')">
+                    <span class="reward-day" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Dia 10</span>
+                    <span class="status-tag" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Bloqueado</span>
+                    <div class="reward-img-container"><i class="fa-solid fa-lock"></i></div>
+                    <div class="reward-details">
+                        <h4><i class="fa-solid fa-coins"></i> 400 Moedas</h4>
+                        <p>Em breve</p>
+                    </div>
+                </div>
+
+                <div class="reward-card locked" onclick="alert('Disponível nos próximos dias!')">
+                    <span class="reward-day" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Dia 11</span>
+                    <span class="status-tag" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Bloqueado</span>
+                    <div class="reward-img-container"><i class="fa-solid fa-lock"></i></div>
+                    <div class="reward-details">
+                        <h4><i class="fa-solid fa-coins"></i> 600 Moedas</h4>
+                        <p>Em breve</p>
+                    </div>
+                </div>
+
+                <!-- Dia 12 (Supremo: 3 Cristais) -->
+                <div class="reward-card crystal-day locked" onclick="alert('Alcance o Dia 12 para desbloquear os Cristais!')">
+                    <span class="reward-day" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Dia 12 💎</span>
+                    <span class="status-tag" style="background: rgba(0,0,0,0.1); color: var(--text-main);">Supremo</span>
+                    <div class="reward-img-container">
+                        <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80" alt="3 Cristais">
+                    </div>
+                    <div class="reward-overlay"></div>
+                    <div class="reward-details">
+                        <h4><i class="fa-solid fa-gem"></i> 3 Cristais</h4>
+                        <p>Recompensa Rara</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Botão de Ação -->
+            <div class="action-container">
+                <button class="btn-claim-all" onclick="alert('Resgatando moedas do dia atual...')">
+                    <i class="fa-solid fa-coins"></i> Resgatar Recompensa de Hoje
+                </button>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>
