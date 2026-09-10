@@ -232,88 +232,111 @@
             cursor: default;
         }
 
-        /* Modal Estilo React Native (Fluido e com Física de Mola) */
+        /* ========== MODAL (igual ao segundo código) ========== */
         .iframe-modal {
             position: fixed;
-            top: 0;
+            top: 100%;
             left: 0;
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             background-color: var(--primary-color);
             z-index: 1000;
             display: flex;
             flex-direction: column;
-            transform: translateY(100%);
-            /* Curva cúbica customizada para dar o efeito "spring" (mola) semelhante ao React Native */
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            will-change: transform;
+            transition: top 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            overflow: hidden;
+            color: var(--text-main);
         }
 
         .iframe-modal.open {
-            transform: translateY(0);
+            top: 0;
         }
 
         .iframe-header {
+            padding: 10px 16px 12px 16px;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 16px;
+            flex-direction: column;
             border-bottom: 1px solid var(--border-color);
             background-color: var(--primary-color);
-            cursor: grab;
+            z-index: 10;
+            box-sizing: border-box;
             user-select: none;
-            position: relative;
+            cursor: grab;
         }
 
         .iframe-header:active {
             cursor: grabbing;
         }
 
-        /* Indicador visual de arraste (pílula estilo iOS/React Native) opcional no topo */
-        .iframe-header::after {
-            content: '';
-            position: absolute;
-            top: 6px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 36px;
-            height: 4px;
-            background-color: var(--border-color);
-            border-radius: 2px;
+        /* Handle de arraste (pílula) com animação */
+        .iframe-drag-handle {
+            width: 45px;
+            height: 5px;
+            background-color: var(--secondary-color);
+            border-radius: 3px;
+            margin: 0 auto 10px auto;
+            display: block;
+            opacity: 0.8;
+            animation: handle-pulse 2s infinite ease-in-out;
         }
 
-        @media (min-width: 768px) {
-            .iframe-header::after {
-                display: none; /* Some no desktop */
-            }
+        @keyframes handle-pulse {
+            0% { transform: scaleX(1); opacity: 0.6; }
+            50% { transform: scaleX(1.15); opacity: 1; box-shadow: 0 0 8px rgba(124, 58, 237, 0.6); }
+            100% { transform: scaleX(1); opacity: 0.6; }
+        }
+
+        .iframe-header-content {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            position: relative;
         }
 
         .iframe-header span {
             font-weight: 600;
             font-size: 14px;
-            margin-top: 4px;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
-        /* Botão de fechar visível apenas no desktop */
+        /* Botão de fechar: seta no desktop (igual ao segundo) */
         .close-modal-btn {
             background: none;
             border: none;
             font-size: 18px;
             cursor: pointer;
-            color: var(--text-main);
+            color: var(--secondary-color);
             display: none;
+            margin-right: 12px;
+            padding: 0;
         }
 
         @media (min-width: 768px) {
+            .iframe-drag-handle {
+                display: none;
+            }
             .close-modal-btn {
                 display: block;
+            }
+            .iframe-header {
+                padding: 14px 16px;
+                flex-direction: row;
+                align-items: center;
+            }
+            .iframe-header-content {
+                width: 100%;
             }
         }
 
         .iframe-content {
-            flex-grow: 1;
+            flex: 1;
             width: 100%;
+            height: 100%;
             border: none;
+            display: block;
         }
     </style>
 </head>
@@ -411,13 +434,18 @@
         </div>
     </div>
 
-    <!-- Modal de Iframe -->
+    <!-- Modal de Iframe (comportamento igual ao segundo código) -->
     <div class="iframe-modal" id="resourceModal">
         <div class="iframe-header" id="modalHeaderHandle">
-            <span id="modalTitle">Recurso</span>
-            <button class="close-modal-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+            <div class="iframe-drag-handle"></div>
+            <div class="iframe-header-content">
+                <button class="close-modal-btn" onclick="closeModal()" title="Fechar">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <span id="modalTitle">Recurso</span>
+            </div>
         </div>
-        <iframe class="iframe-content" id="resourceIframe" src=""></iframe>
+        <iframe class="iframe-content" id="resourceIframe" src="about:blank"></iframe>
     </div>
 
     <script>
@@ -431,63 +459,76 @@
         }
 
         const modal = document.getElementById('resourceModal');
+        const modalHeader = document.getElementById('modalHeaderHandle');
+        const iframe = document.getElementById('resourceIframe');
+
+        let touchStartY = 0;
+        let touchMoveY = 0;
+        let isDragging = false;
 
         function openModal(title, url) {
             document.getElementById('modalTitle').innerText = title;
-            const iframe = document.getElementById('resourceIframe');
-            if (iframe.src !== url) {
+            // Reseta posição e transição antes de abrir (igual ao segundo)
+            modal.style.top = '';
+            modal.style.transition = 'top 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+            
+            if (iframe.src !== url && iframe.src !== (window.location.origin + url.replace('./', '/'))) {
                 iframe.src = url;
             }
+            
             modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
         }
 
         function closeModal() {
-            modal.style.transition = 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
-            modal.style.transform = 'translateY(100%)';
+            modal.style.transition = 'top 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+            modal.style.top = '100%';
             modal.classList.remove('open');
             
+            // Restaura overflow do body
+            document.body.style.overflow = '';
+            
+            // Limpa o iframe após a animação (igual ao segundo)
             setTimeout(() => {
-                modal.style.transform = ''; 
+                iframe.src = 'about:blank';
+                modal.style.top = '';
                 modal.style.transition = '';
-            }, 300);
+            }, 400);
         }
 
-        // Lógica de Arraste Fluido (Acompanhando o dedo em tempo real)
-        let touchStartY = 0;
-        let currentY = 0;
-        let isDragging = false;
-        const modalHeader = document.getElementById('modalHeaderHandle');
-
+        // Arraste apenas no mobile (igual ao segundo código)
         modalHeader.addEventListener('touchstart', function(event) {
+            if (window.innerWidth >= 768) return;
             touchStartY = event.touches[0].clientY;
             isDragging = true;
-            modal.style.transition = 'none'; 
+            modal.style.transition = 'none';
         }, { passive: true });
 
         modalHeader.addEventListener('touchmove', function(event) {
-            if (!isDragging) return;
-            currentY = event.touches[0].clientY;
-            let deltaY = currentY - touchStartY;
-
+            if (!isDragging || window.innerWidth >= 768) return;
+            touchMoveY = event.touches[0].clientY;
+            const deltaY = touchMoveY - touchStartY;
             if (deltaY > 0) {
-                modal.style.transform = `translateY(${deltaY}px)`;
+                modal.style.top = `${deltaY}px`;
             }
         }, { passive: true });
 
-        modalHeader.addEventListener('touchend', function(event) {
-            if (!isDragging) return;
+        modalHeader.addEventListener('touchend', function() {
+            if (!isDragging || window.innerWidth >= 768) return;
             isDragging = false;
             
-            let deltaY = currentY - touchStartY;
-            modal.style.transition = 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
-
-            if (deltaY > 120) {
+            const deltaY = touchMoveY - touchStartY;
+            const triggerThreshold = window.innerHeight * 0.20; // 20% da altura da tela
+            
+            if (deltaY > triggerThreshold) {
                 closeModal();
             } else {
-                modal.style.transform = 'translateY(0)';
+                modal.style.transition = 'top 0.3s ease-out';
+                modal.style.top = '0px';
             }
-            currentY = 0;
+            
             touchStartY = 0;
+            touchMoveY = 0;
         }, { passive: true });
     </script>
 </body>
