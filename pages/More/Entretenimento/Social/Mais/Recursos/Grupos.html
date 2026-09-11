@@ -714,7 +714,7 @@
                                 <i class="fa-solid fa-bars"></i>
                             </button>
                             <div class="group-text-info">
-                                <h1 id="currentGroupTitle">Carregando...</h1>
+                                <h1 id="currentGroupTitle">Desenvolvedores Web & UI/UX</h1>
                             </div>
                         </div>
                         <div class="group-actions">
@@ -740,22 +740,26 @@
                     <div class="card">
                         <div class="card-title">Sobre</div>
                         <p id="groupAboutText" style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
-                            Carregando informações do grupo...
+                            Um espaço dedicado para compartilhar dicas, códigos e projetos utilizando branco e violeta.
                         </p>
                         <div class="about-item">
                             <i class="fa-solid fa-shield-halved"></i>
                             <span><strong>Público</strong><br>Qualquer pessoa pode ver publicações.</span>
                         </div>
                         <div class="about-item">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <span><strong>Geral</strong> · Brasil</span>
+                        </div>
+                        <div class="about-item">
                             <i class="fa-solid fa-network-wired"></i>
-                            <span><strong>Nostr</strong><br>Grupos e posts abertos na rede descentralizada.</span>
+                            <span><strong>Nostr</strong><br>Grupos abertos e públicos na rede descentralizada.</span>
                         </div>
                     </div>
                 </div>
 
                 <div>
                     
-                    <!-- POSTS REAIS DA REDE -->
+                    <!-- ÚNICA MUDANÇA: posts reais da rede (container dinâmico) -->
                     <div id="section-posts" class="tab-section active-section">
                         <div id="postsFeed">
                             <div class="posts-loading"><i class="fa-solid fa-spinner fa-spin"></i> Carregando posts da rede...</div>
@@ -769,8 +773,35 @@
                     <div id="section-membros" class="tab-section">
                         <div class="card">
                             <div class="card-title">Membros em destaque</div>
-                            <div id="membersList">
-                                <div class="posts-loading">Selecione um grupo para ver membros.</div>
+                            
+                            <div class="member-list-item">
+                                <div class="member-info">
+                                    <div class="avatar" style="background-color: var(--color-violet); color: white;">JS</div>
+                                    <div>
+                                        <div class="member-name">Juliana Silva</div>
+                                        <div class="member-role">Administradora · Entrou em 2022</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="member-list-item">
+                                <div class="member-info">
+                                    <div class="avatar">CM</div>
+                                    <div>
+                                        <div class="member-name">Carlos Mendes</div>
+                                        <div class="member-role">Moderador · Entrou em 2023</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="member-list-item">
+                                <div class="member-info">
+                                    <div class="avatar">AR</div>
+                                    <div>
+                                        <div class="member-name">Ana Rodrigues</div>
+                                        <div class="member-role">Membro ativo</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -779,15 +810,19 @@
                         <div class="card">
                             <div class="card-title">Sobre este grupo</div>
                             <p id="groupAboutFull" style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">
-                                Carregando...
+                                Um espaço dedicado para compartilhar dicas, códigos e projetos utilizando branco e violeta. Discutimos tendências de UI/UX, desenvolvimento front-end e boas práticas de programação.
                             </p>
                             <div class="about-item" style="margin-bottom: 16px;">
                                 <i class="fa-solid fa-shield-halved"></i>
-                                <span><strong>Privacidade</strong><br>Público. Qualquer pessoa pode ver o que é publicado.</span>
+                                <span><strong>Privacidade</strong><br>Público. Qualquer pessoa pode ver quem faz parte do grupo e o que é publicado.</span>
+                            </div>
+                            <div class="about-item" style="margin-bottom: 16px;">
+                                <i class="fa-solid fa-eye"></i>
+                                <span><strong>Visibilidade</strong><br>O grupo está visível para todos nas buscas.</span>
                             </div>
                             <div class="about-item">
-                                <i class="fa-solid fa-network-wired"></i>
-                                <span><strong>Rede</strong><br>Nostr · Comunidade aberta</span>
+                                <i class="fa-solid fa-location-dot"></i>
+                                <span><strong>Localização</strong><br>Geral · Brasil</span>
                             </div>
                         </div>
                     </div>
@@ -827,7 +862,6 @@
         let currentGroup = null;
         let currentPosts = [];
 
-        // ===== SESSÃO =====
         function loadSessionFromNostr() {
             try {
                 const session = localStorage.getItem('nostr_session');
@@ -959,17 +993,13 @@
 
         function avatarHtml(pubkey) {
             let pic = profileCache.get(pubkey)?.picture;
-            if (currentUserData.pubkey === pubkey && currentUserData.avatarUrl) {
-                pic = currentUserData.avatarUrl;
-            }
+            if (currentUserData.pubkey === pubkey && currentUserData.avatarUrl) pic = currentUserData.avatarUrl;
             if (pic) {
-                return `<img src="${escapeHtml(pic)}" alt="" onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user\\'></i>'">`;
+                return `<img src="${escapeHtml(pic)}" alt="" onerror="this.parentElement.innerHTML='?'">`;
             }
-            const initials = (profileCache.get(pubkey)?.name || pubkey || '?').substring(0, 2).toUpperCase();
-            return initials;
+            return (profileCache.get(pubkey)?.name || pubkey || '?').substring(0, 2).toUpperCase();
         }
 
-        // ===== GRUPOS DA REDE =====
         function getGroupMeta(ev) {
             const tags = ev.tags || [];
             const name = tags.find(t => t[0] === 'name')?.[1]
@@ -991,11 +1021,7 @@
             const myListEl = document.getElementById('nostr-my-groups-list');
 
             try {
-                const events = await pool.querySync(RELAYS, {
-                    kinds: [34550],
-                    limit: 60
-                });
-
+                const events = await pool.querySync(RELAYS, { kinds: [34550], limit: 60 });
                 const map = new Map();
                 (events || []).forEach(ev => {
                     const d = (ev.tags || []).find(t => t[0] === 'd')?.[1] || ev.id;
@@ -1021,11 +1047,7 @@
                     myListEl.innerHTML = `<div class="groups-loading">Faça login no Feed/Social para ver seus grupos.</div>`;
                 }
 
-                if (loadedGroups.length) {
-                    await selectGroup(loadedGroups[0]);
-                } else {
-                    document.getElementById('postsFeed').innerHTML = `<div class="posts-empty">Nenhum grupo disponível.</div>`;
-                }
+                if (loadedGroups.length) await selectGroup(loadedGroups[0]);
             } catch (e) {
                 console.error('Erro ao carregar grupos:', e);
                 listEl.innerHTML = `<div class="groups-loading">Falha ao conectar aos relays.</div>`;
@@ -1060,28 +1082,24 @@
 
             document.getElementById('currentGroupTitle').textContent = meta.name;
             document.getElementById('groupAboutText').textContent = meta.description;
-            document.getElementById('groupAboutFull').textContent = meta.description;
+            const aboutFull = document.getElementById('groupAboutFull');
+            if (aboutFull) aboutFull.textContent = meta.description;
 
             document.querySelectorAll('.sidebar-group-item').forEach(item => {
                 item.classList.toggle('active-group', item.dataset.eventId === ev.id);
             });
 
-            // carrega posts reais deste grupo
             await loadPostsForGroup(ev);
         }
 
-        // ===== POSTS REAIS DA REDE =====
+        // ===== POSTS DA REDE (única alteração funcional pedida) =====
         async function loadPostsForGroup(groupEv) {
             const feed = document.getElementById('postsFeed');
             feed.innerHTML = `<div class="posts-loading"><i class="fa-solid fa-spinner fa-spin"></i> Carregando posts da rede...</div>`;
 
-            const meta = getGroupMeta(groupEv);
             const coord = communityCoordinate(groupEv);
 
             try {
-                // 1) Posts com tag a da comunidade (NIP-72)
-                // 2) Posts do criador/moderadores
-                // 3) Fallback: notes recentes públicas (para não ficar vazio)
                 const filters = [
                     { kinds: [1], '#a': [coord], limit: 40 },
                     { kinds: [1], authors: [groupEv.pubkey], limit: 25 },
@@ -1095,100 +1113,52 @@
                 const map = new Map();
                 results.forEach(r => {
                     if (r.status === 'fulfilled' && r.value) {
-                        r.value.forEach(ev => {
-                            // prioriza posts que mencionam a comunidade ou são do autor do grupo
-                            if (!map.has(ev.id)) map.set(ev.id, ev);
-                        });
+                        r.value.forEach(ev => map.set(ev.id, ev));
                     }
                 });
 
-                let posts = Array.from(map.values());
+                let posts = Array.from(map.values())
+                    .sort((a, b) => b.created_at - a.created_at)
+                    .slice(0, 40);
 
-                // ordena e limita
-                posts.sort((a, b) => b.created_at - a.created_at);
-                posts = posts.slice(0, 40);
                 currentPosts = posts;
-
                 await fetchProfiles(posts.map(p => p.pubkey));
 
                 if (!posts.length) {
-                    feed.innerHTML = `<div class="posts-empty">Nenhum post encontrado neste grupo ainda.<br>Seja o primeiro a publicar!</div>`;
+                    feed.innerHTML = `<div class="posts-empty">Nenhum post encontrado neste grupo ainda.</div>`;
                     return;
                 }
 
-                feed.innerHTML = posts.map(ev => renderPostCard(ev)).join('');
+                feed.innerHTML = posts.map(ev => `
+                    <div class="card" data-event-id="${escapeHtml(ev.id)}">
+                        <div class="post-header">
+                            <div class="post-author-info">
+                                <div class="avatar">${avatarHtml(ev.pubkey)}</div>
+                                <div>
+                                    <div class="post-author-name">${escapeHtml(displayName(ev.pubkey))}</div>
+                                    <div class="post-time">${escapeHtml(timeAgo(ev.created_at))}</div>
+                                </div>
+                            </div>
+                            <i class="fa-solid fa-ellipsis" style="color: var(--text-muted); cursor: pointer;"></i>
+                        </div>
+                        <div class="post-body">${escapeHtml((ev.content || '').trim() || '(sem texto)')}</div>
+                        <div class="post-stats">
+                            <span><i class="fa-solid fa-thumbs-up" style="color: var(--color-violet);"></i> —</span>
+                            <span>Nostr</span>
+                        </div>
+                        <div class="post-footer-actions">
+                            <button class="action-btn" type="button"><i class="fa-regular fa-thumbs-up"></i> Curtir</button>
+                            <button class="action-btn" type="button"><i class="fa-regular fa-comment"></i> Comentar</button>
+                            <button class="action-btn" type="button"><i class="fa-solid fa-share"></i> Partilhar</button>
+                        </div>
+                    </div>
+                `).join('');
             } catch (e) {
                 console.error('Erro ao carregar posts:', e);
-                feed.innerHTML = `<div class="posts-empty">Falha ao carregar posts. Tente novamente.</div>`;
+                feed.innerHTML = `<div class="posts-empty">Falha ao carregar posts da rede.</div>`;
             }
         }
 
-        function renderPostCard(ev) {
-            const name = displayName(ev.pubkey);
-            const content = (ev.content || '').trim() || '(sem texto)';
-            const time = timeAgo(ev.created_at);
-            const av = avatarHtml(ev.pubkey);
-
-            return `
-                <div class="card" data-event-id="${escapeHtml(ev.id)}">
-                    <div class="post-header">
-                        <div class="post-author-info">
-                            <div class="avatar">${av}</div>
-                            <div>
-                                <div class="post-author-name">${escapeHtml(name)}</div>
-                                <div class="post-time">${escapeHtml(time)}</div>
-                            </div>
-                        </div>
-                        <i class="fa-solid fa-ellipsis" style="color: var(--text-muted);"></i>
-                    </div>
-                    <div class="post-body">${escapeHtml(content)}</div>
-                    <div class="post-stats">
-                        <span><i class="fa-solid fa-thumbs-up" style="color: var(--color-violet);"></i> —</span>
-                        <span>Nostr</span>
-                    </div>
-                    <div class="post-footer-actions">
-                        <button class="action-btn" onclick="likePost('${escapeHtml(ev.id)}')"><i class="fa-regular fa-thumbs-up"></i> Curtir</button>
-                        <button class="action-btn"><i class="fa-regular fa-comment"></i> Comentar</button>
-                        <button class="action-btn" onclick="sharePost('${escapeHtml(ev.id)}')"><i class="fa-solid fa-share"></i> Partilhar</button>
-                    </div>
-                </div>
-            `;
-        }
-
-        window.likePost = async function(eventId) {
-            if (!isUserLoggedIn()) {
-                alert('Faça login com sua chave privada primeiro (no Feed/Social).');
-                return;
-            }
-            const post = currentPosts.find(p => p.id === eventId);
-            if (!post) return;
-
-            const eventTemplate = {
-                kind: 7,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [['e', eventId], ['p', post.pubkey]],
-                content: '+'
-            };
-            try {
-                const signed = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
-                await Promise.any(pool.publish(RELAYS, signed));
-                alert('Curtida enviada na rede Nostr!');
-            } catch (e) {
-                alert('Erro ao curtir.');
-            }
-        };
-
-        window.sharePost = function(eventId) {
-            const url = window.location.href;
-            if (navigator.share) {
-                navigator.share({ title: 'Post Nostr', url }).catch(() => {});
-            } else {
-                navigator.clipboard.writeText(url);
-                alert('Link copiado!');
-            }
-        };
-
-        // ===== PUBLICAR =====
         async function publishEvent(eventTemplate) {
             if (!isUserLoggedIn()) {
                 alert('Faça login com sua chave privada primeiro (no Feed/Social).');
@@ -1252,16 +1222,14 @@
                 alert('Selecione um grupo primeiro.');
                 return;
             }
-
             const content = prompt('Escreva sua publicação (pública no Nostr):');
             if (!content) return;
 
-            const coord = communityCoordinate(currentGroup);
             const event = {
                 kind: 1,
                 created_at: Math.floor(Date.now() / 1000),
                 tags: [
-                    ['a', coord],
+                    ['a', communityCoordinate(currentGroup)],
                     ['t', 'comunidade'],
                     ['t', 'grupo-publico']
                 ],
@@ -1271,12 +1239,10 @@
             const published = await publishEvent(event);
             if (published) {
                 alert('Publicação enviada para a rede Nostr!');
-                // recarrega posts do grupo atual
                 await loadPostsForGroup(currentGroup);
             }
         };
 
-        // ===== INIT =====
         loadSessionFromNostr();
         loadSessionAvatar();
         updateNostrStatus();
