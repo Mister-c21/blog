@@ -202,6 +202,13 @@
             font-size: 14px;
             font-weight: bold;
             flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .sidebar-group-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .sidebar-group-name {
@@ -308,15 +315,6 @@
         .btn-secondary {
             background-color: var(--bg-secondary);
             color: var(--text-main);
-        }
-
-        .btn-nostr {
-            background-color: var(--color-violet);
-            color: white;
-        }
-
-        .btn-nostr:hover {
-            background-color: var(--color-violet-hover);
         }
 
         .group-nav {
@@ -544,6 +542,10 @@
             font-size: 12px;
             color: var(--text-muted);
             margin-left: 8px;
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .nostr-status.connected {
@@ -568,6 +570,13 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+        }
+
+        .groups-loading {
+            font-size: 13px;
+            color: var(--text-muted);
+            padding: 12px 8px;
+            text-align: center;
         }
 
         @media (max-width: 768px) {
@@ -666,48 +675,18 @@
             </div>
 
             <div class="sidebar-content-area" id="sidebarContentArea">
+                <!-- ABA 1: COMUNIDADE (preenchida pela rede Nostr) -->
                 <div id="sidebar-pane-comunidade" class="sidebar-tab-pane active-pane">
-                    <a href="#" class="sidebar-group-item active-group searchable-group">
-                        <div class="sidebar-group-avatar">DW</div>
-                        <div class="sidebar-group-name">Desenvolvedores Web & UI/UX</div>
-                    </a>
-                    <a href="#" class="sidebar-group-item searchable-group">
-                        <div class="sidebar-group-avatar" style="background-color: #10b981;">JS</div>
-                        <div class="sidebar-group-name">JavaScript Brasil Oficial</div>
-                    </a>
-                    <a href="#" class="sidebar-group-item searchable-group">
-                        <div class="sidebar-group-avatar" style="background-color: #f43f5e;">UI</div>
-                        <div class="sidebar-group-name">UI/UX Designers & Figma</div>
-                    </a>
-                    <a href="#" class="sidebar-group-item searchable-group">
-                        <div class="sidebar-group-avatar" style="background-color: #f59e0b;">RE</div>
-                        <div class="sidebar-group-name">React & React Native Devs</div>
-                    </a>
-                    <a href="#" class="sidebar-group-item searchable-group">
-                        <div class="sidebar-group-avatar" style="background-color: #3b82f6;">PY</div>
-                        <div class="sidebar-group-name">Python para Iniciantes</div>
-                    </a>
-                    <a href="#" class="sidebar-group-item searchable-group">
-                        <div class="sidebar-group-avatar" style="background-color: #8b5cf6;">MK</div>
-                        <div class="sidebar-group-name">Marketing Digital & SEO</div>
-                    </a>
-                    <div id="nostr-groups-list"></div>
+                    <div id="nostr-groups-list">
+                        <div class="groups-loading"><i class="fa-solid fa-spinner fa-spin"></i> Carregando grupos da rede...</div>
+                    </div>
                 </div>
 
+                <!-- ABA 2: MEUS GRUPOS -->
                 <div id="sidebar-pane-meus-grupos" class="sidebar-tab-pane">
-                    <a href="#" class="sidebar-group-item active-group searchable-group">
-                        <div class="sidebar-group-avatar">DW</div>
-                        <div class="sidebar-group-name">Desenvolvedores Web & UI/UX</div>
-                    </a>
-                    <a href="#" class="sidebar-group-item searchable-group">
-                        <div class="sidebar-group-avatar" style="background-color: #10b981;">JS</div>
-                        <div class="sidebar-group-name">JavaScript Brasil Oficial</div>
-                    </a>
-                    <a href="#" class="sidebar-group-item searchable-group">
-                        <div class="sidebar-group-avatar" style="background-color: #f59e0b;">RE</div>
-                        <div class="sidebar-group-name">React & React Native Devs</div>
-                    </a>
-                    <div id="nostr-my-groups-list"></div>
+                    <div id="nostr-my-groups-list">
+                        <div class="groups-loading">Faça login no Feed/Social para ver seus grupos.</div>
+                    </div>
                 </div>
             </div>
 
@@ -728,7 +707,7 @@
                                 <i class="fa-solid fa-bars"></i>
                             </button>
                             <div class="group-text-info">
-                                <h1>Desenvolvedores Web & UI/UX</h1>
+                                <h1 id="currentGroupTitle">Desenvolvedores Web & UI/UX</h1>
                             </div>
                         </div>
                         <div class="group-actions">
@@ -753,7 +732,7 @@
                 <div class="desktop-sidebar">
                     <div class="card">
                         <div class="card-title">Sobre</div>
-                        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+                        <p id="groupAboutText" style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
                             Um espaço dedicado para compartilhar dicas, códigos e projetos utilizando branco e violeta.
                         </p>
                         <div class="about-item">
@@ -787,7 +766,7 @@
                             </div>
                             
                             <div class="post-body">
-                                Sidebar fixa e aberta ao lado do container principal no desktop ajustada com sucesso! ✨ Agora com conexão Nostr usando a mesma sessão do LorePlay.
+                                Grupos e perfil carregados diretamente da rede Nostr. Todos os grupos são abertos e públicos.
                             </div>
 
                             <div class="post-stats">
@@ -876,9 +855,7 @@
         import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
         import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
 
-        // Expor para funções globais (onclick)
         window.NostrTools = NostrTools;
-        window.hexToBytes = hexToBytes;
 
         const RELAYS = [
             'wss://relay.damus.io',
@@ -890,7 +867,6 @@
         const pool = new NostrTools.SimplePool();
         const profileCache = new Map();
 
-        // ===== MESMA ESTRUTURA DE SESSÃO DO CÓDIGO DE VÍDEOS =====
         let currentUserData = {
             pubkey: '',
             privateKey: null,
@@ -898,6 +874,9 @@
             avatarUrl: ''
         };
 
+        let loadedGroups = []; // grupos vindos da rede
+
+        // ===== SESSÃO (igual ao LoreVideos) =====
         function loadSessionFromNostr() {
             try {
                 const session = localStorage.getItem('nostr_session');
@@ -938,11 +917,17 @@
             return '@você';
         }
 
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text ?? '').replace(/[&<>"']/g, m => map[m]);
+        }
+
         function loadSessionAvatar() {
             const el = document.getElementById('userAvatarHeader');
             if (!el) return;
-            if (currentUserData.avatarUrl) {
-                el.innerHTML = `<img src="${escapeHtml(currentUserData.avatarUrl)}" alt="">`;
+            const pic = currentUserData.avatarUrl || profileCache.get(currentUserData.pubkey)?.picture;
+            if (pic) {
+                el.innerHTML = `<img src="${escapeHtml(pic)}" alt="">`;
             } else {
                 el.innerHTML = `<i class="fa-solid fa-user"></i>`;
             }
@@ -955,36 +940,169 @@
                 statusEl.textContent = getMyUsername();
                 statusEl.classList.add('connected');
             } else {
-                statusEl.textContent = 'Não logado (faça login no Feed/Social)';
+                statusEl.textContent = 'Não logado (login no Feed/Social)';
                 statusEl.classList.remove('connected');
             }
         }
 
-        function escapeHtml(text) {
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return String(text ?? '').replace(/[&<>"']/g, m => map[m]);
+        // Busca perfil (kind 0) na rede para atualizar nome + foto
+        async function fetchMyProfileFromNetwork() {
+            if (!currentUserData.pubkey) return;
+            try {
+                const events = await pool.querySync(RELAYS, {
+                    kinds: [0],
+                    authors: [currentUserData.pubkey],
+                    limit: 5
+                });
+                if (!events || !events.length) return;
+
+                // pega o mais recente
+                events.sort((a, b) => b.created_at - a.created_at);
+                const latest = events[0];
+                try {
+                    const data = JSON.parse(latest.content || '{}');
+                    const name = data.display_name || data.name || '';
+                    const picture = data.picture || data.image || '';
+
+                    if (name) {
+                        currentUserData.nickname = name;
+                    }
+                    if (picture) {
+                        currentUserData.avatarUrl = picture;
+                    }
+
+                    profileCache.set(currentUserData.pubkey, {
+                        name: (name || '').replace(/^@/, ''),
+                        picture: picture || ''
+                    });
+
+                    loadSessionAvatar();
+                    updateNostrStatus();
+                } catch (_) {}
+            } catch (e) {
+                console.error('Erro ao buscar perfil:', e);
+            }
         }
 
-        // ===== PUBLICAÇÃO USANDO A SESSÃO =====
+        // ===== GRUPOS DIRETO DA REDE (kind 34550 - comunidades públicas) =====
+        async function loadGroupsFromNetwork() {
+            const listEl = document.getElementById('nostr-groups-list');
+            const myListEl = document.getElementById('nostr-my-groups-list');
+
+            try {
+                const events = await pool.querySync(RELAYS, {
+                    kinds: [34550],
+                    limit: 60
+                });
+
+                // deduplica pelo tag "d" + pubkey (coordenada da comunidade)
+                const map = new Map();
+                (events || []).forEach(ev => {
+                    const d = (ev.tags || []).find(t => t[0] === 'd')?.[1] || ev.id;
+                    const key = `${ev.pubkey}:${d}`;
+                    const prev = map.get(key);
+                    if (!prev || ev.created_at > prev.created_at) {
+                        map.set(key, ev);
+                    }
+                });
+
+                loadedGroups = Array.from(map.values()).sort((a, b) => b.created_at - a.created_at);
+
+                // render Comunidade
+                if (!loadedGroups.length) {
+                    listEl.innerHTML = `<div class="groups-loading">Nenhum grupo público encontrado nos relays no momento.</div>`;
+                } else {
+                    listEl.innerHTML = loadedGroups.map((ev, idx) => renderGroupItem(ev, idx === 0)).join('');
+                }
+
+                // render Meus Grupos (criados pelo usuário logado)
+                if (isUserLoggedIn()) {
+                    const mine = loadedGroups.filter(ev => ev.pubkey === currentUserData.pubkey);
+                    if (mine.length) {
+                        myListEl.innerHTML = mine.map(ev => renderGroupItem(ev, false)).join('');
+                    } else {
+                        myListEl.innerHTML = `<div class="groups-loading">Você ainda não criou grupos. Use o botão abaixo.</div>`;
+                    }
+                } else {
+                    myListEl.innerHTML = `<div class="groups-loading">Faça login no Feed/Social para ver seus grupos.</div>`;
+                }
+
+                // se houver grupos, seleciona o primeiro
+                if (loadedGroups.length) {
+                    selectGroup(loadedGroups[0]);
+                }
+            } catch (e) {
+                console.error('Erro ao carregar grupos:', e);
+                listEl.innerHTML = `<div class="groups-loading">Falha ao conectar aos relays. Tente recarregar.</div>`;
+            }
+        }
+
+        function getGroupMeta(ev) {
+            const tags = ev.tags || [];
+            const name = tags.find(t => t[0] === 'name')?.[1]
+                || tags.find(t => t[0] === 'd')?.[1]
+                || 'Grupo Nostr';
+            const description = tags.find(t => t[0] === 'description')?.[1] || ev.content || 'Grupo público na rede Nostr.';
+            const image = tags.find(t => t[0] === 'image')?.[1] || '';
+            const d = tags.find(t => t[0] === 'd')?.[1] || ev.id;
+            return { name, description, image, d, pubkey: ev.pubkey, id: ev.id };
+        }
+
+        function renderGroupItem(ev, isActive = false) {
+            const meta = getGroupMeta(ev);
+            const initials = meta.name.substring(0, 2).toUpperCase();
+            const avatarHtml = meta.image
+                ? `<img src="${escapeHtml(meta.image)}" alt="" onerror="this.parentElement.innerHTML='${initials}'">`
+                : initials;
+
+            return `
+                <a href="#" class="sidebar-group-item searchable-group ${isActive ? 'active-group' : ''}"
+                   data-event-id="${escapeHtml(ev.id)}"
+                   onclick="selectGroupById('${escapeHtml(ev.id)}'); return false;">
+                    <div class="sidebar-group-avatar">${avatarHtml}</div>
+                    <div class="sidebar-group-name">${escapeHtml(meta.name)}</div>
+                </a>
+            `;
+        }
+
+        window.selectGroupById = function(eventId) {
+            const ev = loadedGroups.find(g => g.id === eventId);
+            if (ev) selectGroup(ev);
+        };
+
+        function selectGroup(ev) {
+            const meta = getGroupMeta(ev);
+
+            // atualiza título e sobre
+            const titleEl = document.getElementById('currentGroupTitle');
+            if (titleEl) titleEl.textContent = meta.name;
+
+            const aboutEl = document.getElementById('groupAboutText');
+            if (aboutEl) aboutEl.textContent = meta.description;
+
+            // marca item ativo na sidebar
+            document.querySelectorAll('.sidebar-group-item').forEach(item => {
+                item.classList.toggle('active-group', item.dataset.eventId === ev.id);
+            });
+        }
+
+        // ===== PUBLICAR =====
         async function publishEvent(eventTemplate) {
             if (!isUserLoggedIn()) {
                 alert('Faça login com sua chave privada primeiro (no Feed/Social).');
                 return null;
             }
-
             try {
                 const signed = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
                 await Promise.any(pool.publish(RELAYS, signed));
-                console.log('Evento publicado:', signed.id);
                 return signed;
             } catch (e) {
-                console.error('Erro ao publicar:', e);
+                console.error(e);
                 alert('Falha ao publicar no Nostr: ' + (e.message || e));
                 return null;
             }
         }
 
-        // Criar grupo/comunidade pública (kind 34550 - NIP-72 style)
         window.createNostrGroup = async function() {
             if (!isUserLoggedIn()) {
                 alert('Faça login com sua chave privada primeiro (no Feed/Social).');
@@ -993,7 +1111,6 @@
 
             const name = prompt('Nome do grupo (público e aberto):');
             if (!name) return;
-
             const description = prompt('Descrição do grupo:') || 'Grupo público criado via Nostr';
             const dTag = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 40) + '-' + Date.now().toString(36);
 
@@ -1011,8 +1128,9 @@
 
             const published = await publishEvent(event);
             if (published) {
-                alert(`Grupo "${name}" criado com sucesso no Nostr!\nID: ${dTag}\nTodos os grupos são abertos e públicos.`);
-                addGroupToSidebar(name, dTag, true);
+                alert(`Grupo "${name}" criado com sucesso na rede Nostr!\nTodos os grupos são abertos e públicos.`);
+                // recarrega lista da rede
+                await loadGroupsFromNetwork();
             }
         };
 
@@ -1038,35 +1156,23 @@
                 kind: 1,
                 created_at: Math.floor(Date.now() / 1000),
                 tags: [['t', 'comunidade'], ['t', 'grupo-publico']],
-                content: content
+                content
             };
 
             const published = await publishEvent(event);
-            if (published) {
-                alert('Publicação enviada para a rede Nostr!');
-            }
+            if (published) alert('Publicação enviada para a rede Nostr!');
         };
 
-        function addGroupToSidebar(name, id, isMine = false) {
-            const avatar = name.substring(0, 2).toUpperCase();
-            const html = `
-                <a href="#" class="sidebar-group-item searchable-group" data-nostr-id="${id}">
-                    <div class="sidebar-group-avatar" style="background-color: #7c3aed;">${avatar}</div>
-                    <div class="sidebar-group-name">${escapeHtml(name)} <small style="color:var(--text-muted)">(Nostr)</small></div>
-                </a>
-            `;
-            const list = document.getElementById('nostr-groups-list');
-            if (list) list.insertAdjacentHTML('beforeend', html);
-            if (isMine) {
-                const myList = document.getElementById('nostr-my-groups-list');
-                if (myList) myList.insertAdjacentHTML('beforeend', html);
-            }
-        }
-
-        // Inicialização da sessão (igual ao código de vídeos)
+        // ===== INIT =====
         loadSessionFromNostr();
         loadSessionAvatar();
         updateNostrStatus();
+
+        // atualiza perfil e grupos direto da rede
+        (async () => {
+            await fetchMyProfileFromNetwork();
+            await loadGroupsFromNetwork();
+        })();
     </script>
 
     <script>
@@ -1079,17 +1185,13 @@
         }
 
         function switchSidebarTab(paneName, element) {
-            const tabItems = document.querySelectorAll('.sidebar-tab-item');
-            tabItems.forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.sidebar-tab-item').forEach(item => item.classList.remove('active'));
             element.classList.add('active');
 
-            const panes = document.querySelectorAll('.sidebar-tab-pane');
-            panes.forEach(pane => pane.classList.remove('active-pane'));
-
+            document.querySelectorAll('.sidebar-tab-pane').forEach(pane => pane.classList.remove('active-pane'));
             const targetPane = document.getElementById('sidebar-pane-' + paneName);
-            if (targetPane) {
-                targetPane.classList.add('active-pane');
-            }
+            if (targetPane) targetPane.classList.add('active-pane');
+
             filterGroups();
         }
 
@@ -1097,23 +1199,13 @@
             const input = document.getElementById('sidebarSearchInput');
             const clearBtn = document.getElementById('sidebarClearBtn');
             const filter = input.value.toLowerCase();
-            
-            if (filter.length > 0) {
-                clearBtn.style.display = 'block';
-            } else {
-                clearBtn.style.display = 'none';
-            }
+
+            clearBtn.style.display = filter.length > 0 ? 'block' : 'none';
 
             const activePane = document.querySelector('.sidebar-tab-pane.active-pane');
-            const items = activePane.querySelectorAll('.sidebar-group-item');
-
-            items.forEach(item => {
+            activePane.querySelectorAll('.sidebar-group-item').forEach(item => {
                 const name = item.querySelector('.sidebar-group-name').textContent.toLowerCase();
-                if (name.includes(filter)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
+                item.style.display = name.includes(filter) ? 'flex' : 'none';
             });
         }
 
@@ -1125,17 +1217,12 @@
         }
 
         function switchTab(tabName, element) {
-            const navItems = document.querySelectorAll('.group-nav .nav-item');
-            navItems.forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.group-nav .nav-item').forEach(item => item.classList.remove('active'));
             element.classList.add('active');
 
-            const sections = document.querySelectorAll('.tab-section');
-            sections.forEach(section => section.classList.remove('active-section'));
-
-            const targetSection = document.getElementById('section-' + tabName);
-            if (targetSection) {
-                targetSection.classList.add('active-section');
-            }
+            document.querySelectorAll('.tab-section').forEach(section => section.classList.remove('active-section'));
+            const target = document.getElementById('section-' + tabName);
+            if (target) target.classList.add('active-section');
         }
     </script>
 
