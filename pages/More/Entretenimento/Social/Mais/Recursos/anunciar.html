@@ -37,13 +37,19 @@
         <!-- FORMULÁRIO DE CRIAÇÃO -->
         <div class="bg-primary p-6 sm:p-8 rounded-3xl border border-gray-200 shadow-sm">
             <h2 class="text-lg font-bold text-darkText mb-1">Criar Novo Anúncio</h2>
-            <p class="text-xs text-gray-400 mb-6">Preencha os dados abaixo para publicar o seu produto ou serviço.</p>
+            <p class="text-xs text-gray-400 mb-4">Preencha os dados abaixo para publicar o seu produto ou serviço.</p>
+
+            <!-- SELETOR DE TIPO DE ANÚNCIO -->
+            <div class="flex bg-gray-100 p-1 rounded-xl mb-6">
+                <button type="button" id="btn-marketplace" onclick="switchAdType('marketplace')" class="flex-1 py-2 text-xs font-semibold rounded-lg transition duration-200 bg-white text-secondary shadow-sm">Marketplace</button>
+                <button type="button" id="btn-ads" onclick="switchAdType('ads')" class="flex-1 py-2 text-xs font-semibold rounded-lg transition duration-200 text-gray-500 hover:text-darkText">Ads (Patrocinado)</button>
+            </div>
 
             <form id="ad-form" onsubmit="publishAd(event)" class="flex flex-col gap-4">
                 
                 <!-- Título -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wider">Título do Anúncio</label>
+                    <label id="label-title" class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wider">Título do Anúncio</label>
                     <input 
                         type="text" 
                         id="ad-title" 
@@ -54,22 +60,31 @@
                     >
                 </div>
 
-                <!-- Preço -->
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wider">Preço (R$)</label>
-                    <input 
-                        type="text" 
-                        id="ad-price" 
-                        required
-                        placeholder="Ex: 3.499,00" 
-                        oninput="updatePreview()"
+                <!-- Campo Preço (Apenas Marketplace - Mantido apenas para lógica interna do card, mas fixo visualmente no box de preço) -->
+                <div id="field-price-container" class="hidden">
+                    <input type="hidden" id="ad-price" value="12,00">
+                </div>
+
+                <!-- Campo Orçamento Diário (Apenas Ads - Mantido oculto/removido pois o valor agora é fixo baseado na duração) -->
+                <div id="field-budget-container" class="hidden"></div>
+
+                <!-- Seleção de Duração / Período (Apenas Ads) -->
+                <div id="field-duration-container" class="hidden">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wider">Duração da Campanha</label>
+                    <select 
+                        id="ad-duration" 
+                        onchange="updatePreview()"
                         class="w-full bg-gray-50 border border-gray-200 focus:border-secondary focus:bg-white focus:outline-none rounded-xl px-4 py-3 text-sm transition duration-200"
                     >
+                        <option value="7 dias">7 dias</option>
+                        <option value="1 mês">1 mês</option>
+                        <option value="3 meses">3 meses</option>
+                    </select>
                 </div>
 
                 <!-- URL da Imagem -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wider">URL da Imagem</label>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wider">URL da Imagem / Criativo</label>
                     <input 
                         type="url" 
                         id="ad-image" 
@@ -83,7 +98,7 @@
 
                 <!-- Descrição -->
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wider">Descrição</label>
+                    <label id="label-desc" class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wider">Descrição</label>
                     <textarea 
                         id="ad-desc" 
                         rows="3"
@@ -94,9 +109,19 @@
                     ></textarea>
                 </div>
 
+                <!-- PREÇO DO ANÚNCIO ACIMA DO BOTÃO -->
+                <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex justify-between items-center">
+                    <div>
+                        <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">Valor do Anúncio</span>
+                        <span id="form-total-label" class="text-xs text-gray-500">Taxa de publicação</span>
+                    </div>
+                    <span id="form-total-price" class="text-lg font-black text-secondary">R$ 12,00</span>
+                </div>
+
                 <!-- Botão de Envio -->
                 <button 
                     type="submit" 
+                    id="submit-btn"
                     class="mt-2 bg-secondary hover:bg-secondaryHover text-white font-semibold py-3.5 rounded-xl transition duration-200 shadow-lg shadow-secondary/20 flex items-center justify-center text-sm">
                     Publicar Anúncio
                 </button>
@@ -110,6 +135,9 @@
             <div class="bg-primary rounded-3xl border border-gray-200 overflow-hidden shadow-sm flex flex-col transition-all">
                 <!-- Imagem do Card -->
                 <div class="w-full h-52 bg-gray-100 relative overflow-hidden flex items-center justify-center border-b border-gray-100">
+                    <!-- Tag indicadora no card -->
+                    <span id="preview-badge" class="absolute top-3 left-3 bg-secondary text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider shadow-sm z-10">Marketplace</span>
+                    
                     <img id="preview-img" src="" alt="" class="w-full h-full object-cover hidden">
                     <div id="preview-img-placeholder" class="text-gray-400 text-xs flex flex-col items-center gap-1">
                         <svg class="w-8 h-8 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -120,8 +148,11 @@
                 <!-- Informações do Card -->
                 <div class="p-5 flex flex-col gap-2">
                     <div class="flex justify-between items-start">
-                        <h3 id="preview-title" class="font-bold text-darkText text-base truncate max-w-[70%]">Título do Produto</h3>
-                        <span id="preview-price" class="font-extrabold text-secondary text-base">R$ 0,00</span>
+                        <h3 id="preview-title" class="font-bold text-darkText text-base truncate max-w-[60%]">Título do Produto</h3>
+                        <div class="text-right">
+                            <span id="preview-price" class="font-extrabold text-secondary text-sm block">R$ 12,00</span>
+                            <span id="preview-duration-tag" class="text-[10px] text-gray-400 font-medium hidden">por 7 dias</span>
+                        </div>
                     </div>
                     <p id="preview-desc" class="text-xs text-gray-500 line-clamp-2 leading-relaxed">A descrição do seu produto aparecerá neste espaço conforme você for digitando ao lado.</p>
                 </div>
@@ -132,17 +163,91 @@
 
     <!-- SCRIPT DE MANIPULAÇÃO E PRÉ-VISUALIZAÇÃO -->
     <script>
+        let currentType = 'marketplace';
+
+        function switchAdType(type) {
+            currentType = type;
+            const btnMarketplace = document.getElementById('btn-marketplace');
+            const btnAds = document.getElementById('btn-ads');
+            const fieldPriceContainer = document.getElementById('field-price-container');
+            const fieldBudgetContainer = document.getElementById('field-budget-container');
+            const fieldDurationContainer = document.getElementById('field-duration-container');
+            const previewBadge = document.getElementById('preview-badge');
+            const previewDurationTag = document.getElementById('preview-duration-tag');
+            const labelTitle = document.getElementById('label-title');
+            const labelDesc = document.getElementById('label-desc');
+            const submitBtn = document.getElementById('submit-btn');
+
+            if (type === 'marketplace') {
+                btnMarketplace.className = "flex-1 py-2 text-xs font-semibold rounded-lg transition duration-200 bg-white text-secondary shadow-sm";
+                btnAds.className = "flex-1 py-2 text-xs font-semibold rounded-lg transition duration-200 text-gray-500 hover:text-darkText";
+
+                fieldPriceContainer.classList.add('hidden');
+                fieldBudgetContainer.classList.add('hidden');
+                fieldDurationContainer.classList.add('hidden');
+
+                previewBadge.innerText = "Marketplace";
+                previewDurationTag.classList.add('hidden');
+                labelTitle.innerText = "Título do Anúncio";
+                labelDesc.innerText = "Descrição";
+                submitBtn.innerText = "Publicar Anúncio";
+            } else {
+                btnAds.className = "flex-1 py-2 text-xs font-semibold rounded-lg transition duration-200 bg-white text-secondary shadow-sm";
+                btnMarketplace.className = "flex-1 py-2 text-xs font-semibold rounded-lg transition duration-200 text-gray-500 hover:text-darkText";
+
+                fieldPriceContainer.classList.add('hidden');
+                fieldBudgetContainer.classList.add('hidden');
+                fieldDurationContainer.classList.remove('hidden');
+
+                previewBadge.innerText = "Patrocinado (Ads)";
+                previewDurationTag.classList.remove('hidden');
+                labelTitle.innerText = "Nome da Campanha / Título";
+                labelDesc.innerText = "Texto do Anúncio (Copy)";
+                submitBtn.innerText = "Lançar Campanha de Ads";
+            }
+            updatePreview();
+        }
+
         function updatePreview() {
             const title = document.getElementById('ad-title').value;
-            const price = document.getElementById('ad-price').value;
+            const duration = document.getElementById('ad-duration').value;
             const imageUrl = document.getElementById('ad-image').value;
             const desc = document.getElementById('ad-desc').value;
 
             // Atualiza Título
-            document.getElementById('preview-title').innerText = title || "Título do Produto";
+            document.getElementById('preview-title').innerText = title || (currentType === 'marketplace' ? "Título do Produto" : "Nome da Campanha");
             
-            // Atualiza Preço
-            document.getElementById('preview-price').innerText = price ? `R$ ${price}` : "R$ 0,00";
+            // Define o preço com base na escolha atual
+            let calculatedPrice = "12,00";
+            let labelText = "Taxa fixa do produto";
+
+            const previewPriceEl = document.getElementById('preview-price');
+            const previewDurationTag = document.getElementById('preview-duration-tag');
+            const formTotalPrice = document.getElementById('form-total-price');
+            const formTotalLabel = document.getElementById('form-total-label');
+
+            if (currentType === 'marketplace') {
+                calculatedPrice = "12,00";
+                labelText = "Taxa fixa do produto";
+                previewPriceEl.innerText = `R$ ${calculatedPrice}`;
+                previewDurationTag.classList.add('hidden');
+            } else {
+                if (duration === '7 dias') {
+                    calculatedPrice = "50,00";
+                } else if (duration === '1 mês') {
+                    calculatedPrice = "200,00";
+                } else if (duration === '3 meses') {
+                    calculatedPrice = "400,00";
+                }
+                labelText = `Investimento para ${duration}`;
+                previewPriceEl.innerText = `R$ ${calculatedPrice}`;
+                previewDurationTag.innerText = `por ${duration}`;
+                previewDurationTag.classList.remove('hidden');
+            }
+
+            // Atualiza os preços visuais no formulário e card
+            formTotalPrice.innerText = `R$ ${calculatedPrice}`;
+            formTotalLabel.innerText = labelText;
             
             // Atualiza Descrição
             document.getElementById('preview-desc').innerText = desc || "A descrição do seu produto aparecerá neste espaço conforme você for digitando ao lado.";
@@ -156,7 +261,6 @@
                 previewImg.classList.remove('hidden');
                 previewPlaceholder.classList.add('hidden');
                 
-                // Tratar erro caso a URL seja inválida
                 previewImg.onerror = function() {
                     previewImg.classList.add('hidden');
                     previewPlaceholder.classList.remove('hidden');
@@ -174,10 +278,16 @@
 
         function publishAd(event) {
             event.preventDefault();
-            alert("Sucesso! Anúncio publicado com sucesso.");
+            const tipoMsg = currentType === 'marketplace' ? 'Anúncio publicado com sucesso!' : 'Campanha de Ads lançada com sucesso!';
+            alert(`Sucesso! ${tipoMsg}`);
             document.getElementById('ad-form').reset();
-            updatePreview();
+            switchAdType('marketplace');
         }
+
+        // Executa na carga inicial para alinhar os valores padrões
+        window.onload = function() {
+            updatePreview();
+        };
     </script>
 </body>
 </html>
