@@ -330,7 +330,7 @@
                 <i class="fa-solid fa-plus"></i> Novo Upload
             </button>
             <div style="color: var(--text-muted); font-size: 0.85rem; padding: 0.5rem; display:flex; align-items:center; gap:8px;">
-                <i class="fa-solid fa-circle-check" style="color: var(--violet-accent);"></i> Nostr.build Ativo
+                <i class="fa-solid fa-circle-check" style="color: var(--violet-accent);"></i> Nostr + Blossom
             </div>
             <div id="loginHint" style="color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem; margin-top: auto;">
                 Faça login no Feed/Social para sincronizar perfil e criptografar arquivos.
@@ -411,7 +411,7 @@
     <div class="modal-backdrop" id="uploadModal">
         <div class="modal" id="uploadModalInner">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h3 style="color: var(--text-main); margin: 0; font-size: 1.15rem;">Enviar para o Nostr.build (criptografado)</h3>
+                <h3 style="color: var(--text-main); margin: 0; font-size: 1.15rem;">Enviar (criptografado)</h3>
                 <button onclick="closeModal()" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-main);"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
@@ -439,6 +439,12 @@
         const pool = new NostrTools.SimplePool();
         const UPLOAD_URL = 'https://nostr.build/api/v2/upload/files';
         const MAX_FREE_BYTES = 20 * 1024 * 1024;
+        const BLOSSOM_SERVERS = [
+            'https://blossom.primal.net',
+            'https://cdn.satellite.earth',
+            'https://blossom.band',
+            'https://nostr.download'
+        ];
 
         let currentUserData = { pubkey: '', privateKey: null, privateKeyHex: '', nickname: '', avatarUrl: '' };
         let currentCategory = 'all';
@@ -471,7 +477,6 @@
             const mobile = document.getElementById('mobileAvatar');
             if (desktop) { desktop.src = src; desktop.title = title; }
             if (mobile) { mobile.src = src; mobile.title = title; }
-
             const hint = document.getElementById('loginHint');
             if (hint) {
                 if (isUserLoggedIn()) {
@@ -559,7 +564,7 @@
         }
 
         async function createNip98AuthHeader(url, method, privateKeyBytes) {
-            const eventTemplate = {
+            const signed = NostrTools.finalizeEvent({
                 kind: 27235,
                 created_at: Math.floor(Date.now() / 1000),
                 tags: [
@@ -567,11 +572,28 @@
                     ['method', method.toUpperCase()]
                 ],
                 content: ''
-            };
-            const signed = NostrTools.finalizeEvent(eventTemplate, privateKeyBytes);
-            const json = JSON.stringify(signed);
-            const b64 = btoa(unescape(encodeURIComponent(json)));
-            return `Nostr ${b64}`;
+            }, privateKeyBytes);
+            return 'Nostr ' + btoa(unescape(encodeURIComponent(JSON.stringify(signed))));
+        }
+
+        async function sha256Hex(buffer) {
+            const hash = await crypto.subtle.digest('SHA-256', buffer);
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function createBlossomAuthHeader(fileSha256, privateKeyBytes) {
+            const now = Math.floor(Date.now() / 1000);
+            const signed = NostrTools.finalizeEvent({
+                kind: 24242,
+                created_at: now,
+                tags: [
+                    ['t', 'upload'],
+                    ['x', fileSha256],
+                    ['expiration', String(now + 120)]
+                ],
+                content: ''
+            }, privateKeyBytes);
+            return 'Nostr ' + btoa(unescape(encodeURIComponent(JSON.stringify(signed))));
         }
 
         function extractUploadUrl(data) {
@@ -584,10 +606,82 @@
                 const urlTag = data.nip94_event.tags.find(t => t[0] === 'url');
                 if (urlTag && urlTag[1]) return urlTag[1];
             }
-            if (Array.isArray(data.data) && data.data[0] && data.data[0].url) {
-                return data.data[0].url;
-            }
+            if (Array.isArray(data.data) && data.data[0] && data.data[0].url) return data.data[0].url;
             return '';
+        }
+
+        async function uploadViaBlossom(encryptedArrayBuffer, privateKeyBytes) {
+            const hash = await sha256Hex(encryptedArrayBuffer);
+            const auth = await createBlossomAuthHeader(hash, privateKeyBytes);
+            const errors = [];
+
+            for (const base of BLOSSOM_SERVERS) {
+                try {
+                    const endpoint = base.replace(/\/$/, '') + '/upload';
+                    const res = await fetch(endpoint, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': auth,
+                            'Content-Type': 'application/octet-stream'
+                        },
+                        body: encryptedArrayBuffer
+                    });
+                    const text = await res.text();
+                    let data = null;
+                    try { data = JSON.parse(text); } catch (_) {}
+
+                    if (res.ok) {
+                        let url = '';
+                        if (data) {
+                            url = data.url || '';
+                            if (!url && data.nip94_event && Array.isArray(data.nip94_event.tags)) {
+                                const t = data.nip94_event.tags.find(x => x[0] === 'url');
+                                if (t) url = t[1];
+                            }
+                        }
+                        if (!url) url = base.replace(/\/$/, '') + '/' + hash;
+                        return url;
+                    }
+                    errors.push(base + ': ' + ((data && data.message) || (res.status + ' ' + text.slice(0, 80))));
+                } catch (e) {
+                    errors.push(base + ': ' + (e.message || e));
+                }
+            }
+            throw new Error('Blossom falhou: ' + errors.join(' | '));
+        }
+
+        function openIdb() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open('violet_drive_blobs', 1);
+                req.onupgradeneeded = () => {
+                    const db = req.result;
+                    if (!db.objectStoreNames.contains('blobs')) db.createObjectStore('blobs');
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function saveEncryptedLocally(encryptedArrayBuffer) {
+            const db = await openIdb();
+            const id = 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('blobs', 'readwrite');
+                tx.objectStore('blobs').put(encryptedArrayBuffer, id);
+                tx.oncomplete = () => resolve('idb://' + id);
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        async function loadEncryptedLocally(idbUrl) {
+            const id = idbUrl.replace(/^idb:\/\//, '');
+            const db = await openIdb();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('blobs', 'readonly');
+                const getReq = tx.objectStore('blobs').get(id);
+                getReq.onsuccess = () => resolve(getReq.result);
+                getReq.onerror = () => reject(getReq.error);
+            });
         }
 
         function storageKey() {
@@ -711,8 +805,7 @@
                 alert('Faça login com sua chave privada primeiro (no Feed/Social) para enviar arquivos criptografados.');
                 return;
             }
-            const innerModal = document.getElementById('uploadModalInner');
-            innerModal.classList.remove('closing');
+            document.getElementById('uploadModalInner').classList.remove('closing');
             document.getElementById('uploadModal').style.display = 'flex';
         };
 
@@ -765,12 +858,10 @@
             const file = fileInput.files && fileInput.files[0];
             const fileNameDisplay = document.getElementById('fileNameDisplay');
             const previewBox = document.getElementById('selectedFilePreview');
-
             if (selectedObjectUrl) {
                 URL.revokeObjectURL(selectedObjectUrl);
                 selectedObjectUrl = null;
             }
-
             if (!file) {
                 if (fileNameDisplay) fileNameDisplay.textContent = 'Toque para escolher do aparelho ou arraste aqui';
                 if (previewBox) {
@@ -779,18 +870,13 @@
                 }
                 return;
             }
-
-            if (fileNameDisplay) {
-                fileNameDisplay.textContent = file.name + ' (' + formatSize(file.size) + ')';
-            }
-
+            if (fileNameDisplay) fileNameDisplay.textContent = file.name + ' (' + formatSize(file.size) + ')';
             if (previewBox) {
                 previewBox.innerHTML = '';
                 previewBox.style.display = 'none';
                 const type = (file.type || '').toLowerCase();
                 const kind = getFileKind({ name: file.name, mime: file.type });
                 selectedObjectUrl = URL.createObjectURL(file);
-
                 if (type.startsWith('image/') || kind === 'image') {
                     const img = document.createElement('img');
                     img.src = selectedObjectUrl;
@@ -869,7 +955,6 @@
                     mobileFeed.innerHTML = '<p style="color:var(--text-muted); text-align:center; font-size:0.9rem;">Faça login no Feed/Social para ver seus arquivos criptografados.</p>';
                     return;
                 }
-
                 const isMobile = window.innerWidth <= 768;
                 const searchInputVal = isMobile
                     ? document.getElementById('mobileSearch').value
@@ -928,12 +1013,13 @@
                         <i class="${iconClass} file-icon-placeholder"></i>
                     </div>`;
             }
+            const backendLabel = file.backend === 'local' ? 'Local' : (file.backend === 'blossom' ? 'Blossom' : 'Nostr');
             return `
                 ${mediaContent}
                 <div class="pinterest-card-body">
                     <span class="pinterest-card-title" title="${escapeAttr(file.name)}">${escapeAttr(file.name)}</span>
                     <div class="pinterest-card-footer">
-                        <span class="badge badge-encrypted"><i class="fa-solid fa-lock"></i> Criptografado</span>
+                        <span class="badge badge-encrypted"><i class="fa-solid fa-lock"></i> ${backendLabel}</span>
                         <span><i class="fa-solid fa-eye"></i> Ver</span>
                     </div>
                 </div>
@@ -977,8 +1063,7 @@
                 alert('Faça login para descriptografar e visualizar.');
                 return;
             }
-            const innerModal = document.getElementById('previewModalInner');
-            innerModal.classList.remove('closing');
+            document.getElementById('previewModalInner').classList.remove('closing');
             document.getElementById('previewModal').style.display = 'flex';
             document.getElementById('previewTitle').textContent = file.name;
             document.getElementById('previewInfo').textContent = 'Descriptografando...';
@@ -987,9 +1072,16 @@
             container.innerHTML = '<p style="color:white; font-size:0.95rem;">Descriptografando arquivo...</p>';
 
             try {
-                const res = await fetch(file.url);
-                if (!res.ok) throw new Error('Falha ao baixar blob criptografado');
-                const encBuf = await res.arrayBuffer();
+                let encBuf;
+                if (String(file.url).startsWith('idb://')) {
+                    encBuf = await loadEncryptedLocally(file.url);
+                    if (!encBuf) throw new Error('Blob local não encontrado neste aparelho');
+                } else {
+                    const res = await fetch(file.url);
+                    if (!res.ok) throw new Error('Falha ao baixar blob criptografado');
+                    encBuf = await res.arrayBuffer();
+                }
+
                 const plainBuf = await decryptBlob(encBuf, currentUserData.privateKeyHex);
                 const mime = file.mime || 'application/octet-stream';
                 const blob = new Blob([plainBuf], { type: mime });
@@ -1041,7 +1133,7 @@
                 return;
             }
             if (file.size > MAX_FREE_BYTES) {
-                alert('Arquivo muito grande para o plano free do nostr.build (máx. ~20 MB). Escolha um arquivo menor.');
+                alert('Arquivo muito grande (máx. ~20 MB no free). Escolha um menor.');
                 return;
             }
 
@@ -1051,52 +1143,54 @@
             try {
                 const thumbnail = await createThumbnailFromFile(file);
                 showStatus('Criptografando...');
-
                 const encryptedBlob = await encryptFile(file, currentUserData.privateKeyHex);
-                const encryptedFile = new File(
-                    [encryptedBlob],
-                    (file.name.replace(/\.[^.]+$/, '') || 'file') + '.bin',
-                    { type: 'application/octet-stream' }
-                );
+                const encryptedBuf = await encryptedBlob.arrayBuffer();
 
-                const formData = new FormData();
-                formData.append('fileToUpload', encryptedFile);
+                let fileUrl = '';
+                let backend = '';
 
-                showStatus('Autenticando (NIP-98) e enviando...');
-                const authHeader = await createNip98AuthHeader(UPLOAD_URL, 'POST', currentUserData.privateKey);
-
-                const response = await fetch(UPLOAD_URL, {
-                    method: 'POST',
-                    headers: { 'Authorization': authHeader },
-                    body: formData
-                });
-
-                const text = await response.text();
-                let data = null;
-                try { data = JSON.parse(text); }
-                catch (_) {
-                    throw new Error('Resposta inválida do servidor (' + response.status + '): ' + text.slice(0, 200));
-                }
-
-                if (!response.ok) {
-                    const msg = (data && (data.message || data.error)) || ('HTTP ' + response.status);
-                    if (response.status === 401) {
-                        throw new Error('Não autorizado (NIP-98). Confirme o login Nostr. Detalhe: ' + msg);
+                showStatus('Tentando nostr.build (NIP-98)...');
+                try {
+                    const encryptedFile = new File(
+                        [encryptedBuf],
+                        (file.name.replace(/\.[^.]+$/, '') || 'file') + '.bin',
+                        { type: 'application/octet-stream' }
+                    );
+                    const formData = new FormData();
+                    formData.append('fileToUpload', encryptedFile);
+                    const authHeader = await createNip98AuthHeader(UPLOAD_URL, 'POST', currentUserData.privateKey);
+                    const response = await fetch(UPLOAD_URL, {
+                        method: 'POST',
+                        headers: { 'Authorization': authHeader },
+                        body: formData
+                    });
+                    const text = await response.text();
+                    let data = null;
+                    try { data = JSON.parse(text); } catch (_) {}
+                    if (response.ok && data && data.status !== 'error') {
+                        fileUrl = extractUploadUrl(data);
+                        if (fileUrl) backend = 'nostr.build';
+                    } else {
+                        console.warn('nostr.build rejeitou:', response.status, data || text);
                     }
-                    if (response.status === 413) {
-                        throw new Error('Arquivo excede o limite do nostr.build. Use um arquivo menor.');
-                    }
-                    throw new Error(msg);
+                } catch (e) {
+                    console.warn('nostr.build erro:', e);
                 }
 
-                if (data.status === 'error') {
-                    throw new Error(data.message || 'Upload rejeitado pelo nostr.build');
-                }
-
-                const fileUrl = extractUploadUrl(data);
                 if (!fileUrl) {
-                    console.error('Resposta upload:', data);
-                    throw new Error('Upload ok, mas a URL não veio na resposta. Veja o console.');
+                    showStatus('Enviando via Blossom (blob criptografado)...');
+                    try {
+                        fileUrl = await uploadViaBlossom(encryptedBuf, currentUserData.privateKey);
+                        backend = 'blossom';
+                    } catch (e) {
+                        console.warn('Blossom falhou:', e);
+                    }
+                }
+
+                if (!fileUrl) {
+                    showStatus('Salvando criptografado só neste aparelho...');
+                    fileUrl = await saveEncryptedLocally(encryptedBuf);
+                    backend = 'local';
                 }
 
                 const custom = getFiles();
@@ -1107,11 +1201,17 @@
                     encrypted: true,
                     owner: currentUserData.pubkey,
                     uploadedAt: Date.now(),
-                    thumbnail: thumbnail || null
+                    thumbnail: thumbnail || null,
+                    backend
                 });
                 saveFiles(custom);
                 renderFiles();
-                showStatus('Enviado e criptografado com sucesso!');
+
+                if (backend === 'local') {
+                    showStatus('Salvo criptografado neste aparelho (nuvem indisponível).');
+                } else {
+                    showStatus('Enviado e criptografado com sucesso (' + backend + ')!');
+                }
             } catch (error) {
                 console.error(error);
                 alert('Erro ao criptografar/enviar: ' + (error.message || error));
@@ -1134,9 +1234,7 @@
         renderFiles();
 
         (async () => {
-            if (isUserLoggedIn()) {
-                await fetchMyProfileFromNetwork();
-            }
+            if (isUserLoggedIn()) await fetchMyProfileFromNetwork();
         })();
     </script>
 </body>
