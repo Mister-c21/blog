@@ -404,7 +404,7 @@
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.3s, visibility 0.3s;
-            overflow: hidden; /* Evita scroll indesejado no fundo */
+            overflow: hidden;
         }
 
         .product-modal-overlay.active {
@@ -416,9 +416,9 @@
             background-color: var(--primary-color);
             width: 100%;
             max-width: 600px;
-            max-height: 90vh; /* Impede que o modal ultrapasse a tela verticalmente */
+            max-height: 90vh;
             border-radius: 16px 16px 0 0;
-            overflow: hidden; /* Força o conteúdo interno a respeitar as bordas arredondadas */
+            overflow: hidden;
             box-shadow: 0 -5px 25px rgba(0,0,0,0.15);
             display: flex;
             flex-direction: column;
@@ -520,7 +520,7 @@
             font-size: 18px;
             font-weight: bold;
             color: var(--text-dark);
-            word-break: break-word; /* Previne estouro de palavras longas */
+            word-break: break-word;
         }
 
         .modal-pricing {
@@ -574,8 +574,8 @@
         .favorites-modal-body {
             padding: 25px;
             width: 100%;
-            max-height: calc(90vh - 50px); /* Garante contenção exata com margem de segurança */
-            overflow-y: auto; /* Cria barra de rolagem interna se o conteúdo exceder */
+            max-height: calc(90vh - 50px);
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
             gap: 15px;
@@ -615,7 +615,7 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
-            min-width: 0; /* Permite que o flexbox encolha o texto corretamente evitando vazamento */
+            min-width: 0;
         }
 
         .favorite-item-title {
@@ -760,7 +760,7 @@
             color: white;
         }
 
-        /* --- PERFIL MODAL & CAMPOS BLINDADOS CONTRA VAZAMENTO --- */
+        /* --- PERFIL MODAL --- */
         .profile-modal-header {
             display: flex;
             align-items: center;
@@ -900,7 +900,7 @@
         /* --- BOTÃO FAB SCROLL PARA CIMA --- */
         .scroll-top-btn {
             position: fixed;
-            bottom: 84px; /* Alterado de 30px para 84px (30px + 54px mais acima) */
+            bottom: 84px;
             right: 30px;
             background-color: var(--secondary-color);
             color: white;
@@ -1173,7 +1173,6 @@
         </div>
     </div>
 
-    <!-- Modal de Perfil com Limitação de Produtos e Delay estruturados com segurança contra overflow -->
     <div id="profileModalOverlay" class="product-modal-overlay" onclick="closeAllModals()">
         <div class="product-modal" onclick="event.stopPropagation();">
             <button class="modal-close-btn" onclick="closeAllModals()"><i class="fa-solid fa-xmark"></i></button>
@@ -1325,10 +1324,25 @@
             document.querySelectorAll('.product-modal-overlay').forEach(overlay => {
                 overlay.classList.remove('active');
             });
+
+            // Avisa a página pai para mostrar a navbar novamente
+            if (window.parent && typeof window.parent.closeModal === 'function') {
+                window.parent.closeModal();
+            }
+        }
+
+        // Função auxiliar para disparar a abertura do modal e esconder a navbar externa
+        function triggerOpenModal(overlayId) {
+            closeAllModals(); // Fecha outros e avisa parent de fechar se necessário
+            document.getElementById(overlayId).classList.add('active');
+
+            // Avisa a página pai (index.html) para esconder a barra de navegação de forma animada
+            if (window.parent && typeof window.parent.openModal === 'function') {
+                window.parent.openModal();
+            }
         }
 
         function openProductModal(title, currentPrice, oldPrice, discount, imgSrc, soldCount, description) {
-            closeAllModals();
             document.getElementById('modalTitle').innerText = title;
             document.getElementById('modalCurrentPrice').innerText = currentPrice;
             document.getElementById('modalOldPrice').innerText = oldPrice;
@@ -1337,7 +1351,7 @@
             document.getElementById('modalSoldCount').innerText = soldCount;
             document.getElementById('modalDesc').innerText = description;
             
-            document.getElementById('productModalOverlay').classList.add('active');
+            triggerOpenModal('productModalOverlay');
         }
 
         function toggleFavoriteItem(title, price, imgSrc, productUrl, btnId) {
@@ -1507,18 +1521,15 @@
         }
 
         function openFavoritesModal() {
-            closeAllModals();
-            document.getElementById('favoritesModalOverlay').classList.add('active');
+            triggerOpenModal('favoritesModalOverlay');
         }
 
         function openSellerModal() {
-            closeAllModals();
-            document.getElementById('sellerModalOverlay').classList.add('active');
+            triggerOpenModal('sellerModalOverlay');
         }
 
         function openProfileModal() {
-            closeAllModals();
-            document.getElementById('profileModalOverlay').classList.add('active');
+            triggerOpenModal('profileModalOverlay');
         }
 
         const scrollTopBtn = document.getElementById('scrollTopBtn');
