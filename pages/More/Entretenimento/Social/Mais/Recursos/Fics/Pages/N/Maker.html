@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Escrever Fanfic</title>
-    <!-- Fonte Roboto -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <!-- FontAwesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -14,7 +12,7 @@
             --bg-color: #f8f9fa;
             --text-color: #333333;
             --card-bg: #ffffff;
-            --primary-color: #8A2BE2; /* Violeta */
+            --primary-color: #8A2BE2;
             --border-color: #e0e0e0;
         }
 
@@ -33,7 +31,6 @@
             min-height: 100vh;
         }
 
-        /* Topo simples */
         header {
             background-color: var(--card-bg);
             border-bottom: 1px solid var(--border-color);
@@ -52,7 +49,6 @@
             gap: 8px;
         }
 
-        /* Container do Formulário */
         main {
             flex: 1;
             max-width: 700px;
@@ -124,7 +120,6 @@
             border-color: var(--primary-color);
         }
 
-        /* Estilo da Pré-visualização */
         .preview-container {
             margin-top: 15px;
             border: 1px dashed var(--border-color);
@@ -152,18 +147,17 @@
             font-size: 0.9rem;
         }
 
-        /* Container Toptabs Horizontal estilo TikTok */
         .toptabs-container {
             display: flex;
             gap: 24px;
             overflow-x: auto;
             margin-bottom: 20px;
             border-bottom: 1px solid var(--border-color);
-            scrollbar-width: none; /* Firefox */
+            scrollbar-width: none;
         }
 
         .toptabs-container::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Opera */
+            display: none;
         }
 
         .tab-btn {
@@ -184,7 +178,6 @@
             font-weight: 700;
         }
 
-        /* Indicador de aba ativa no estilo TikTok (linha inferior) */
         .tab-btn.active::after {
             content: '';
             position: absolute;
@@ -225,7 +218,6 @@
             box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.4);
         }
 
-        /* Estilo do botão de navegação (apenas ícone à esquerda) */
         .btn-nav-icon {
             color: var(--text-color);
             font-size: 1.2rem;
@@ -239,7 +231,6 @@
             color: var(--primary-color);
         }
 
-        /* Ajustes para dispositivos móveis */
         @media (max-width: 600px) {
             main {
                 width: 100%;
@@ -259,7 +250,6 @@
 <body>
 
     <header>
-        <!-- Botão de navegação (ícone à esquerda) -->
         <a href="../../../fics.html" class="btn-nav-icon" title="Voltar / Ir para outra página">
             <i class="fa-solid fa-arrow-left"></i>
         </a>
@@ -268,7 +258,6 @@
             <i class="fa-solid fa-pen-nib"></i> Criar Nova História
         </div>
         
-        <!-- Elemento vazio apenas para manter o alinhamento central da logo se necessário, ou oculto -->
         <div style="width: 20px;"></div>
     </header>
 
@@ -286,7 +275,6 @@
                 <input type="file" id="capaArquivo" accept="image/*" onchange="carregarImagemPreview(event)">
             </div>
 
-            <!-- Bloco de Pré-visualização -->
             <div class="form-group">
                 <label>Pré-visualização do Card</label>
                 <div class="preview-container">
@@ -299,16 +287,13 @@
                 </div>
             </div>
 
-            <!-- Seleção de Quantidade de Capítulos -->
             <div class="form-group">
                 <label for="qtdCapitulos">Quantidade de Capítulos (Máximo 21)</label>
                 <input type="number" id="qtdCapitulos" min="1" max="21" value="1" oninput="gerarAbasCapitulos()" required>
             </div>
 
-            <!-- Barra Horizontal de Toptabs estilo TikTok -->
             <div class="toptabs-container" id="toptabsContainer"></div>
 
-            <!-- Campos do Capítulo Ativo -->
             <div class="form-group">
                 <label id="labelTituloCap" for="tituloCapAtivo">Título do Capítulo 1</label>
                 <input type="text" id="tituloCapAtivo" placeholder="Ex: O Início" required oninput="salvarCapituloAtual()">
@@ -325,16 +310,184 @@
         </form>
     </main>
 
-    <script>
+    <script type="module">
+        import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+        import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+
+        // ===================== SESSÃO DO USUÁRIO (igual Drive / página principal) =====================
+        let currentUserData = {
+            pubkey: '',
+            privateKey: null,
+            privateKeyHex: '',
+            nickname: '',
+            avatarUrl: ''
+        };
+
+        function loadSessionFromNostr() {
+            try {
+                const session = localStorage.getItem('nostr_session');
+                if (!session) return;
+                const parsed = JSON.parse(session);
+                if (!parsed.privateKeyHex || !parsed.pubkey) return;
+
+                currentUserData.privateKey = hexToBytes(parsed.privateKeyHex);
+                currentUserData.privateKeyHex = parsed.privateKeyHex;
+                currentUserData.pubkey = parsed.pubkey;
+                currentUserData.nickname = (parsed.nickname || '').replace(/^@/, '');
+                currentUserData.avatarUrl = parsed.avatarUrl || '';
+            } catch (e) {
+                console.error('Erro ao carregar sessão Nostr:', e);
+            }
+        }
+
+        function isUserLoggedIn() {
+            return !!(currentUserData.privateKey && currentUserData.pubkey);
+        }
+
+        loadSessionFromNostr();
+
+        // ===================== UPLOAD DE ARQUIVO (mesmo protocolo do Drive) =====================
+        const UPLOAD_URL = 'https://nostr.build/api/v2/upload/files';
+        const BLOSSOM_SERVERS = [
+            'https://blossom.primal.net',
+            'https://cdn.satellite.earth',
+            'https://blossom.band',
+            'https://nostr.download'
+        ];
+
+        async function createNip98AuthHeader(url, method, privateKeyBytes) {
+            const signed = NostrTools.finalizeEvent({
+                kind: 27235,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [['u', url], ['method', method.toUpperCase()]],
+                content: ''
+            }, privateKeyBytes);
+            return 'Nostr ' + btoa(unescape(encodeURIComponent(JSON.stringify(signed))));
+        }
+
+        async function sha256Hex(buffer) {
+            const hash = await crypto.subtle.digest('SHA-256', buffer);
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function createBlossomAuthHeader(fileSha256, privateKeyBytes) {
+            const now = Math.floor(Date.now() / 1000);
+            const signed = NostrTools.finalizeEvent({
+                kind: 24242,
+                created_at: now,
+                tags: [['t', 'upload'], ['x', fileSha256], ['expiration', String(now + 120)]],
+                content: ''
+            }, privateKeyBytes);
+            return 'Nostr ' + btoa(unescape(encodeURIComponent(JSON.stringify(signed))));
+        }
+
+        function extractUploadUrl(data) {
+            if (!data) return '';
+            if (data.status === 'success' && Array.isArray(data.data) && data.data[0]) {
+                return data.data[0].url || data.data[0].download_url || '';
+            }
+            if (data.url) return data.url;
+            if (data.nip94_event && Array.isArray(data.nip94_event.tags)) {
+                const urlTag = data.nip94_event.tags.find(t => t[0] === 'url');
+                if (urlTag && urlTag[1]) return urlTag[1];
+            }
+            if (Array.isArray(data.data) && data.data[0] && data.data[0].url) return data.data[0].url;
+            return '';
+        }
+
+        async function uploadViaBlossom(arrayBuffer, privateKeyBytes) {
+            const hash = await sha256Hex(arrayBuffer);
+            const auth = await createBlossomAuthHeader(hash, privateKeyBytes);
+            const errors = [];
+
+            for (const base of BLOSSOM_SERVERS) {
+                try {
+                    const endpoint = base.replace(/\/$/, '') + '/upload';
+                    const res = await fetch(endpoint, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': auth,
+                            'Content-Type': 'application/octet-stream'
+                        },
+                        body: arrayBuffer
+                    });
+                    const text = await res.text();
+                    let data = null;
+                    try { data = JSON.parse(text); } catch (_) {}
+
+                    if (res.ok) {
+                        let url = '';
+                        if (data) {
+                            url = data.url || '';
+                            if (!url && data.nip94_event && Array.isArray(data.nip94_event.tags)) {
+                                const t = data.nip94_event.tags.find(x => x[0] === 'url');
+                                if (t) url = t[1];
+                            }
+                        }
+                        if (!url) url = base.replace(/\/$/, '') + '/' + hash;
+                        return url;
+                    }
+                    errors.push(base + ': ' + ((data && data.message) || (res.status + ' ' + text.slice(0, 80))));
+                } catch (e) {
+                    errors.push(base + ': ' + (e.message || e));
+                }
+            }
+            throw new Error('Blossom falhou: ' + errors.join(' | '));
+        }
+
+        // Upload público da capa (sem criptografia, para qualquer um poder ver)
+        async function uploadCoverImage(file) {
+            if (!isUserLoggedIn()) {
+                throw new Error('Você precisa estar logado para enviar a capa.');
+            }
+
+            const arrayBuffer = await file.arrayBuffer();
+
+            // 1. Tenta nostr.build
+            try {
+                const formData = new FormData();
+                formData.append('fileToUpload', file);
+
+                const authHeader = await createNip98AuthHeader(UPLOAD_URL, 'POST', currentUserData.privateKey);
+                const response = await fetch(UPLOAD_URL, {
+                    method: 'POST',
+                    headers: { 'Authorization': authHeader },
+                    body: formData
+                });
+
+                const text = await response.text();
+                let data = null;
+                try { data = JSON.parse(text); } catch (_) {}
+
+                if (response.ok && data && data.status !== 'error') {
+                    const url = extractUploadUrl(data);
+                    if (url) return url;
+                }
+            } catch (e) {
+                console.warn('nostr.build falhou, tentando Blossom...', e);
+            }
+
+            // 2. Fallback Blossom
+            return await uploadViaBlossom(arrayBuffer, currentUserData.privateKey);
+        }
+
+        // ===================== RESTANTE DO FORMULÁRIO =====================
         let imagemBase64Temp = '';
         let dadosCapitulos = [{ titulo: '', conteudo: '' }];
         let capituloAtivo = 0;
+
+        const RELAYS = [
+            'wss://relay.damus.io',
+            'wss://nos.lol',
+            'wss://relay.nostr.band',
+            'wss://nostr.wine',
+            'wss://relay.snort.social'
+        ];
 
         function gerarAbasCapitulos() {
             const qtdInput = parseInt(document.getElementById('qtdCapitulos').value) || 1;
             const qtd = Math.max(1, Math.min(21, qtdInput));
 
-            // Ajusta o array de dados mantendo o que já foi digitado se possível
             while (dadosCapitulos.length < qtd) {
                 dadosCapitulos.push({ titulo: '', conteudo: '' });
             }
@@ -406,40 +559,146 @@
             }
         }
 
-        function publicarFanfic(event) {
+        // ===================== PUBLICAÇÃO =====================
+        async function publicarNoNostr(fanfic) {
+            if (!isUserLoggedIn()) {
+                throw new Error('Você precisa estar logado com sua chave Nostr.\nFaça login na página principal primeiro.');
+            }
+
+            const content = JSON.stringify({
+                type: 'LoreSpaceFics',
+                ...fanfic
+            });
+
+            const eventTemplate = {
+                kind: 1,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [
+                    ['t', 'LoreSpaceFics'],
+                    ['client', 'LoreSpaceFics']
+                ],
+                content: content
+            };
+
+            const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
+
+            const results = await Promise.allSettled(
+                RELAYS.map(relayUrl => publicarEmRelay(relayUrl, signedEvent))
+            );
+
+            const sucessos = results.filter(r => r.status === 'fulfilled').length;
+
+            if (sucessos === 0) {
+                throw new Error('Não foi possível publicar em nenhum relay.');
+            }
+
+            return { signedEvent, sucessos, total: RELAYS.length };
+        }
+
+        function publicarEmRelay(relayUrl, event) {
+            return new Promise((resolve, reject) => {
+                const ws = new WebSocket(relayUrl);
+                const timeout = setTimeout(() => {
+                    ws.close();
+                    reject(new Error('Timeout'));
+                }, 8000);
+
+                ws.onopen = () => {
+                    ws.send(JSON.stringify(['EVENT', event]));
+                };
+
+                ws.onmessage = (msg) => {
+                    try {
+                        const data = JSON.parse(msg.data);
+                        if (data[0] === 'OK' && data[1] === event.id) {
+                            clearTimeout(timeout);
+                            ws.close();
+                            if (data[2] === true) {
+                                resolve(true);
+                            } else {
+                                reject(new Error(data[3] || 'Relay rejeitou o evento'));
+                            }
+                        }
+                    } catch (e) {}
+                };
+
+                ws.onerror = () => {
+                    clearTimeout(timeout);
+                    reject(new Error('Erro de conexão'));
+                };
+            });
+        }
+
+        window.publicarFanfic = async function(event) {
             event.preventDefault();
             salvarCapituloAtual();
 
-            const capitulosFormatados = dadosCapitulos.map((cap, idx) => ({
-                numero: idx + 1,
-                titulo: cap.titulo,
-                conteudo: cap.conteudo
-            }));
+            const btn = document.querySelector('.btn-publish');
+            const textoOriginal = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Publicando...';
 
-            const fanfic = {
-                id: Date.now(),
-                titulo: document.getElementById('titulo').value,
-                autor: 'Anônimo',
-                capa: imagemBase64Temp,
-                capitulos: capitulosFormatados,
-                data: new Date().toLocaleDateString()
-            };
+            try {
+                if (!isUserLoggedIn()) {
+                    throw new Error('Você precisa estar logado com sua chave Nostr.');
+                }
 
-            let listaFanfics = JSON.parse(localStorage.getItem('minhas_fanfics')) || [];
-            listaFanfics.push(fanfic);
-            
-            localStorage.setItem('minhas_fanfics', JSON.stringify(listaFanfics));
+                // ===== UPLOAD DA CAPA =====
+                let capaUrl = '';
+                const capaInput = document.getElementById('capaArquivo');
+                const capaFile = capaInput.files && capaInput.files[0];
 
-            alert('Fanfic publicada com sucesso com todos os capítulos!');
-            document.getElementById('formPostagem').reset();
-            document.getElementById('previewImg').style.display = 'none';
-            imagemBase64Temp = '';
-            dadosCapitulos = [{ titulo: '', conteudo: '' }];
-            capituloAtivo = 0;
-            document.getElementById('qtdCapitulos').value = 1;
-            atualizarPreview();
-            gerarAbasCapitulos();
-        }
+                if (capaFile) {
+                    btn.innerText = 'Enviando capa...';
+                    capaUrl = await uploadCoverImage(capaFile);
+                }
+
+                const capitulosFormatados = dadosCapitulos.map((cap, idx) => ({
+                    numero: idx + 1,
+                    titulo: cap.titulo,
+                    conteudo: cap.conteudo
+                }));
+
+                const autor = currentUserData.nickname || 'Anônimo';
+
+                const fanfic = {
+                    id: Date.now(),
+                    titulo: document.getElementById('titulo').value,
+                    autor: autor,
+                    capa: capaUrl,               // <-- agora é URL pública
+                    capitulos: capitulosFormatados,
+                    data: new Date().toLocaleDateString()
+                };
+
+                // Continua salvando no localStorage
+                let listaFanfics = JSON.parse(localStorage.getItem('minhas_fanfics')) || [];
+                listaFanfics.push(fanfic);
+                localStorage.setItem('minhas_fanfics', JSON.stringify(listaFanfics));
+
+                // Publica no Nostr
+                btn.innerText = 'Publicando no Nostr...';
+                const resultado = await publicarNoNostr(fanfic);
+
+                alert(`Fanfic publicada com sucesso!\n\nAutor: ${autor}\nCapa: ${capaUrl ? 'enviada' : 'sem capa'}\nEnviada para ${resultado.sucessos} de ${resultado.total} relays.\nTag: LoreSpaceFics`);
+
+                // Limpa o formulário
+                document.getElementById('formPostagem').reset();
+                document.getElementById('previewImg').style.display = 'none';
+                imagemBase64Temp = '';
+                dadosCapitulos = [{ titulo: '', conteudo: '' }];
+                capituloAtivo = 0;
+                document.getElementById('qtdCapitulos').value = 1;
+                atualizarPreview();
+                gerarAbasCapitulos();
+
+            } catch (err) {
+                console.error(err);
+                alert('Erro ao publicar: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = textoOriginal;
+            }
+        };
     </script>
 </body>
 </html>
