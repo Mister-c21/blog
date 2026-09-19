@@ -475,8 +475,8 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     Criar
                 </a>
-                <div class="profile-container" title="Perfil do Usuário">
-                    <div class="profile-img" style="background-image: url('https://picsum.photos/100/100?random=profile');"></div>
+                <div class="profile-container" id="profileContainer" title="Perfil do Usuário">
+                    <div class="profile-img" id="profileImg" style="background-image: url('https://api.dicebear.com/7.x/bottts/svg?seed=Fics');"></div>
                 </div>
             </div>
         </div>
@@ -520,6 +520,7 @@
         </div>
     </div>
 
+    <!-- Script principal da página (feed + modais) -->
     <script>
         const categoriasData = [
             {
@@ -529,7 +530,7 @@
                     { id: "principe-sombrio", titulo: "O Príncipe Sombrio", imagem: "https://picsum.photos/300/450?random=12" },
                     { id: "segredos-da-noite", titulo: "Segredos da Noite", imagem: "https://picsum.photos/300/450?random=13" },
                     { id: "destino-cruzado", titulo: "Destino Cruzado", imagem: "https://picsum.photos/300/450?random=14" },
-                    { id: "ultima-nota", titulo: "A Última nota", imagem: "https://picsum.photos/300/450?random=15" }
+                    { id: "ultima-nota", titulo: "A Última Nota", imagem: "https://picsum.photos/300/450?random=15" }
                 ]
             },
             {
@@ -741,6 +742,118 @@
                 closeModal();
             }
         });
+    </script>
+
+    <!-- Script Nostr: puxa imagem de perfil e informações da rede -->
+    <script type="module">
+        import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+        import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+
+        const RELAYS = [
+            'wss://relay.damus.io',
+            'wss://nos.lol',
+            'wss://relay.nostr.band',
+            'wss://relay.primal.net'
+        ];
+        const pool = new NostrTools.SimplePool();
+
+        let currentUserData = {
+            pubkey: '',
+            privateKey: null,
+            privateKeyHex: '',
+            nickname: '',
+            avatarUrl: ''
+        };
+
+        function loadSessionFromNostr() {
+            try {
+                const session = localStorage.getItem('nostr_session');
+                if (!session) return;
+                const parsed = JSON.parse(session);
+                if (!parsed.privateKeyHex || !parsed.pubkey) return;
+
+                currentUserData.privateKey = hexToBytes(parsed.privateKeyHex);
+                currentUserData.privateKeyHex = parsed.privateKeyHex;
+                currentUserData.pubkey = parsed.pubkey;
+                currentUserData.nickname = (parsed.nickname || '').replace(/^@/, '');
+                currentUserData.avatarUrl = parsed.avatarUrl || '';
+            } catch (e) {
+                console.error('Erro ao carregar sessão Nostr:', e);
+            }
+        }
+
+        function isUserLoggedIn() {
+            return !!(currentUserData.privateKey && currentUserData.pubkey);
+        }
+
+        function updateProfileUI() {
+            const profileImg = document.getElementById('profileImg');
+            const profileContainer = document.getElementById('profileContainer');
+
+            if (!profileImg || !profileContainer) return;
+
+            const src = currentUserData.avatarUrl ||
+                'https://api.dicebear.com/7.x/bottts/svg?seed=Fics';
+
+            const title = currentUserData.nickname
+                ? '@' + currentUserData.nickname
+                : (currentUserData.pubkey
+                    ? '@' + currentUserData.pubkey.slice(0, 10) + '…'
+                    : 'Perfil do Usuário');
+
+            profileImg.style.backgroundImage = `url('${src}')`;
+            profileContainer.title = title;
+        }
+
+        async function fetchMyProfileFromNetwork() {
+            if (!currentUserData.pubkey) return;
+
+            try {
+                const events = await pool.querySync(RELAYS, {
+                    kinds: [0],
+                    authors: [currentUserData.pubkey],
+                    limit: 5
+                });
+
+                if (!events || !events.length) return;
+
+                // Pega o evento mais recente
+                events.sort((a, b) => b.created_at - a.created_at);
+
+                let data = {};
+                try {
+                    data = JSON.parse(events[0].content || '{}');
+                } catch (_) {}
+
+                const name = (data.display_name || data.name || '').trim().replace(/^@/, '');
+                const picture = data.picture || data.image || '';
+
+                if (name) currentUserData.nickname = name;
+                if (picture) currentUserData.avatarUrl = picture;
+
+                // Atualiza a sessão no localStorage (igual o Drive faz)
+                try {
+                    const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
+                    if (session.pubkey) {
+                        if (currentUserData.nickname) session.nickname = '@' + currentUserData.nickname;
+                        if (currentUserData.avatarUrl) session.avatarUrl = currentUserData.avatarUrl;
+                        localStorage.setItem('nostr_session', JSON.stringify(session));
+                    }
+                } catch (_) {}
+
+                updateProfileUI();
+            } catch (e) {
+                console.error('Falha ao buscar perfil Nostr:', e);
+            }
+        }
+
+        // Inicialização
+        loadSessionFromNostr();
+        updateProfileUI();
+
+        if (isUserLoggedIn()) {
+            fetchMyProfileFromNetwork();
+        }
     </script>
 </body>
 </html>
