@@ -6,7 +6,6 @@
     <title>Escrever Fanfic</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
         :root {
             --bg-color: #f8f9fa;
@@ -62,12 +61,10 @@
                 <label for="titulo">Título da História</label>
                 <input type="text" id="titulo" placeholder="Dê um título cativante..." required>
             </div>
-
             <div class="form-group file-upload-wrapper">
                 <label for="capaArquivo">Imagem de Capa (Galeria)</label>
                 <input type="file" id="capaArquivo" accept="image/*">
             </div>
-
             <div class="form-group">
                 <label>Pré-visualização do Card</label>
                 <div class="preview-container">
@@ -78,24 +75,19 @@
                     </div>
                 </div>
             </div>
-
             <div class="form-group">
                 <label for="qtdCapitulos">Quantidade de Capítulos (Máximo 21)</label>
                 <input type="number" id="qtdCapitulos" min="1" max="21" value="1" required>
             </div>
-
             <div class="toptabs-container" id="toptabsContainer"></div>
-
             <div class="form-group">
                 <label id="labelTituloCap" for="tituloCapAtivo">Título do Capítulo 1</label>
                 <input type="text" id="tituloCapAtivo" placeholder="Ex: O Início" required>
             </div>
-
             <div class="form-group">
                 <label id="labelConteudoCap" for="conteudoCapAtivo">Conteúdo do Capítulo 1</label>
                 <textarea id="conteudoCapAtivo" placeholder="Cole aqui o texto do capítulo..." required></textarea>
             </div>
-
             <div class="form-actions">
                 <button type="submit" class="btn-publish" id="btnPublish">Publicar História</button>
             </div>
@@ -106,7 +98,6 @@
         import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
         import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
 
-        // ===================== SESSÃO DO USUÁRIO =====================
         let currentUserData = { pubkey: '', privateKey: null, privateKeyHex: '', nickname: '' };
 
         function loadSessionFromNostr() {
@@ -121,87 +112,67 @@
                 currentUserData.nickname = (parsed.nickname || '').replace(/^@/, '');
             } catch (e) { console.error(e); }
         }
-        function isUserLoggedIn() {
-            return !!(currentUserData.privateKey && currentUserData.pubkey);
-        }
+        function isUserLoggedIn() { return !!(currentUserData.privateKey && currentUserData.pubkey); }
         loadSessionFromNostr();
 
-        // ===================== UPLOAD DE CAPA =====================
         const UPLOAD_URL = 'https://nostr.build/api/v2/upload/files';
-        const BLOSSOM_SERVERS = [
-            'https://blossom.primal.net',
-            'https://cdn.satellite.earth',
-            'https://blossom.band',
-            'https://nostr.download'
-        ];
+        const BLOSSOM_SERVERS = ['https://blossom.primal.net','https://cdn.satellite.earth','https://blossom.band','https://nostr.download'];
 
         async function createNip98AuthHeader(url, method, privateKeyBytes) {
             const signed = NostrTools.finalizeEvent({
-                kind: 27235,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [['u', url], ['method', method.toUpperCase()]],
-                content: ''
+                kind: 27235, created_at: Math.floor(Date.now()/1000),
+                tags: [['u', url], ['method', method.toUpperCase()]], content: ''
             }, privateKeyBytes);
             return 'Nostr ' + btoa(unescape(encodeURIComponent(JSON.stringify(signed))));
         }
-
         async function sha256Hex(buffer) {
             const hash = await crypto.subtle.digest('SHA-256', buffer);
-            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
         }
-
         async function createBlossomAuthHeader(fileSha256, privateKeyBytes) {
-            const now = Math.floor(Date.now() / 1000);
+            const now = Math.floor(Date.now()/1000);
             const signed = NostrTools.finalizeEvent({
-                kind: 24242,
-                created_at: now,
-                tags: [['t', 'upload'], ['x', fileSha256], ['expiration', String(now + 120)]],
-                content: ''
+                kind: 24242, created_at: now,
+                tags: [['t','upload'],['x',fileSha256],['expiration',String(now+120)]], content: ''
             }, privateKeyBytes);
             return 'Nostr ' + btoa(unescape(encodeURIComponent(JSON.stringify(signed))));
         }
-
         function extractUploadUrl(data) {
             if (!data) return '';
-            if (data.status === 'success' && Array.isArray(data.data) && data.data[0]) {
-                return data.data[0].url || data.data[0].download_url || '';
-            }
+            if (data.status === 'success' && Array.isArray(data.data) && data.data[0]) return data.data[0].url || data.data[0].download_url || '';
             if (data.url) return data.url;
-            if (data.nip94_event && Array.isArray(data.nip94_event.tags)) {
-                const urlTag = data.nip94_event.tags.find(t => t[0] === 'url');
-                if (urlTag) return urlTag[1];
+            if (data.nip94_event?.tags) {
+                const t = data.nip94_event.tags.find(x => x[0] === 'url');
+                if (t) return t[1];
             }
             if (Array.isArray(data.data) && data.data[0]?.url) return data.data[0].url;
             return '';
         }
-
         async function uploadViaBlossom(arrayBuffer, privateKeyBytes) {
             const hash = await sha256Hex(arrayBuffer);
             const auth = await createBlossomAuthHeader(hash, privateKeyBytes);
             for (const base of BLOSSOM_SERVERS) {
                 try {
-                    const res = await fetch(base.replace(/\/$/, '') + '/upload', {
+                    const res = await fetch(base.replace(/\/$/,'') + '/upload', {
                         method: 'PUT',
                         headers: { 'Authorization': auth, 'Content-Type': 'application/octet-stream' },
                         body: arrayBuffer
                     });
                     const text = await res.text();
-                    let data = null;
-                    try { data = JSON.parse(text); } catch (_) {}
+                    let data = null; try { data = JSON.parse(text); } catch(_){}
                     if (res.ok) {
                         let url = data?.url || '';
                         if (!url && data?.nip94_event?.tags) {
                             const t = data.nip94_event.tags.find(x => x[0] === 'url');
                             if (t) url = t[1];
                         }
-                        if (!url) url = base.replace(/\/$/, '') + '/' + hash;
+                        if (!url) url = base.replace(/\/$/,'') + '/' + hash;
                         return url;
                     }
-                } catch (e) {}
+                } catch(e){}
             }
             throw new Error('Falha no upload da capa');
         }
-
         async function uploadCoverImage(file) {
             if (!isUserLoggedIn()) throw new Error('Faça login primeiro');
             const arrayBuffer = await file.arrayBuffer();
@@ -209,59 +180,34 @@
                 const formData = new FormData();
                 formData.append('fileToUpload', file);
                 const authHeader = await createNip98AuthHeader(UPLOAD_URL, 'POST', currentUserData.privateKey);
-                const response = await fetch(UPLOAD_URL, {
-                    method: 'POST',
-                    headers: { 'Authorization': authHeader },
-                    body: formData
-                });
+                const response = await fetch(UPLOAD_URL, { method: 'POST', headers: { 'Authorization': authHeader }, body: formData });
                 const text = await response.text();
-                let data = null;
-                try { data = JSON.parse(text); } catch (_) {}
-                if (response.ok && data && data.status !== 'error') {
+                let data = null; try { data = JSON.parse(text); } catch(_){}
+                if (response.ok && data?.status !== 'error') {
                     const url = extractUploadUrl(data);
                     if (url) return url;
                 }
-            } catch (e) {}
+            } catch(e){}
             return await uploadViaBlossom(arrayBuffer, currentUserData.privateKey);
         }
 
-        // ===================== SISTEMA DE CAPÍTULOS (CORRIGIDO) =====================
+        // ===== SISTEMA DE CAPÍTULOS =====
         let imagemBase64Temp = '';
         let dadosCapitulos = [{ titulo: '', conteudo: '' }];
         let capituloAtivo = 0;
-
-        const RELAYS = [
-            'wss://relay.damus.io',
-            'wss://nos.lol',
-            'wss://relay.nostr.band',
-            'wss://nostr.wine',
-            'wss://relay.snort.social'
-        ];
+        const RELAYS = ['wss://relay.damus.io','wss://nos.lol','wss://relay.nostr.band','wss://nostr.wine','wss://relay.snort.social'];
 
         function gerarAbasCapitulos() {
-            const qtdInput = parseInt(document.getElementById('qtdCapitulos').value) || 1;
-            const qtd = Math.max(1, Math.min(21, qtdInput));
-
-            // Mantém o que já foi digitado
-            while (dadosCapitulos.length < qtd) {
-                dadosCapitulos.push({ titulo: '', conteudo: '' });
-            }
-            if (dadosCapitulos.length > qtd) {
-                dadosCapitulos = dadosCapitulos.slice(0, qtd);
-            }
-
-            if (capituloAtivo >= qtd) {
-                capituloAtivo = qtd - 1;
-            }
-
+            const qtd = Math.max(1, Math.min(21, parseInt(document.getElementById('qtdCapitulos').value) || 1));
+            while (dadosCapitulos.length < qtd) dadosCapitulos.push({ titulo: '', conteudo: '' });
+            if (dadosCapitulos.length > qtd) dadosCapitulos = dadosCapitulos.slice(0, qtd);
+            if (capituloAtivo >= qtd) capituloAtivo = qtd - 1;
             renderizarAbas();
             carregarCapituloNaTela(capituloAtivo);
         }
-
         function renderizarAbas() {
             const container = document.getElementById('toptabsContainer');
             container.innerHTML = '';
-
             dadosCapitulos.forEach((cap, index) => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
@@ -271,36 +217,30 @@
                 container.appendChild(btn);
             });
         }
-
         function salvarCapituloAtual() {
             dadosCapitulos[capituloAtivo].titulo = document.getElementById('tituloCapAtivo').value;
             dadosCapitulos[capituloAtivo].conteudo = document.getElementById('conteudoCapAtivo').value;
         }
-
         function mudarCapitulo(index) {
             salvarCapituloAtual();
             capituloAtivo = index;
             renderizarAbas();
             carregarCapituloNaTela(capituloAtivo);
         }
-
         function carregarCapituloNaTela(index) {
             document.getElementById('tituloCapAtivo').value = dadosCapitulos[index].titulo || '';
             document.getElementById('conteudoCapAtivo').value = dadosCapitulos[index].conteudo || '';
             document.getElementById('labelTituloCap').textContent = `Título do Capítulo ${index + 1}`;
             document.getElementById('labelConteudoCap').textContent = `Conteúdo do Capítulo ${index + 1}`;
         }
-
         function atualizarPreview() {
-            const titulo = document.getElementById('titulo').value;
-            document.getElementById('previewTitulo').textContent = titulo || 'Título da História';
+            document.getElementById('previewTitulo').textContent = document.getElementById('titulo').value || 'Título da História';
         }
-
         function carregarImagemPreview(event) {
             const arquivo = event.target.files[0];
             if (!arquivo) return;
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = e => {
                 imagemBase64Temp = e.target.result;
                 const img = document.getElementById('previewImg');
                 img.src = imagemBase64Temp;
@@ -309,60 +249,40 @@
             reader.readAsDataURL(arquivo);
         }
 
-        // ===================== PUBLICAÇÃO =====================
         async function publicarNoNostr(fanfic) {
-            if (!isUserLoggedIn()) throw new Error('Faça login com sua chave Nostr primeiro');
-
+            if (!isUserLoggedIn()) throw new Error('Faça login com sua chave Nostr');
             const content = JSON.stringify({ type: 'LoreSpaceFics', ...fanfic });
-
             const eventTemplate = {
                 kind: 1,
                 created_at: Math.floor(Date.now() / 1000),
-                tags: [
-                    ['t', 'LoreSpaceFics'],
-                    ['client', 'LoreSpaceFics']
-                ],
+                tags: [['t', 'LoreSpaceFics'], ['client', 'LoreSpaceFics']],
                 content
             };
-
             const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
-
-            const results = await Promise.allSettled(
-                RELAYS.map(url => publicarEmRelay(url, signedEvent))
-            );
-
+            const results = await Promise.allSettled(RELAYS.map(url => publicarEmRelay(url, signedEvent)));
             const sucessos = results.filter(r => r.status === 'fulfilled').length;
             if (sucessos === 0) throw new Error('Não foi possível publicar em nenhum relay');
-            return { sucessos, total: RELAYS.length };
+            return { sucessos, total: RELAYS.length, eventId: signedEvent.id };
         }
-
         function publicarEmRelay(relayUrl, event) {
             return new Promise((resolve, reject) => {
                 const ws = new WebSocket(relayUrl);
-                const timeout = setTimeout(() => {
-                    ws.close();
-                    reject(new Error('Timeout'));
-                }, 8000);
-
+                const timeout = setTimeout(() => { ws.close(); reject(); }, 8000);
                 ws.onopen = () => ws.send(JSON.stringify(['EVENT', event]));
-                ws.onmessage = (msg) => {
+                ws.onmessage = msg => {
                     try {
                         const data = JSON.parse(msg.data);
                         if (data[0] === 'OK' && data[1] === event.id) {
-                            clearTimeout(timeout);
-                            ws.close();
-                            data[2] === true ? resolve(true) : reject(new Error(data[3] || 'Rejeitado'));
+                            clearTimeout(timeout); ws.close();
+                            data[2] === true ? resolve(true) : reject();
                         }
-                    } catch (_) {}
+                    } catch(_){}
                 };
-                ws.onerror = () => {
-                    clearTimeout(timeout);
-                    reject(new Error('Erro de conexão'));
-                };
+                ws.onerror = () => { clearTimeout(timeout); reject(); };
             });
         }
 
-        // ===================== EVENTOS =====================
+        // Eventos
         document.getElementById('qtdCapitulos').addEventListener('input', gerarAbasCapitulos);
         document.getElementById('titulo').addEventListener('input', atualizarPreview);
         document.getElementById('capaArquivo').addEventListener('change', carregarImagemPreview);
@@ -372,48 +292,37 @@
         document.getElementById('formPostagem').addEventListener('submit', async function(e) {
             e.preventDefault();
             salvarCapituloAtual();
-
             const btn = document.getElementById('btnPublish');
             const textoOriginal = btn.innerText;
             btn.disabled = true;
             btn.innerText = 'Publicando...';
-
             try {
-                if (!isUserLoggedIn()) throw new Error('Você precisa estar logado com sua chave Nostr');
-
+                if (!isUserLoggedIn()) throw new Error('Você precisa estar logado');
                 let capaUrl = '';
                 const capaFile = document.getElementById('capaArquivo').files[0];
                 if (capaFile) {
                     btn.innerText = 'Enviando capa...';
                     capaUrl = await uploadCoverImage(capaFile);
                 }
-
                 const capitulosFormatados = dadosCapitulos.map((cap, idx) => ({
                     numero: idx + 1,
                     titulo: cap.titulo,
                     conteudo: cap.conteudo
                 }));
-
+                // SEM id personalizado – o ID será o do evento Nostr
                 const fanfic = {
-                    id: Date.now(),
                     titulo: document.getElementById('titulo').value,
                     autor: currentUserData.nickname || 'Anônimo',
                     capa: capaUrl,
                     capitulos: capitulosFormatados,
                     data: new Date().toLocaleDateString()
                 };
-
-                // Salva local também
                 let lista = JSON.parse(localStorage.getItem('minhas_fanfics') || '[]');
                 lista.push(fanfic);
                 localStorage.setItem('minhas_fanfics', JSON.stringify(lista));
-
                 btn.innerText = 'Publicando no Nostr...';
                 const resultado = await publicarNoNostr(fanfic);
-
-                alert(`Fanfic publicada com sucesso!\n\nEnviada para ${resultado.sucessos} de ${resultado.total} relays.\nTag: LoreSpaceFics`);
-
-                // Limpa formulário
+                alert(`Fanfic publicada com sucesso!\nEnviada para ${resultado.sucessos}/${resultado.total} relays\nTag: LoreSpaceFics`);
                 document.getElementById('formPostagem').reset();
                 document.getElementById('previewImg').style.display = 'none';
                 imagemBase64Temp = '';
@@ -422,17 +331,15 @@
                 document.getElementById('qtdCapitulos').value = 1;
                 atualizarPreview();
                 gerarAbasCapitulos();
-
             } catch (err) {
                 console.error(err);
-                alert('Erro ao publicar: ' + err.message);
+                alert('Erro: ' + err.message);
             } finally {
                 btn.disabled = false;
                 btn.innerText = textoOriginal;
             }
         });
 
-        // Inicializa as abas
         gerarAbasCapitulos();
     </script>
 </body>
