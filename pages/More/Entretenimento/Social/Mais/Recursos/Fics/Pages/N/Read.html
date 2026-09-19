@@ -78,6 +78,7 @@
             width: 56px; height: 56px; background-color: var(--primary-violet); color: white;
             border: none; border-radius: 50%; cursor: pointer; box-shadow: 0 4px 12px rgba(138,43,226,0.4);
             display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
+            transition: transform 0.3s;
         }
         .fab-tabbar {
             position: absolute; bottom: 70px; right: 0; background: var(--card-bg);
@@ -228,7 +229,7 @@
                 <div id="commentList" style="max-height:200px;overflow-y:auto;">
                     <p style="color:var(--text-muted);text-align:center;">Nenhum comentário ainda.</p>
                 </div>
-                <textarea class="comment-input-box" rows="2" placeholder="Escreva um comentário..." style="width:100%;padding:12px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-color);color:var(--text-color);"></textarea>
+                <textarea style="width:100%;padding:12px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-color);color:var(--text-color);" rows="2" placeholder="Escreva um comentário..."></textarea>
                 <button class="btn-modal">Publicar Comentário</button>
             </div>
         </div>
@@ -242,24 +243,24 @@
                 <button class="modal-close" onclick="closeModal('modalConfig')">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="config-group">
-                    <label>Tema</label>
-                    <div style="display:flex;gap:10px;">
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:0.9rem;font-weight:600;color:var(--text-muted);">Tema</label>
+                    <div style="display:flex;gap:10px;margin-top:6px;">
                         <button class="config-btn selected" id="themeLight" onclick="setTheme('light')">Claro</button>
                         <button class="config-btn" id="themeDark" onclick="setTheme('dark')">Escuro</button>
                     </div>
                 </div>
-                <div class="config-group" style="margin-top:12px;">
-                    <label>Fonte</label>
-                    <div style="display:flex;gap:10px;">
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:0.9rem;font-weight:600;color:var(--text-muted);">Fonte</label>
+                    <div style="display:flex;gap:10px;margin-top:6px;">
                         <button class="config-btn selected" onclick="setFont('Merriweather',this)">Serifa</button>
                         <button class="config-btn" onclick="setFont('Inter',this)">Sans</button>
                         <button class="config-btn" onclick="setFont('Lora',this)">Lora</button>
                     </div>
                 </div>
-                <div class="config-group" style="margin-top:12px;">
-                    <label>Tamanho</label>
-                    <div style="display:flex;gap:10px;">
+                <div>
+                    <label style="font-size:0.9rem;font-weight:600;color:var(--text-muted);">Tamanho</label>
+                    <div style="display:flex;gap:10px;margin-top:6px;">
                         <button class="config-btn" onclick="setFontSize('1rem')">Pequena</button>
                         <button class="config-btn selected" onclick="setFontSize('1.125rem')">Média</button>
                         <button class="config-btn" onclick="setFontSize('1.3rem')">Grande</button>
@@ -269,7 +270,7 @@
         </div>
     </div>
 
-    <!-- Modal Criador (atualizado) -->
+    <!-- Modal Criador -->
     <div class="modal-overlay" id="modalCriador">
         <div class="modal-card">
             <div class="modal-header">
@@ -332,7 +333,6 @@
             }
         }
 
-        // ===== BUSCA PERFIL DO AUTOR (kind 0) =====
         async function fetchAuthorProfile(pubkey) {
             if (!pubkey) return;
             try {
@@ -353,7 +353,7 @@
 
                 updateCreatorUI();
             } catch (e) {
-                console.error('Erro ao buscar perfil do autor:', e);
+                console.error('Erro ao buscar perfil:', e);
             }
         }
 
@@ -444,7 +444,6 @@
                 return;
             }
 
-            // Busca perfil do autor
             fetchAuthorProfile(currentFanfic.pubkey);
 
             chaptersData = (currentFanfic.capitulos || []).map((c, i) => ({
@@ -457,11 +456,11 @@
             }
 
             setupNavigation();
-            updateCreatorUI(); // mostra nome enquanto carrega a foto
+            updateCreatorUI();
             renderChapter(0);
         })();
 
-        // Controles de UI (mantidos)
+        // UI
         window.toggleFabMenu = function() {
             const fab = document.getElementById('fabMenu');
             const icon = document.getElementById('fabIcon');
@@ -497,61 +496,212 @@
             event.target.classList.add('selected');
         };
 
-        // PDF + Áudio (mantidos iguais ao código anterior)
+        // ===== PDF CORRIGIDO =====
         window.downloadPdf = async function() {
-            if (!currentFanfic || !chaptersData.length) return alert('Fanfic ainda não carregada.');
-            // ... (mesmo código de PDF da versão anterior)
-            alert('PDF gerado!'); // placeholder - use o código completo de PDF se necessário
+            if (!currentFanfic || !chaptersData.length) {
+                alert('Fanfic ainda não carregada.');
+                return;
+            }
+
+            document.getElementById('fabMenu').classList.remove('active');
+            document.getElementById('fabIcon').className = 'fa-solid fa-bars';
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'a5' });
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 18;
+            const contentWidth = pageWidth - (margin * 2);
+
+            // Capa
+            try {
+                const imgSrc = document.getElementById('fanficCoverImg').src;
+                if (imgSrc && imgSrc.length > 10) {
+                    doc.addImage(imgSrc, 'JPEG', 0, 0, pageWidth, pageHeight);
+                } else {
+                    throw new Error('sem capa');
+                }
+            } catch (e) {
+                doc.setFillColor(30, 20, 50);
+                doc.rect(0, 0, pageWidth, pageHeight, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(18);
+                doc.text(currentFanfic.titulo || 'Fanfic', pageWidth / 2, pageHeight / 2 - 10, { align: 'center' });
+                doc.setFontSize(12);
+                doc.text(currentFanfic.autor || 'Anônimo', pageWidth / 2, pageHeight / 2 + 5, { align: 'center' });
+            }
+
+            // Sumário
+            doc.addPage();
+            doc.setTextColor(40, 40, 40);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.text('Sumário', margin, 22);
+            doc.setDrawColor(138, 43, 226);
+            doc.setLineWidth(0.6);
+            doc.line(margin, 25, pageWidth - margin, 25);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(11);
+            let y = 35;
+            chaptersData.forEach((chap, idx) => {
+                doc.text(chap.titulo || `Capítulo ${idx + 1}`, margin, y);
+                doc.text(String(idx + 3), pageWidth - margin, y, { align: 'right' });
+                y += 9;
+            });
+
+            y += 12;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(13);
+            doc.text('Sobre o Autor', margin, y);
+            doc.setDrawColor(138, 43, 226);
+            doc.line(margin, y + 2, pageWidth - margin, y + 2);
+            y += 10;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(11);
+            doc.text(currentFanfic.autor || 'Anônimo', margin, y);
+
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(8);
+            doc.setTextColor(140, 140, 140);
+            doc.text('Compartilhado em LoreSpace', pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+            // Capítulos
+            chaptersData.forEach((chap, idx) => {
+                doc.addPage();
+                doc.setFont('helvetica', 'italic');
+                doc.setFontSize(8);
+                doc.setTextColor(130, 130, 130);
+                doc.text(currentFanfic.titulo || '', margin, 12);
+                doc.text(chap.titulo || `Capítulo ${idx + 1}`, pageWidth - margin, 12, { align: 'right' });
+                doc.setDrawColor(220, 220, 220);
+                doc.setLineWidth(0.3);
+                doc.line(margin, 15, pageWidth - margin, 15);
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(14);
+                doc.setTextColor(30, 30, 30);
+                doc.text(chap.titulo || `Capítulo ${idx + 1}`, margin, 26);
+
+                doc.setFont('times', 'normal');
+                doc.setFontSize(10.5);
+                doc.setTextColor(40, 40, 40);
+
+                const lines = doc.splitTextToSize(chap.conteudo || '', contentWidth);
+                let cursorY = 36;
+                const bottomLimit = pageHeight - 18;
+
+                lines.forEach(line => {
+                    if (cursorY > bottomLimit) {
+                        doc.addPage();
+                        cursorY = 20;
+                    }
+                    doc.text(line, margin, cursorY);
+                    cursorY += 6.2;
+                });
+
+                doc.setFont('helvetica', 'italic');
+                doc.setFontSize(8);
+                doc.setTextColor(150, 150, 150);
+                doc.text('Compartilhado em LoreSpace', pageWidth / 2, pageHeight - 8, { align: 'center' });
+            });
+
+            const safeName = (currentFanfic.titulo || 'fanfic')
+                .replace(/[^\w\s-]/g, '')
+                .replace(/\s+/g, '_')
+                .substring(0, 60);
+
+            doc.save(`${safeName}.pdf`);
         };
 
-        let isPlaying = false, speechSynth = window.speechSynthesis, elapsedSeconds = 0, estimatedTotalSeconds = 60, timerInterval = null;
-        function formatTime(s) { const m = Math.floor(s/60), sec = Math.floor(s%60); return `${m<10?'0':''}${m}:${sec<10?'0':''}${sec}`; }
+        // Áudio
+        let isPlaying = false;
+        let speechSynth = window.speechSynthesis;
+        let elapsedSeconds = 0;
+        let estimatedTotalSeconds = 60;
+        let timerInterval = null;
+
+        function formatTime(s) {
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${m < 10 ? '0' : ''}${m}:${sec < 10 ? '0' : ''}${sec}`;
+        }
         function updatePlayerUI() {
             document.getElementById('currentTimeText').textContent = formatTime(elapsedSeconds);
             document.getElementById('totalTimeText').textContent = formatTime(estimatedTotalSeconds);
-            document.getElementById('spotifyProgressFill').style.width = (estimatedTotalSeconds ? Math.min((elapsedSeconds/estimatedTotalSeconds)*100,100) : 0) + '%';
+            const pct = estimatedTotalSeconds > 0 ? Math.min((elapsedSeconds / estimatedTotalSeconds) * 100, 100) : 0;
+            document.getElementById('spotifyProgressFill').style.width = pct + '%';
         }
         function stopAudioState() {
             isPlaying = false;
             const icon = document.getElementById('playPauseIcon');
-            if (icon) { icon.classList.remove('fa-pause'); icon.classList.add('fa-play'); }
+            if (icon) {
+                icon.classList.remove('fa-pause');
+                icon.classList.add('fa-play');
+            }
             clearInterval(timerInterval);
         }
+
         window.togglePlayPause = function() {
             if (!speechSynth || !chaptersData.length) return;
             const icon = document.getElementById('playPauseIcon');
-            if (isPlaying) { speechSynth.cancel(); stopAudioState(); }
-            else {
+            if (isPlaying) {
+                speechSynth.cancel();
+                stopAudioState();
+            } else {
                 const text = chaptersData[currentChapterIndex].conteudo || '';
                 const utt = new SpeechSynthesisUtterance(text);
                 utt.lang = 'pt-BR';
-                estimatedTotalSeconds = Math.max(Math.floor(text.length/15), 10);
+                estimatedTotalSeconds = Math.max(Math.floor(text.length / 15), 10);
                 elapsedSeconds = 0;
                 utt.onend = utt.onerror = stopAudioState;
                 speechSynth.speak(utt);
                 isPlaying = true;
-                icon.classList.remove('fa-play'); icon.classList.add('fa-pause');
-                timerInterval = setInterval(() => { if (elapsedSeconds < estimatedTotalSeconds) { elapsedSeconds++; updatePlayerUI(); } }, 1000);
+                icon.classList.remove('fa-play');
+                icon.classList.add('fa-pause');
+                timerInterval = setInterval(() => {
+                    if (elapsedSeconds < estimatedTotalSeconds) {
+                        elapsedSeconds++;
+                        updatePlayerUI();
+                    }
+                }, 1000);
             }
         };
-        window.skipTime = a => { if (speechSynth) { speechSynth.cancel(); stopAudioState(); } elapsedSeconds = Math.max(0, Math.min(estimatedTotalSeconds, elapsedSeconds + a)); updatePlayerUI(); };
-        window.seekAudio = e => {
-            const rect = document.getElementById('spotifyProgressBar').getBoundingClientRect();
-            elapsedSeconds = Math.floor(((e.clientX - rect.left) / rect.width) * estimatedTotalSeconds);
+        window.skipTime = function(amount) {
+            if (speechSynth) {
+                speechSynth.cancel();
+                stopAudioState();
+            }
+            elapsedSeconds = Math.max(0, Math.min(estimatedTotalSeconds, elapsedSeconds + amount));
             updatePlayerUI();
-            if (isPlaying) { speechSynth.cancel(); stopAudioState(); togglePlayPause(); }
         };
-        window.changeChapter = d => {
+        window.seekAudio = function(e) {
+            const bar = document.getElementById('spotifyProgressBar');
+            const rect = bar.getBoundingClientRect();
+            const pos = (e.clientX - rect.left) / rect.width;
+            elapsedSeconds = Math.floor(pos * estimatedTotalSeconds);
+            updatePlayerUI();
+            if (isPlaying) {
+                speechSynth.cancel();
+                stopAudioState();
+                togglePlayPause();
+            }
+        };
+        window.changeChapter = function(dir) {
             if (speechSynth) speechSynth.cancel();
             stopAudioState();
-            let idx = currentChapterIndex + d;
+            let idx = currentChapterIndex + dir;
             if (idx < 0) idx = chaptersData.length - 1;
             if (idx >= chaptersData.length) idx = 0;
             renderChapter(idx);
-            elapsedSeconds = 0; updatePlayerUI();
+            elapsedSeconds = 0;
+            updatePlayerUI();
         };
         window.toggleShuffle = () => document.getElementById('shuffleBtn').classList.toggle('active');
         window.toggleRepeat = () => document.getElementById('repeatBtn').classList.toggle('active');
+
         updatePlayerUI();
     </script>
 </body>
