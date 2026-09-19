@@ -8,6 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <!-- FontAwesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Biblioteca jsPDF para geração de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <style>
         :root {
@@ -57,12 +59,8 @@
 
         /* --- SKELETON LOADER ANIMAÇÃO --- */
         @keyframes shimmer {
-            0% {
-                background-position: -200px 0;
-            }
-            100% {
-                background-position: calc(200px + 100%) 0;
-            }
+            0% { background-position: -200px 0; }
+            100% { background-position: calc(200px + 100%) 0; }
         }
 
         .skeleton {
@@ -78,7 +76,6 @@
             border-radius: 4px;
         }
 
-        /* Classes de esqueleto aplicadas aos elementos */
         .skeleton-title {
             height: 2.2rem;
             width: 70%;
@@ -124,7 +121,6 @@
             color: var(--text-color);
         }
 
-        /* O texto da história com variáveis dinâmicas de fonte e tamanho */
         .chapter-body {
             font-family: var(--body-font);
             font-size: var(--font-size);
@@ -332,14 +328,12 @@
             color: var(--primary-violet);
         }
 
-        /* Conteúdo dos modais internos */
         .modal-body {
             display: flex;
             flex-direction: column;
             gap: 16px;
         }
 
-        /* Comentários estilo com imagens de perfil */
         .comment-input-box {
             width: 100%;
             padding: 12px;
@@ -388,7 +382,6 @@
             margin-bottom: 2px;
         }
 
-        /* Configurações visuais */
         .config-group {
             display: flex;
             flex-direction: column;
@@ -421,7 +414,6 @@
             font-weight: 600;
         }
 
-        /* Botão interno genérico */
         .btn-modal {
             background-color: var(--primary-violet);
             color: white;
@@ -432,12 +424,13 @@
             cursor: pointer;
             transition: background 0.2s;
             text-align: center;
+            text-decoration: none;
+            display: inline-block;
         }
         .btn-modal:hover {
             background-color: var(--primary-violet-hover);
         }
 
-        /* Criador Info */
         .creator-info {
             text-align: center;
             display: flex;
@@ -458,6 +451,31 @@
             font-weight: bold;
         }
 
+        .creator-socials {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .social-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: white;
+            transition: opacity 0.2s;
+        }
+        .social-btn:hover { opacity: 0.9; }
+        .social-instagram { background-color: #E1306C; }
+        .social-twitter { background-color: #1DA1F2; }
+        .social-wattpad { background-color: #FF7300; }
+
         /* --- ESTILO DO PLAYER DE ÁUDIO (ESTILO SPOTIFY) --- */
         .spotify-player-card {
             overflow: hidden;
@@ -477,7 +495,6 @@
             overflow: hidden;
         }
 
-        /* Imagem de fundo borrada e semitransparente fixa na capa da fic */
         .spotify-bg-blurred {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -600,18 +617,11 @@
             border: none;
         }
 
-        .spotify-play-btn:hover {
-            transform: scale(1.05);
-        }
+        .spotify-play-btn:hover { transform: scale(1.05); }
 
-        /* Responsividade (Modais colados embaixo no mobile) */
         @media(max-width: 600px) {
             .chapter-title { font-size: 1.5rem; }
-            
-            .modal-overlay {
-                align-items: flex-end;
-            }
-
+            .modal-overlay { align-items: flex-end; }
             .modal-card {
                 width: 100%;
                 max-width: 100%;
@@ -622,10 +632,7 @@
                 transform: translateY(100%);
                 padding-bottom: 30px;
             }
-
-            .modal-overlay.active .modal-card {
-                transform: translateY(0);
-            }
+            .modal-overlay.active .modal-card { transform: translateY(0); }
         }
     </style>
 </head>
@@ -653,8 +660,6 @@
 
         <!-- Rodapé do Capítulo -->
         <div class="chapter-footer">
-            
-            <!-- Navegação entre capítulos -->
             <div class="navigation-buttons">
                 <button class="nav-page-btn" style="opacity: 0.5; cursor: not-allowed;" disabled>
                     <i class="fa-solid fa-arrow-left"></i> Anterior
@@ -663,7 +668,6 @@
                     Próximo <i class="fa-solid fa-arrow-right"></i>
                 </a>
             </div>
-
         </div>
 
     </main>
@@ -680,7 +684,7 @@
             <button class="tabbar-item" onclick="openModal('modalComentarios')">
                 <i class="fa-regular fa-comment"></i> Comentários
             </button>
-            <button class="tabbar-item" onclick="alert('Funcionalidade de download iniciada!')">
+            <button class="tabbar-item" onclick="downloadPdf()">
                 <i class="fa-solid fa-download"></i> Baixar
             </button>
             <button class="tabbar-item" onclick="openModal('modalConfig')">
@@ -697,22 +701,17 @@
 
     <!-- --- MODAIS FLUTUANTES --- -->
 
-    <!-- Modal Audiodescrição (Estilo Spotify Funcional) -->
+    <!-- Modal Audiodescrição -->
     <div class="modal-overlay" id="modalAudio">
         <div class="modal-card spotify-player-card">
             <div class="spotify-bg-container">
-                <!-- Fundo borrado fixo na capa da fic -->
                 <div class="spotify-bg-blurred"></div>
-                
                 <div class="spotify-header-top">
                     <h3>Audiodescrição</h3>
                     <button class="modal-close" style="color: #FFF;" onclick="closeModal('modalAudio')">&times;</button>
                 </div>
-
                 <div class="spotify-content">
-                    <!-- Imagem de capa fixa da fanfic, sem alteração ao trocar de capítulo -->
-                    <img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80" alt="Capa da Fanfic" class="spotify-cover-img">
-                    
+                    <img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80" alt="Capa da Fanfic" class="spotify-cover-img" id="fanficCoverImg">
                     <div class="spotify-song-title" id="playerChapterTitle">Capítulo 1: O Primeiro Olhar</div>
                     <div class="spotify-song-artist">Entre Sombras e Estrelas • VioletaWrites</div>
 
@@ -722,7 +721,7 @@
                         </div>
                         <div class="spotify-times">
                             <span id="currentTimeText">00:00</span>
-                            <span id="totalTimeText">12:40</span>
+                            <span id="totalTimeText">00:00</span>
                         </div>
                     </div>
 
@@ -734,7 +733,6 @@
                         <button class="spotify-ctrl-btn" id="repeatBtn" onclick="toggleRepeat()" title="Repetir"><i class="fa-solid fa-rotate-right"></i></button>
                     </div>
 
-                    <!-- Seletor de Capítulo interno rápido -->
                     <div style="margin-top: 18px; display: flex; justify-content: space-between; align-items: center; width: 100%; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">
                         <button onclick="changeChapter(-1)" style="background:none; border:none; color:#B3B3B3; cursor:pointer; font-size:0.85rem;"><i class="fa-solid fa-chevron-left"></i> Cap. Anterior</button>
                         <span style="font-size: 0.8rem; color: #B3B3B3;" id="chapterIndicator">1 / 3</span>
@@ -783,7 +781,6 @@
                 <button class="modal-close" onclick="closeModal('modalConfig')">&times;</button>
             </div>
             <div class="modal-body">
-                <!-- Tema -->
                 <div class="config-group">
                     <label>Tema da Página</label>
                     <div class="config-options">
@@ -791,7 +788,6 @@
                         <button class="config-btn" id="themeDark" onclick="setTheme('dark')">Escuro</button>
                     </div>
                 </div>
-                <!-- Tipo de Fonte -->
                 <div class="config-group">
                     <label>Fonte do Texto</label>
                     <div class="config-options">
@@ -800,7 +796,6 @@
                         <button class="config-btn" onclick="setFont('Lora', this)">Lora</button>
                     </div>
                 </div>
-                <!-- Tamanho da Letra -->
                 <div class="config-group">
                     <label>Tamanho da Letra</label>
                     <div class="config-options">
@@ -825,7 +820,17 @@
                     <div class="creator-avatar">V</div>
                     <h4 style="color: var(--text-color);">VioletaWrites</h4>
                     <p style="font-size: 0.9rem; color: var(--text-muted);">Escritora de romances fantásticos, fanfics e universos alternativos. Apaixonada por drama, slow burn e roxo!</p>
-                    <button class="btn-modal" style="width: 100%; margin-top: 10px;">Seguir Autor(a)</button>
+                    <div class="creator-socials">
+                        <a href="https://instagram.com" target="_blank" class="social-btn social-instagram">
+                            <i class="fa-brands fa-instagram"></i> Instagram
+                        </a>
+                        <a href="https://twitter.com" target="_blank" class="social-btn social-twitter">
+                            <i class="fa-brands fa-twitter"></i> Twitter
+                        </a>
+                        <a href="https://wattpad.com" target="_blank" class="social-btn social-wattpad">
+                            <i class="fa-solid fa-book"></i> Wattpad
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -833,7 +838,6 @@
 
     <!-- Scripts de Controle -->
     <script>
-        // Menu FAB
         function toggleFabMenu() {
             const fab = document.getElementById('fabMenu');
             const icon = document.getElementById('fabIcon');
@@ -849,7 +853,6 @@
             }
         }
 
-        // Fechar FAB ao clicar fora
         window.addEventListener('click', function(e) {
             const fab = document.getElementById('fabMenu');
             const icon = document.getElementById('fabIcon');
@@ -861,7 +864,6 @@
             }
         });
 
-        // Abrir/Fechar Modais
         function openModal(modalId) {
             document.getElementById(modalId).classList.add('active');
             document.getElementById('fabMenu').classList.remove('active');
@@ -872,7 +874,6 @@
             document.getElementById(modalId).classList.remove('active');
         }
 
-        // Configurações Reais
         function setTheme(theme) {
             document.documentElement.setAttribute('data-theme', theme);
             document.getElementById('themeLight').classList.toggle('selected', theme === 'light');
@@ -892,83 +893,276 @@
             event.target.classList.add('selected');
         }
 
-        // --- SISTEMA DO PLAYER DE ÁUDIO FUNCIONAL ---
+        // --- FUNÇÃO DE DOWNLOAD DO PDF (PADRÃO E-BOOK BEST-SELLER - CAPA CHEIA) ---
+        async function downloadPdf() {
+            document.getElementById('fabMenu').classList.remove('active');
+            document.getElementById('fabIcon').className = 'fa-solid fa-bars';
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'a5' }); // Formato A5, ideal para e-books de literatura
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 20;
+            const contentWidth = pageWidth - (margin * 2);
+
+            // ==========================================
+            // PÁGINA 1: CAPA DO E-BOOK (Imagem Ocupando Todo o Espaço)
+            // ==========================================
+            try {
+                const imgData = document.getElementById('fanficCoverImg').src;
+                // A imagem ocupa exatamente toda a largura e altura da página A5, sem margens
+                doc.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+            } catch(e) {
+                // Fallback caso a imagem falhe ao carregar
+                doc.setFillColor(30, 20, 50);
+                doc.rect(0, 0, pageWidth, pageHeight, "F");
+                doc.setTextColor(255, 255, 255);
+                doc.setFont("Helvetica", "bold");
+                doc.setFontSize(20);
+                doc.text("ENTRE SOMBRAS E ESTRELAS", pageWidth / 2, pageHeight / 2, { align: "center" });
+            }
+
+            // ==========================================
+            // PÁGINA 2: SUMÁRIO & REDES SOCIAIS DO CRIADOR
+            // ==========================================
+            doc.addPage();
+            doc.setTextColor(40, 40, 40);
+
+            // Título Sumário
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(16);
+            doc.text("Sumário", margin, 25);
+            doc.setDrawColor(138, 43, 226);
+            doc.setLineWidth(0.5);
+            doc.line(margin, 28, pageWidth - margin, 28);
+
+            // Lista do Sumário
+            doc.setFont("Helvetica", "normal");
+            doc.setFontSize(11);
+            let summaryY = 38;
+            const chaptersSummary = [
+                { title: "Capítulo 1: O Primeiro Olhar", page: "3" },
+                { title: "Capítulo 2: Segredos na Biblioteca", page: "4" },
+                { title: "Capítulo 3: Sob a Luz das Estrelas", page: "5" }
+            ];
+
+            chaptersSummary.forEach(item => {
+                doc.text(item.title, margin, summaryY);
+                doc.text(item.page, pageWidth - margin, summaryY, { align: "right" });
+                summaryY += 10;
+            });
+
+            // Seção Criador
+            summaryY += 15;
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("Sobre o Autor", margin, summaryY);
+            doc.line(margin, summaryY + 3, pageWidth - margin, summaryY + 3);
+
+            summaryY += 12;
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(11);
+            doc.text("VioletaWrites", margin, summaryY);
+
+            summaryY += 7;
+            doc.setFont("Helvetica", "normal");
+            doc.setFontSize(10);
+            doc.setTextColor(90, 90, 90);
+            doc.text("Instagram: @VioletaWrites", margin, summaryY);
+            summaryY += 6;
+            doc.text("Twitter: @VioletaWrites", margin, summaryY);
+            summaryY += 6;
+            doc.text("Wattpad: VioletaWrites", margin, summaryY);
+
+            doc.setFont("Helvetica", "italic");
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text("Compartilhado em LoreSpace.com.br", pageWidth / 2, pageHeight - 12, { align: "center" });
+
+            // ==========================================
+            // PÁGINAS 3 EM DIANTE: CONTEÚDO DOS CAPÍTULOS
+            // ==========================================
+            const chaptersDataForPdf = [
+                { 
+                    title: "Capítulo 1: O Primeiro Olhar", 
+                    body: "O vento frio daquela noite de outono chicoteava as capas dos alunos enquanto corriam em direção ao castelo. Harry ajustou os óculos no rosto, sentindo a armação metálica gélida contra a pele. Havia algo diferente no ar este ano; um peso invisível que parecia comprimir os corredores de Hogwarts.\n\n— Você está atrasado, Potter — uma voz arrastada ecoou nas sombras do corredor de pedra, fazendo-o parar instantaneamente.\n\nDas penumbras, a figura alta e esguia emergiu. Os cabelos loiros platinados caíam levemente sobre a testa, e aqueles olhos cinzentos fitavam-no com uma intensidade desconcertante. Draco Malfoy não parecia estar zangado, como de costume. Havia uma curiosidade silenciosa ali, quase cautelosa.\n\n— Não é da sua conta, Malfoy — retrucou Harry, embora sua voz tenha saído mais baixa do que pretendia. Ele não desviou o olhar. Pela primeira vez em anos, percebeu o quanto os olhos de Draco pareciam refletir a luz bruxa das tochas nas paredes de forma quase magnética."
+                },
+                { 
+                    title: "Capítulo 2: Segredos na Biblioteca", 
+                    body: "O silêncio da biblioteca à meia-noite era absoluto, quebrado apenas pelo leve virar de páginas antigas. Harry andava na ponta dos pés pelas seções restritas, segurando sua lanterna mágica com cuidado. De repente, uma pilha de livros despencou na fileira ao lado.\n\nQuando ele espiou pela prateleira, encontrou Draco sentado no chão, cercado por tomos de poções avançadas, com olheiras fundas e um ar visivelmente exausto.\n\n— O que você quer, Potter? Veio rir da minha cara? — Draco sussurrou asperamente, sem erguer os olhos.\n\nHarry hesitou por um segundo e, em vez de responder com grosseria, abaixou-se e ajudou a recolher um dos livros caídos, tocando levemente de raspão nos dedos gélidos do garoto loiro."
+                },
+                { 
+                    title: "Capítulo 3: Sob a Luz das Estrelas", 
+                    body: "A torre de astronomia estava fria, mas o céu limpo compensava cada rajada de vento. Estavam lado a lado na murada de pedra, observando as constelações brilharem intensamente acima de Hogwarts.\n\n— Sabe, Potter... eu nunca imaginei que as coisas terminariam assim entre nós — disse Draco com a voz incrivelmente suave, olhando diretamente para o horizonte.\n\nHarry sorriu discretamente contra o vento, sentindo o calor da proximidade de Draco desmanchar todo o gelo acumulado ao longo dos anos. Ali, sob as estrelas, o passado finalmente parecia importar menos."
+                }
+            ];
+
+            chaptersDataForPdf.forEach((chap) => {
+                doc.addPage();
+                
+                doc.setFont("Helvetica", "italic");
+                doc.setFontSize(8);
+                doc.setTextColor(140, 140, 140);
+                doc.text("Entre Sombras e Estrelas", margin, 12);
+                doc.text(chap.title, pageWidth - margin, 12, { align: "right" });
+                
+                doc.setDrawColor(220, 220, 220);
+                doc.setLineWidth(0.3);
+                doc.line(margin, 15, pageWidth - margin, 15);
+
+                doc.setFont("Helvetica", "bold");
+                doc.setFontSize(14);
+                doc.setTextColor(40, 40, 40);
+                doc.text(chap.title, margin, 26);
+
+                doc.setFont("Times", "normal");
+                doc.setFontSize(10.5);
+                doc.setTextColor(50, 50, 50);
+
+                const splitText = doc.splitTextToSize(chap.body, contentWidth);
+                
+                let cursorY = 36;
+                const pageBottomLimit = pageHeight - 20;
+
+                splitText.forEach(line => {
+                    if (cursorY > pageBottomLimit) {
+                        doc.addPage();
+                        cursorY = 20;
+                    }
+                    doc.text(line, margin, cursorY);
+                    cursorY += 6.5;
+                });
+
+                doc.setFont("Helvetica", "italic");
+                doc.setFontSize(8);
+                doc.setTextColor(150, 150, 150);
+                doc.text("Compartilhado em LoreSpace.com.br", pageWidth / 2, pageHeight - 10, { align: "center" });
+            });
+
+            doc.save("Entre_Sombras_e_Estrelas.pdf");
+        }
+
+        // --- SISTEMA DA API NATIVA DE SINTETIZAÇÃO DE VOZ ---
         let isPlaying = false;
-        let currentSeconds = 75; // Começa em 01:15
-        const totalSeconds = 760; // 12:40 total
-        let audioInterval = null;
+        let speechSynth = window.speechSynthesis;
+        let currentUtterance = null;
+        let elapsedSeconds = 0;
+        let estimatedTotalSeconds = 60; 
+        let timerInterval = null;
 
         const chaptersAudioData = [
             { 
                 title: "Capítulo 1: O Primeiro Olhar", 
-                body: `<p>O vento frio daquela noite de outono chicoteava as capas dos alunos enquanto corriam em direção ao castelo. Harry ajustou os óculos no rosto, sentindo a armação metálica gélida contra a pele. Havia algo diferente no ar este ano; um peso invisível que parecia comprimir os corredores de Hogwarts.</p><p>— Você está atrasado, Potter — uma voz arrastada ecoou nas sombras do corredor de pedra, fazendo-o parar instantaneamente.</p><p>Das penumbras, a figura alta e esguia emergiu. Os cabelos loiros platinados caíam levemente sobre a testa, e aqueles olhos cinzentos fitavam-no com uma intensidade desconcertante. Draco Malfoy não parecia estar zangado, como de costume. Havia uma curiosidade silenciosa ali, quase cautelosa.</p><p>— Não é da sua conta, Malfoy — retrucou Harry, embora sua voz tenha saído mais baixa do que pretendia. Ele não desviou o olhar. Pela primeira vez em anos, percebeu o quanto os olhos de Draco pareciam refletir a luz bruxa das tochas nas paredes de forma quase magnética.</p>`
+                body: "O vento frio daquela noite de outono chicoteava as capas dos alunos enquanto corriam em direção ao castelo. Harry ajustou os óculos no rosto, sentindo a armação metálica gélida contra a pele. Havia algo diferente no ar este ano; um peso invisível que parecia comprimir os corredores de Hogwarts. Você está atrasado, Potter — uma voz arrastada ecoou nas sombras do corredor de pedra, fazendo-o parar instantaneamente. Das penumbras, a figura alta e esguia emergiu. Os cabelos loiros platinados caíam levemente sobre a testa, e aqueles olhos cinzentos fitavam-no com uma intensidade desconcertante. Draco Malfoy não parecia estar zangado, como de costume. Havia uma curiosidade silenciosa ali, quase cautelosa. Não é da sua conta, Malfoy — retrucou Harry, embora sua voz tenha saído mais baixa do que pretendia. Ele não desviou o olhar. Pela primeira vez em anos, percebeu o quanto os olhos de Draco pareciam refletir a luz bruxa das tochas nas paredes de forma quase magnética."
             },
             { 
                 title: "Capítulo 2: Segredos na Biblioteca", 
-                body: `<p>O silêncio da biblioteca à meia-noite era absoluto, quebrado apenas pelo leve virar de páginas antigas. Harry andava na ponta dos pés pelas seções restritas, segurando sua lanterna mágica com cuidado.</p><p>De repente, uma pilha de livros despencou na fileira ao lado. Quando ele espiou pela prateleira, encontrou Draco sentado no chão, cercado por tomos de poções avançadas, com olheiras fundas e um ar visivelmente exausto.</p><p>— O que você quer, Potter? Veio rir da minha cara? — Draco sussurrou asperamente, sem erguer os olhos.</p><p>Harry hesitou por um segundo e, em vez de responder com grosseria, abaixou-se e ajudou a recolher um dos livros caídos, tocando levemente de raspão nos dedos gélidos do garoto loiro.</p>`
+                body: "O silêncio da biblioteca à meia-noite era absoluto, quebrado apenas pelo leve virar de páginas antigas. Harry andava na ponta dos pés pelas seções restritas, segurando sua lanterna mágica com cuidado. De repente, uma pilha de livros despencou na fileira ao lado. Quando ele espiou pela prateleira, encontrou Draco sentado no chão, cercado por tomos de poções avançadas, com olheiras fundas e um ar visivelmente exausto. O que você quer, Potter? Veio rir da minha cara? — Draco sussurrou asperamente, sem erguer os olhos. Harry hesitou por um segundo e, em vez de responder com grosseria, abaixou-se e ajudou a recolher um dos livros caídos, tocando levemente de raspão nos dedos gélidos do garoto loiro."
             },
             { 
                 title: "Capítulo 3: Sob a Luz das Estrelas", 
-                body: `<p>A torre de astronomia estava fria, mas o céu limpo compensava cada rajada de vento. Estavam lado a lado na murada de pedra, observando as constelações brilharem intensamente acima de Hogwarts.</p><p>— Sabe, Potter... eu nunca imaginei que as coisas terminariam assim entre nós — disse Draco com a voz incrivelmente suave, olhando diretamente para o horizonte.</p><p>Harry sorriu discretamente contra o vento, sentindo o calor da proximidade de Draco desmanchar todo o gelo acumulado ao longo dos anos. Ali, sob as estrelas, o passado finalmente parecia importar menos.</p>`
+                body: "A torre de astronomia estava fria, mas o céu limpo compensava cada rajada de vento. Estavam lado a lado na murada de pedra, observando as constelações brilharem intensamente acima de Hogwarts. Sabe, Potter... eu nunca imaginei que as coisas terminariam assim entre nós — disse Draco com a voz incrivelmente suave, olhando diretamente para o horizonte. Harry sorriu discretamente contra o vento, sentindo o calor da proximidade de Draco desmanchar todo o gelo acumulado ao longo dos anos. Ali, sob as estrelas, o passado finalmente parecia importar menos."
             }
         ];
         let currentChapterIndex = 0;
 
         function formatTime(secs) {
             const m = Math.floor(secs / 60);
-            const s = secs % 60;
+            const s = Math.floor(secs % 60);
             return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
         }
 
         function updatePlayerUI() {
-            document.getElementById('currentTimeText').innerText = formatTime(currentSeconds);
-            document.getElementById('totalTimeText').innerText = formatTime(totalSeconds);
-            const percentage = (currentSeconds / totalSeconds) * 100;
+            document.getElementById('currentTimeText').innerText = formatTime(elapsedSeconds);
+            document.getElementById('totalTimeText').innerText = formatTime(estimatedTotalSeconds);
+            const percentage = estimatedTotalSeconds > 0 ? Math.min((elapsedSeconds / estimatedTotalSeconds) * 100, 100) : 0;
             document.getElementById('spotifyProgressFill').style.width = percentage + '%';
         }
 
         function togglePlayPause() {
-            isPlaying = !isPlaying;
+            if (!speechSynth) {
+                alert("Seu navegador não suporta audiodescrição nativa.");
+                return;
+            }
+
             const icon = document.getElementById('playPauseIcon');
-            
+
             if (isPlaying) {
+                speechSynth.cancel();
+                stopAudioState();
+            } else {
+                const chap = chaptersAudioData[currentChapterIndex];
+                currentUtterance = new SpeechSynthesisUtterance(chap.body);
+                currentUtterance.lang = 'pt-BR';
+                currentUtterance.rate = 1.0;
+
+                estimatedTotalSeconds = Math.max(Math.floor(chap.body.length / 15), 10);
+                elapsedSeconds = 0;
+
+                currentUtterance.onend = function() {
+                    stopAudioState();
+                };
+
+                currentUtterance.onerror = function() {
+                    stopAudioState();
+                };
+
+                speechSynth.speak(currentUtterance);
+                isPlaying = true;
                 icon.classList.remove('fa-play');
                 icon.classList.add('fa-pause');
-                
-                audioInterval = setInterval(() => {
-                    if (currentSeconds < totalSeconds) {
-                        currentSeconds++;
+
+                clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    if (elapsedSeconds < estimatedTotalSeconds) {
+                        elapsedSeconds++;
                         updatePlayerUI();
-                    } else {
-                        isPlaying = false;
-                        icon.classList.remove('fa-pause');
-                        icon.classList.add('fa-play');
-                        clearInterval(audioInterval);
                     }
                 }, 1000);
-            } else {
-                icon.classList.remove('fa-pause');
-                icon.classList.add('fa-play');
-                clearInterval(audioInterval);
             }
         }
 
+        function stopAudioState() {
+            isPlaying = false;
+            const icon = document.getElementById('playPauseIcon');
+            if(icon) {
+                icon.classList.remove('fa-pause');
+                icon.classList.add('fa-play');
+            }
+            clearInterval(timerInterval);
+        }
+
         function skipTime(amount) {
-            currentSeconds += amount;
-            if (currentSeconds < 0) currentSeconds = 0;
-            if (currentSeconds > totalSeconds) currentSeconds = totalSeconds;
-            updatePlayerUI();
+            if (speechSynth) {
+                speechSynth.cancel();
+                stopAudioState();
+                elapsedSeconds += amount;
+                if (elapsedSeconds < 0) elapsedSeconds = 0;
+                if (elapsedSeconds > estimatedTotalSeconds) elapsedSeconds = estimatedTotalSeconds;
+                updatePlayerUI();
+            }
         }
 
         function seekAudio(event) {
             const bar = document.getElementById('spotifyProgressBar');
             const rect = bar.getBoundingClientRect();
             const clickPosition = (event.clientX - rect.left) / rect.width;
-            currentSeconds = Math.floor(clickPosition * totalSeconds);
+            elapsedSeconds = Math.floor(clickPosition * estimatedTotalSeconds);
             updatePlayerUI();
+            if(isPlaying) {
+                speechSynth.cancel();
+                stopAudioState();
+                togglePlayPause();
+            }
         }
 
         function changeChapter(direction) {
+            if (speechSynth) {
+                speechSynth.cancel();
+            }
+            stopAudioState();
+
             currentChapterIndex += direction;
             if (currentChapterIndex < 0) currentChapterIndex = chaptersAudioData.length - 1;
             if (currentChapterIndex >= chaptersAudioData.length) currentChapterIndex = 0;
@@ -980,7 +1174,6 @@
             const bodyEl = document.getElementById('mainChapterBody');
             const indicatorEl = document.getElementById('chapterIndicator');
 
-            // 1. Ativa o Skeleton Loader simulando o carregamento da página do capítulo
             titleEl.className = "chapter-title skeleton skeleton-title";
             titleEl.innerText = "";
             playerTitleEl.innerText = "Carregando...";
@@ -993,27 +1186,16 @@
                 <div class="skeleton skeleton-text" style="width: 60%;"></div>
             `;
 
-            // 2. Simula um pequeno delay de rede (700ms) para exibir o efeito skeleton e logo depois injeta o conteúdo real
             setTimeout(() => {
                 titleEl.className = "chapter-title";
                 titleEl.innerText = chap.title;
                 playerTitleEl.innerText = chap.title;
-                bodyEl.innerHTML = chap.body;
+                bodyEl.innerHTML = `<p>${chap.body}</p>`;
                 indicatorEl.innerText = `${currentChapterIndex + 1} / ${chaptersAudioData.length}`;
             }, 700);
 
-            // Reseta player ao trocar de capítulo
-            currentSeconds = 0;
+            elapsedSeconds = 0;
             updatePlayerUI();
-            if (isPlaying) {
-                clearInterval(audioInterval);
-                audioInterval = setInterval(() => {
-                    if (currentSeconds < totalSeconds) {
-                        currentSeconds++;
-                        updatePlayerUI();
-                    }
-                }, 1000);
-            }
         }
 
         function toggleShuffle() {
@@ -1026,7 +1208,6 @@
             btn.classList.toggle('active');
         }
 
-        // Inicializa contadores do player ao carregar
         updatePlayerUI();
     </script>
 
