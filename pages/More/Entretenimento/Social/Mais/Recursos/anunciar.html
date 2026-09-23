@@ -31,7 +31,7 @@
             <!-- Perfil do Usuário -->
             <div class="flex items-center gap-3">
                 <span class="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full hidden sm:inline-block">Painel do Anunciante</span>
-                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" alt="Foto de Perfil" class="w-9 h-9 rounded-full object-cover border-2 border-secondary shadow-sm">
+                <img id="user-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=MarketAds" alt="Foto de Perfil" title="Minha Conta" class="w-9 h-9 rounded-full object-cover border-2 border-secondary shadow-sm bg-violet-50">
             </div>
         </div>
     </header>
@@ -120,7 +120,7 @@
                     ></textarea>
                 </div>
 
-                <!-- PREÇO DO ANÚNCIO ACISO DO BOTÃO -->
+                <!-- PREÇO DO ANÚNCIO ACIMA DO BOTÃO -->
                 <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex justify-between items-center">
                     <div>
                         <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">Valor do Anúncio</span>
@@ -129,12 +129,24 @@
                     <span id="form-total-price" class="text-lg font-black text-secondary">R$ 50,00</span>
                 </div>
 
-                <!-- Botão de Envio -->
+                <!-- Botão de Pagamento (Bloqueado inicialmente) -->
+                <button 
+                    type="button" 
+                    id="pay-btn"
+                    disabled
+                    onclick="realizarPagamento()"
+                    class="bg-gray-300 text-gray-500 font-semibold py-3.5 rounded-xl transition duration-200 flex items-center justify-center text-sm gap-2 cursor-not-allowed opacity-60">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                    Realizar Pagamento (Preencha o formulário)
+                </button>
+
+                <!-- Botão de Envio (Bloqueado inicialmente) -->
                 <button 
                     type="submit" 
                     id="submit-btn"
-                    class="mt-2 bg-secondary hover:bg-secondaryHover text-white font-semibold py-3.5 rounded-xl transition duration-200 shadow-lg shadow-secondary/20 flex items-center justify-center text-sm">
-                    Lançar Campanha de Ads
+                    disabled
+                    class="mt-1 bg-gray-300 text-gray-500 font-semibold py-3.5 rounded-xl transition duration-200 flex items-center justify-center text-sm cursor-not-allowed opacity-60">
+                    Lançar Campanha de Ads (Aguardando Pagamento)
                 </button>
             </form>
         </div>
@@ -182,9 +194,144 @@
 
     </main>
 
-    <!-- SCRIPT DE MANIPULAÇÃO E PRÉ-VISUALIZAÇÃO -->
-    <script>
-        let publishedAds = []; // Array para guardar os anúncios cadastrados
+    <!-- SCRIPT: Nostr (perfil) + formulário de ads -->
+    <script type="module">
+        import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+
+        const RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band', 'wss://relay.primal.net'];
+        const pool = new NostrTools.SimplePool();
+
+        let currentUserData = {
+            pubkey: '',
+            privateKeyHex: '',
+            nickname: '',
+            avatarUrl: ''
+        };
+
+        const FALLBACK_AVATAR = 'https://api.dicebear.com/7.x/bottts/svg?seed=MarketAds';
+
+        function loadSessionFromNostr() {
+            try {
+                const session = localStorage.getItem('nostr_session');
+                if (!session) return;
+                const parsed = JSON.parse(session);
+                if (!parsed.pubkey) return;
+                currentUserData.pubkey = parsed.pubkey || '';
+                currentUserData.privateKeyHex = parsed.privateKeyHex || '';
+                currentUserData.nickname = (parsed.nickname || '').replace(/^@/, '');
+                currentUserData.avatarUrl = parsed.avatarUrl || '';
+            } catch (e) {
+                console.error('Erro ao carregar sessão Nostr:', e);
+            }
+        }
+
+        function updateAvatar() {
+            const img = document.getElementById('user-avatar');
+            if (!img) return;
+            const src = currentUserData.avatarUrl || FALLBACK_AVATAR;
+            const title = currentUserData.nickname
+                ? '@' + currentUserData.nickname
+                : (currentUserData.pubkey
+                    ? '@' + currentUserData.pubkey.slice(0, 10) + '…'
+                    : 'Minha Conta');
+            img.src = src;
+            img.title = title;
+            img.onerror = function () {
+                this.onerror = null;
+                this.src = FALLBACK_AVATAR;
+            };
+        }
+
+        async function fetchMyProfileFromNetwork() {
+            if (!currentUserData.pubkey) return;
+            try {
+                const events = await pool.querySync(RELAYS, {
+                    kinds: [0],
+                    authors: [currentUserData.pubkey],
+                    limit: 5
+                });
+                if (!events || !events.length) return;
+                events.sort((a, b) => b.created_at - a.created_at);
+                let data = {};
+                try {
+                    data = JSON.parse(events[0].content || '{}');
+                } catch (_) {}
+                const name = (data.display_name || data.name || '').trim().replace(/^@/, '');
+                const picture = data.picture || data.image || '';
+                if (name) currentUserData.nickname = name;
+                if (picture) currentUserData.avatarUrl = picture;
+                try {
+                    const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
+                    if (session.pubkey) {
+                        if (currentUserData.nickname) session.nickname = '@' + currentUserData.nickname;
+                        if (currentUserData.avatarUrl) session.avatarUrl = currentUserData.avatarUrl;
+                        localStorage.setItem('nostr_session', JSON.stringify(session));
+                    }
+                } catch (_) {}
+                updateAvatar();
+            } catch (e) {
+                console.error('Falha ao buscar perfil Nostr:', e);
+            }
+        }
+
+        // Inicializa perfil Nostr
+        loadSessionFromNostr();
+        updateAvatar();
+        if (currentUserData.pubkey) {
+            fetchMyProfileFromNetwork();
+        }
+
+        // --- Lógica original dos anúncios (exposta no window para onclick/onsubmit) ---
+        let publishedAds = [];
+        let pagamentoRealizado = false;
+
+        function verificarPreenchimentoFormulario() {
+            const title = document.getElementById('ad-title').value.trim();
+            const imageUrl = document.getElementById('ad-image').value.trim();
+            const desc = document.getElementById('ad-desc').value.trim();
+            const payBtn = document.getElementById('pay-btn');
+
+            if (title !== '' && imageUrl !== '' && desc !== '' && !pagamentoRealizado) {
+                payBtn.disabled = false;
+                payBtn.classList.remove('bg-gray-300', 'text-gray-500', 'cursor-not-allowed', 'opacity-60');
+                payBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700', 'text-white', 'shadow-lg', 'shadow-emerald-600/20');
+                payBtn.innerHTML = `
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                    Realizar Pagamento
+                `;
+            } else if (!pagamentoRealizado) {
+                payBtn.disabled = true;
+                payBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'text-white', 'shadow-lg', 'shadow-emerald-600/20');
+                payBtn.classList.add('bg-gray-300', 'text-gray-500', 'cursor-not-allowed', 'opacity-60');
+                payBtn.innerHTML = `
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                    Realizar Pagamento (Preencha o formulário)
+                `;
+            }
+        }
+
+        function realizarPagamento() {
+            const confirmar = confirm("Deseja simular a realização do pagamento no valor de " + document.getElementById('form-total-price').innerText + "?");
+            if (confirmar) {
+                pagamentoRealizado = true;
+                const payBtn = document.getElementById('pay-btn');
+                payBtn.innerHTML = `
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    Pagamento Aprovado!
+                `;
+                payBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700', 'shadow-emerald-600/20');
+                payBtn.classList.add('bg-green-600', 'opacity-80', 'cursor-default');
+                payBtn.disabled = true;
+
+                const submitBtn = document.getElementById('submit-btn');
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('bg-gray-300', 'text-gray-500', 'cursor-not-allowed', 'opacity-60');
+                submitBtn.classList.add('bg-secondary', 'hover:bg-secondaryHover', 'text-white', 'shadow-lg', 'shadow-secondary/20');
+                submitBtn.innerText = "Lançar Campanha de Ads";
+
+                alert('Pagamento realizado com sucesso! O botão de postar anúncio foi liberado.');
+            }
+        }
 
         function updatePreview() {
             const title = document.getElementById('ad-title').value;
@@ -192,8 +339,10 @@
             const imageUrl = document.getElementById('ad-image').value;
             const desc = document.getElementById('ad-desc').value;
 
+            verificarPreenchimentoFormulario();
+
             document.getElementById('preview-title').innerText = title || "Nome da Campanha";
-            
+
             let calculatedPrice = "50,00";
             let labelText = "Investimento para 7 dias";
 
@@ -225,7 +374,6 @@
                 previewImg.src = imageUrl;
                 previewImg.classList.remove('hidden');
                 previewPlaceholder.classList.add('hidden');
-                
                 previewImg.onerror = function() {
                     previewImg.classList.add('hidden');
                     previewPlaceholder.classList.remove('hidden');
@@ -244,14 +392,19 @@
         function publishAd(event) {
             event.preventDefault();
 
+            if (!pagamentoRealizado) {
+                alert('Você precisa realizar o pagamento antes de lançar a campanha!');
+                return;
+            }
+
             const title = document.getElementById('ad-title').value;
             const imageUrl = document.getElementById('ad-image').value;
             const adLink = document.getElementById('ad-link').value;
             const desc = document.getElementById('ad-desc').value;
             const duration = document.getElementById('ad-duration').value;
-            
+
             let price = "50,00";
-            let totalSeconds = 604800; // 7 dias padrão em segundos
+            let totalSeconds = 604800;
 
             if (duration === '7 dias') {
                 price = "50,00";
@@ -282,17 +435,24 @@
             renderPublishedAds();
 
             alert('Sucesso! Campanha de Ads lançada com sucesso!');
-            
+
             document.getElementById('ad-form').reset();
+            pagamentoRealizado = false;
+
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.classList.remove('bg-secondary', 'hover:bg-secondaryHover', 'text-white', 'shadow-lg', 'shadow-secondary/20');
+            submitBtn.classList.add('bg-gray-300', 'text-gray-500', 'cursor-not-allowed', 'opacity-60');
+            submitBtn.innerText = "Lançar Campanha de Ads (Aguardando Pagamento)";
+
             updatePreview();
         }
 
         function handleAdClick(adId) {
             const ad = publishedAds.find(a => a.id === adId);
             if (ad) {
-                ad.infoClicks++; // Incrementa as informações/cliques ao selecionar
+                ad.infoClicks++;
                 renderPublishedAds();
-                
                 if (ad.adLink) {
                     window.open(ad.adLink, '_blank');
                 }
@@ -300,14 +460,14 @@
         }
 
         function removeAd(event, adId) {
-            event.stopPropagation(); // Impede que o clique no botão acione o redirecionamento do card
+            event.stopPropagation();
             publishedAds = publishedAds.filter(a => a.id !== adId);
             renderPublishedAds();
         }
 
         function renderPublishedAds() {
             const container = document.getElementById('published-ads-container');
-            
+
             if (publishedAds.length === 0) {
                 container.innerHTML = '<p class="text-xs text-gray-400 italic">Nenhum anúncio publicado ainda.</p>';
                 return;
@@ -319,7 +479,6 @@
                 const hours = Math.floor((ad.timeLeft % (3600 * 24)) / 3600);
                 const minutes = Math.floor((ad.timeLeft % 3600) / 60);
                 const seconds = ad.timeLeft % 60;
-                
                 const timeString = `${days}d ${hours}h ${minutes}m ${seconds}s`;
                 const hasLinkClass = ad.adLink ? 'cursor-pointer hover:border-secondary transition-all' : '';
 
@@ -338,8 +497,6 @@
                                 </div>
                             </div>
                             <p class="text-xs text-gray-500 line-clamp-2 leading-relaxed">${ad.desc}</p>
-                            
-                            <!-- Estatísticas e Temporizador -->
                             <div class="bg-gray-50 border border-gray-100 rounded-xl p-3 flex flex-col gap-2">
                                 <div class="flex justify-between items-center text-[11px] text-gray-600 font-medium">
                                     <span class="flex items-center gap-1.5">
@@ -356,8 +513,6 @@
                                     <span class="font-bold text-secondary" id="timer-${ad.id}">${timeString}</span>
                                 </div>
                             </div>
-
-                            <!-- Botão de Remover Anúncio -->
                             <button onclick="removeAd(event, ${ad.id})" class="w-full mt-1 bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-2.5 rounded-xl transition duration-200 flex items-center justify-center gap-2 text-xs border border-red-100">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                 Remover Anúncio
@@ -370,7 +525,15 @@
             container.innerHTML = htmlContent;
         }
 
-        // Atualizador contínuo do temporizador e simulação leve de métricas
+        // Expõe funções usadas em atributos HTML (onclick / onsubmit / oninput)
+        window.verificarPreenchimentoFormulario = verificarPreenchimentoFormulario;
+        window.realizarPagamento = realizarPagamento;
+        window.updatePreview = updatePreview;
+        window.publishAd = publishAd;
+        window.handleAdClick = handleAdClick;
+        window.removeAd = removeAd;
+        window.renderPublishedAds = renderPublishedAds;
+
         setInterval(() => {
             if (publishedAds.length > 0) {
                 publishedAds.forEach(ad => {
@@ -390,9 +553,7 @@
             }
         }, 1000);
 
-        window.onload = function() {
-            updatePreview();
-        };
+        updatePreview();
     </script>
 </body>
 </html>
