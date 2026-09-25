@@ -23,6 +23,17 @@
     <style>
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .skeleton {
+            background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.4s ease-in-out infinite;
+            border-radius: 0.5rem;
+        }
+        @keyframes skeleton-shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
     </style>
 </head>
 <body class="bg-darkBg text-slate-800 font-sans antialiased min-h-screen flex justify-center">
@@ -40,20 +51,18 @@
                 </div>
             </div>
 
-            <div class="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-8 shadow-sm">
+            <div id="profile-card" class="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-8 shadow-sm">
                 <div class="flex items-center space-x-3.5 mb-3">
-                    <img id="user-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Recompensas" alt="Foto de perfil" title="Minha Conta" class="w-12 h-12 rounded-full object-cover border-2 border-secondary bg-violet-50">
-                    <div class="flex-1">
+                    <div class="skeleton w-12 h-12 rounded-full flex-shrink-0"></div>
+                    <div class="flex-1 space-y-2">
                         <div class="flex items-center justify-between">
-                            <h3 id="user-nickname" class="text-sm font-bold text-slate-900">@usuário</h3>
-                            <span id="user-level" class="text-xs font-bold text-secondary bg-violet-100 px-2 py-0.5 rounded-full">Nível 1</span>
+                            <div class="skeleton h-3.5 w-24"></div>
+                            <div class="skeleton h-5 w-16 rounded-full"></div>
                         </div>
-                        <p id="user-xp-label" class="text-[11px] text-slate-400 mt-0.5">0 / 1000 XP para o Nível 2</p>
+                        <div class="skeleton h-2.5 w-36"></div>
                     </div>
                 </div>
-                <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                    <div id="xp-progress-bar" class="bg-secondary h-full rounded-full transition-all duration-500" style="width: 0%;"></div>
-                </div>
+                <div class="skeleton h-2 w-full rounded-full"></div>
             </div>
 
             <div class="mb-8">
@@ -97,7 +106,6 @@
         const DEFAULT_MISSIONS = [
             { id: 'share', title: 'Compartilhar a plataforma', icon: 'fa-share-nodes', target: 1, progress: 0, xp: 100, actionLabel: 'Compartilhar', done: false, live: false },
             { id: 'posts', title: 'Postar 10 posts', icon: 'fa-pen-to-square', target: 10, progress: 0, xp: 150, actionLabel: 'Atualizar', done: false, live: true },
-            { id: 'time', title: 'Ficar 30 min na plataforma', icon: 'fa-clock', target: 30, progress: 0, xp: 120, actionLabel: 'Concluir', done: false, unit: 'min', live: false },
             { id: 'interact', title: 'Interagir com 70 posts', icon: 'fa-heart', target: 70, progress: 0, xp: 200, actionLabel: 'Atualizar', done: false, live: true }
         ];
 
@@ -116,17 +124,14 @@
             updatedAt: 0
         };
 
-        /** Garante número válido (nunca null/NaN) */
         function toNum(v, fallback) {
             const n = Number(v);
             return Number.isFinite(n) ? n : fallback;
         }
 
-        /** Normaliza xp/level após qualquer load ou merge */
         function sanitizeXpState() {
             state.xp = Math.max(0, toNum(state.xp, 0));
             state.level = Math.max(1, Math.floor(toNum(state.level, 1)));
-            // Se xp >= 1000 por dado corrompido, sobe níveis
             while (state.xp >= XP_PER_LEVEL) {
                 state.xp -= XP_PER_LEVEL;
                 state.level += 1;
@@ -154,6 +159,101 @@
             const d = new Date(dateStr + 'T12:00:00');
             d.setDate(d.getDate() + n);
             return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        /** Domingo da semana do calendário (Dia 1 = domingo, Dia 7 = sábado) */
+        function getSundayOfWeek(dateStr) {
+            const d = new Date(dateStr + 'T12:00:00');
+            const day = d.getDay(); // 0 = domingo … 6 = sábado
+            d.setDate(d.getDate() - day);
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        function skeletonProfileHtml() {
+            return `
+                <div class="flex items-center space-x-3.5 mb-3">
+                    <div class="skeleton w-12 h-12 rounded-full flex-shrink-0"></div>
+                    <div class="flex-1 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="skeleton h-3.5 w-24"></div>
+                            <div class="skeleton h-5 w-16 rounded-full"></div>
+                        </div>
+                        <div class="skeleton h-2.5 w-36"></div>
+                    </div>
+                </div>
+                <div class="skeleton h-2 w-full rounded-full"></div>
+            `;
+        }
+
+        function skeletonFrequencyHtml() {
+            let html = '';
+            for (let i = 0; i < 7; i++) {
+                html += `
+                    <div class="rounded-xl p-3.5 flex flex-col items-center justify-center min-w-[75px] flex-shrink-0 bg-slate-50 border border-slate-100">
+                        <div class="skeleton w-4 h-4 mb-1.5 rounded"></div>
+                        <div class="skeleton h-3 w-10 mb-1"></div>
+                        <div class="skeleton h-2.5 w-8"></div>
+                    </div>
+                `;
+            }
+            return html;
+        }
+
+        function skeletonMissionsHtml(count = 3) {
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                html += `
+                    <div class="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-100 rounded-2xl">
+                        <div class="flex items-center space-x-3">
+                            <div class="skeleton w-10 h-10 rounded-xl"></div>
+                            <div class="space-y-2">
+                                <div class="skeleton h-3.5 w-36"></div>
+                                <div class="skeleton h-2.5 w-16"></div>
+                            </div>
+                        </div>
+                        <div class="skeleton h-8 w-20 rounded-xl"></div>
+                    </div>
+                `;
+            }
+            return html;
+        }
+
+        function showSkeletons() {
+            const profile = document.getElementById('profile-card');
+            if (profile) profile.innerHTML = skeletonProfileHtml();
+
+            const freq = document.getElementById('frequency-days');
+            if (freq) freq.innerHTML = skeletonFrequencyHtml();
+
+            const missions = document.getElementById('missions-list');
+            if (missions) missions.innerHTML = skeletonMissionsHtml(3);
+
+            const btn = document.getElementById('claim-freq-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.className = 'w-full bg-slate-100 text-slate-400 font-semibold py-3 rounded-xl cursor-not-allowed transition';
+                btn.textContent = 'Carregando…';
+            }
+        }
+
+        function restoreProfileCardStructure() {
+            const profile = document.getElementById('profile-card');
+            if (!profile) return;
+            profile.innerHTML = `
+                <div class="flex items-center space-x-3.5 mb-3">
+                    <img id="user-avatar" src="${FALLBACK_AVATAR}" alt="Foto de perfil" title="Minha Conta" class="w-12 h-12 rounded-full object-cover border-2 border-secondary bg-violet-50">
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h3 id="user-nickname" class="text-sm font-bold text-slate-900">@usuário</h3>
+                            <span id="user-level" class="text-xs font-bold text-secondary bg-violet-100 px-2 py-0.5 rounded-full">Nível 1</span>
+                        </div>
+                        <p id="user-xp-label" class="text-[11px] text-slate-400 mt-0.5">0 / 1000 XP para o Nível 2</p>
+                    </div>
+                </div>
+                <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                    <div id="xp-progress-bar" class="bg-secondary h-full rounded-full transition-all duration-500" style="width: 0%;"></div>
+                </div>
+            `;
         }
 
         function loadSessionFromNostr() {
@@ -347,17 +447,22 @@
             if (bar) bar.style.width = Math.min(100, (xp / XP_PER_LEVEL) * 100) + '%';
         }
 
+        /** Ciclo = semana do calendário (domingo → sábado) */
         function ensureFrequencyCycle() {
             const today = todayStr();
-            if (!state.cycleStartDate || daysBetween(state.cycleStartDate, today) >= 7) {
-                state.cycleStartDate = today;
+            const weekStart = getSundayOfWeek(today);
+
+            if (!state.cycleStartDate || state.cycleStartDate !== weekStart) {
+                state.cycleStartDate = weekStart;
                 state.claimedDays = {};
                 state.missedDays = {};
                 state.lastFreqCheckDate = today;
             }
             if (!state.claimedDays || typeof state.claimedDays !== 'object') state.claimedDays = {};
             if (!state.missedDays || typeof state.missedDays !== 'object') state.missedDays = {};
-            const dayIndex = daysBetween(state.cycleStartDate, today);
+
+            // Dias anteriores da semana (antes de hoje) sem claim = perdidos
+            const dayIndex = daysBetween(state.cycleStartDate, today); // 0=dom … 6=sáb
             for (let i = 0; i < dayIndex; i++) {
                 const dayNum = String(i + 1);
                 if (!state.claimedDays[dayNum] && !state.missedDays[dayNum]) {
@@ -367,12 +472,10 @@
             state.lastFreqCheckDate = today;
         }
 
+        /** 1 = domingo, 2 = segunda, …, 7 = sábado */
         function currentCycleDay() {
-            if (!state.cycleStartDate) return 1;
-            const idx = daysBetween(state.cycleStartDate, todayStr());
-            if (idx < 0) return 1;
-            if (idx >= 7) return 7;
-            return idx + 1;
+            const d = new Date(todayStr() + 'T12:00:00');
+            return d.getDay() + 1;
         }
 
         function canClaimToday() {
@@ -381,6 +484,8 @@
             if (state.claimedDays[dayKey] || state.missedDays[dayKey]) return false;
             return true;
         }
+
+        const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
         function renderFrequency() {
             ensureFrequencyCycle();
@@ -397,6 +502,7 @@
                 const claimed = !!state.claimedDays[key];
                 const missed = !!state.missedDays[key];
                 const isToday = i === currentDay;
+                const weekday = WEEKDAY_LABELS[i - 1];
 
                 let classes = 'rounded-xl p-3.5 flex flex-col items-center justify-center min-w-[75px] flex-shrink-0 ';
                 let icon = '';
@@ -430,7 +536,7 @@
                     <div class="${classes}">
                         ${icon}
                         <span class="${xpClass}">${xp}xp</span>
-                        <span class="${dayClass}">Dia ${i}</span>
+                        <span class="${dayClass}">${weekday}</span>
                     </div>
                 `;
             }
@@ -457,7 +563,7 @@
             const hint = document.getElementById('freq-cycle-hint');
             if (hint && state.cycleStartDate) {
                 const end = addDays(state.cycleStartDate, 6);
-                hint.textContent = 'Ciclo: ' + state.cycleStartDate.slice(5) + ' → ' + end.slice(5);
+                hint.textContent = 'Semana: ' + state.cycleStartDate.slice(5) + ' → ' + end.slice(5);
             }
         }
 
@@ -472,7 +578,7 @@
             updateXpUI();
             renderFrequency();
             await persistAndSync();
-            alert('+' + xpGain + ' XP resgatados do Dia ' + day + '!');
+            alert('+' + xpGain + ' XP resgatados (' + WEEKDAY_LABELS[day - 1] + ')!');
         };
 
         function ensureMissionsDay() {
@@ -619,8 +725,6 @@
 
             if (m.id === 'share') {
                 m.progress = m.target;
-            } else if (m.id === 'time') {
-                m.progress = Math.min(m.target, toNum(m.progress, 0) + 5);
             }
 
             if (m.progress >= m.target && !m.done) {
@@ -643,8 +747,9 @@
         };
 
         async function init() {
+            showSkeletons();
+
             loadSessionFromNostr();
-            updateProfileUI();
             loadStateLocal();
             sanitizeXpState();
 
@@ -653,7 +758,6 @@
                 if (isLoggedIn()) {
                     const remote = await fetchRewardsFromNetwork();
                     if (remote && (toNum(remote.updatedAt, 0) > toNum(state.updatedAt, 0))) {
-                        // Merge seguro: nunca sobrescreve com null
                         if (remote.xp != null) state.xp = toNum(remote.xp, state.xp);
                         if (remote.level != null) state.level = toNum(remote.level, state.level);
                         sanitizeXpState();
@@ -674,12 +778,10 @@
                 }
             }
 
-            // Se a rede trouxe xp null no passado, reconstrói a partir dos claimedDays locais
             sanitizeXpState();
-            if (toNum(state.xp, 0) === 0 && state.claimedDays && Object.keys(state.claimedDays).length > 0) {
-                // Não recalcula XP antigo automaticamente (já pode ter subido de nível);
-                // só garante que não fica null na UI
-            }
+
+            restoreProfileCardStructure();
+            updateProfileUI();
 
             ensureFrequencyCycle();
             ensureMissionsDay();
