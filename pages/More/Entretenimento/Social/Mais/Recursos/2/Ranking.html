@@ -20,6 +20,22 @@
         }
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @keyframes skeleton-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.45; }
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.4s ease-in-out infinite;
+            border-radius: 0.5rem;
+        }
+        @keyframes skeleton-shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
 </head>
 <body class="bg-darkBg text-slate-800 font-sans antialiased min-h-screen flex justify-center">
 
@@ -44,7 +60,7 @@
             </div>
 
             <div id="ranking-list" class="space-y-4">
-                <p class="text-xs text-slate-400 text-center py-8">Carregando ranking da rede…</p>
+                <!-- skeleton inicial -->
             </div>
         </div>
     </div>
@@ -229,6 +245,36 @@
             return rankingRows;
         }
 
+        /** Skeleton loading — 5 itens no formato do card de ranking */
+        function skeletonHtml(count = 5) {
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                html += `
+                    <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-2xl">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 flex justify-center">
+                                <div class="skeleton w-5 h-5 rounded"></div>
+                            </div>
+                            <div class="relative">
+                                <div class="skeleton w-11 h-11 rounded-full"></div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="skeleton h-3 w-28"></div>
+                                <div class="skeleton h-2.5 w-20"></div>
+                            </div>
+                        </div>
+                        <div class="skeleton w-4 h-4 rounded"></div>
+                    </div>
+                `;
+            }
+            return html;
+        }
+
+        function showSkeleton() {
+            const list = document.getElementById('ranking-list');
+            if (list) list.innerHTML = skeletonHtml(5);
+        }
+
         function renderRanking(rows) {
             const list = document.getElementById('ranking-list');
             if (!list) return;
@@ -317,10 +363,7 @@
         }
 
         async function loadRanking() {
-            const list = document.getElementById('ranking-list');
-            if (list && activeTab === 'all') {
-                list.innerHTML = `<p class="text-xs text-slate-400 text-center py-8">Carregando ranking da rede…</p>`;
-            }
+            showSkeleton();
 
             try {
                 // Contatos e ranking em paralelo
@@ -342,6 +385,7 @@
                 renderRanking(getVisibleRows());
             } catch (e) {
                 console.error(e);
+                const list = document.getElementById('ranking-list');
                 if (list) {
                     list.innerHTML = `<p class="text-xs text-rose-400 text-center py-8">Falha ao carregar ranking. Tente novamente.</p>`;
                 }
