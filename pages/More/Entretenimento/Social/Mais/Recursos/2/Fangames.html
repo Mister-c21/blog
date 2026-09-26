@@ -154,6 +154,32 @@
         .upload-progress.show { display: block; }
         .no-results { display: none; text-align: center; padding: 40px; color: var(--text-secondary); font-size: 16px; width: 100%; }
         .mobile-bottom-nav { display: none; }
+
+        /* Skeleton loading */
+        .skeleton {
+            background: linear-gradient(90deg, #e8eaed 25%, #f1f3f4 50%, #e8eaed 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.4s ease-in-out infinite;
+            border-radius: 8px;
+        }
+        @keyframes skeleton-shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .story-card.skeleton-card {
+            background: var(--bg-main);
+            border: 1px solid var(--border-color);
+            cursor: default;
+            pointer-events: none;
+        }
+        .story-card.skeleton-card:hover { transform: none; box-shadow: none; }
+        .app-card.skeleton-card {
+            cursor: default;
+            pointer-events: none;
+            border: 1px solid var(--border-color);
+        }
+        .app-card.skeleton-card:hover { box-shadow: none; }
+
         @media (max-width: 768px) {
             aside { display: none; }
             main { margin-left: 0; width: 100%; padding: 15px 15px 85px 15px; }
@@ -214,9 +240,7 @@
             <div class="section-header">
                 <h2 class="section-title">Novos</h2>
             </div>
-            <div class="stories-container" id="storiesContainer">
-                <p style="font-size:13px;color:var(--text-secondary);padding:12px;">Carregando fangames…</p>
-            </div>
+            <div class="stories-container" id="storiesContainer"></div>
         </div>
 
         <div class="section game-section">
@@ -303,6 +327,46 @@
         let myPostedGames = [];
         let networkGames = [];
         let currentDownloadManifest = null;
+
+        /* ─── Skeleton helpers ─── */
+        function skeletonStoriesHtml(count = 6) {
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                html += `
+                    <div class="story-card skeleton-card">
+                        <div class="skeleton" style="width:42px;height:42px;border-radius:50%;"></div>
+                        <div style="display:flex;flex-direction:column;gap:6px;">
+                            <div class="skeleton" style="height:12px;width:90%;margin:0 auto;"></div>
+                            <div class="skeleton" style="height:10px;width:70%;margin:0 auto;"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            return html;
+        }
+
+        function skeletonGridHtml(count = 8) {
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                html += `
+                    <div class="app-card skeleton-card">
+                        <div class="skeleton" style="width:100%;height:140px;border-radius:16px;margin-bottom:12px;"></div>
+                        <div class="skeleton" style="height:14px;width:80%;margin-bottom:8px;"></div>
+                        <div class="skeleton" style="height:12px;width:55%;margin-bottom:12px;"></div>
+                        <div class="skeleton" style="height:12px;width:40%;margin-bottom:12px;"></div>
+                        <div class="skeleton" style="height:32px;width:100%;border-radius:18px;"></div>
+                    </div>
+                `;
+            }
+            return html;
+        }
+
+        function showSkeletons() {
+            const stories = document.getElementById('storiesContainer');
+            const grid = document.getElementById('appGrid');
+            if (stories) stories.innerHTML = skeletonStoriesHtml(6);
+            if (grid) grid.innerHTML = skeletonGridHtml(8);
+        }
 
         async function derivePageKey(privateKeyHex) {
             const enc = new TextEncoder();
@@ -1180,6 +1244,7 @@
                 const cards = section.querySelectorAll('.app-card');
                 let sectionVisibleCount = 0;
                 cards.forEach(function (card) {
+                    if (card.classList.contains('skeleton-card')) return;
                     const name = (card.getAttribute('data-name') || '').toLowerCase();
                     const category = (card.getAttribute('data-category') || '').toLowerCase();
                     if (!query || name.indexOf(query) !== -1 || category.indexOf(query) !== -1) {
@@ -1190,9 +1255,9 @@
                         card.style.display = 'none';
                     }
                 });
-                section.style.display = sectionVisibleCount === 0 ? 'none' : 'block';
+                section.style.display = sectionVisibleCount === 0 && query ? 'none' : 'block';
             });
-            noResultsDiv.style.display = totalVisible === 0 ? 'block' : 'none';
+            noResultsDiv.style.display = totalVisible === 0 && query ? 'block' : 'none';
         }
         if (searchInput) searchInput.addEventListener('input', filterGames);
         if (clearSearchBtn) {
@@ -1204,6 +1269,7 @@
         }
 
         (async function init() {
+            showSkeletons();
             loadSessionFromNostr();
             updateProfileUI();
             if (currentUserData.pubkey) await fetchMyProfileFromNetwork();
