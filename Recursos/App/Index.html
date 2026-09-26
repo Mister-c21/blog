@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LoreSpace Browser - Chromium + Tor + Nostr + LoreSpace</title>
+    <title>LoreSpace Browser - Chromium + LoreSpace</title>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -179,6 +179,7 @@
 
         /* Download Area */
         .download-box {
+            position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -194,6 +195,8 @@
             font-size: 1.125rem;
             font-weight: 600;
             text-decoration: none;
+            border: none;
+            cursor: pointer;
             animation: pulseGlow 3s infinite ease-in-out;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-flex;
@@ -207,15 +210,175 @@
             box-shadow: 0 20px 40px -5px rgba(124, 58, 237, 0.6);
         }
 
-        .download-info {
-            font-size: 0.875rem;
+        /* Botão de Fechar do Modal (padrão oculto no desktop) */
+        .modal-close-btn {
+            display: none;
+            background: var(--bg-alt);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
             color: var(--text-muted);
-            opacity: 0.8;
-            transition: opacity 0.3s ease;
+            transition: background 0.2s ease, color 0.2s ease;
         }
 
-        .download-info:hover {
+        .modal-close-btn:hover {
+            background: var(--violet-light);
+            color: var(--violet);
+        }
+
+        .modal-close-btn svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .modal-header-mobile {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-header-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* Menu Flutuante de Download Estilo Lista Típica */
+        .download-dropdown {
+            position: absolute;
+            top: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            background: var(--bg-main);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 20px 40px -10px rgba(26, 26, 36, 0.15);
+            width: 300px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+        }
+
+        .download-dropdown.active {
             opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .download-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            text-decoration: none;
+            color: var(--text-main);
+            background: transparent;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .download-option:hover {
+            background: var(--violet-light);
+            transform: translateX(4px);
+        }
+
+        .download-option svg:first-child {
+            width: 22px;
+            height: 22px;
+            fill: var(--violet);
+            flex-shrink: 0;
+        }
+
+        .download-option-info {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            flex-grow: 1;
+        }
+
+        .download-option-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .download-option:hover .download-option-title {
+            color: var(--violet);
+        }
+
+        .download-option-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Ícone de download individual em cada opção */
+        .download-action-icon {
+            width: 18px;
+            height: 18px;
+            stroke: var(--text-muted);
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            margin-left: auto;
+            flex-shrink: 0;
+            transition: stroke 0.2s ease, transform 0.2s ease;
+        }
+
+        .download-option:hover .download-action-icon {
+            stroke: var(--violet);
+            transform: translateY(2px);
+        }
+
+        /* Responsividade do Modal para Mobile */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .modal-header-mobile {
+                display: flex;
+            }
+
+            .modal-close-btn {
+                display: flex;
+            }
+
+            .download-dropdown {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                top: auto;
+                width: 100%;
+                max-width: 100%;
+                border-radius: 20px 20px 0 0;
+                transform: translateY(100%);
+                padding: 20px 16px;
+                box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.15);
+                transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, visibility 0.3s ease;
+            }
+
+            .download-dropdown.active {
+                transform: translateY(0);
+            }
         }
 
         /* Browser Mockup Preview com Flutuação */
@@ -365,13 +528,6 @@
             color: var(--text-muted);
             font-size: 0.95rem;
         }
-
-        /* Responsividade */
-        @media (max-width: 768px) {
-            .nav-links {
-                display: none;
-            }
-        }
     </style>
 </head>
 <body>
@@ -383,23 +539,64 @@
             LoreSpace Browser
         </a>
         <ul class="nav-links">
-            <li><a href="#recursos">Chromium + Tor + Nostr</a></li>
+            <li><a href="#recursos">Chromium + LoreSpace</a></li>
             <li><a href="#experiencia">Tudo em um só lugar</a></li>
         </ul>
     </header>
 
     <!-- Hero Section -->
     <section class="hero">
-        <span class="badge">Privacidade Descentralizada via Nostr & Tor</span>
-        <h1>A potência do <span>Chromium</span>, o anonimato da <span>Rede Tor</span> e o ecossistema <span>Nostr</span></h1>
-        <p>A experiência definitiva de navegação: unimos a velocidade do motor Chromium, a segurança da rede de anonimato Tor, a rede social e mensageiro descentralizados via protocolo **Nostr**, e todo o ecossistema do LoreSpace (busca, wiki, lives, streamings, notícias e jogos).</p>
+        <span class="badge">A Experiência Definitiva com LoreSpace</span>
+        <h1>A potência do <span>Chromium</span> integrada ao ecossistema <span>LoreSpace</span></h1>
+        <p>A experiência definitiva de navegação: unimos a velocidade e compatibilidade do motor Chromium com todo o ecossistema avançado do <strong>LoreSpace</strong>, incluindo busca inteligente, wiki, lives, streamings, notícias e jogos em um só lugar.</p>
         
         <div class="download-box">
-            <a href="#" class="btn-download">
+            <button class="btn-download" id="downloadBtn">
                 <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                 Baixar LoreSpace Browser
-            </a>
-            <span class="download-info">Disponível para Windows, macOS e Linux • Gratuito</span>
+            </button>
+            
+            <!-- Menu Flutuante de Opções de Download -->
+            <div class="download-dropdown" id="downloadDropdown">
+                <div class="modal-header-mobile">
+                    <span class="modal-header-title">Selecionar Plataforma</span>
+                    <button class="modal-close-btn" id="modalCloseBtn" aria-label="Fechar modal">
+                        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <a href="#" class="download-option">
+                    <svg viewBox="0 0 24 24"><path d="M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm4 2v4h4V7H7zm6 0v4h4V7h-4zM7 13v4h4v-4H7zm6 0v4h4v-4h-4z"/></svg>
+                    <div class="download-option-info">
+                        <span class="download-option-title">Windows</span>
+                        <span class="download-option-desc">Windows 10 ou superior (64-bit)</span>
+                    </div>
+                    <svg class="download-action-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </a>
+                <a href="#" class="download-option">
+                    <svg viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.19c.65-.79 1.1-1.89.98-2.99-.95.04-2.09.64-2.76 1.42-.59.68-1.11 1.79-.97 2.87 1.07.08 2.1-.53 2.75-1.3z"/></svg>
+                    <div class="download-option-info">
+                        <span class="download-option-title">Mac</span>
+                        <span class="download-option-desc">Apple Silicon & Intel (macOS 11+)</span>
+                    </div>
+                    <svg class="download-action-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </a>
+                <a href="#" class="download-option">
+                    <svg viewBox="0 0 24 24"><path d="M17.5 2h-11C5.12 2 4 3.12 4 4.5v15C4 20.88 5.12 22 6.5 22h11c1.38 0 2.5-1.12 2.5-2.5v-15C20 3.12 18.88 2 17.5 2zM12 20c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm5-4H7V5h10v11z"/></svg>
+                    <div class="download-option-info">
+                        <span class="download-option-title">Android</span>
+                        <span class="download-option-desc">Google Play & APK (Android 8.0+)</span>
+                    </div>
+                    <svg class="download-action-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </a>
+                <a href="#" class="download-option">
+                    <svg viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.19c.65-.79 1.1-1.89.98-2.99-.95.04-2.09.64-2.76 1.42-.59.68-1.11 1.79-.97 2.87 1.07.08 2.1-.53 2.75-1.3z"/></svg>
+                    <div class="download-option-info">
+                        <span class="download-option-title">iOS</span>
+                        <span class="download-option-desc">App Store (iOS 14.0+)</span>
+                    </div>
+                    <svg class="download-action-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </a>
+            </div>
         </div>
     </section>
 
@@ -412,11 +609,11 @@
                     <div class="dot dot-yellow"></div>
                     <div class="dot dot-green"></div>
                 </div>
-                <div class="browser-address-bar">loresspace.com.br [Tor Ativo 🔒 + Nostr Sync]</div>
+                <div class="browser-address-bar">loresspace.com.br [LoreSpace Ativo ✨]</div>
             </div>
             <div class="browser-body">
-                <h3>Descentralização, Privacidade e Entretenimento Total</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Navegue via Tor, interaja na rede social via Nostr e curta filmes, animes, lives e jogos em um só lugar.</p>
+                <h3>Desempenho, Produtividade e Entretenimento Total</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Navegue com velocidade máxima e curta filmes, animes, lives e jogos integrados ao ecossistema LoreSpace.</p>
             </div>
         </div>
     </div>
@@ -435,15 +632,15 @@
                 <div class="feature-icon">
                     <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                 </div>
-                <h4>Anonimato via Rede Tor</h4>
-                <p>Oculte seu endereço IP e tráfego de rede roteando suas conexões através da rede descentralizada Tor para total liberdade e privacidade contra rastreamentos.</p>
+                <h4>Ecossistema LoreSpace Integrado</h4>
+                <p>Tenha acesso direto e nativo a todas as ferramentas exclusivas do LoreSpace otimizadas para proporcionar a melhor experiência de uso diário.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">
                     <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 </div>
-                <h4>Rede Social & Mensageiro via Nostr</h4>
-                <p>Comunique-se de forma verdadeiramente resistente à censura. A rede social e o mensageiro rodam sobre o protocolo descentralizado <strong>Nostr</strong>, garantindo controle total dos seus dados e chaves criptográficas.</p>
+                <h4>Comunidade e Conexões</h4>
+                <p>Conecte-se com outros usuários e interaja de forma dinâmica através dos recursos sociais e de comunicação nativos do LoreSpace.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">
@@ -469,5 +666,30 @@
         </div>
     </section>
 
+    <script>
+        const downloadBtn = document.getElementById('downloadBtn');
+        const downloadDropdown = document.getElementById('downloadDropdown');
+        const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+        downloadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadDropdown.classList.toggle('active');
+        });
+
+        modalCloseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadDropdown.classList.remove('active');
+        });
+
+        window.addEventListener('click', () => {
+            if (downloadDropdown.classList.contains('active')) {
+                downloadDropdown.classList.remove('active');
+            }
+        });
+
+        downloadDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    </script>
 </body>
 </html>
