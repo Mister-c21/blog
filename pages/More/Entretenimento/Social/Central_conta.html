@@ -621,13 +621,13 @@
             box-shadow: none;
         }
         .profile-skeleton .fb-avatar-img {
-            display: none;
+            display: none !important;
         }
         .profile-skeleton #display-name {
-            display: none;
+            display: none !important;
         }
         .profile-skeleton .fb-user-details-list {
-            display: none;
+            display: none !important;
         }
         .profile-skeleton .skeleton-name {
             display: block;
@@ -730,18 +730,15 @@
             <div class="fb-header-content">
                 <div class="fb-profile-left profile-skeleton" id="profile-header">
                     <div class="fb-avatar-wrapper">
-                        <!-- Skeleton do avatar -->
                         <div class="skeleton skeleton-circle" style="width:100%;height:100%;" id="avatar-skeleton"></div>
                         <img src="" alt="Foto de Perfil" class="fb-avatar-img" id="display-avatar" style="display:none;">
                     </div>
                     <div class="fb-profile-info">
-                        <!-- Skeleton do nome -->
                         <div class="skeleton skeleton-name" id="name-skeleton"></div>
                         <h1 class="fb-profile-name" id="display-name" style="display:none;">
                             Carregando...
                             <i class="fa-solid fa-circle-check" style="color: #6f42c1; font-size: 18px;" title="Verificado"></i>
                         </h1>
-                        <!-- Skeleton dos detalhes -->
                         <div class="skeleton-details" id="details-skeleton">
                             <div class="skeleton skeleton-detail-item"></div>
                             <div class="skeleton skeleton-detail-item" style="width:110px;"></div>
@@ -778,7 +775,6 @@
         <div id="posts-section" class="tab-content active">
             <div class="px-3 py-3 md:px-4">
                 <div id="user-posts-container" class="divide-y divide-gray-100 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                    <!-- Skeleton loading -->
                     <div class="skeleton-post">
                         <div class="skeleton skeleton-circle" style="width:40px;height:40px;flex-shrink:0;"></div>
                         <div style="flex:1;min-width:0;">
@@ -833,14 +829,12 @@
                     <h3 class="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2">
                         <i class="fa-solid fa-lock text-secondary"></i> Credenciais vinculadas
                     </h3>
-                    <p class="text-xs text-gray-500 mb-4">Você pode visualizar e copiar a senha salva nesta sessão local.</p>
+                    <p class="text-xs text-gray-500 mb-4">Você pode visualizar e copiar a senha salva. Elas também estão na rede Nostr.</p>
                     
                     <div class="space-y-3">
                         <div class="edit-form-group">
                             <label class="text-xs">E-mail de Login</label>
-                            <div class="relative">
-                                <input type="text" id="view-email" readonly class="text-xs w-full bg-gray-50">
-                            </div>
+                            <input type="text" id="view-email" readonly class="text-xs w-full bg-gray-50">
                         </div>
                         <div class="edit-form-group">
                             <label class="text-xs">Senha vinculada</label>
@@ -860,12 +854,12 @@
                     </div>
                 </div>
 
-                <!-- Seção de Vínculo de E-mail e Senha para Login -->
+                <!-- Vincular E-mail e Senha -->
                 <div class="account-card-box">
                     <h3 class="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2">
                         <i class="fa-solid fa-key text-secondary"></i> Vincular Acesso por E-mail
                     </h3>
-                    <p class="text-xs text-gray-500 mb-4">Adicione um e-mail e uma senha para facilitar seus próximos logins sem precisar digitar chaves complexas.</p>
+                    <p class="text-xs text-gray-500 mb-4">Adicione um e-mail e uma senha. A chave privada será criptografada e salva na rede para você poder logar em qualquer dispositivo.</p>
                     
                     <form id="link-credentials-form" onsubmit="handleLinkCredentials(event)" class="space-y-3">
                         <div class="edit-form-group">
@@ -1121,7 +1115,7 @@
             if (e.target === deleteModal) closeDeleteModal();
         });
 
-        // Função para simular o vínculo do e-mail e senha na sessão local
+        // Vincular credenciais
         function handleLinkCredentials(e) {
             e.preventDefault();
             const email = document.getElementById('link-email').value.trim();
@@ -1135,15 +1129,27 @@
             try {
                 let session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
                 session.loginEmail = email;
-                session.loginPassword = password; // Em um ambiente real, deve ser feito hash ou enviado ao backend
+                session.loginPassword = password;
                 localStorage.setItem('nostr_session', JSON.stringify(session));
 
-                alert('E-mail e senha vinculados com sucesso à sua conta!');
-                document.getElementById('link-password').value = '';
-                
-                // Atualiza a visualização das credenciais
-                if (typeof window.refreshLinkedCredentials === 'function') {
-                    window.refreshLinkedCredentials();
+                if (typeof window.saveCredentialsToNostr === 'function') {
+                    window.saveCredentialsToNostr(email, password).then(ok => {
+                        if (ok) {
+                            alert('E-mail e senha vinculados com sucesso!\nA chave privada foi criptografada e salva na rede Nostr.\nVocê poderá logar em qualquer dispositivo usando e-mail + senha (+ npub recomendado).');
+                        } else {
+                            alert('Credenciais salvas localmente.\nNão foi possível publicar na rede (verifique se está logado com a chave).');
+                        }
+                        document.getElementById('link-password').value = '';
+                        if (typeof window.refreshLinkedCredentials === 'function') {
+                            window.refreshLinkedCredentials();
+                        }
+                    });
+                } else {
+                    alert('E-mail e senha vinculados com sucesso à sua conta!');
+                    document.getElementById('link-password').value = '';
+                    if (typeof window.refreshLinkedCredentials === 'function') {
+                        window.refreshLinkedCredentials();
+                    }
                 }
             } catch (err) {
                 console.error(err);
@@ -1183,7 +1189,6 @@
                     setTimeout(() => feedback.classList.add('hidden'), 2000);
                 }
             } catch {
-                // fallback
                 pwdInput.type = 'text';
                 pwdInput.select();
                 document.execCommand('copy');
@@ -1233,6 +1238,63 @@
             'explicit', 'gore', 'hentai', 'rule34', '18+', '+18'
         ];
 
+        // ==================== CRIPTOGRAFIA ====================
+        async function deriveKeyFromPassword(password, salt = 'loresocial-salt-v1') {
+            const enc = new TextEncoder();
+            const keyMaterial = await crypto.subtle.importKey(
+                'raw',
+                enc.encode(password),
+                'PBKDF2',
+                false,
+                ['deriveKey']
+            );
+            return crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: enc.encode(salt),
+                    iterations: 100000,
+                    hash: 'SHA-256'
+                },
+                keyMaterial,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        async function encryptPrivateKey(privateKeyHex, password) {
+            const key = await deriveKeyFromPassword(password);
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const enc = new TextEncoder();
+            const encrypted = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv },
+                key,
+                enc.encode(privateKeyHex)
+            );
+            const buff = new Uint8Array(iv.length + encrypted.byteLength);
+            buff.set(iv, 0);
+            buff.set(new Uint8Array(encrypted), iv.length);
+            return btoa(String.fromCharCode(...buff));
+        }
+
+        async function decryptPrivateKey(encryptedBase64, password) {
+            try {
+                const buff = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+                const iv = buff.slice(0, 12);
+                const data = buff.slice(12);
+                const key = await deriveKeyFromPassword(password);
+                const decrypted = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv },
+                    key,
+                    data
+                );
+                return new TextDecoder().decode(decrypted);
+            } catch {
+                return null;
+            }
+        }
+
+        // ==================== UTILITÁRIOS ====================
         function escapeHtml(text) {
             const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
             return String(text ?? '').replace(/[&<>"']/g, m => map[m]);
@@ -1677,6 +1739,159 @@
             }
         };
 
+        // ==================== SALVAR CREDENCIAIS NA REDE ====================
+        window.saveCredentialsToNostr = async function(email, password) {
+            if (!currentUserData.privateKey || !currentUserData.pubkey) {
+                console.warn('Sem chave privada – credenciais só salvas localmente');
+                return false;
+            }
+
+            const session = getSession();
+            const privateKeyHex = session.privateKeyHex;
+            if (!privateKeyHex) {
+                alert('Chave privada não encontrada na sessão.');
+                return false;
+            }
+
+            let encryptedSk;
+            try {
+                encryptedSk = await encryptPrivateKey(privateKeyHex, password);
+            } catch (err) {
+                console.error('Erro ao criptografar chave:', err);
+                alert('Erro ao proteger a chave privada.');
+                return false;
+            }
+
+            const existing = profileCache.get(currentUserData.pubkey) || {};
+
+            const metadata = {
+                name: existing.name || (session.nickname || 'anonimo').replace(/^@/, ''),
+                display_name: existing.name || existing.display_name || '',
+                picture: existing.picture || session.avatarUrl || currentUserData.avatarUrl || '',
+                about: existing.about || session.about || '',
+                gender: existing.gender || '',
+                status: existing.status || '',
+                nationality: existing.nationality || '',
+                location: existing.location || '',
+                education: existing.education || '',
+                login_email: email || '',
+                encrypted_private_key: encryptedSk
+            };
+
+            const eventTemplate = {
+                kind: 0,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [],
+                content: JSON.stringify(metadata)
+            };
+
+            try {
+                const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
+                await Promise.any(pool.publish(RELAYS, signedEvent));
+
+                profileCache.set(currentUserData.pubkey, { ...existing, ...metadata });
+
+                session.loginEmail = email;
+                session.loginPassword = password;
+                localStorage.setItem('nostr_session', JSON.stringify(session));
+
+                return true;
+            } catch (err) {
+                console.error('Erro ao salvar credenciais na rede:', err);
+                return false;
+            }
+        };
+
+        // ==================== LOGIN COM E-MAIL + SENHA ====================
+        window.loginWithCredentials = async function(email, password, npubOrUsername = '') {
+            if (!email || !password) {
+                alert('Preencha e-mail e senha.');
+                return false;
+            }
+
+            let targetPubkey = null;
+
+            if (npubOrUsername) {
+                const value = npubOrUsername.trim().replace(/^@/, '');
+                if (value.startsWith('npub')) {
+                    try {
+                        const decoded = NostrTools.nip19.decode(value);
+                        if (decoded.type === 'npub') targetPubkey = decoded.data;
+                    } catch {}
+                }
+            }
+
+            if (!targetPubkey && currentUserData.pubkey) {
+                targetPubkey = currentUserData.pubkey;
+            }
+
+            if (!targetPubkey) {
+                alert('Para logar só com e-mail e senha em um dispositivo novo, informe também seu npub.\n\nIsso é necessário porque a rede Nostr não permite busca global por e-mail de forma segura.');
+                return false;
+            }
+
+            try {
+                const events = await pool.querySync(RELAYS, {
+                    kinds: [0],
+                    authors: [targetPubkey],
+                    limit: 5
+                });
+
+                if (!events || !events.length) {
+                    alert('Perfil não encontrado nos relays.');
+                    return false;
+                }
+
+                events.sort((a, b) => b.created_at - a.created_at);
+                const profile = JSON.parse(events[0].content || '{}');
+
+                if (profile.login_email !== email) {
+                    alert('E-mail não confere com o cadastrado nesta conta.');
+                    return false;
+                }
+
+                if (!profile.encrypted_private_key) {
+                    alert('Esta conta ainda não tem chave protegida por senha. Vincule as credenciais primeiro.');
+                    return false;
+                }
+
+                const privateKeyHex = await decryptPrivateKey(profile.encrypted_private_key, password);
+                if (!privateKeyHex) {
+                    alert('Senha incorreta.');
+                    return false;
+                }
+
+                const sk = hexToBytes(privateKeyHex);
+                const pubkey = NostrTools.getPublicKey(sk);
+
+                const session = {
+                    pubkey,
+                    privateKeyHex,
+                    nickname: profile.name ? '@' + profile.name : '@usuario',
+                    avatarUrl: profile.picture || '',
+                    loginEmail: email,
+                    loginPassword: password
+                };
+
+                localStorage.setItem('nostr_session', JSON.stringify(session));
+                localStorage.setItem('isLoggedIn', 'true');
+
+                currentUserData.pubkey = pubkey;
+                currentUserData.privateKey = sk;
+                currentUserData.nickname = session.nickname;
+                currentUserData.avatarUrl = session.avatarUrl;
+
+                alert('Login realizado com sucesso!');
+                window.location.href = window.location.pathname;
+                return true;
+
+            } catch (err) {
+                console.error('Erro no login com credenciais:', err);
+                alert('Erro ao tentar logar. Tente novamente.');
+                return false;
+            }
+        };
+
         async function fetchProfiles(pubkeys) {
             const missing = pubkeys.filter(pk => pk && !profileCache.has(pk));
             if (!missing.length) return;
@@ -1702,7 +1917,9 @@
                             status: data.status || data.relationship || '',
                             nationality: data.nationality || data.country || '',
                             location: data.location || data.city || '',
-                            education: data.education || ''
+                            education: data.education || '',
+                            login_email: data.login_email || '',
+                            encrypted_private_key: data.encrypted_private_key || ''
                         });
                     } catch {
                         profileCache.set(pubkey, { name: '', picture: '', about: '' });
@@ -1797,7 +2014,26 @@
                 if (opt) inputStatusEl.value = opt.value;
             }
 
-            // Remove skeleton após aplicar os dados
+            // Sincroniza credenciais da rede para o localStorage
+            const networkEmail = data.login_email || data.loginEmail || '';
+            if (networkEmail) {
+                try {
+                    const session = getSession();
+                    // A senha em texto só existe localmente (por segurança não vem da rede)
+                    // Mas se já tiver a senha local e o e-mail bater, mantém
+                    if (session.loginEmail !== networkEmail) {
+                        session.loginEmail = networkEmail;
+                        // Mantém a senha local se existir
+                        localStorage.setItem('nostr_session', JSON.stringify(session));
+                    }
+                    if (typeof window.refreshLinkedCredentials === 'function') {
+                        window.refreshLinkedCredentials();
+                    }
+                } catch (e) {
+                    console.warn('Erro ao sincronizar credenciais da rede:', e);
+                }
+            }
+
             hideProfileSkeleton();
         }
 
@@ -1823,7 +2059,10 @@
                 status: formData.status || '',
                 nationality: formData.nationality || '',
                 location: formData.location || '',
-                education: formData.education || ''
+                education: formData.education || '',
+                // Preserva credenciais
+                login_email: existing.login_email || session.loginEmail || '',
+                encrypted_private_key: existing.encrypted_private_key || ''
             };
 
             const eventTemplate = {
@@ -1846,7 +2085,9 @@
                     status: metadata.status,
                     nationality: metadata.nationality,
                     location: metadata.location,
-                    education: metadata.education
+                    education: metadata.education,
+                    login_email: metadata.login_email,
+                    encrypted_private_key: metadata.encrypted_private_key
                 });
 
                 const nextSession = { ...session };
@@ -2417,7 +2658,6 @@
             const session = getSession();
             const container = document.getElementById('user-posts-container');
 
-            // Já mostra credenciais se existirem
             window.refreshLinkedCredentials();
 
             if (!pubkey) {
@@ -2454,7 +2694,9 @@
                             status: profileData.status || profileData.relationship || '',
                             nationality: profileData.nationality || profileData.country || '',
                             location: profileData.location || profileData.city || '',
-                            education: profileData.education || ''
+                            education: profileData.education || '',
+                            login_email: profileData.login_email || '',
+                            encrypted_private_key: profileData.encrypted_private_key || ''
                         });
                     } catch {}
                 }
@@ -2475,7 +2717,6 @@
                 }
             } catch (e) {
                 console.error('Erro ao carregar dados:', e);
-                // Mesmo em erro, remove o skeleton
                 hideProfileSkeleton();
                 if (container) {
                     container.innerHTML = `
