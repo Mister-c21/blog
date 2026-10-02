@@ -374,7 +374,7 @@
                     <i class="fa-solid fa-xmark text-sm"></i>
                 </button>
             </div>
-            <div id="allPostsModalList" class="p-4 overflow-y-auto space-y-3 flex-1 divide-y divide-gray-100"></div>
+            <div id="allPostsModalList" class="overflow-y-auto flex-1 divide-y divide-gray-100"></div>
         </div>
     </div>
 
@@ -620,7 +620,6 @@
             }
         }
 
-        // Salva credenciais criptografadas na rede (kind 30078 + NIP-04 para si mesmo)
         window.saveCredentialsToNostr = async function(email, password) {
             if (!currentUserData.privateKey || !currentUserData.pubkey) return false;
             try {
@@ -633,10 +632,7 @@
                 const eventTemplate = {
                     kind: 30078,
                     created_at: Math.floor(Date.now() / 1000),
-                    tags: [
-                        ['d', CREDENTIALS_D_TAG],
-                        ['client', 'loresocial']
-                    ],
+                    tags: [['d', CREDENTIALS_D_TAG], ['client', 'loresocial']],
                     content: ciphertext
                 };
                 const signedEvent = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
@@ -648,7 +644,6 @@
             }
         };
 
-        // Puxa credenciais da rede Nostr
         async function loadCredentialsFromNostr(pubkey) {
             if (!pubkey || !currentUserData.privateKey) return null;
             try {
@@ -680,59 +675,6 @@
             }
             return null;
         }
-
-        // Modal: todos os posts em ordem cronológica
-        window.openAllPostsModal = function() {
-            const modal = document.getElementById('allPostsModal');
-            const content = document.getElementById('allPostsModalContent');
-            const list = document.getElementById('allPostsModalList');
-            if (!modal || !list) return;
-
-            const posts = (myPostsCache || [])
-                .filter(ev => {
-                    if (!currentUserData.pubkey) return false;
-                    if (ev.pubkey.toLowerCase() !== currentUserData.pubkey.toLowerCase()) return false;
-                    if (!isPublicReadablePost(ev)) return false;
-                    return true;
-                })
-                .sort((a, b) => b.created_at - a.created_at);
-
-            if (!posts.length) {
-                list.innerHTML = `<div class="text-center py-8 text-xs text-gray-400">Nenhum post encontrado.</div>`;
-            } else {
-                list.innerHTML = posts.map(ev => {
-                    const timeAgo = new Date(ev.created_at * 1000).toLocaleString('pt-BR');
-                    const { cleanContent } = extractMediaAndCleanText(ev);
-                    const preview = (cleanContent || '(sem texto)').slice(0, 280);
-                    const more = (cleanContent || '').length > 280 ? '…' : '';
-                    return `
-                    <div class="py-3">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-[11px] text-gray-400">${escapeHtml(timeAgo)}</span>
-                            <span class="text-[10px] text-gray-300 font-mono">${escapeHtml(ev.id.slice(0, 8))}…</span>
-                        </div>
-                        <p class="text-xs text-gray-800 whitespace-pre-wrap break-words leading-relaxed">${escapeHtml(preview)}${more}</p>
-                    </div>`;
-                }).join('');
-            }
-
-            modal.classList.remove('pointer-events-none', 'opacity-0');
-            modal.classList.add('opacity-100');
-            content.classList.remove('translate-y-full');
-        };
-
-        window.closeAllPostsModal = function() {
-            const modal = document.getElementById('allPostsModal');
-            const content = document.getElementById('allPostsModalContent');
-            if (!modal || !content) return;
-            modal.classList.remove('opacity-100');
-            modal.classList.add('opacity-0', 'pointer-events-none');
-            content.classList.add('translate-y-full');
-        };
-
-        document.getElementById('allPostsModal')?.addEventListener('click', (e) => {
-            if (e.target === document.getElementById('allPostsModal')) closeAllPostsModal();
-        });
 
         function linkifyAndEscape(text) {
             const escaped = escapeHtml(text);
@@ -1109,6 +1051,141 @@
             }
         }
 
+        // Card de post compartilhado (lista + modal)
+        function buildMyPostCardHtml(ev, { idPrefix = '' } = {}) {
+            if (!currentUserData.pubkey) return '';
+            if (ev.pubkey.toLowerCase() !== currentUserData.pubkey.toLowerCase()) return '';
+            if (!isPublicReadablePost(ev)) return '';
+            if (isLinkOnlyPost(ev)) return '';
+
+            const p = profileCache.get(currentUserData.pubkey) || {};
+            const displayNameStr = p.name ? '@' + p.name : (currentUserData.nickname || '@usuario');
+            const authorPicture = getProfilePicture(currentUserData.pubkey) || currentUserData.avatarUrl || '';
+
+            const isSensitive = isExplicitEvent(ev);
+            const timeAgo = new Date(ev.created_at * 1000).toLocaleDateString('pt-BR');
+            const likesSet = postLikesCache.get(ev.id) || new Set();
+            const likesCount = likesSet.size;
+            const isLikedByMe = userLikesMap.get(ev.id) || false;
+            const { cleanContent, mediaHtml } = extractMediaAndCleanText(ev);
+
+            let textSectionHtml = '';
+            if (cleanContent) {
+                const limit = 300;
+                const linkedContent = linkifyAndEscape(cleanContent);
+                if (cleanContent.length > limit) {
+                    const shortContent = linkifyAndEscape(cleanContent.substring(0, limit) + '...');
+                    textSectionHtml = `
+                        <div class="post-content-container mb-2">
+                            <p class="post-text-short text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">${shortContent}</p>
+                            <p class="post-text-full text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed hidden">${linkedContent}</p>
+                            <button onclick="toggleReadMore(this)" class="text-xs font-semibold text-secondary mt-1 hover:underline focus:outline-none">Ler mais</button>
+                        </div>`;
+                } else {
+                    textSectionHtml = `<p class="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-2">${linkedContent}</p>`;
+                }
+            }
+
+            const avatarHtml = authorPicture
+                ? `<img src="${escapeHtml(authorPicture)}" class="w-full h-full object-cover" alt="Avatar" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');">
+                   <i class="fa-solid fa-user hidden"></i>`
+                : `<i class="fa-solid fa-user"></i>`;
+
+            const warningBadge = (safeMode && isSensitive)
+                ? `<div class="mb-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+                    <i class="fa-solid fa-shield-halved"></i> Conteúdo sensível protegido
+                   </div>`
+                : '';
+
+            const likeBtnClass = isLikedByMe
+                ? 'flex items-center gap-1.5 text-red-500 transition'
+                : 'flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition';
+            const likeIconClass = isLikedByMe ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+            const escapedContentForShare = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const escapedContentForTranslate = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+            const likeBtnId = `${idPrefix}like-btn-${ev.id}`;
+            const likeCountId = `${idPrefix}like-count-${ev.id}`;
+            const commentCountId = `${idPrefix}comment-count-${ev.id}`;
+            const translationId = `${idPrefix}translation-${ev.id}`;
+
+            return `
+            <div class="p-4 hover:bg-gray-50/60 transition duration-150">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary font-bold overflow-hidden relative">
+                        ${avatarHtml}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="font-bold text-sm text-gray-900 font-mono">${escapeHtml(displayNameStr)}</span>
+                                <span class="text-xs text-gray-400">·</span>
+                                <span class="text-xs text-gray-400">${timeAgo}</span>
+                                <button onclick="translatePostText('${ev.id}', '${escapedContentForTranslate}', '${idPrefix}')" class="text-[11px] text-secondary hover:underline font-medium ml-1">Traduzir</button>
+                            </div>
+                        </div>
+                        ${warningBadge}
+                        ${textSectionHtml}
+                        <div id="${translationId}" class="hidden mb-2"></div>
+                        ${mediaHtml}
+                        <div class="flex items-center justify-between text-gray-400 text-xs max-w-sm pt-3 gap-2 flex-wrap">
+                            <button onclick="openCommentsModal('${ev.id}', '${ev.pubkey}')" class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-regular fa-comment"></i><span id="${commentCountId}">0</span></button>
+                            <div class="flex items-center gap-2">
+                                <button id="${likeBtnId}" onclick="toggleLikePost('${ev.id}', '${ev.pubkey}')" class="${likeBtnClass}"><i class="${likeIconClass}"></i><span id="${likeCountId}">${likesCount}</span></button>
+                                <button onclick="openLikesModal('${ev.id}')" class="text-[11px] text-gray-400 hover:underline" title="Ver quem curtiu">(ver)</button>
+                            </div>
+                            <button onclick="sharePost('${ev.id}', '${escapedContentForShare}')" class="flex items-center gap-1.5 hover:text-secondary transition" title="Compartilhar post">
+                                <i class="fa-solid fa-share-nodes"></i>
+                            </button>
+                            <button type="button" onclick="deleteMyPost('${ev.id}')" class="flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition" title="Excluir post">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        window.openAllPostsModal = function() {
+            const modal = document.getElementById('allPostsModal');
+            const content = document.getElementById('allPostsModalContent');
+            const list = document.getElementById('allPostsModalList');
+            if (!modal || !list) return;
+
+            const posts = (myPostsCache || [])
+                .filter(ev => {
+                    if (!currentUserData.pubkey) return false;
+                    if (ev.pubkey.toLowerCase() !== currentUserData.pubkey.toLowerCase()) return false;
+                    if (!isPublicReadablePost(ev)) return false;
+                    if (isLinkOnlyPost(ev)) return false;
+                    return true;
+                })
+                .sort((a, b) => b.created_at - a.created_at);
+
+            if (!posts.length) {
+                list.innerHTML = `<div class="p-6 text-center text-xs text-gray-400">Nenhum post encontrado.</div>`;
+            } else {
+                list.innerHTML = posts.map(ev => buildMyPostCardHtml(ev, { idPrefix: 'all-' })).join('');
+            }
+
+            modal.classList.remove('pointer-events-none', 'opacity-0');
+            modal.classList.add('opacity-100');
+            content.classList.remove('translate-y-full');
+        };
+
+        window.closeAllPostsModal = function() {
+            const modal = document.getElementById('allPostsModal');
+            const content = document.getElementById('allPostsModalContent');
+            if (!modal || !content) return;
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            content.classList.add('translate-y-full');
+        };
+
+        document.getElementById('allPostsModal')?.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('allPostsModal')) closeAllPostsModal();
+        });
+
         window.saveProfileToNostr = async function(formData) {
             if (!currentUserData.privateKey) { alert('Faça login com sua chave Nostr no Social para salvar o perfil na rede.'); return false; }
             if (!currentUserData.pubkey) { alert('Sessão inválida. Entre novamente no Social.'); return false; }
@@ -1220,76 +1297,31 @@
         function renderMyPostsOnly() {
             const container = document.getElementById('user-posts-container');
             if (!container) return;
+
             if (!myPostsCache.length) {
-                container.innerHTML = `<div class="p-6 text-center space-y-2"><i class="fa-solid fa-pen-to-square text-3xl text-gray-300 mb-1"></i><h3 class="font-bold text-sm text-gray-900">Seus posts</h3><p class="text-xs text-gray-500">As publicações que você fez aparecerão nesta aba.</p></div>`;
+                container.innerHTML = `
+                    <div class="p-6 text-center space-y-2">
+                        <i class="fa-solid fa-pen-to-square text-3xl text-gray-300 mb-1"></i>
+                        <h3 class="font-bold text-sm text-gray-900">Seus posts</h3>
+                        <p class="text-xs text-gray-500">As publicações que você fez aparecerão nesta aba.</p>
+                    </div>`;
                 return;
             }
-            const p = profileCache.get(currentUserData.pubkey) || {};
-            const displayNameStr = p.name ? '@' + p.name : (currentUserData.nickname || '@usuario');
-            const authorPicture = getProfilePicture(currentUserData.pubkey) || currentUserData.avatarUrl || '';
-            let html = ''; let count = 0;
+
+            let html = '';
+            let count = 0;
             myPostsCache.forEach(ev => {
-                if (ev.pubkey.toLowerCase() !== currentUserData.pubkey.toLowerCase()) return;
-                if (!isPublicReadablePost(ev)) return;
-                if (isLinkOnlyPost(ev)) return;
-                const isSensitive = isExplicitEvent(ev);
-                const timeAgo = new Date(ev.created_at * 1000).toLocaleDateString('pt-BR');
-                const likesSet = postLikesCache.get(ev.id) || new Set();
-                const likesCount = likesSet.size;
-                const isLikedByMe = userLikesMap.get(ev.id) || false;
-                const { cleanContent, mediaHtml } = extractMediaAndCleanText(ev);
-                let textSectionHtml = '';
-                if (cleanContent) {
-                    const limit = 300;
-                    const linkedContent = linkifyAndEscape(cleanContent);
-                    if (cleanContent.length > limit) {
-                        const shortContent = linkifyAndEscape(cleanContent.substring(0, limit) + '...');
-                        textSectionHtml = `<div class="post-content-container mb-2">
-                            <p class="post-text-short text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">${shortContent}</p>
-                            <p class="post-text-full text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed hidden">${linkedContent}</p>
-                            <button onclick="toggleReadMore(this)" class="text-xs font-semibold text-secondary mt-1 hover:underline focus:outline-none">Ler mais</button></div>`;
-                    } else {
-                        textSectionHtml = `<p class="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-2">${linkedContent}</p>`;
-                    }
-                }
-                const avatarHtml = authorPicture
-                    ? `<img src="${escapeHtml(authorPicture)}" class="w-full h-full object-cover" alt="Avatar" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');"><i class="fa-solid fa-user hidden"></i>`
-                    : `<i class="fa-solid fa-user"></i>`;
-                const warningBadge = (safeMode && isSensitive)
-                    ? `<div class="mb-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full"><i class="fa-solid fa-shield-halved"></i> Conteúdo sensível protegido</div>` : '';
-                const likeBtnClass = isLikedByMe ? 'flex items-center gap-1.5 text-red-500 transition' : 'flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition';
-                const likeIconClass = isLikedByMe ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
-                const escapedContentForShare = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                const escapedContentForTranslate = (cleanContent || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                html += `<div class="p-4 hover:bg-gray-50/60 transition duration-150">
-                    <div class="flex items-start gap-3">
-                        <div class="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-secondary font-bold overflow-hidden relative">${avatarHtml}</div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between mb-1">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    <span class="font-bold text-sm text-gray-900 font-mono">${escapeHtml(displayNameStr)}</span>
-                                    <span class="text-xs text-gray-400">·</span>
-                                    <span class="text-xs text-gray-400">${timeAgo}</span>
-                                    <button onclick="translatePostText('${ev.id}', '${escapedContentForTranslate}')" class="text-[11px] text-secondary hover:underline font-medium ml-1">Traduzir</button>
-                                </div>
-                            </div>
-                            ${warningBadge}${textSectionHtml}
-                            <div id="translation-${ev.id}" class="hidden mb-2"></div>${mediaHtml}
-                            <div class="flex items-center justify-between text-gray-400 text-xs max-w-sm pt-3 gap-2 flex-wrap">
-                                <button onclick="openCommentsModal('${ev.id}', '${ev.pubkey}')" class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-regular fa-comment"></i><span id="comment-count-${ev.id}">0</span></button>
-                                <div class="flex items-center gap-2">
-                                    <button id="like-btn-${ev.id}" onclick="toggleLikePost('${ev.id}', '${ev.pubkey}')" class="${likeBtnClass}"><i class="${likeIconClass}"></i><span id="like-count-${ev.id}">${likesCount}</span></button>
-                                    <button onclick="openLikesModal('${ev.id}')" class="text-[11px] text-gray-400 hover:underline" title="Ver quem curtiu">(ver)</button>
-                                </div>
-                                <button onclick="sharePost('${ev.id}', '${escapedContentForShare}')" class="flex items-center gap-1.5 hover:text-secondary transition"><i class="fa-solid fa-share-nodes"></i></button>
-                                <button type="button" onclick="deleteMyPost('${ev.id}')" class="flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition"><i class="fa-regular fa-trash-can"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-                count++;
+                const card = buildMyPostCardHtml(ev);
+                if (card) { html += card; count++; }
             });
-            container.innerHTML = count > 0 ? html : `<div class="p-6 text-center space-y-2"><i class="fa-solid fa-pen-to-square text-3xl text-gray-300 mb-1"></i><h3 class="font-bold text-sm text-gray-900">Seus posts</h3><p class="text-xs text-gray-500">Nenhuma publicação pública encontrada.</p></div>`;
+
+            container.innerHTML = count > 0
+                ? html
+                : `<div class="p-6 text-center space-y-2">
+                    <i class="fa-solid fa-pen-to-square text-3xl text-gray-300 mb-1"></i>
+                    <h3 class="font-bold text-sm text-gray-900">Seus posts</h3>
+                    <p class="text-xs text-gray-500">Nenhuma publicação pública encontrada.</p>
+                   </div>`;
         }
 
         window.deleteMyPost = async function(postId) {
@@ -1307,6 +1339,10 @@
                 myPostsCache = myPostsCache.filter(p => p.id !== postId);
                 postLikesCache.delete(postId); userLikesMap.delete(postId);
                 renderMyPostsOnly();
+                const list = document.getElementById('allPostsModalList');
+                if (list && !document.getElementById('allPostsModal')?.classList.contains('pointer-events-none')) {
+                    openAllPostsModal();
+                }
                 alert('Solicitação de exclusão enviada aos relays.');
             } catch (err) {
                 console.error('Erro ao excluir post:', err);
@@ -1314,12 +1350,19 @@
             }
         };
 
-        window.translatePostText = async function(postId, textToTranslate) {
-            const translationContainer = document.getElementById(`translation-${postId}`);
+        window.translatePostText = async function(postId, textToTranslate, idPrefix = '') {
+            const translationContainer = document.getElementById(`${idPrefix}translation-${postId}`);
             if (!translationContainer) return;
-            if (!translationContainer.classList.contains('hidden')) { translationContainer.classList.add('hidden'); return; }
+            if (!translationContainer.classList.contains('hidden')) {
+                translationContainer.classList.add('hidden');
+                return;
+            }
             const text = String(textToTranslate || '').trim();
-            if (!text) { translationContainer.innerHTML = `<span class="text-xs text-gray-400">Nada para traduzir.</span>`; translationContainer.classList.remove('hidden'); return; }
+            if (!text) {
+                translationContainer.innerHTML = `<span class="text-xs text-gray-400">Nada para traduzir.</span>`;
+                translationContainer.classList.remove('hidden');
+                return;
+            }
             translationContainer.innerHTML = `<span class="text-xs text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i> Traduzindo...</span>`;
             translationContainer.classList.remove('hidden');
             try {
@@ -1328,7 +1371,11 @@
                 const data = await response.json();
                 const translated = data?.responseData?.translatedText;
                 if (!translated) throw new Error('sem tradução');
-                translationContainer.innerHTML = `<div class="mt-2 p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-700"><span class="font-semibold text-[10px] text-secondary block mb-1">Tradução automática:</span>${escapeHtml(translated)}</div>`;
+                translationContainer.innerHTML = `
+                    <div class="mt-2 p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-700">
+                        <span class="font-semibold text-[10px] text-secondary block mb-1">Tradução automática:</span>
+                        ${escapeHtml(translated)}
+                    </div>`;
             } catch {
                 translationContainer.innerHTML = `<span class="text-xs text-red-500">Não foi possível traduzir no momento.</span>`;
             }
@@ -1358,13 +1405,22 @@
         };
 
         function updateLikeButtonUI(postId, isLiked, count) {
-            const btn = document.getElementById(`like-btn-${postId}`);
-            const countSpan = document.getElementById(`like-count-${postId}`);
-            if (countSpan) countSpan.innerText = count;
-            if (btn) {
-                if (isLiked) { btn.className = 'flex items-center gap-1.5 text-red-500 transition'; btn.querySelector('i').className = 'fa-solid fa-heart'; }
-                else { btn.className = 'flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition'; btn.querySelector('i').className = 'fa-regular fa-heart'; }
-            }
+            ['', 'all-'].forEach(prefix => {
+                const btn = document.getElementById(`${prefix}like-btn-${postId}`);
+                const countSpan = document.getElementById(`${prefix}like-count-${postId}`);
+                if (countSpan) countSpan.innerText = count;
+                if (btn) {
+                    if (isLiked) {
+                        btn.className = 'flex items-center gap-1.5 text-red-500 transition';
+                        const icon = btn.querySelector('i');
+                        if (icon) icon.className = 'fa-solid fa-heart';
+                    } else {
+                        btn.className = 'flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition';
+                        const icon = btn.querySelector('i');
+                        if (icon) icon.className = 'fa-regular fa-heart';
+                    }
+                }
+            });
         }
 
         window.sharePost = async function(postId, postContent) {
@@ -1425,6 +1481,8 @@
                 }).join('');
                 const countSpan = document.getElementById(`comment-count-${postId}`);
                 if (countSpan) countSpan.innerText = filtered.length;
+                const countSpanAll = document.getElementById(`all-comment-count-${postId}`);
+                if (countSpanAll) countSpanAll.innerText = filtered.length;
             } catch (e) {
                 console.error(e);
                 listContainer.innerHTML = `<div class="text-center py-6 text-xs text-red-400">Erro ao carregar comentários.</div>`;
@@ -1485,12 +1543,10 @@
             const session = getSession();
             const container = document.getElementById('user-posts-container');
 
-            // 1) Cache local imediato
             if (session.loginEmail || session.loginPassword) {
                 applyCredentialsToForm(session.loginEmail || '', session.loginPassword || '');
             }
 
-            // 2) Puxa da rede (sobrescreve se existir)
             if (pubkey && currentUserData.privateKey) {
                 const netCreds = await loadCredentialsFromNostr(pubkey);
                 if (netCreds) {
