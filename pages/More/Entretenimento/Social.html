@@ -312,17 +312,62 @@
  <button type="button" id="toggleAuthPassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="fa-solid fa-eye"></i></button>
  </div>
  </div>
- <p class="text-[11 px] text-gray-400">Use o e-mail e senha vinculados na <strong>Central da conta</strong> neste dispositivo.</p>
+ <div class="space-y-1">
+ <label class="text-xs font-semibold">npub <span class="text-gray-400 font-normal">(recomendado em dispositivo novo)</span></label>
+ <input type="text" id="authNpubInput" placeholder="npub1..." class="w-full text-xs px-3.5 py-3 bg-gray-50 border rounded-xl outline-none focus:border-secondary">
+ </div>
+ <p class="text-[11px] text-gray-400">Use o e-mail e senha vinculados na <strong>Central da conta</strong>. Em outro dispositivo, informe também o npub.</p>
  </div>
  </div>
  <button type="submit" id="authSubmitBtn" class="w-full py-3 bg-secondary text-white rounded-xl text-xs font-bold">Entrar na Conta</button>
  </form>
  </div>
 </div>
- 
- <script type="module">
+
+<script type="module">
 import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
 import { bytesToHex, hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+
+// ==================== CRIPTOGRAFIA (login por senha na rede) ====================
+async function deriveKeyFromPassword(password, salt = 'loresocial-salt-v1') {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        enc.encode(password),
+        'PBKDF2',
+        false,
+        ['deriveKey']
+    );
+    return crypto.subtle.deriveKey(
+        {
+            name: 'PBKDF2',
+            salt: enc.encode(salt),
+            iterations: 100000,
+            hash: 'SHA-256'
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
+
+async function decryptPrivateKey(encryptedBase64, password) {
+    try {
+        const buff = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+        const iv = buff.slice(0, 12);
+        const data = buff.slice(12);
+        const key = await deriveKeyFromPassword(password);
+        const decrypted = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv },
+            key,
+            data
+        );
+        return new TextDecoder().decode(decrypted);
+    } catch {
+        return null;
+    }
+}
 
 let currentAuthMode = 'login';
 let currentLoginMethod = 'nsec';
@@ -1240,7 +1285,7 @@ window.generateNewAccessKey = function() {
     } catch { alert('Erro ao gerar chave.'); }
 };
 
-window.handleAuthSubmit = function(event) {
+window.handleAuthSubmit = async function(event) {
     event.preventDefault();
     let privKeyToUse = null;
     let customUsername = '';
@@ -1261,44 +1306,145 @@ window.handleAuthSubmit = function(event) {
     } else if (currentLoginMethod === 'email') {
         const email = String(document.getElementById('authEmailInput')?.value || '').trim().toLowerCase();
         const password = String(document.getElementById('authPasswordInput')?.value ?? '');
-        if (!email || !password) { alert('Preencha e-mail e senha.'); return; }
+        const npubInput = String(document.getElementById('authNpubInput')?.value || '').trim();
 
+        if (!email || !password) {
+            alert('Preencha e-mail e senha.');
+            return;
+        }
+
+        // 1) Tenta login local (mesmo dispositivo)
         let session = {}, backup = {};
         try { session = JSON.parse(localStorage.getItem('nostr_session') || '{}'); } catch {}
         try { backup = JSON.parse(localStorage.getItem('loresocial_login_credentials') || '{}'); } catch {}
 
         const savedEmail = String(session.loginEmail || session.email || backup.loginEmail || backup.email || '').trim().toLowerCase();
         const savedPassword = String(session.loginPassword || session.password || backup.loginPassword || backup.password || '');
-        const privateKeyHex = session.privateKeyHex || backup.privateKeyHex || '';
+        let privateKeyHex = session.privateKeyHex || backup.privateKeyHex || '';
 
-        if (!savedEmail || !privateKeyHex) {
-            alert('Nenhuma credencial vinculada neste dispositivo.\n\nEntre com nsec, vá em Central da conta e vincule e-mail/senha.');
-            return;
-        }
-        const emailOk = savedEmail === email;
-        const passOk = savedPassword === password || savedPassword.trim() === password.trim();
-        if (!emailOk || !passOk) {
-            if (!savedPassword) {
-                alert('Senha ausente na sessão local.\nEntre com nsec e vincule as credenciais de novo na Central da conta.');
+        const localEmailOk = savedEmail && savedEmail === email;
+        const localPassOk = savedPassword && (savedPassword === password || savedPassword.trim() === password.trim());
+
+        if (localEmailOk && localPassOk && privateKeyHex) {
+            try {
+                privKeyToUse = hexToBytes(privateKeyHex);
+                const nick = session.nickname || backup.nickname || '';
+                if (nick) customUsername = String(nick).replace(/^@/, '');
+                if (session.avatarUrl || backup.avatarUrl) {
+                    currentUserData.avatarUrl = session.avatarUrl || backup.avatarUrl;
+                }
+                session.loginEmail = savedEmail;
+                session.loginPassword = savedPassword;
+                session.privateKeyHex = privateKeyHex;
+                if (!session.pubkey && backup.pubkey) session.pubkey = backup.pubkey;
+                localStorage.setItem('nostr_session', JSON.stringify(session));
+                syncCredentialsBackup(session);
+            } catch {
+                alert('Sessão local inválida. Tente com nsec ou npub.');
                 return;
             }
-            alert('E-mail ou senha incorretos.');
-            return;
-        }
-        try {
-            privKeyToUse = hexToBytes(privateKeyHex);
-            const nick = session.nickname || backup.nickname || '';
-            if (nick) customUsername = String(nick).replace(/^@/, '');
-            if (session.avatarUrl || backup.avatarUrl) currentUserData.avatarUrl = session.avatarUrl || backup.avatarUrl;
-            session.loginEmail = savedEmail;
-            session.loginPassword = savedPassword;
-            session.privateKeyHex = privateKeyHex;
-            if (!session.pubkey && backup.pubkey) session.pubkey = backup.pubkey;
-            localStorage.setItem('nostr_session', JSON.stringify(session));
-            syncCredentialsBackup(session);
-        } catch {
-            alert('Sessão inválida. Entre com nsec.');
-            return;
+        } else {
+            // 2) Login pela rede (qualquer dispositivo) usando npub + e-mail + senha
+            let targetPubkey = null;
+
+            if (npubInput) {
+                try {
+                    if (npubInput.startsWith('npub')) {
+                        const decoded = NostrTools.nip19.decode(npubInput);
+                        if (decoded.type === 'npub') targetPubkey = decoded.data;
+                    } else if (/^[0-9a-f]{64}$/i.test(npubInput)) {
+                        targetPubkey = npubInput.toLowerCase();
+                    }
+                } catch {
+                    alert('npub inválido.');
+                    return;
+                }
+            }
+
+            // fallback: pubkey já salva na sessão/backup
+            if (!targetPubkey) {
+                const maybe = session.pubkey || backup.pubkey || '';
+                if (maybe) {
+                    if (String(maybe).startsWith('npub')) {
+                        try {
+                            const d = NostrTools.nip19.decode(maybe);
+                            if (d.type === 'npub') targetPubkey = d.data;
+                        } catch {}
+                    } else {
+                        targetPubkey = maybe;
+                    }
+                }
+            }
+
+            if (!targetPubkey) {
+                alert(
+                    'Para logar só com e-mail e senha em um dispositivo novo, informe também o seu npub.\n\n' +
+                    'Vá em Central da conta (logado com nsec) e copie seu npub, ou use a chave nsec.'
+                );
+                return;
+            }
+
+            if (!pool) {
+                alert('Relays ainda não conectaram. Aguarde e tente de novo.');
+                return;
+            }
+
+            try {
+                const events = await pool.querySync(RELAYS, {
+                    kinds: [0],
+                    authors: [targetPubkey],
+                    limit: 5
+                });
+
+                if (!events || !events.length) {
+                    alert('Perfil não encontrado nos relays.');
+                    return;
+                }
+
+                events.sort((a, b) => b.created_at - a.created_at);
+                const profile = JSON.parse(events[0].content || '{}');
+
+                if ((profile.login_email || '').toLowerCase() !== email) {
+                    alert('E-mail não confere com o cadastrado nesta conta na rede.');
+                    return;
+                }
+
+                if (!profile.encrypted_private_key) {
+                    alert(
+                        'Esta conta ainda não tem chave protegida por senha na rede.\n\n' +
+                        'Entre com nsec, abra a Central da conta e vincule e-mail/senha novamente.'
+                    );
+                    return;
+                }
+
+                privateKeyHex = await decryptPrivateKey(profile.encrypted_private_key, password);
+                if (!privateKeyHex) {
+                    alert('Senha incorreta.');
+                    return;
+                }
+
+                privKeyToUse = hexToBytes(privateKeyHex);
+
+                if (profile.name) customUsername = String(profile.name).replace(/^@/, '');
+                if (profile.picture) currentUserData.avatarUrl = profile.picture;
+
+                // grava sessão local para próximos logins neste dispositivo
+                const nextLocal = {
+                    pubkey: targetPubkey,
+                    privateKeyHex,
+                    nickname: customUsername ? '@' + customUsername : '',
+                    avatarUrl: profile.picture || '',
+                    about: profile.about || '',
+                    loginEmail: email,
+                    loginPassword: password
+                };
+                localStorage.setItem('nostr_session', JSON.stringify(nextLocal));
+                syncCredentialsBackup(nextLocal);
+            } catch (err) {
+                console.error(err);
+                alert('Erro ao logar com credenciais da rede. Tente novamente.');
+                return;
+            }
         }
     } else {
         const inputVal = document.getElementById('authKeyInput').value.trim();
@@ -1938,4 +2084,4 @@ function closeAuthModal() {
 }
 </script>
 </body>
-</html>
+ </html>
