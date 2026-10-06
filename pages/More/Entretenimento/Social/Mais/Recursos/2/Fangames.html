@@ -16,6 +16,9 @@
             --text-main: #202124;
             --text-secondary: #5f6368;
             --border-color: #dadce0;
+            --danger: #dc2626;
+            --danger-hover: #b91c1c;
+            --danger-light: #fef2f2;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Roboto', sans-serif; }
         html, body { width: 100%; overflow-x: hidden; }
@@ -70,10 +73,19 @@
             justify-content: space-between; padding: 12px; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid transparent;
         }
         .story-card:hover { transform: translateY(-4px); box-shadow: 0 6px 16px rgba(0,0,0,0.12); border-color: var(--border-color); }
+        .story-card.has-cover { background-size: cover; background-position: center; }
+        .story-card.has-cover::before {
+            content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 50%, transparent 100%);
+            pointer-events: none;
+        }
+        .story-card.has-cover .story-content { position: relative; z-index: 1; }
+        .story-card.has-cover .story-icon-wrapper { position: relative; z-index: 1; }
         .story-icon-wrapper {
             width: 42px; height: 42px; background-color: var(--bg-white); border-radius: 50%; display: flex; align-items: center;
             justify-content: center; font-size: 18px; color: var(--violet-main); box-shadow: 0 2px 6px rgba(0,0,0,0.15); border: 2px solid var(--violet-main);
+            overflow: hidden; flex-shrink: 0;
         }
+        .story-icon-wrapper img { width: 100%; height: 100%; object-fit: cover; }
         .story-content { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(4px); padding: 8px; border-radius: 10px; text-align: center; }
         .story-name { font-size: 13px; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
         .story-category { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -83,7 +95,9 @@
         .app-icon {
             width: 100%; height: 140px; background: linear-gradient(135deg, var(--violet-light), #e0c3fc); border-radius: 16px;
             display: flex; align-items: center; justify-content: center; font-size: 38px; color: var(--violet-main); margin-bottom: 12px;
+            overflow: hidden;
         }
+        .app-icon img { width: 100%; height: 100%; object-fit: cover; }
         .app-name { font-size: 15px; font-weight: 500; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
         .app-category { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .app-rating { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
@@ -133,7 +147,9 @@
         .modal-icon {
             width: 60px; height: 60px; background: linear-gradient(135deg, var(--violet-light), #e0c3fc); border-radius: 14px;
             display: flex; align-items: center; justify-content: center; font-size: 26px; color: var(--violet-main); flex-shrink: 0;
+            overflow: hidden;
         }
+        .modal-icon img { width: 100%; height: 100%; object-fit: cover; }
         .modal-title { font-size: 20px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
         .modal-author-container { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
         .modal-author-avatar {
@@ -155,7 +171,26 @@
         .no-results { display: none; text-align: center; padding: 40px; color: var(--text-secondary); font-size: 16px; width: 100%; }
         .mobile-bottom-nav { display: none; }
 
-        /* Skeleton loading */
+        .my-game-row {
+            display: flex; align-items: center; justify-content: space-between; background: var(--bg-main);
+            padding: 10px 14px; border-radius: 10px; gap: 8px;
+        }
+        .my-game-row .actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .btn-sm {
+            font-size: 12px; border: none; border-radius: 12px; padding: 6px 10px; cursor: pointer; font-weight: 600;
+        }
+        .btn-sm-primary { background: var(--violet-main); color: #fff; }
+        .btn-sm-primary:hover { background: var(--violet-hover); }
+        .btn-sm-secondary { background: var(--violet-light); color: var(--violet-main); }
+        .btn-sm-secondary:hover { background: #e9d5ff; }
+        .btn-sm-danger { background: var(--danger-light); color: var(--danger); }
+        .btn-sm-danger:hover { background: #fee2e2; }
+        .cover-preview {
+            width: 64px; height: 64px; border-radius: 12px; object-fit: cover; border: 1px solid var(--border-color);
+            background: var(--violet-light); display: none;
+        }
+        .cover-preview.show { display: block; }
+
         .skeleton {
             background: linear-gradient(90deg, #e8eaed 25%, #f1f3f4 50%, #e8eaed 75%);
             background-size: 200% 100%;
@@ -328,7 +363,6 @@
         let networkGames = [];
         let currentDownloadManifest = null;
 
-        /* ─── Skeleton helpers ─── */
         function skeletonStoriesHtml(count = 6) {
             let html = '';
             for (let i = 0; i < count; i++) {
@@ -483,12 +517,15 @@
                 name: entry.name,
                 category: entry.category,
                 desc: entry.desc || '',
+                coverUrl: entry.coverUrl || '',
                 imageUrls: entry.imageUrls || [],
                 fileManifest: entry.fileManifest || null,
                 authorName: entry.author || displayName(),
                 authorInitial: entry.authorInitial || displayInitial(),
                 authorPubkey: currentUserData.pubkey,
-                createdAt: entry.createdAt || Date.now()
+                createdAt: entry.createdAt || Date.now(),
+                updatedAt: Date.now(),
+                deleted: false
             });
             try {
                 const event = NostrTools.finalizeEvent({
@@ -504,12 +541,57 @@
                 }, currentUserData.privateKey);
                 await Promise.any(pool.publish(RELAYS, event));
                 entry.id = id;
+                entry.eventId = event.id;
                 return true;
             } catch (e) {
                 console.error('publishPublicListing:', e);
                 return false;
             }
         }
+
+        /** Tombstone replaceable listing + NIP-09 deletion of previous event ids */
+        async function deletePublicListing(entry) {
+            if (!isLoggedIn() || !entry || !entry.id) return false;
+            try {
+                // 1) Replace addressable listing with deleted marker (same d-tag)
+                const tombstone = NostrTools.finalizeEvent({
+                    kind: LISTING_KIND,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [
+                        ['d', listingDTag(entry.id)],
+                        ['t', LISTING_T_TAG],
+                        ['client', 'violet-fangame-store'],
+                        ['deleted', '1']
+                    ],
+                    content: JSON.stringify({
+                        v: 1,
+                        type: 'fangame-listing',
+                        id: entry.id,
+                        deleted: true,
+                        name: entry.name || '',
+                        authorPubkey: currentUserData.pubkey,
+                        deletedAt: Date.now()
+                    })
+                }, currentUserData.privateKey);
+                await Promise.any(pool.publish(RELAYS, tombstone));
+
+                // 2) NIP-09 deletion for known event ids
+                const tags = [['k', String(LISTING_KIND)], ['a', LISTING_KIND + ':' + currentUserData.pubkey + ':' + listingDTag(entry.id)]];
+                if (entry.eventId) tags.push(['e', entry.eventId]);
+                const delEv = NostrTools.finalizeEvent({
+                    kind: 5,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags,
+                    content: 'Fangame removido pelo autor'
+                }, currentUserData.privateKey);
+                await Promise.any(pool.publish(RELAYS, delEv));
+                return true;
+            } catch (e) {
+                console.error('deletePublicListing:', e);
+                return false;
+            }
+        }
+
         async function fetchFangamesFromNetwork() {
             try {
                 const events = await pool.querySync(RELAYS, {
@@ -521,22 +603,30 @@
                 (events || []).forEach(ev => {
                     let data = null;
                     try { data = JSON.parse(ev.content || '{}'); } catch (_) { return; }
-                    if (!data || data.v !== 1 || data.type !== 'fangame-listing' || !data.name) return;
+                    if (!data || data.v !== 1 || data.type !== 'fangame-listing') return;
+                    if (data.deleted) {
+                        byId.delete(data.id || '');
+                        return;
+                    }
+                    if (!data.name) return;
                     const id = data.id || ev.id;
                     const createdAt = data.createdAt || (ev.created_at * 1000);
+                    const updatedAt = data.updatedAt || createdAt;
                     const prev = byId.get(id);
-                    if (!prev || createdAt >= prev.createdAt) {
+                    if (!prev || updatedAt >= (prev.updatedAt || prev.createdAt)) {
                         byId.set(id, {
                             id,
                             name: data.name,
                             category: data.category || 'Fangame',
                             desc: data.desc || '',
+                            coverUrl: data.coverUrl || '',
                             imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : [],
                             fileManifest: data.fileManifest || null,
                             author: data.authorName || ('@' + String(ev.pubkey || '').slice(0, 8)),
                             authorInitial: data.authorInitial || 'F',
                             authorPubkey: data.authorPubkey || ev.pubkey,
                             createdAt,
+                            updatedAt,
                             eventId: ev.id
                         });
                     }
@@ -562,6 +652,12 @@
                 .replace(/'/g, '&#39;')
                 .replace(/"/g, '&quot;');
         }
+        function coverHtml(coverUrl, fallbackIconClass) {
+            if (coverUrl) {
+                return '<img src="' + escapeHtml(coverUrl) + '" alt="" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'<i class=\\\'fa-solid ' + fallbackIconClass + '\\\'></i>\'">';
+            }
+            return '<i class="fa-solid ' + fallbackIconClass + '"></i>';
+        }
         function renderNetworkCatalog() {
             const stories = document.getElementById('storiesContainer');
             const grid = document.getElementById('appGrid');
@@ -574,25 +670,33 @@
             }
 
             const newest = networkGames.slice(0, 12);
-            stories.innerHTML = newest.map(g => `
-                <div class="story-card app-card"
+            stories.innerHTML = newest.map(g => {
+                const cover = g.coverUrl || (g.imageUrls && g.imageUrls[0]) || '';
+                const coverStyle = cover ? ' style="background-image:url(\'' + escapeHtml(cover) + '\')"' : '';
+                const coverClass = cover ? ' has-cover' : '';
+                return `
+                <div class="story-card app-card${coverClass}"${coverStyle}
                     data-name="${escapeHtml(g.name)}"
                     data-category="${escapeHtml(g.category)}"
                     data-rating="Rede"
                     data-desc="${escapeHtml(g.desc)}"
                     data-author="${escapeHtml(g.author)}"
                     data-author-initial="${escapeHtml(g.authorInitial)}"
+                    data-cover="${escapeHtml(cover)}"
                     data-images="${attrJson(g.imageUrls || [])}"
                     ${g.fileManifest ? `data-file-manifest="${attrJson(g.fileManifest)}"` : ''}>
-                    <div class="story-icon-wrapper"><i class="fa-solid fa-gamepad"></i></div>
+                    <div class="story-icon-wrapper">${coverHtml(cover, 'fa-gamepad')}</div>
                     <div class="story-content">
                         <div class="story-name">${escapeHtml(g.name)}</div>
                         <div class="story-category">${escapeHtml(g.category)}</div>
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
 
-            grid.innerHTML = networkGames.map(g => `
+            grid.innerHTML = networkGames.map(g => {
+                const cover = g.coverUrl || (g.imageUrls && g.imageUrls[0]) || '';
+                return `
                 <div class="app-card"
                     data-name="${escapeHtml(g.name)}"
                     data-category="${escapeHtml(g.category)}"
@@ -600,15 +704,17 @@
                     data-desc="${escapeHtml(g.desc)}"
                     data-author="${escapeHtml(g.author)}"
                     data-author-initial="${escapeHtml(g.authorInitial)}"
+                    data-cover="${escapeHtml(cover)}"
                     data-images="${attrJson(g.imageUrls || [])}"
                     ${g.fileManifest ? `data-file-manifest="${attrJson(g.fileManifest)}"` : ''}>
-                    <div class="app-icon"><i class="fa-solid fa-gamepad"></i></div>
+                    <div class="app-icon">${coverHtml(cover, 'fa-gamepad')}</div>
                     <div class="app-name">${escapeHtml(g.name)}</div>
                     <div class="app-category">${escapeHtml(g.category)}</div>
                     <div class="app-rating">Rede <span class="star">★</span></div>
                     <button type="button" class="btn-install">${g.fileManifest ? 'Baixar' : 'Ver'}</button>
                 </div>
-            `).join('');
+            `;
+            }).join('');
 
             bindAppCards();
         }
@@ -790,6 +896,13 @@
                 urls.push(up.url);
             }
             return urls;
+        }
+        async function uploadSingleImage(file, onProgress, label) {
+            if (!file) return '';
+            if (onProgress) onProgress(label || 'Enviando capa…');
+            const buf = await file.arrayBuffer();
+            const up = await uploadBlob(buf, file.name || 'cover.jpg', onProgress);
+            return up.url;
         }
         async function downloadAndReconstruct(manifest, onProgress) {
             if (!manifest || !manifest.parts || !manifest.parts.length) throw new Error('Manifesto inválido');
@@ -1006,6 +1119,7 @@
                     const desc = this.getAttribute('data-desc') || '';
                     const author = this.getAttribute('data-author') || 'Comunidade';
                     const authorInitial = this.getAttribute('data-author-initial') || 'C';
+                    const cover = this.getAttribute('data-cover') || '';
                     let imageUrls = [];
                     try {
                         const raw = this.getAttribute('data-images') || '[]';
@@ -1038,7 +1152,11 @@
                             '<div class="carousel-slide"><i class="fa-solid fa-image"></i><span>Gameplay 3</span></div>';
                     }
 
-                    modalIcon.innerHTML = '<i class="fa-solid fa-gamepad"></i>';
+                    if (cover) {
+                        modalIcon.innerHTML = '<img src="' + escapeHtml(cover) + '" alt="" onerror="this.parentElement.innerHTML=\'<i class=\\\'fa-solid fa-gamepad\\\'></i>\'">';
+                    } else {
+                        modalIcon.innerHTML = '<i class="fa-solid fa-gamepad"></i>';
+                    }
                     modalTitle.textContent = name;
                     modalRating.textContent = rating;
                     modalDesc.textContent = desc;
@@ -1085,6 +1203,29 @@
             }
         }
 
+        function refreshMyGamesListHtml() {
+            if (!myPostedGames.length) {
+                return '<p style="font-size:13px;color:var(--text-secondary);">Nenhum fangame publicado ainda.</p>';
+            }
+            return '<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">' +
+                myPostedGames.map(function (g, idx) {
+                    const thumb = g.coverUrl || (g.imageUrls && g.imageUrls[0]) || '';
+                    const thumbHtml = thumb
+                        ? '<img src="' + escapeHtml(thumb) + '" alt="" style="width:36px;height:36px;border-radius:8px;object-fit:cover;flex-shrink:0;">'
+                        : '<i class="fa-solid fa-gamepad" style="color:var(--violet-main);width:36px;text-align:center;"></i>';
+                    return '<div class="my-game-row">' +
+                        '<div style="display:flex;align-items:center;gap:10px;min-width:0;">' +
+                        thumbHtml +
+                        '<span style="font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(g.name) + '</span>' +
+                        '</div>' +
+                        '<div class="actions">' +
+                        '<button type="button" class="btn-sm btn-sm-primary" onclick="window.__downloadMyGame(' + idx + ')">Baixar</button>' +
+                        '<button type="button" class="btn-sm btn-sm-secondary" onclick="window.__editMyGame(' + idx + ')">Editar</button>' +
+                        '<button type="button" class="btn-sm btn-sm-danger" onclick="window.__deleteMyGame(' + idx + ')">Deletar</button>' +
+                        '</div></div>';
+                }).join('') + '</div>';
+        }
+
         function openMyGamesModal(e) {
             e.preventDefault();
             modalCarouselContainer.style.display = 'none';
@@ -1095,20 +1236,7 @@
             modalTitle.textContent = 'Meus Fangames Postados';
             setModalAuthorAsMe();
             modalDesc.textContent = 'Aqui estão os fangames que você publicou:';
-            if (!myPostedGames.length) {
-                modalExtraContent.innerHTML = '<p style="font-size:13px;color:var(--text-secondary);">Nenhum fangame publicado ainda.</p>';
-            } else {
-                modalExtraContent.innerHTML = '<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">' +
-                    myPostedGames.map(function (g, idx) {
-                        return '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-main);padding:10px 14px;border-radius:10px;gap:8px;">' +
-                            '<div style="display:flex;align-items:center;gap:10px;min-width:0;">' +
-                            '<i class="fa-solid fa-gamepad" style="color:var(--violet-main);"></i>' +
-                            '<span style="font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(g.name) + '</span>' +
-                            '</div>' +
-                            '<button type="button" style="font-size:12px;background:var(--violet-main);color:#fff;border:none;border-radius:12px;padding:6px 10px;cursor:pointer;flex-shrink:0;" onclick="window.__downloadMyGame(' + idx + ')">Baixar</button>' +
-                            '</div>';
-                    }).join('') + '</div>';
-            }
+            modalExtraContent.innerHTML = refreshMyGamesListHtml();
             gameModal.classList.add('active');
         }
 
@@ -1130,6 +1258,179 @@
             }
         };
 
+        window.__deleteMyGame = async function (idx) {
+            const g = myPostedGames[idx];
+            if (!g) return;
+            if (!confirm('Remover "' + g.name + '" da rede e da sua lista?\n\nIsso não apaga arquivos já hospedados em CDNs de terceiros (não controlamos isso), mas remove o listing dos relays e do seu vault.')) {
+                return;
+            }
+            if (!isLoggedIn()) {
+                alert('Login necessário para deletar da rede.');
+                return;
+            }
+            setProgress('Removendo da rede…');
+            modalActionBtn.style.display = 'block';
+            modalActionBtn.disabled = true;
+            try {
+                await deletePublicListing(g);
+                myPostedGames.splice(idx, 1);
+                await persistVault();
+                await fetchFangamesFromNetwork();
+                renderNetworkCatalog();
+                filterGames();
+                modalExtraContent.innerHTML = refreshMyGamesListHtml();
+                setProgress('Removido com sucesso.');
+                alert('Fangame removido da rede e da sua lista.');
+            } catch (err) {
+                console.error(err);
+                alert('Erro ao deletar: ' + (err.message || err));
+                setProgress('');
+            } finally {
+                modalActionBtn.disabled = false;
+                modalActionBtn.style.display = 'none';
+            }
+        };
+
+        function buildPostFormHtml(existing) {
+            const g = existing || {};
+            const coverPreview = g.coverUrl
+                ? '<img id="coverPreviewImg" class="cover-preview show" src="' + escapeHtml(g.coverUrl) + '" alt="Capa">'
+                : '<img id="coverPreviewImg" class="cover-preview" alt="Capa">';
+            return (
+                '<div style="display:flex;flex-direction:column;gap:12px;margin-top:10px;margin-bottom:20px;">' +
+                '<input id="postGameName" type="text" placeholder="Nome do Fangame" value="' + escapeHtml(g.name || '') + '" style="width:100%;padding:12px 16px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:14px;outline:none;">' +
+                '<input id="postGameCat" type="text" placeholder="Categoria (Ex: Ação • Plataforma)" value="' + escapeHtml(g.category || '') + '" style="width:100%;padding:12px 16px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:14px;outline:none;">' +
+                '<textarea id="postGameDesc" placeholder="Descrição detalhada do jogo..." rows="3" style="width:100%;padding:12px 16px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:14px;outline:none;resize:none;">' + escapeHtml(g.desc || '') + '</textarea>' +
+                '<div style="display:flex;flex-direction:column;gap:6px;">' +
+                '<label style="font-size:13px;font-weight:500;color:var(--text-secondary);">Imagem de capa (ícone / card):</label>' +
+                '<div style="display:flex;align-items:center;gap:12px;">' +
+                coverPreview +
+                '<input id="postGameCover" type="file" accept="image/*" style="flex:1;padding:10px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:13px;cursor:pointer;">' +
+                '</div>' +
+                (g.coverUrl ? '<label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><input type="checkbox" id="postKeepCover" checked> Manter capa atual se não enviar nova</label>' : '') +
+                '</div>' +
+                '<div style="display:flex;flex-direction:column;gap:6px;">' +
+                '<label style="font-size:13px;font-weight:500;color:var(--text-secondary);">Imagens para o Carrossel (Gameplay):</label>' +
+                '<input id="postGameImages" type="file" multiple accept="image/*" style="width:100%;padding:10px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:13px;cursor:pointer;">' +
+                (g.imageUrls && g.imageUrls.length
+                    ? '<label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><input type="checkbox" id="postKeepImages" checked> Manter imagens atuais se não enviar novas</label>'
+                    : '') +
+                '</div>' +
+                '<div style="display:flex;flex-direction:column;gap:6px;">' +
+                '<label style="font-size:13px;font-weight:500;color:var(--text-secondary);">Arquivo do Fangame para Download (.zip, .rar, .exe):</label>' +
+                '<input id="postGameFile" type="file" accept=".zip,.rar,.exe,.7z,*/*" style="width:100%;padding:10px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:13px;cursor:pointer;">' +
+                (g.fileManifest
+                    ? '<label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><input type="checkbox" id="postKeepFile" checked> Manter arquivo atual se não enviar novo</label>'
+                    : '') +
+                '</div></div>'
+            );
+        }
+
+        function wireCoverPreview() {
+            const input = document.getElementById('postGameCover');
+            const preview = document.getElementById('coverPreviewImg');
+            if (!input || !preview) return;
+            input.addEventListener('change', function () {
+                const f = input.files && input.files[0];
+                if (!f) return;
+                const url = URL.createObjectURL(f);
+                preview.src = url;
+                preview.classList.add('show');
+            });
+        }
+
+        window.__editMyGame = function (idx) {
+            const g = myPostedGames[idx];
+            if (!g) return;
+            if (!isLoggedIn()) {
+                alert('Login necessário para editar.');
+                return;
+            }
+            modalCarouselContainer.style.display = 'none';
+            modalRatingBadge.style.display = 'none';
+            modalActionBtn.style.display = 'block';
+            modalActionBtn.disabled = false;
+            modalActionBtn.textContent = 'Salvar alterações';
+            setProgress('');
+            setModalAuthorAsMe();
+            modalIcon.innerHTML = g.coverUrl
+                ? '<img src="' + escapeHtml(g.coverUrl) + '" alt="">'
+                : '<i class="fa-solid fa-pen"></i>';
+            modalTitle.textContent = 'Editar Fangame';
+            modalDesc.textContent = 'Atualize as informações. O mesmo ID é republicado na rede (evento substituível).';
+            modalExtraContent.innerHTML = buildPostFormHtml(g);
+            wireCoverPreview();
+
+            modalActionBtn.onclick = async function () {
+                const name = ((document.getElementById('postGameName') || {}).value || '').trim();
+                if (!name) {
+                    alert('Informe o nome do fangame.');
+                    return;
+                }
+                const cat = ((document.getElementById('postGameCat') || {}).value || '').trim() || 'Fangame';
+                const desc = ((document.getElementById('postGameDesc') || {}).value || '').trim();
+                const coverInput = document.getElementById('postGameCover');
+                const imgInput = document.getElementById('postGameImages');
+                const fileInput = document.getElementById('postGameFile');
+                const keepCover = document.getElementById('postKeepCover');
+                const keepImages = document.getElementById('postKeepImages');
+                const keepFile = document.getElementById('postKeepFile');
+
+                modalActionBtn.disabled = true;
+                try {
+                    let coverUrl = g.coverUrl || '';
+                    if (coverInput && coverInput.files && coverInput.files[0]) {
+                        coverUrl = await uploadSingleImage(coverInput.files[0], setProgress, 'Enviando capa…');
+                    } else if (keepCover && !keepCover.checked) {
+                        coverUrl = '';
+                    }
+
+                    let imageUrls = g.imageUrls || [];
+                    if (imgInput && imgInput.files && imgInput.files.length) {
+                        imageUrls = await uploadImages(imgInput.files, setProgress);
+                    } else if (keepImages && !keepImages.checked) {
+                        imageUrls = [];
+                    }
+
+                    let fileManifest = g.fileManifest || null;
+                    if (fileInput && fileInput.files && fileInput.files[0]) {
+                        fileManifest = await uploadGameFile(fileInput.files[0], setProgress);
+                    } else if (keepFile && !keepFile.checked) {
+                        fileManifest = null;
+                    }
+
+                    const updated = {
+                        ...g,
+                        name,
+                        category: cat,
+                        desc,
+                        coverUrl,
+                        imageUrls,
+                        fileManifest,
+                        author: displayName(),
+                        authorInitial: displayInitial()
+                    };
+                    myPostedGames[idx] = updated;
+                    await persistVault();
+                    setProgress('Publicando alterações…');
+                    await publishPublicListing(updated);
+                    setProgress('Atualizando lista…');
+                    await fetchFangamesFromNetwork();
+                    renderNetworkCatalog();
+                    filterGames();
+                    setProgress('Salvo!');
+                    alert('Fangame atualizado!');
+                    openMyGamesModal({ preventDefault: function () {} });
+                } catch (err) {
+                    console.error(err);
+                    alert('Erro ao editar: ' + (err.message || err));
+                    setProgress('');
+                } finally {
+                    modalActionBtn.disabled = false;
+                }
+            };
+        };
+
         function openPostGameModal(e) {
             e.preventDefault();
             if (!isLoggedIn()) {
@@ -1145,19 +1446,8 @@
             modalIcon.innerHTML = '<i class="fa-solid fa-plus"></i>';
             modalTitle.textContent = 'Postar Novo Fangame';
             modalDesc.textContent = 'Preencha os dados e envie os arquivos para publicar seu fangame:';
-            modalExtraContent.innerHTML =
-                '<div style="display:flex;flex-direction:column;gap:12px;margin-top:10px;margin-bottom:20px;">' +
-                '<input id="postGameName" type="text" placeholder="Nome do Fangame" style="width:100%;padding:12px 16px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:14px;outline:none;">' +
-                '<input id="postGameCat" type="text" placeholder="Categoria (Ex: Ação • Plataforma)" style="width:100%;padding:12px 16px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:14px;outline:none;">' +
-                '<textarea id="postGameDesc" placeholder="Descrição detalhada do jogo..." rows="3" style="width:100%;padding:12px 16px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:14px;outline:none;resize:none;"></textarea>' +
-                '<div style="display:flex;flex-direction:column;gap:6px;">' +
-                '<label style="font-size:13px;font-weight:500;color:var(--text-secondary);">Imagens para o Carrossel (Gameplay):</label>' +
-                '<input id="postGameImages" type="file" multiple accept="image/*" style="width:100%;padding:10px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:13px;cursor:pointer;">' +
-                '</div>' +
-                '<div style="display:flex;flex-direction:column;gap:6px;">' +
-                '<label style="font-size:13px;font-weight:500;color:var(--text-secondary);">Arquivo do Fangame para Download (.zip, .rar, .exe):</label>' +
-                '<input id="postGameFile" type="file" accept=".zip,.rar,.exe,.7z,*/*" style="width:100%;padding:10px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:13px;cursor:pointer;">' +
-                '</div></div>';
+            modalExtraContent.innerHTML = buildPostFormHtml(null);
+            wireCoverPreview();
 
             modalActionBtn.onclick = async function () {
                 const name = ((document.getElementById('postGameName') || {}).value || '').trim();
@@ -1171,16 +1461,22 @@
                 }
                 const cat = ((document.getElementById('postGameCat') || {}).value || '').trim() || 'Fangame';
                 const desc = ((document.getElementById('postGameDesc') || {}).value || '').trim();
+                const coverInput = document.getElementById('postGameCover');
                 const imgInput = document.getElementById('postGameImages');
                 const fileInput = document.getElementById('postGameFile');
                 const gameFile = fileInput && fileInput.files && fileInput.files[0];
 
                 modalActionBtn.disabled = true;
                 try {
+                    let coverUrl = '';
+                    if (coverInput && coverInput.files && coverInput.files[0]) {
+                        coverUrl = await uploadSingleImage(coverInput.files[0], setProgress, 'Enviando capa…');
+                    }
                     let imageUrls = [];
                     if (imgInput && imgInput.files && imgInput.files.length) {
                         imageUrls = await uploadImages(imgInput.files, setProgress);
                     }
+                    if (!coverUrl && imageUrls.length) coverUrl = imageUrls[0];
                     let fileManifest = null;
                     if (gameFile) {
                         fileManifest = await uploadGameFile(gameFile, setProgress);
@@ -1190,6 +1486,7 @@
                         name: name,
                         category: cat,
                         desc: desc,
+                        coverUrl: coverUrl,
                         imageUrls: imageUrls,
                         fileManifest: fileManifest,
                         createdAt: Date.now(),
