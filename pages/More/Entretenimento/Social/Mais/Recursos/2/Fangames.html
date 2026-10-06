@@ -175,7 +175,7 @@
             display: flex; align-items: center; justify-content: space-between; background: var(--bg-main);
             padding: 10px 14px; border-radius: 10px; gap: 8px;
         }
-        .my-game-row .actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .my-game-row .actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
         .btn-sm {
             font-size: 12px; border: none; border-radius: 12px; padding: 6px 10px; cursor: pointer; font-weight: 600;
         }
@@ -549,11 +549,9 @@
             }
         }
 
-        /** Tombstone replaceable listing + NIP-09 deletion of previous event ids */
         async function deletePublicListing(entry) {
             if (!isLoggedIn() || !entry || !entry.id) return false;
             try {
-                // 1) Replace addressable listing with deleted marker (same d-tag)
                 const tombstone = NostrTools.finalizeEvent({
                     kind: LISTING_KIND,
                     created_at: Math.floor(Date.now() / 1000),
@@ -575,7 +573,6 @@
                 }, currentUserData.privateKey);
                 await Promise.any(pool.publish(RELAYS, tombstone));
 
-                // 2) NIP-09 deletion for known event ids
                 const tags = [['k', String(LISTING_KIND)], ['a', LISTING_KIND + ':' + currentUserData.pubkey + ':' + listingDTag(entry.id)]];
                 if (entry.eventId) tags.push(['e', entry.eventId]);
                 const delEv = NostrTools.finalizeEvent({
@@ -1261,7 +1258,11 @@
         window.__deleteMyGame = async function (idx) {
             const g = myPostedGames[idx];
             if (!g) return;
-            if (!confirm('Remover "' + g.name + '" da rede e da sua lista?\n\nIsso não apaga arquivos já hospedados em CDNs de terceiros (não controlamos isso), mas remove o listing dos relays e do seu vault.')) {
+            if (!confirm(
+                'Remover "' + g.name + '" da rede e da sua lista?\n\n' +
+                'Isso remove o listing dos relays e do seu vault.\n' +
+                'Arquivos já hospedados em CDNs de terceiros (nostr.build/Blossom) em geral não podem ser apagados daqui — não controlamos esses servidores.'
+            )) {
                 return;
             }
             if (!isLoggedIn()) {
