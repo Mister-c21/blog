@@ -61,38 +61,70 @@
 
                 <!-- Campo Preço (Oculto e fixo) -->
                 <div id="field-price-container" class="hidden">
-                    <input type="hidden" id="ad-price" value="50,00">
+                    <input type="hidden" id="ad-price" value="12,00">
                 </div>
 
                 <!-- Campo Orçamento Diário (Oculto) -->
                 <div id="field-budget-container" class="hidden"></div>
+
+                <!-- Nível de Preferência do Anúncio -->
+                <div id="field-level-container">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wider">Nível de Preferência do Anúncio</label>
+                    <select 
+                        id="ad-level" 
+                        onchange="updatePreview()"
+                        class="w-full bg-gray-50 border border-gray-200 focus:border-secondary focus:bg-white focus:outline-none rounded-xl px-4 py-3 text-sm transition duration-200"
+                    >
+                        <option value="bronze">Bronze</option>
+                        <option value="plata">Plata</option>
+                        <option value="ouro">Ouro</option>
+                        <option value="diamante">Diamante</option>
+                    </select>
+                </div>
 
                 <!-- Seleção de Duração / Período (Ads) -->
                 <div id="field-duration-container">
                     <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wider">Duração da Campanha</label>
                     <select 
                         id="ad-duration" 
-                        onchange="updatePreview()"
+                        onchange="toggleCustomDuration(); updatePreview()"
                         class="w-full bg-gray-50 border border-gray-200 focus:border-secondary focus:bg-white focus:outline-none rounded-xl px-4 py-3 text-sm transition duration-200"
                     >
                         <option value="7 dias">7 dias</option>
                         <option value="1 mês">1 mês</option>
                         <option value="3 meses">3 meses</option>
+                        <option value="personalizada">Personalizada</option>
                     </select>
                 </div>
 
-                <!-- URL da Imagem -->
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wider">URL da Imagem / Criativo</label>
+                <!-- Duração personalizada (máx. 3 meses = 90 dias) -->
+                <div id="custom-duration-container" class="hidden">
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wider">Dias (máx. 90)</label>
                     <input 
-                        type="url" 
-                        id="ad-image" 
-                        required
-                        placeholder="https://exemplo.com/imagem.jpg" 
+                        type="number" 
+                        id="ad-custom-days" 
+                        min="1" 
+                        max="90" 
+                        value="14"
                         oninput="updatePreview()"
                         class="w-full bg-gray-50 border border-gray-200 focus:border-secondary focus:bg-white focus:outline-none rounded-xl px-4 py-3 text-sm transition duration-200"
                     >
-                    <span class="text-[10px] text-gray-400 mt-1 block">Cole o link direto de uma imagem da internet.</span>
+                    <span class="text-[10px] text-gray-400 mt-1 block">Máximo de 3 meses de atuação (90 dias).</span>
+                </div>
+
+                <!-- Arquivo de Imagem (dispositivo — arquitetura de anexos Nostr) -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wider">Imagem / Criativo</label>
+                    <input 
+                        type="file" 
+                        id="ad-image-file" 
+                        accept="image/*"
+                        required
+                        onchange="handleImageFile(event)"
+                        class="w-full bg-gray-50 border border-gray-200 focus:border-secondary focus:bg-white focus:outline-none rounded-xl px-4 py-3 text-sm transition duration-200 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-secondary file:text-white hover:file:bg-secondaryHover"
+                    >
+                    <input type="hidden" id="ad-image" value="">
+                    <span class="text-[10px] text-gray-400 mt-1 block">Selecione um arquivo de imagem no seu dispositivo.</span>
                 </div>
 
                 <!-- Link de Redirecionamento -->
@@ -126,7 +158,7 @@
                         <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">Valor do Anúncio</span>
                         <span id="form-total-label" class="text-xs text-gray-500">Investimento para 7 dias</span>
                     </div>
-                    <span id="form-total-price" class="text-lg font-black text-secondary">R$ 50,00</span>
+                    <span id="form-total-price" class="text-lg font-black text-secondary">R$ 12,00</span>
                 </div>
 
                 <!-- Botão de Pagamento (Bloqueado inicialmente) -->
@@ -174,7 +206,7 @@
                         <div class="flex justify-between items-start">
                             <h3 id="preview-title" class="font-bold text-darkText text-base truncate max-w-[60%]">Nome da Campanha</h3>
                             <div class="text-right">
-                                <span id="preview-price" class="font-extrabold text-secondary text-sm block">R$ 50,00</span>
+                                <span id="preview-price" class="font-extrabold text-secondary text-sm block">R$ 12,00</span>
                                 <span id="preview-duration-tag" class="text-[10px] text-gray-400 font-medium">por 7 dias</span>
                             </div>
                         </div>
@@ -284,6 +316,63 @@
         // --- Lógica original dos anúncios (exposta no window para onclick/onsubmit) ---
         let publishedAds = [];
         let pagamentoRealizado = false;
+        let selectedImageObjectUrl = '';
+
+        // Valores por nível de preferência
+        const LEVEL_PRICES = { bronze: 12, plata: 34, ouro: 68, diamante: 100 };
+
+        function toggleCustomDuration() {
+            const isCustom = document.getElementById('ad-duration').value === 'personalizada';
+            document.getElementById('custom-duration-container').classList.toggle('hidden', !isCustom);
+        }
+
+        function handleImageFile(event) {
+            const file = event.target.files && event.target.files[0];
+            const hidden = document.getElementById('ad-image');
+            if (selectedImageObjectUrl) {
+                URL.revokeObjectURL(selectedImageObjectUrl);
+                selectedImageObjectUrl = '';
+            }
+            if (!file || !file.type.startsWith('image/')) {
+                hidden.value = '';
+                if (file) alert('Selecione um arquivo de imagem válido.');
+                event.target.value = '';
+                updatePreview();
+                return;
+            }
+            // Arquitetura de postagem de arquivo (Nostr): blob local → Object URL para o formulário
+            selectedImageObjectUrl = URL.createObjectURL(file);
+            hidden.value = selectedImageObjectUrl;
+            updatePreview();
+        }
+
+        function getDurationInfo() {
+            const duration = document.getElementById('ad-duration').value;
+            let label = duration;
+            let totalSeconds = 604800;
+
+            if (duration === '7 dias') {
+                totalSeconds = 7 * 24 * 60 * 60;
+            } else if (duration === '1 mês') {
+                totalSeconds = 30 * 24 * 60 * 60;
+            } else if (duration === '3 meses') {
+                totalSeconds = 90 * 24 * 60 * 60;
+            } else if (duration === 'personalizada') {
+                let days = parseInt(document.getElementById('ad-custom-days').value, 10);
+                if (isNaN(days) || days < 1) days = 1;
+                if (days > 90) days = 90;
+                document.getElementById('ad-custom-days').value = days;
+                totalSeconds = days * 24 * 60 * 60;
+                label = days === 1 ? '1 dia' : days + ' dias';
+            }
+            return { label, totalSeconds };
+        }
+
+        function getLevelPrice() {
+            const level = document.getElementById('ad-level').value;
+            const num = LEVEL_PRICES[level] || 12;
+            return num.toFixed(2).replace('.', ',');
+        }
 
         function verificarPreenchimentoFormulario() {
             const title = document.getElementById('ad-title').value.trim();
@@ -335,30 +424,22 @@
 
         function updatePreview() {
             const title = document.getElementById('ad-title').value;
-            const duration = document.getElementById('ad-duration').value;
             const imageUrl = document.getElementById('ad-image').value;
             const desc = document.getElementById('ad-desc').value;
+            const { label: duration } = getDurationInfo();
+            const calculatedPrice = getLevelPrice();
 
             verificarPreenchimentoFormulario();
 
             document.getElementById('preview-title').innerText = title || "Nome da Campanha";
+            document.getElementById('ad-price').value = calculatedPrice;
 
-            let calculatedPrice = "50,00";
-            let labelText = "Investimento para 7 dias";
-
+            const labelText = `Investimento para ${duration}`;
             const previewPriceEl = document.getElementById('preview-price');
             const previewDurationTag = document.getElementById('preview-duration-tag');
             const formTotalPrice = document.getElementById('form-total-price');
             const formTotalLabel = document.getElementById('form-total-label');
 
-            if (duration === '7 dias') {
-                calculatedPrice = "50,00";
-            } else if (duration === '1 mês') {
-                calculatedPrice = "200,00";
-            } else if (duration === '3 meses') {
-                calculatedPrice = "400,00";
-            }
-            labelText = `Investimento para ${duration}`;
             previewPriceEl.innerText = `R$ ${calculatedPrice}`;
             previewDurationTag.innerText = `por ${duration}`;
             previewDurationTag.classList.remove('hidden');
@@ -377,7 +458,7 @@
                 previewImg.onerror = function() {
                     previewImg.classList.add('hidden');
                     previewPlaceholder.classList.remove('hidden');
-                    previewPlaceholder.innerHTML = '<span class="text-red-400 text-xs">Erro ao carregar imagem (URL inválida)</span>';
+                    previewPlaceholder.innerHTML = '<span class="text-red-400 text-xs">Erro ao carregar imagem</span>';
                 };
             } else {
                 previewImg.classList.add('hidden');
@@ -401,21 +482,8 @@
             const imageUrl = document.getElementById('ad-image').value;
             const adLink = document.getElementById('ad-link').value;
             const desc = document.getElementById('ad-desc').value;
-            const duration = document.getElementById('ad-duration').value;
-
-            let price = "50,00";
-            let totalSeconds = 604800;
-
-            if (duration === '7 dias') {
-                price = "50,00";
-                totalSeconds = 7 * 24 * 60 * 60;
-            } else if (duration === '1 mês') {
-                price = "200,00";
-                totalSeconds = 30 * 24 * 60 * 60;
-            } else if (duration === '3 meses') {
-                price = "400,00";
-                totalSeconds = 90 * 24 * 60 * 60;
-            }
+            const { label: duration, totalSeconds } = getDurationInfo();
+            const price = getLevelPrice();
 
             const newAd = {
                 id: Date.now(),
@@ -437,6 +505,12 @@
             alert('Sucesso! Campanha de Ads lançada com sucesso!');
 
             document.getElementById('ad-form').reset();
+            if (selectedImageObjectUrl) {
+                URL.revokeObjectURL(selectedImageObjectUrl);
+                selectedImageObjectUrl = '';
+            }
+            document.getElementById('ad-image').value = '';
+            document.getElementById('custom-duration-container').classList.add('hidden');
             pagamentoRealizado = false;
 
             const submitBtn = document.getElementById('submit-btn');
@@ -533,6 +607,8 @@
         window.handleAdClick = handleAdClick;
         window.removeAd = removeAd;
         window.renderPublishedAds = renderPublishedAds;
+        window.toggleCustomDuration = toggleCustomDuration;
+        window.handleImageFile = handleImageFile;
 
         setInterval(() => {
             if (publishedAds.length > 0) {
