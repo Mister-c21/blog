@@ -239,10 +239,96 @@
         .drag-pill { width: 48px; height: 6px; background: rgba(255, 255, 255, 0.3); border-radius: 9999px; }
         .modal-body { padding: 20px; display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,0.85); flex-grow: 1; overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain; width: 100%; box-sizing: border-box; }
         
-        .video-box, .ad-container, .shorts-wrapper { width: 100%; max-width: 950px; box-sizing: border-box; }
+        .video-box, .lp-slot, .shorts-wrapper { width: 100%; max-width: 950px; box-sizing: border-box; }
         .video-box { aspect-ratio: 16/9; background: #222; border-radius: 15px; overflow: hidden; flex-shrink: 0; }
-        .ad-container { height: 100px; background: var(--vidro); margin: 20px 0; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--blueviolet-color); flex-shrink: 0; position: relative; }
-        .ad-tag { position: absolute; top: 5px; left: 10px; font-size: 0.6rem; color: var(--blueviolet-color); text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; }
+
+        /* Slot de parceiro (nomenclatura neutra anti-filtro) */
+        .lp-slot {
+            height: 100px;
+            background: var(--vidro);
+            margin: 20px 0;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px dashed var(--blueviolet-color);
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            padding: 0;
+            color: var(--ghost);
+            font-size: 0.95rem;
+        }
+
+        .lp-slot.is-ready {
+            border-style: solid;
+            border-color: rgba(138, 43, 226, 0.35);
+            background: rgba(255, 255, 255, 0.04);
+            justify-content: flex-start;
+        }
+
+        .lp-slot .lp-slot-body {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 14px;
+            text-decoration: none;
+            color: inherit;
+            box-sizing: border-box;
+        }
+
+        .lp-slot .lp-slot-media {
+            height: 100%;
+            width: 120px;
+            max-width: 35%;
+            object-fit: cover;
+            border-radius: 8px;
+            flex-shrink: 0;
+            background: #222;
+        }
+
+        .lp-slot .lp-slot-meta {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            text-align: left;
+        }
+
+        .lp-slot .lp-slot-tag {
+            font-size: 0.6rem;
+            font-weight: 800;
+            color: #fff;
+            background: linear-gradient(90deg, #8A2BE2, #9400D3);
+            padding: 2px 8px;
+            border-radius: 999px;
+            width: fit-content;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .lp-slot .lp-slot-heading {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--ghost);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .lp-slot .lp-slot-text {
+            font-size: 0.75rem;
+            color: rgba(248, 248, 255, 0.7);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.3;
+        }
         
         .search-engines { display: flex; gap: 10px; padding: 10px 20px; width: 100%; max-width: 950px; overflow-x: auto; scrollbar-width: none; white-space: nowrap; flex-shrink: 0; box-sizing: border-box; }
         .search-engines::-webkit-scrollbar { display: none; }
@@ -325,10 +411,7 @@
             <h2 id="modalTitle">Título da Live</h2>
             <a id="platformLink" href="#" target="_blank" style="color: var(--blueviolet-color); text-decoration: none; font-size: 0.9rem; margin-bottom: 10px;">Ver mais na Twitch</a>
             
-            <div class="ad-container">
-                <span class="ad-tag">Anúncio</span>
-                Espaço para Anúncio
-            </div>
+            <div class="lp-slot" data-lp-slot>Espaço disponível</div>
 
             <div class="search-engines">
                 <a href="#" onclick="this.href=getSearchUrl('google')" target="_blank"><img src="https://www.google.com/s2/favicons?domain=google.com&sz=32" alt="G"> Google</a>
@@ -560,6 +643,197 @@
 
         // Inicialização
         renderizarConteudoPlataforma();
+    </script>
+
+    <script type="module">
+        import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+
+        const RELAYS = [
+            'wss://relay.damus.io',
+            'wss://nos.lol',
+            'wss://relay.nostr.band',
+            'wss://relay.primal.net'
+        ];
+
+        const pool = new NostrTools.SimplePool();
+        const LEVEL_ORDER = { diamante: 4, ouro: 3, plata: 2, bronze: 1 };
+        const SLOT_SELECTOR = '[data-lp-slot]';
+        const EMPTY_LABEL = 'Espaço disponível';
+
+        function parseCampaignFromEvent(ev) {
+            try {
+                const data = JSON.parse(ev.content || '{}');
+                if (!data || data.app !== 'MarketAds') return null;
+                if (data.type !== 'ads') return null;
+
+                const getTag = (name) => {
+                    const t = (ev.tags || []).find(x => x[0] === name);
+                    return t ? t[1] : '';
+                };
+
+                const statusFromTag = getTag('status');
+                const status = data.status || statusFromTag || '';
+                if (status && status !== 'published') return null;
+
+                return {
+                    id: data.id || getTag('d') || ev.id,
+                    title: data.title || 'Destaque',
+                    desc: data.desc || '',
+                    imageUrl: data.imageUrl || getTag('image') || getTag('r') || '',
+                    link: data.adLink || '',
+                    level: (data.level || getTag('level') || 'bronze').toLowerCase(),
+                    timeLeft: typeof data.timeLeft === 'number' ? data.timeLeft : null,
+                    created_at: data.created_at || ev.created_at || 0
+                };
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function isCampaignActive(item) {
+            if (typeof item.timeLeft === 'number' && item.timeLeft <= 0) return false;
+            return true;
+        }
+
+        async function fetchNetworkCampaigns(limit = 40) {
+            try {
+                const events = await pool.querySync(RELAYS, {
+                    kinds: [1],
+                    '#t': ['marketads'],
+                    limit: 100
+                });
+
+                const list = [];
+                const seen = new Set();
+
+                (events || [])
+                    .sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
+                    .forEach(ev => {
+                        const tags = ev.tags || [];
+                        const ok =
+                            tags.some(t => t[0] === 't' && t[1] === 'ads-published') ||
+                            tags.some(t => t[0] === 'status' && t[1] === 'published');
+
+                        const item = parseCampaignFromEvent(ev);
+                        if (!item) return;
+                        if (!ok) return;
+                        if (!isCampaignActive(item)) return;
+
+                        const key = String(item.id);
+                        if (seen.has(key)) return;
+                        seen.add(key);
+                        list.push(item);
+                    });
+
+                list.sort((a, b) => {
+                    const la = LEVEL_ORDER[a.level] || 0;
+                    const lb = LEVEL_ORDER[b.level] || 0;
+                    if (lb !== la) return lb - la;
+                    return (b.created_at || 0) - (a.created_at || 0);
+                });
+
+                return list.slice(0, limit);
+            } catch (e) {
+                console.error('Falha ao carregar destaques da rede:', e);
+                return [];
+            }
+        }
+
+        function normalizeExternalLink(raw) {
+            const link = String(raw || '').trim();
+            if (!link) return '';
+
+            if (/^https?:\/\//i.test(link)) return link;
+            if (/^\/\//.test(link)) return 'https:' + link;
+            if (link.startsWith('/')) return window.location.origin + link;
+            if (/^[a-z0-9.-]+\.[a-z]{2,}/i.test(link)) return 'https://' + link;
+
+            return window.location.origin + '/' + link.replace(/^\.\//, '');
+        }
+
+        function paintSlot(el, item) {
+            el.classList.add('is-ready');
+            el.innerHTML = '';
+
+            const finalLink = normalizeExternalLink(item.link);
+
+            const body = document.createElement(finalLink ? 'a' : 'div');
+            body.className = 'lp-slot-body';
+
+            if (finalLink) {
+                body.href = finalLink;
+                body.target = '_blank';
+                body.rel = 'noopener noreferrer';
+
+                body.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.open(finalLink, '_blank', 'noopener,noreferrer');
+                });
+            }
+
+            const media = document.createElement('img');
+            media.className = 'lp-slot-media';
+            media.alt = item.title || 'Destaque';
+            media.src = item.imageUrl || 'https://via.placeholder.com/120x80/8A2BE2/ffffff?text=LP';
+            media.onerror = function () {
+                this.src = 'https://via.placeholder.com/120x80/8A2BE2/ffffff?text=LP';
+            };
+
+            const meta = document.createElement('div');
+            meta.className = 'lp-slot-meta';
+
+            const tag = document.createElement('span');
+            tag.className = 'lp-slot-tag';
+            tag.textContent = `Parceiro · ${(item.level || '').toString().toUpperCase()}`;
+
+            const heading = document.createElement('span');
+            heading.className = 'lp-slot-heading';
+            heading.textContent = item.title || 'Destaque';
+
+            const text = document.createElement('span');
+            text.className = 'lp-slot-text';
+            text.textContent = item.desc || '';
+
+            meta.appendChild(tag);
+            meta.appendChild(heading);
+            meta.appendChild(text);
+            body.appendChild(media);
+            body.appendChild(meta);
+            el.appendChild(body);
+        }
+
+        function fillSlots(items) {
+            const slots = Array.from(document.querySelectorAll(SLOT_SELECTOR));
+            if (!slots.length) return;
+
+            if (!items.length) {
+                slots.forEach(s => {
+                    s.classList.remove('is-ready');
+                    s.textContent = EMPTY_LABEL;
+                });
+                return;
+            }
+
+            slots.forEach((slot, index) => {
+                paintSlot(slot, items[index % items.length]);
+            });
+        }
+
+        async function bootPartnerSlots() {
+            const items = await fetchNetworkCampaigns(40);
+            fillSlots(items);
+            setInterval(async () => {
+                const fresh = await fetchNetworkCampaigns(40);
+                fillSlots(fresh);
+            }, 3 * 60 * 1000);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bootPartnerSlots);
+        } else {
+            bootPartnerSlots();
+        }
     </script>
 </body>
 </html>
