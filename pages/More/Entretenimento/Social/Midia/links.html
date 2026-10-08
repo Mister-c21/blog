@@ -147,6 +147,83 @@
  font-weight: 600;
  }
 
+ /* Slot de parceiro no feed (discreto, anti-filtro) */
+ .lp-slot {
+ max-width: 652px;
+ width: 100%;
+ margin: 0 0 1.75rem 0;
+ min-height: 88px;
+ border: 1px solid #e8eaed;
+ border-radius: 12px;
+ background: #fafafa;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ overflow: hidden;
+ cursor: pointer;
+ color: #70757a;
+ font-size: 13px;
+ }
+ .lp-slot.is-ready {
+ background: #fff;
+ border-color: #e8eaed;
+ justify-content: flex-start;
+ color: #202124;
+ }
+ .lp-slot .lp-slot-body {
+ display: flex;
+ width: 100%;
+ min-height: 88px;
+ align-items: center;
+ gap: 12px;
+ padding: 10px 14px;
+ text-decoration: none;
+ color: inherit;
+ box-sizing: border-box;
+ }
+ .lp-slot .lp-slot-media {
+ width: 96px;
+ height: 68px;
+ object-fit: cover;
+ border-radius: 8px;
+ flex-shrink: 0;
+ background: #f1f3f4;
+ }
+ .lp-slot .lp-slot-meta {
+ flex: 1;
+ min-width: 0;
+ display: flex;
+ flex-direction: column;
+ gap: 3px;
+ text-align: left;
+ }
+ .lp-slot .lp-slot-tag {
+ font-size: 10px;
+ font-weight: 700;
+ color: #7c3aed;
+ background: #f5f3ff;
+ padding: 1px 8px;
+ border-radius: 9999px;
+ width: fit-content;
+ }
+ .lp-slot .lp-slot-heading {
+ font-size: 14px;
+ font-weight: 600;
+ color: #202124;
+ white-space: nowrap;
+ overflow: hidden;
+ text-overflow: ellipsis;
+ }
+ .lp-slot .lp-slot-text {
+ font-size: 12px;
+ color: #4d5156;
+ display: -webkit-box;
+ -webkit-line-clamp: 2;
+ -webkit-box-orient: vertical;
+ overflow: hidden;
+ line-height: 1.35;
+ }
+
  /* ===== SKELETON ===== */
  @keyframes skeleton-shimmer {
  0% { background-position: -200% 0; }
@@ -429,6 +506,11 @@
  const PAGE_SIZE = 10;
  let currentPage = 1;
 
+ // Parceiros no feed: 1 slot a cada N resultados da página (não excessivo)
+ const PARTNER_EVERY = 5;
+ let partnerCampaigns = [];
+ let partnerCursor = 0;
+
  window.closeSidebar = function() {
  document.getElementById('sidebar').classList.add('-translate-x-full');
  document.getElementById('sidebarOverlay').classList.add('hidden');
@@ -606,6 +688,150 @@
  return items;
  }
 
+ /* ===== Parceiros (MarketAds) ===== */
+ const LEVEL_ORDER = { diamante: 4, ouro: 3, plata: 2, bronze: 1 };
+
+ function parseCampaignFromEvent(ev) {
+ try {
+ const data = JSON.parse(ev.content || '{}');
+ if (!data || data.app !== 'MarketAds') return null;
+ if (data.type !== 'ads') return null;
+
+ const getTag = (name) => {
+ const t = (ev.tags || []).find(x => x[0] === name);
+ return t ? t[1] : '';
+ };
+
+ const statusFromTag = getTag('status');
+ const status = data.status || statusFromTag || '';
+ if (status && status !== 'published') return null;
+
+ return {
+ id: data.id || getTag('d') || ev.id,
+ title: data.title || 'Destaque',
+ desc: data.desc || '',
+ imageUrl: data.imageUrl || getTag('image') || getTag('r') || '',
+ link: data.adLink || '',
+ level: (data.level || getTag('level') || 'bronze').toLowerCase(),
+ timeLeft: typeof data.timeLeft === 'number' ? data.timeLeft : null,
+ created_at: data.created_at || ev.created_at || 0
+ };
+ } catch (_) {
+ return null;
+ }
+ }
+
+ function isCampaignActive(item) {
+ if (typeof item.timeLeft === 'number' && item.timeLeft <= 0) return false;
+ return true;
+ }
+
+ async function fetchNetworkCampaigns(limit = 20) {
+ try {
+ const events = await pool.querySync(RELAYS, {
+ kinds: [1],
+ '#t': ['marketads'],
+ limit: 80
+ });
+
+ const list = [];
+ const seen = new Set();
+
+ (events || [])
+ .sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
+ .forEach(ev => {
+ const tags = ev.tags || [];
+ const ok =
+ tags.some(t => t[0] === 't' && t[1] === 'ads-published') ||
+ tags.some(t => t[0] === 'status' && t[1] === 'published');
+
+ const item = parseCampaignFromEvent(ev);
+ if (!item || !ok || !isCampaignActive(item)) return;
+
+ const key = String(item.id);
+ if (seen.has(key)) return;
+ seen.add(key);
+ list.push(item);
+ });
+
+ list.sort((a, b) => {
+ const la = LEVEL_ORDER[a.level] || 0;
+ const lb = LEVEL_ORDER[b.level] || 0;
+ if (lb !== la) return lb - la;
+ return (b.created_at || 0) - (a.created_at || 0);
+ });
+
+ return list.slice(0, limit);
+ } catch (e) {
+ console.error('Falha ao carregar destaques da rede:', e);
+ return [];
+ }
+ }
+
+ function normalizeExternalLink(raw) {
+ const link = String(raw || '').trim();
+ if (!link) return '';
+ if (/^https?:\/\//i.test(link)) return link;
+ if (/^\/\//.test(link)) return 'https:' + link;
+ if (link.startsWith('/')) return window.location.origin + link;
+ if (/^[a-z0-9.-]+\.[a-z]{2,}/i.test(link)) return 'https://' + link;
+ return window.location.origin + '/' + link.replace(/^\.\//, '');
+ }
+
+ function nextPartnerCampaign() {
+ if (!partnerCampaigns.length) return null;
+ const item = partnerCampaigns[partnerCursor % partnerCampaigns.length];
+ partnerCursor += 1;
+ return item;
+ }
+
+ function buildPartnerSlotHtml(item) {
+ if (!item) return '';
+
+ const finalLink = normalizeExternalLink(item.link);
+ const title = escapeHtml(item.title || 'Destaque');
+ const desc = escapeHtml(item.desc || '');
+ const level = escapeHtml((item.level || '').toString().toUpperCase());
+ const img = escapeHtml(item.imageUrl || 'https://via.placeholder.com/96x68/7c3aed/ffffff?text=LP');
+ const href = escapeHtml(finalLink);
+
+ const openAttr = finalLink
+ ? `href="${href}" target="_blank" rel="noopener noreferrer" data-partner-link="${href}"`
+ : '';
+
+ return `
+ <div class="lp-slot is-ready" data-lp-slot>
+ <a class="lp-slot-body" ${openAttr}>
+ <img class="lp-slot-media" src="${img}" alt="${title}"
+ onerror="this.src='https://via.placeholder.com/96x68/7c3aed/ffffff?text=LP'">
+ <div class="lp-slot-meta">
+ <span class="lp-slot-tag">Parceiro · ${level}</span>
+ <span class="lp-slot-heading">${title}</span>
+ <span class="lp-slot-text">${desc}</span>
+ </div>
+ </a>
+ </div>`;
+ }
+
+ function bindPartnerSlotClicks(container) {
+ container.querySelectorAll('[data-partner-link]').forEach(el => {
+ el.addEventListener('click', (e) => {
+ e.preventDefault();
+ e.stopPropagation();
+ const url = el.getAttribute('data-partner-link');
+ if (url) window.open(url, '_blank', 'noopener,noreferrer');
+ });
+ });
+ }
+
+ async function bootPartnerCampaigns() {
+ partnerCampaigns = await fetchNetworkCampaigns(20);
+ setInterval(async () => {
+ partnerCampaigns = await fetchNetworkCampaigns(20);
+ }, 3 * 60 * 1000);
+ }
+ /* ===== Fim parceiros ===== */
+
  /* ===== SKELETON ===== */
  function showSkeleton(count = 8) {
  const box = document.getElementById('linkResults');
@@ -633,7 +859,7 @@
  async function loadInitial() {
  if (isLoading) return;
  isLoading = true;
- showSkeleton(); // ← skeleton enquanto carrega
+ showSkeleton();
  setStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span class="ml-1">Buscando links nos relays Nostr...</span>`);
 
  try {
@@ -764,14 +990,12 @@
 
  el.classList.remove('hidden');
 
- // Janela de páginas no estilo Google (até ~10 números)
  let start = Math.max(1, currentPage - 4);
  let end = Math.min(totalPages, start + 9);
  if (end - start < 9) start = Math.max(1, end - 9);
 
  let html = '';
 
- // Anterior
  if (currentPage > 1) {
  html += `<a href="javascript:void(0)" onclick="goToPage(${currentPage - 1})" class="nav-label" aria-label="Anterior"><i class="fa-solid fa-chevron-left text-xs mr-1"></i>Anterior</a>`;
  } else {
@@ -786,7 +1010,6 @@
  }
  }
 
- // Próxima
  if (currentPage < totalPages) {
  html += `<a href="javascript:void(0)" onclick="goToPage(${currentPage + 1})" class="nav-label" aria-label="Próxima">Próxima<i class="fa-solid fa-chevron-right text-xs ml-1"></i></a>`;
  } else {
@@ -822,7 +1045,8 @@
  const to = Math.min(start + PAGE_SIZE, filteredLinks.length);
  stats.textContent = `Exibindo ${from}–${to} de aproximadamente ${filteredLinks.length} resultado(s) · links da rede Nostr`;
 
- box.innerHTML = pageItems.map(v => {
+ let html = '';
+ pageItems.forEach((v, index) => {
  const parts = parseUrlParts(v.url);
  const title = makeTitle(v.content, v.url);
  const snippet = makeSnippet(v.content, v.url);
@@ -830,7 +1054,7 @@
  const author = displayName(v.pubkey);
  const when = timeAgo(v.created_at);
 
- return `
+ html += `
  <article class="g-result">
  <a href="${escapeHtml(v.url)}" target="_blank" rel="noopener noreferrer" class="block group">
  <div class="flex items-center gap-2 mb-0.5 min-w-0">
@@ -853,14 +1077,21 @@
  <span class="g-badge">Nostr</span>
  </div>
  </article>`;
- }).join('');
 
+ // 1 espaço de parceiro a cada PARTNER_EVERY resultados (ex.: após o 5º)
+ if ((index + 1) % PARTNER_EVERY === 0 && partnerCampaigns.length) {
+ html += buildPartnerSlotHtml(nextPartnerCampaign());
+ }
+ });
+
+ box.innerHTML = html;
+ bindPartnerSlotClicks(box);
  renderPagination();
  }
 
  // FAB scroll to top
  const scrollTopBtn = document.getElementById('scrollTopBtn');
- const SCROLL_SHOW_AT = 320; // px
+ const SCROLL_SHOW_AT = 320;
 
  window.addEventListener('scroll', () => {
  if (window.scrollY > SCROLL_SHOW_AT) {
@@ -885,7 +1116,7 @@
  }
 
  loadSessionAvatar();
- loadInitial();
+ bootPartnerCampaigns().then(() => loadInitial());
  </script>
 </body>
 </html>
