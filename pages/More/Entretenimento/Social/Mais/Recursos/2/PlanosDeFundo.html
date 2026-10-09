@@ -165,9 +165,10 @@
                 </div>
 
                 <div class="pt-2">
-                    <button onclick="downloadWallpaper()" class="w-full py-3 px-4 rounded-xl font-semibold bg-secondary hover:bg-purple-700 text-white transition-all flex items-center justify-center gap-2 shadow-lg shadow-secondary/30 text-sm">
-                        <i data-lucide="download" class="w-4 h-4"></i>
-                        <span>Baixar</span>
+                    <button id="download-btn" onclick="downloadWallpaper()" class="w-full py-3 px-4 rounded-xl font-semibold bg-secondary hover:bg-purple-700 text-white transition-all flex items-center justify-center gap-2 shadow-lg shadow-secondary/30 text-sm relative overflow-hidden">
+                        <div id="download-progress-bar" class="absolute left-0 top-0 bottom-0 bg-purple-900/40 w-0 transition-all duration-100"></div>
+                        <i id="download-icon" data-lucide="download" class="w-4 h-4 relative z-10"></i>
+                        <span id="download-text" class="relative z-10">Baixar</span>
                     </button>
                 </div>
             </div>
@@ -287,6 +288,7 @@
         let favorites = [];
         let activeWallpaper = null;
         let tempSelectedImageUrl = '';
+        let isDownloading = false;
 
         // Initialize Lucide icons
         lucide.createIcons();
@@ -374,7 +376,6 @@
             const index = wallpapers.findIndex(wp => wp.id === id);
             if (index > -1) {
                 wallpapers.splice(index, 1);
-                // Also remove from favorites if present
                 const favIdx = favorites.indexOf(id);
                 if (favIdx > -1) favorites.splice(favIdx, 1);
                 
@@ -388,7 +389,6 @@
         function filterCategory(cat) {
             currentCategory = cat;
             
-            // Update buttons state
             document.querySelectorAll('.cat-btn').forEach(btn => {
                 btn.className = 'cat-btn px-5 py-2.5 rounded-xl font-semibold text-xs tracking-wide transition-all shrink-0 glass-card text-gray-700 hover:border-secondary';
             });
@@ -465,7 +465,6 @@
             filterWallpapers();
             renderMyWallpapers();
 
-            // Reset form
             document.getElementById('post-title').value = '';
             document.getElementById('post-file-input').value = '';
             document.getElementById('image-preview-container').classList.add('hidden');
@@ -475,7 +474,6 @@
             showToast('Wallpaper postado com sucesso!');
         }
 
-        // Close dropdown when clicking outside
         window.addEventListener('click', function(e) {
             const dropdown = document.getElementById('profile-dropdown');
             const profileBtn = dropdown.previousElementSibling;
@@ -525,6 +523,15 @@
             document.getElementById('modal-cat-tag').innerText = `${wp.category} • ${wp.resolution}`;
             document.getElementById('modal-username').innerText = wp.user;
             document.getElementById('modal-user-avatar').src = wp.avatar;
+            
+            // Reset download button state
+            isDownloading = false;
+            const progressBar = document.getElementById('download-progress-bar');
+            const downloadText = document.getElementById('download-text');
+            const downloadIcon = document.getElementById('download-icon');
+            progressBar.style.width = '0%';
+            downloadText.innerText = 'Baixar';
+            downloadIcon.style.display = 'inline-block';
             
             updateModalFavIcon();
             
@@ -628,8 +635,35 @@
         }
 
         function downloadWallpaper() {
-            showToast('Download do arquivo 4K UHD iniciado!');
-            closePreview();
+            if (isDownloading) return;
+            isDownloading = true;
+
+            const progressBar = document.getElementById('download-progress-bar');
+            const downloadText = document.getElementById('download-text');
+            const downloadIcon = document.getElementById('download-icon');
+
+            downloadIcon.style.display = 'none';
+            downloadText.innerText = 'Baixando... 0%';
+
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.floor(Math.random() * 8) + 5;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    progressBar.style.width = '100%';
+                    downloadText.innerText = 'Concluído!';
+                    
+                    setTimeout(() => {
+                        showToast('Download do arquivo 4K UHD concluído!');
+                        closePreview();
+                        isDownloading = false;
+                    }, 600);
+                } else {
+                    progressBar.style.width = progress + '%';
+                    downloadText.innerText = `Baixando... ${progress}%`;
+                }
+            }, 120);
         }
 
         function showToast(text) {
