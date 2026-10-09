@@ -295,13 +295,28 @@
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>
+
+            <!-- TOGGLE INSIDE FAVORITES MODAL -->
+            <div class="px-6 pt-4 flex justify-center">
+                <div class="glass-card p-1.5 rounded-2xl flex gap-1 border border-gray-200 shadow-sm w-full max-w-xs">
+                    <button onclick="switchFavModalDevice('mobile')" id="fav-modal-btn-mobile" class="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all bg-secondary text-white shadow-md">
+                        <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+                        <span>Mobile</span>
+                    </button>
+                    <button onclick="switchFavModalDevice('desktop')" id="fav-modal-btn-desktop" class="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all text-gray-600 hover:text-gray-900">
+                        <i data-lucide="monitor" class="w-3.5 h-3.5"></i>
+                        <span>Desktop</span>
+                    </button>
+                </div>
+            </div>
+
             <div class="p-6 overflow-y-auto flex-grow">
                 <div id="fav-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     <!-- Favs populated via JS -->
                 </div>
                 <div id="empty-favs" class="text-center py-12 hidden">
                     <i data-lucide="heart-off" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
-                    <p class="text-gray-500 text-sm">Nenhum wallpaper favoritado ainda.</p>
+                    <p class="text-gray-500 text-sm">Nenhum wallpaper favoritado ainda para esta categoria.</p>
                 </div>
             </div>
         </div>
@@ -330,6 +345,7 @@
         let currentDeviceType = 'mobile'; // 'mobile' or 'desktop' for main view
         let postDeviceType = 'mobile'; // 'mobile' or 'desktop' for post form
         let myModalDeviceType = 'mobile'; // 'mobile' or 'desktop' for my wallpapers modal
+        let favModalDeviceType = 'mobile'; // 'mobile' or 'desktop' for favorites modal
         let favorites = [];
         let activeWallpaper = null;
         let tempSelectedImageUrl = '';
@@ -389,6 +405,22 @@
             renderMyWallpapers();
         }
 
+        function switchFavModalDevice(type) {
+            favModalDeviceType = type;
+            const btnMobile = document.getElementById('fav-modal-btn-mobile');
+            const btnDesktop = document.getElementById('fav-modal-btn-desktop');
+
+            if (type === 'mobile') {
+                btnMobile.className = 'flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all bg-secondary text-white shadow-md';
+                btnDesktop.className = 'flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all text-gray-600 hover:text-gray-900';
+            } else {
+                btnDesktop.className = 'flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all bg-secondary text-white shadow-md';
+                btnMobile.className = 'flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all text-gray-600 hover:text-gray-900';
+            }
+
+            renderFavoritesList();
+        }
+
         function updateModalAspect() {
             const container = document.getElementById('modal-preview-container');
             if (currentDeviceType === 'mobile') {
@@ -402,7 +434,6 @@
             const grid = document.getElementById('wallpapers-grid');
             grid.innerHTML = '';
 
-            // Adjust grid aspect ratio and filtering by deviceType
             if (currentDeviceType === 'mobile') {
                 grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6 w-full';
             } else {
@@ -635,11 +666,9 @@
             document.getElementById('modal-username').innerText = wp.user;
             document.getElementById('modal-user-avatar').src = wp.avatar;
             
-            // Sync current preview modal aspect to wallpaper's type
             currentDeviceType = wp.deviceType;
             updateModalAspect();
 
-            // Reset download button state
             isDownloading = false;
             const progressBar = document.getElementById('download-progress-bar');
             const downloadText = document.getElementById('download-text');
@@ -672,6 +701,9 @@
             }
             updateFavBadge();
             renderWallpapers(wallpapers);
+            if (document.getElementById('fav-modal').classList.contains('flex')) {
+                renderFavoritesList();
+            }
             if (activeWallpaper && activeWallpaper.id === id) {
                 updateModalFavIcon();
             }
@@ -724,7 +756,7 @@
             const empty = document.getElementById('empty-favs');
             grid.innerHTML = '';
 
-            const favItems = wallpapers.filter(wp => favorites.includes(wp.id));
+            const favItems = wallpapers.filter(wp => favorites.includes(wp.id) && wp.deviceType === favModalDeviceType);
 
             if (favItems.length === 0) {
                 empty.classList.remove('hidden');
