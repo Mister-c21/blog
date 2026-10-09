@@ -95,7 +95,7 @@
     <main class="flex-grow max-w-7xl mx-auto px-4 md:px-6 py-8 flex flex-col w-full z-10">
         
         <!-- SEARCH BAR -->
-        <div class="relative w-full max-w-2xl mx-auto mb-8">
+        <div class="relative w-full max-w-2xl mx-auto mb-6">
             <span class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-gray-400">
                 <i data-lucide="search" class="w-5 h-5"></i>
             </span>
@@ -103,6 +103,20 @@
             <button id="clear-search-btn" onclick="clearSearch()" class="absolute inset-y-0 right-0 hidden items-center pr-4 text-gray-400 hover:text-gray-700 transition-colors">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
+        </div>
+
+        <!-- DEVICE VIEW TOGGLE (MOBILE / DESKTOP) -->
+        <div class="flex justify-center mb-8">
+            <div class="glass-card p-1.5 rounded-2xl flex gap-1 border border-gray-200 shadow-sm">
+                <button onclick="switchDeviceType('mobile')" id="device-btn-mobile" class="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold transition-all bg-secondary text-white shadow-md shadow-secondary/20">
+                    <i data-lucide="smartphone" class="w-4 h-4"></i>
+                    <span>Mobile</span>
+                </button>
+                <button onclick="switchDeviceType('desktop')" id="device-btn-desktop" class="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold transition-all text-gray-600 hover:text-gray-900">
+                    <i data-lucide="monitor" class="w-4 h-4"></i>
+                    <span>Desktop</span>
+                </button>
+            </div>
         </div>
 
         <!-- CATEGORIES HORIZONTAL SCROLL -->
@@ -139,7 +153,7 @@
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
             
-            <div class="relative w-full h-72 md:h-96 bg-gray-900 flex items-center justify-center overflow-hidden">
+            <div id="modal-preview-container" class="relative w-full h-72 md:h-96 bg-gray-900 flex items-center justify-center overflow-hidden transition-all duration-300">
                 <img id="modal-img" src="" alt="Wallpaper Preview" class="w-full h-full object-cover">
                 <span id="modal-cat-tag" class="absolute bottom-4 left-4 px-3 py-1 rounded-full text-xs font-bold bg-black/60 text-white backdrop-blur-md border border-white/20"></span>
             </div>
@@ -285,6 +299,7 @@
         ];
 
         let currentCategory = 'all';
+        let currentDeviceType = 'mobile'; // 'mobile' or 'desktop'
         let favorites = [];
         let activeWallpaper = null;
         let tempSelectedImageUrl = '';
@@ -295,11 +310,53 @@
         renderWallpapers(wallpapers);
         renderMyWallpapers();
 
+        function switchDeviceType(type) {
+            currentDeviceType = type;
+            const btnMobile = document.getElementById('device-btn-mobile');
+            const btnDesktop = document.getElementById('device-btn-desktop');
+
+            if (type === 'mobile') {
+                btnMobile.className = 'flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold transition-all bg-secondary text-white shadow-md shadow-secondary/20';
+                btnDesktop.className = 'flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold transition-all text-gray-600 hover:text-gray-900';
+            } else {
+                btnDesktop.className = 'flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold transition-all bg-secondary text-white shadow-md shadow-secondary/20';
+                btnMobile.className = 'flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold transition-all text-gray-600 hover:text-gray-900';
+            }
+
+            renderWallpapers(wallpapers);
+            if (activeWallpaper) {
+                updateModalAspect();
+            }
+        }
+
+        function updateModalAspect() {
+            const container = document.getElementById('modal-preview-container');
+            if (currentDeviceType === 'mobile') {
+                container.className = 'relative w-full h-72 md:h-96 bg-gray-900 flex items-center justify-center overflow-hidden transition-all duration-300';
+            } else {
+                container.className = 'relative w-full h-48 md:h-64 bg-gray-900 flex items-center justify-center overflow-hidden transition-all duration-300';
+            }
+        }
+
         function renderWallpapers(list) {
             const grid = document.getElementById('wallpapers-grid');
             grid.innerHTML = '';
 
-            if (list.length === 0) {
+            // Adjust grid aspect ratio based on device type
+            if (currentDeviceType === 'mobile') {
+                grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6 w-full';
+            } else {
+                grid.className = 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 w-full';
+            }
+
+            const filteredList = list.filter(wp => {
+                const matchesCat = currentCategory === 'all' || wp.category.toLowerCase() === currentCategory.toLowerCase();
+                const query = document.getElementById('search-input').value.toLowerCase();
+                const matchesQuery = wp.title.toLowerCase().includes(query) || wp.category.toLowerCase().includes(query);
+                return matchesCat && matchesQuery;
+            });
+
+            if (filteredList.length === 0) {
                 grid.innerHTML = `
                     <div class="col-span-full text-center py-16">
                         <i data-lucide="search-x" class="w-12 h-12 text-gray-400 mx-auto mb-3"></i>
@@ -310,10 +367,11 @@
                 return;
             }
 
-            list.forEach(wp => {
+            filteredList.forEach(wp => {
                 const isFav = favorites.includes(wp.id);
                 const card = document.createElement('div');
-                card.className = 'group relative rounded-2xl overflow-hidden glass-card aspect-[9/16] cursor-pointer shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200';
+                const aspectClass = currentDeviceType === 'mobile' ? 'aspect-[9/16]' : 'aspect-[16/9]';
+                card.className = `group relative rounded-2xl overflow-hidden glass-card ${aspectClass} cursor-pointer shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200`;
                 card.onclick = () => openPreview(wp);
                 
                 card.innerHTML = `
@@ -327,7 +385,7 @@
                     </div>
 
                     <div class="absolute bottom-3 left-3 right-3 text-white">
-                        <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-secondary/80 backdrop-blur-sm mb-1 inline-block">${wp.resolution}</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-secondary/80 backdrop-blur-sm mb-1 inline-block">${wp.resolution} (${currentDeviceType === 'mobile' ? 'Mobile' : 'Desktop'})</span>
                         <h4 class="text-sm font-bold truncate">${wp.title}</h4>
                         <p class="text-[11px] text-gray-300">${wp.category}</p>
                     </div>
@@ -380,7 +438,7 @@
                 if (favIdx > -1) favorites.splice(favIdx, 1);
                 
                 updateFavBadge();
-                filterWallpapers();
+                renderWallpapers(wallpapers);
                 renderMyWallpapers();
                 showToast('Plano de fundo apagado com sucesso!');
             }
@@ -394,7 +452,7 @@
             });
             event.target.className = 'cat-btn px-5 py-2.5 rounded-xl font-semibold text-xs tracking-wide transition-all shrink-0 bg-secondary text-white shadow-md shadow-secondary/20 border border-secondary';
 
-            filterWallpapers();
+            renderWallpapers(wallpapers);
         }
 
         function toggleProfileMenu() {
@@ -462,7 +520,7 @@
             };
 
             wallpapers.unshift(newWallpaper);
-            filterWallpapers();
+            renderWallpapers(wallpapers);
             renderMyWallpapers();
 
             document.getElementById('post-title').value = '';
@@ -495,7 +553,7 @@
                 clearBtn.classList.add('hidden');
             }
             
-            filterWallpapers();
+            renderWallpapers(wallpapers);
         }
 
         function clearSearch() {
@@ -503,27 +561,19 @@
             input.value = '';
             document.getElementById('clear-search-btn').classList.remove('flex');
             document.getElementById('clear-search-btn').classList.add('hidden');
-            filterWallpapers();
-        }
-
-        function filterWallpapers() {
-            const query = document.getElementById('search-input').value.toLowerCase();
-            const filtered = wallpapers.filter(wp => {
-                const matchesCat = currentCategory === 'all' || wp.category.toLowerCase() === currentCategory.toLowerCase();
-                const matchesQuery = wp.title.toLowerCase().includes(query) || wp.category.toLowerCase().includes(query);
-                return matchesCat && matchesQuery;
-            });
-            renderWallpapers(filtered);
+            renderWallpapers(wallpapers);
         }
 
         function openPreview(wp) {
             activeWallpaper = wp;
             document.getElementById('modal-img').src = wp.url;
             document.getElementById('modal-title').innerText = wp.title;
-            document.getElementById('modal-cat-tag').innerText = `${wp.category} • ${wp.resolution}`;
+            document.getElementById('modal-cat-tag').innerText = `${wp.category} • ${wp.resolution} (${currentDeviceType === 'mobile' ? 'Mobile' : 'Desktop'})`;
             document.getElementById('modal-username').innerText = wp.user;
             document.getElementById('modal-user-avatar').src = wp.avatar;
             
+            updateModalAspect();
+
             // Reset download button state
             isDownloading = false;
             const progressBar = document.getElementById('download-progress-bar');
@@ -556,7 +606,7 @@
                 showToast('Adicionado aos favoritos');
             }
             updateFavBadge();
-            filterWallpapers();
+            renderWallpapers(wallpapers);
             if (activeWallpaper && activeWallpaper.id === id) {
                 updateModalFavIcon();
             }
@@ -655,7 +705,7 @@
                     downloadText.innerText = 'Concluído!';
                     
                     setTimeout(() => {
-                        showToast('Download do arquivo 4K UHD concluído!');
+                        showToast(`Download do arquivo 4K UHD (${currentDeviceType === 'mobile' ? 'Mobile' : 'Desktop'}) concluído!`);
                         closePreview();
                         isDownloading = false;
                     }, 600);
