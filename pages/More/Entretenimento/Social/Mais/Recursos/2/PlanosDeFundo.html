@@ -184,11 +184,11 @@
             <div class="p-6 flex flex-col gap-4 overflow-y-auto">
                 <div>
                     <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Título</label>
-                    <input type="text" placeholder="Ex: Paisagem Noturna" class="w-full px-4 py-3 rounded-xl glass-card border border-gray-200 text-sm focus:outline-none focus:border-secondary">
+                    <input type="text" id="post-title" placeholder="Ex: Paisagem Noturna" class="w-full px-4 py-3 rounded-xl glass-card border border-gray-200 text-sm focus:outline-none focus:border-secondary">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Categoria</label>
-                    <select class="w-full px-4 py-3 rounded-xl glass-card border border-gray-200 text-sm focus:outline-none focus:border-secondary bg-white">
+                    <select id="post-category" class="w-full px-4 py-3 rounded-xl glass-card border border-gray-200 text-sm focus:outline-none focus:border-secondary bg-white">
                         <option>Natureza</option>
                         <option>Carros</option>
                         <option>Abstrato</option>
@@ -198,8 +198,11 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">URL da Imagem</label>
-                    <input type="text" placeholder="https://..." class="w-full px-4 py-3 rounded-xl glass-card border border-gray-200 text-sm focus:outline-none focus:border-secondary">
+                    <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Selecionar Imagem do Dispositivo</label>
+                    <input type="file" id="post-file-input" accept="image/*" onchange="previewSelectedImage(event)" class="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-secondary/10 file:text-secondary hover:file:bg-secondary/20 cursor-pointer">
+                </div>
+                <div id="image-preview-container" class="hidden relative w-full h-40 rounded-xl overflow-hidden border border-gray-200">
+                    <img id="image-preview" src="" class="w-full h-full object-cover">
                 </div>
                 <button onclick="submitPost()" class="w-full py-3 rounded-xl bg-secondary hover:bg-purple-700 text-white font-semibold transition-all shadow-md text-sm mt-2">
                     Publicar Wallpaper
@@ -221,7 +224,7 @@
                 </button>
             </div>
             <div class="p-6 overflow-y-auto flex-grow">
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div id="my-wallpapers-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     <div class="relative rounded-xl overflow-hidden aspect-[9/16] glass-card border border-gray-200 group">
                         <img src="https://images.unsplash.com/photo-1531306728370-e2ebd9d7bb99?q=80&w=1000&auto=format&fit=crop" class="w-full h-full object-cover">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
@@ -281,6 +284,7 @@
         let currentCategory = 'all';
         let favorites = [];
         let activeWallpaper = null;
+        let tempSelectedImageUrl = '';
 
         // Initialize Lucide icons
         lucide.createIcons();
@@ -365,9 +369,66 @@
             modal.classList.add('hidden');
         }
 
+        function previewSelectedImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    tempSelectedImageUrl = e.target.result;
+                    const previewImg = document.getElementById('image-preview');
+                    previewImg.src = tempSelectedImageUrl;
+                    document.getElementById('image-preview-container').classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
         function submitPost() {
-            showToast('Wallpaper postado com sucesso!');
+            const titleInput = document.getElementById('post-title').value.trim();
+            const categorySelect = document.getElementById('post-category').value;
+
+            if (!titleInput) {
+                showToast('Por favor, insira um título.');
+                return;
+            }
+            if (!tempSelectedImageUrl) {
+                showToast('Por favor, selecione uma imagem do dispositivo.');
+                return;
+            }
+
+            const newWallpaper = {
+                id: wallpapers.length + 1,
+                title: titleInput,
+                category: categorySelect,
+                url: tempSelectedImageUrl,
+                resolution: '4K UHD'
+            };
+
+            wallpapers.unshift(newWallpaper);
+            filterWallpapers();
+
+            // Add to "meus planos de fundo" grid
+            const myGrid = document.getElementById('my-wallpapers-grid');
+            const card = document.createElement('div');
+            card.className = 'relative rounded-xl overflow-hidden aspect-[9/16] glass-card border border-gray-200 group';
+            card.innerHTML = `
+                <img src="${tempSelectedImageUrl}" class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                <div class="absolute bottom-2 left-2 right-2 text-white">
+                    <h5 class="text-xs font-bold truncate">${titleInput}</h5>
+                    <span class="text-[10px] text-gray-300">Ativo</span>
+                </div>
+            `;
+            myGrid.appendChild(card);
+
+            // Reset form
+            document.getElementById('post-title').value = '';
+            document.getElementById('post-file-input').value = '';
+            document.getElementById('image-preview-container').classList.add('hidden');
+            tempSelectedImageUrl = '';
+
             closeModal('post-modal');
+            showToast('Wallpaper postado com sucesso!');
         }
 
         // Close dropdown when clicking outside
