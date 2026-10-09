@@ -72,6 +72,70 @@
         .config-btn.selected { border-color:var(--primary-violet); background:var(--light-violet); color:var(--primary-violet); font-weight:600; }
         .btn-modal { background:var(--primary-violet); color:#fff; border:none; padding:10px 16px; border-radius:8px; font-weight:600; cursor:pointer; }
         @media(max-width:600px){ .chapter-title{font-size:1.5rem} .modal-overlay{align-items:flex-end} .modal-card{width:100%;max-width:100%;border-radius:20px 20px 0 0} }
+
+        /* Slot de parceiro (anti-filtro) */
+        .lp-slot {
+            margin: 36px 0 0 0;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            display: none;
+        }
+        .lp-slot.is-ready { display: block; }
+        .lp-slot .lp-slot-body {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            text-decoration: none;
+            color: inherit;
+            width: 100%;
+        }
+        .lp-slot .lp-slot-media {
+            width: 88px;
+            height: 64px;
+            object-fit: cover;
+            border-radius: 8px;
+            flex-shrink: 0;
+            background: var(--light-violet);
+            border: 1px solid var(--border-color);
+        }
+        .lp-slot .lp-slot-meta {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            text-align: left;
+        }
+        .lp-slot .lp-slot-tag {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--primary-violet);
+            background: var(--light-violet);
+            padding: 2px 8px;
+            border-radius: 9999px;
+            width: fit-content;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        .lp-slot .lp-slot-heading {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .lp-slot .lp-slot-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.35;
+        }
     </style>
 </head>
 <body>
@@ -86,6 +150,8 @@
             <div class="skeleton skeleton-text"></div>
             <div class="skeleton skeleton-text" style="width:60%"></div>
         </article>
+        <!-- Anúncio de parceiro entre o texto e a navegação -->
+        <div id="readerPartnerSlot" class="lp-slot" data-lp-slot></div>
         <div class="chapter-footer">
             <div class="navigation-buttons">
                 <button class="nav-page-btn" id="btnPrevChapter" disabled><i class="fa-solid fa-arrow-left"></i> Anterior</button>
@@ -212,6 +278,140 @@
         const RELAYS = ['wss://relay.damus.io','wss://nos.lol','wss://relay.nostr.band','wss://relay.primal.net'];
         const pool = new NostrTools.SimplePool();
 
+        // Parceiros (MarketAds)
+        let partnerCampaigns = [];
+        let partnerCursor = 0;
+        const LEVEL_ORDER = { diamante: 4, ouro: 3, plata: 2, bronze: 1 };
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text ?? '').replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function parseCampaignFromEvent(ev) {
+            try {
+                const data = JSON.parse(ev.content || '{}');
+                if (!data || data.app !== 'MarketAds' || data.type !== 'ads') return null;
+                const getTag = (name) => {
+                    const t = (ev.tags || []).find(x => x[0] === name);
+                    return t ? t[1] : '';
+                };
+                const status = data.status || getTag('status') || '';
+                if (status && status !== 'published') return null;
+                return {
+                    id: data.id || getTag('d') || ev.id,
+                    title: data.title || 'Destaque',
+                    desc: data.desc || '',
+                    imageUrl: data.imageUrl || getTag('image') || getTag('r') || '',
+                    link: data.adLink || '',
+                    level: (data.level || getTag('level') || 'bronze').toLowerCase(),
+                    timeLeft: typeof data.timeLeft === 'number' ? data.timeLeft : null,
+                    created_at: data.created_at || ev.created_at || 0
+                };
+            } catch { return null; }
+        }
+
+        function isCampaignActive(item) {
+            if (typeof item.timeLeft === 'number' && item.timeLeft <= 0) return false;
+            return true;
+        }
+
+        async function fetchNetworkCampaigns(limit = 20) {
+            try {
+                const events = await pool.querySync(RELAYS, { kinds: [1], '#t': ['marketads'], limit: 80 });
+                const list = [];
+                const seen = new Set();
+                (events || [])
+                    .sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
+                    .forEach(ev => {
+                        const tags = ev.tags || [];
+                        const ok =
+                            tags.some(t => t[0] === 't' && t[1] === 'ads-published') ||
+                            tags.some(t => t[0] === 'status' && t[1] === 'published');
+                        const item = parseCampaignFromEvent(ev);
+                        if (!item || !ok || !isCampaignActive(item)) return;
+                        const key = String(item.id);
+                        if (seen.has(key)) return;
+                        seen.add(key);
+                        list.push(item);
+                    });
+                list.sort((a, b) => {
+                    const la = LEVEL_ORDER[a.level] || 0;
+                    const lb = LEVEL_ORDER[b.level] || 0;
+                    if (lb !== la) return lb - la;
+                    return (b.created_at || 0) - (a.created_at || 0);
+                });
+                return list.slice(0, limit);
+            } catch (e) {
+                console.error('Falha ao carregar destaques:', e);
+                return [];
+            }
+        }
+
+        function normalizeExternalLink(raw) {
+            const link = String(raw || '').trim();
+            if (!link) return '';
+            if (/^https?:\/\//i.test(link)) return link;
+            if (/^\/\//.test(link)) return 'https:' + link;
+            if (link.startsWith('/')) return window.location.origin + link;
+            if (/^[a-z0-9.-]+\.[a-z]{2,}/i.test(link)) return 'https://' + link;
+            return window.location.origin + '/' + link.replace(/^\.\//, '');
+        }
+
+        function nextPartnerCampaign() {
+            if (!partnerCampaigns.length) return null;
+            const item = partnerCampaigns[partnerCursor % partnerCampaigns.length];
+            partnerCursor += 1;
+            return item;
+        }
+
+        function paintReaderPartnerSlot() {
+            const slot = document.getElementById('readerPartnerSlot');
+            if (!slot) return;
+            const item = nextPartnerCampaign();
+            if (!item) {
+                slot.classList.remove('is-ready');
+                slot.innerHTML = '';
+                return;
+            }
+            const finalLink = normalizeExternalLink(item.link);
+            const title = escapeHtml(item.title || 'Destaque');
+            const desc = escapeHtml(item.desc || '');
+            const level = escapeHtml((item.level || '').toString().toUpperCase());
+            const img = escapeHtml(item.imageUrl || 'https://via.placeholder.com/88x64/8A2BE2/ffffff?text=LP');
+            const href = escapeHtml(finalLink);
+            const openAttr = finalLink
+                ? `href="${href}" target="_blank" rel="noopener noreferrer" data-partner-link="${href}"`
+                : '';
+            slot.classList.add('is-ready');
+            slot.innerHTML = `
+                <a class="lp-slot-body" ${openAttr}>
+                    <img class="lp-slot-media" src="${img}" alt="${title}" loading="lazy"
+                         onerror="this.src='https://via.placeholder.com/88x64/8A2BE2/ffffff?text=LP'">
+                    <div class="lp-slot-meta">
+                        <span class="lp-slot-tag">Parceiro · ${level}</span>
+                        <span class="lp-slot-heading">${title}</span>
+                        <span class="lp-slot-text">${desc}</span>
+                    </div>
+                </a>`;
+            slot.querySelectorAll('[data-partner-link]').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const url = el.getAttribute('data-partner-link');
+                    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                });
+            });
+        }
+
+        async function bootPartnerCampaigns() {
+            partnerCampaigns = await fetchNetworkCampaigns(20);
+            paintReaderPartnerSlot();
+            setInterval(async () => {
+                partnerCampaigns = await fetchNetworkCampaigns(20);
+            }, 3 * 60 * 1000);
+        }
+
         async function deriveLsKey() {
             const enc = new TextEncoder();
             const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(LS_SALT), 'PBKDF2', false, ['deriveKey']);
@@ -320,6 +520,8 @@
             document.getElementById('fanficCoverImg').src = cover;
             document.getElementById('spotifyBgBlurred').style.backgroundImage = cover ? `url('${cover}')` : '';
             document.title = `${chap.titulo || 'Capítulo'} - ${currentFanfic.titulo} | LoreSpace`;
+            // Troca o anúncio ao mudar de capítulo (sem ser invasivo)
+            if (partnerCampaigns.length) paintReaderPartnerSlot();
         }
 
         function setupNavigation() {
@@ -332,6 +534,7 @@
         }
 
         (async () => {
+            bootPartnerCampaigns();
             const id = getIdFromUrl();
             if (!id) {
                 document.getElementById('ficTitleSmall').textContent = 'Erro';
