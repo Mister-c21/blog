@@ -78,6 +78,16 @@
  .lp-slot .lp-slot-tag { font-size: 10px; font-weight: 700; color: #7c3aed; background: #f5f3ff; padding: 1px 8px; border-radius: 9999px; width: fit-content; }
  .lp-slot .lp-slot-heading { font-size: 13px; font-weight: 600; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
  .lp-slot .lp-slot-text { font-size: 12px; color: #6b7280; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; }
+ .stories-bar { display: flex; gap: 12px; overflow-x: auto; padding: 12px 4px 8px; margin-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+ .stories-bar::-webkit-scrollbar { display: none; }
+ .story-item { flex-shrink: 0; width: 72px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; color: inherit; cursor: pointer; }
+ .story-ring { width: 64px; height: 64px; border-radius: 9999px; padding: 3px; background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); display: flex; align-items: center; justify-content: center; }
+ .story-ring.seen { background: #d1d5db; }
+ .story-ring.create-ring { background: #e5e7eb; }
+ .story-avatar { width: 100%; height: 100%; border-radius: 9999px; object-fit: cover; border: 2px solid #fff; background: #f3f4f6; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+ .story-avatar img { width: 100%; height: 100%; object-fit: cover; }
+ .story-label { font-size: 11px; color: #374151; max-width: 72px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+ .story-create-plus { position: absolute; bottom: -2px; right: -2px; width: 22px; height: 22px; border-radius: 9999px; background: #7c3aed; color: #fff; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; z-index: 2; }
  </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col md:flex-row">
@@ -107,6 +117,21 @@
  <a href="./Social/Midia/links.html" class="relative pb-1 text-sm md:text-base font-semibold text-gray-400 hover:text-gray-700 transition-all whitespace-nowrap">Links</a>
  <a href="./Social/Mais/Index.html" class="relative pb-1 text-sm md:text-base font-semibold text-gray-400 hover:text-gray-700 transition-all whitespace-nowrap">Mais</a>
  </div>
+
+ <!-- Stories estilo Facebook -->
+ <div id="storiesBar" class="stories-bar bg-white rounded-2xl border border-gray-200 px-3 shadow-sm">
+  <a href="./Social/Criar_Story.html" class="story-item" title="Criar story">
+   <div class="story-ring create-ring">
+    <div class="story-avatar bg-gray-100">
+     <i class="fa-solid fa-user text-gray-400 text-lg" id="storyCreateAvatarIcon"></i>
+     <img id="storyCreateAvatarImg" class="hidden" alt="">
+     <span class="story-create-plus"><i class="fa-solid fa-plus"></i></span>
+    </div>
+   </div>
+   <span class="story-label font-semibold text-gray-800">Criar story</span>
+  </a>
+ </div>
+
  <div class="flex items-center justify-between px-1 mb-3 gap-3 flex-wrap">
  <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
  <input type="checkbox" id="safeModeToggle" checked onchange="toggleSafeMode()" class="w-3.5 h-3.5 rounded accent-secondary">
@@ -399,11 +424,7 @@ async function deriveKeyFromPassword(password, salt = 'loresocial-salt-v1') {
 async function encryptPrivateKey(privateKeyHex, password) {
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const key = await deriveKeyFromPassword(password);
-    const encrypted = await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv },
-        key,
-        new TextEncoder().encode(String(privateKeyHex))
-    );
+    const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(String(privateKeyHex)));
     const combined = new Uint8Array(iv.length + encrypted.byteLength);
     combined.set(iv, 0);
     combined.set(new Uint8Array(encrypted), iv.length);
@@ -439,17 +460,13 @@ async function publishEmailLoginIndex(privKey, pubkey, email) {
     if (!pool || !privKey || !email) return;
     const dTag = await emailIndexDTag(email);
     const content = JSON.stringify({
-        app: 'LorePlay',
-        type: 'email-login-index',
-        email: String(email).trim().toLowerCase(),
-        pubkey,
+        app: 'LorePlay', type: 'email-login-index',
+        email: String(email).trim().toLowerCase(), pubkey,
         updatedAt: Math.floor(Date.now() / 1000)
     });
     const signedEvent = NostrTools.finalizeEvent({
-        kind: 30078,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [['d', dTag], ['client', 'LorePlay']],
-        content
+        kind: 30078, created_at: Math.floor(Date.now() / 1000),
+        tags: [['d', dTag], ['client', 'LorePlay']], content
     }, privKey);
     await Promise.any(pool.publish(RELAYS, signedEvent));
 }
@@ -573,6 +590,9 @@ let qrLoginTimeout = null;
 let qrScanStream = null;
 let qrScanRaf = null;
 
+const STORY_TAG = 'loreplay-story';
+const STORY_MAX_AGE_SEC = 24 * 60 * 60;
+
 const PARTNER_EVERY = 5;
 let partnerCampaigns = [];
 let partnerCursor = 0;
@@ -588,14 +608,57 @@ function getFeedSkeletonHtml(count = 3) {
     return Array(count).fill(card).join('');
 }
 
+function syncStoryCreateAvatar() {
+    const img = document.getElementById('storyCreateAvatarImg');
+    const icon = document.getElementById('storyCreateAvatarIcon');
+    if (!img) return;
+    if (currentUserData.avatarUrl) {
+        img.src = currentUserData.avatarUrl;
+        img.classList.remove('hidden');
+        icon?.classList.add('hidden');
+    }
+}
+
+async function loadStoriesBar() {
+    const bar = document.getElementById('storiesBar');
+    if (!bar || !pool) return;
+    bar.querySelectorAll('[data-story-item]').forEach(el => el.remove());
+    try {
+        const since = Math.floor(Date.now() / 1000) - STORY_MAX_AGE_SEC;
+        const events = await pool.querySync(RELAYS, { kinds: [1], '#t': [STORY_TAG], since, limit: 40 });
+        if (!events?.length) return;
+        const byAuthor = new Map();
+        events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
+            .forEach(ev => { if (!byAuthor.has(ev.pubkey)) byAuthor.set(ev.pubkey, ev); });
+        const pubkeys = [...byAuthor.keys()];
+        await fetchProfiles(pubkeys);
+        let html = '';
+        byAuthor.forEach((ev, pubkey) => {
+            if (currentUserData.pubkey && pubkey === currentUserData.pubkey) return;
+            const p = profileCache.get(pubkey) || {};
+            const name = p.name ? p.name : (pubkey.slice(0, 8) + '…');
+            const pic = p.picture || '';
+            const avatar = pic
+                ? `<img src="${escapeHtml(pic)}" alt="" onerror="this.remove()">`
+                : `<i class="fa-solid fa-user text-gray-400"></i>`;
+            html += `<div class="story-item" data-story-item data-story-id="${escapeHtml(ev.id)}" onclick="openStoryFromBar('${escapeHtml(ev.id)}','${escapeHtml(pubkey)}')" title="${escapeHtml(name)}">
+              <div class="story-ring"><div class="story-avatar">${avatar}</div></div>
+              <span class="story-label">${escapeHtml(name)}</span>
+            </div>`;
+        });
+        bar.insertAdjacentHTML('beforeend', html);
+    } catch (e) { console.error('loadStoriesBar', e); }
+}
+
+window.openStoryFromBar = function(eventId, pubkey) {
+    if (pubkey) openUserProfileModal(pubkey);
+};
+
 function parseCampaignFromEvent(ev) {
     try {
         const data = JSON.parse(ev.content || '{}');
         if (!data || data.app !== 'MarketAds' || data.type !== 'ads') return null;
-        const getTag = (name) => {
-            const t = (ev.tags || []).find(x => x[0] === name);
-            return t ? t[1] : '';
-        };
+        const getTag = (name) => { const t = (ev.tags || []).find(x => x[0] === name); return t ? t[1] : ''; };
         const status = data.status || getTag('status') || '';
         if (status && status !== 'published') return null;
         return {
@@ -1253,6 +1316,8 @@ function classifyPostMedia(ev) {
 
 function isFeedEligiblePost(ev) {
     if (!ev || isLinkOnlyPost(ev)) return false;
+    const isStory = (ev.tags || []).some(t => t[0] === 't' && t[1] === STORY_TAG);
+    if (isStory) return false;
     return !classifyPostMedia(ev).hasDisallowed;
 }
 
@@ -1491,6 +1556,7 @@ function setAvatarEverywhere(url) {
     if (postAvatar) { postAvatar.src = url; postAvatar.classList.remove('hidden'); postIcon?.classList.add('hidden'); }
     currentUserData.avatarUrl = url;
     updateEditAvatarPreview(url);
+    syncStoryCreateAvatar();
 }
 function updateEditAvatarPreview(url) {
     const img = document.getElementById('editProfileAvatarImg');
@@ -2377,6 +2443,8 @@ async function fetchNostrFeed() {
             const ids = unique.map(e => e.id);
             await Promise.all([fetchReactionsForPosts(ids), fetchCommentCountsForPosts(ids)]);
             renderFeeds();
+            loadStoriesBar();
+            syncStoryCreateAvatar();
         } else feed.innerHTML = `<div class="p-6 text-center text-xs text-gray-500">Nenhum post nos relays.</div>`;
     } catch {
         feed.innerHTML = `<div class="p-6 text-center text-xs text-gray-500">Falha ao conectar aos relays.</div>`;
@@ -2500,6 +2568,7 @@ function applyUserDataToInterface() {
     const p = profileCache.get(currentUserData.pubkey);
     const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
     updateProfileAboutDisplay(p?.about || session.about || '');
+    syncStoryCreateAvatar();
 }
 
 window.switchSection = function(sectionId) {
