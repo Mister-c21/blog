@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Criar Story — LoreSocial</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = { theme: { extend: { colors: { secondary: '#7c3aed' } } } };
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800">
+  <header class="sticky top-0 z-20 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+    <a href="../Index.html#feed" class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200">
+      <i class="fa-solid fa-arrow-left"></i>
+    </a>
+    <h1 class="font-bold text-base">Criar story</h1>
+  </header>
+
+  <main class="max-w-lg mx-auto p-4 space-y-4">
+    <div class="bg-white rounded-2xl border border-gray-200 p-4 space-y-4">
+      <p class="text-xs text-gray-500">Stories ficam visíveis por cerca de 24 horas no feed.</p>
+
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-gray-700">Texto (opcional)</label>
+        <textarea id="storyText" rows="3" maxlength="500" placeholder="Escreva algo..."
+          class="w-full text-sm px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-secondary resize-none"></textarea>
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-xs font-semibold text-gray-700">URL da imagem (opcional)</label>
+        <input type="url" id="storyImageUrl" placeholder="https://..."
+          class="w-full text-sm px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-secondary"
+          oninput="previewStoryImage()">
+      </div>
+
+      <div id="storyPreviewWrap" class="hidden rounded-xl overflow-hidden border border-gray-200 bg-gray-100">
+        <img id="storyPreviewImg" class="w-full max-h-80 object-contain" alt="Preview">
+      </div>
+
+      <p id="storyStatus" class="text-[11px] text-gray-400"></p>
+
+      <button type="button" onclick="publishStory()"
+        class="w-full py-3 bg-secondary text-white rounded-xl text-sm font-semibold">
+        Publicar story
+      </button>
+    </div>
+  </main>
+
+  <script type="module">
+    import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+    import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+
+    const RELAYS = [
+      'wss://relay.damus.io',
+      'wss://nos.lol',
+      'wss://relay.nostr.band',
+      'wss://relay.primal.net'
+    ];
+    const STORY_TAG = 'loreplay-story';
+    const pool = new NostrTools.SimplePool();
+
+    function getSession() {
+      try {
+        return JSON.parse(localStorage.getItem('nostr_session') || '{}');
+      } catch { return {}; }
+    }
+
+    window.previewStoryImage = function() {
+      const url = (document.getElementById('storyImageUrl')?.value || '').trim();
+      const wrap = document.getElementById('storyPreviewWrap');
+      const img = document.getElementById('storyPreviewImg');
+      if (url && /^https?:\/\//i.test(url)) {
+        img.src = url;
+        wrap.classList.remove('hidden');
+      } else {
+        wrap.classList.add('hidden');
+        img.removeAttribute('src');
+      }
+    };
+
+    window.publishStory = async function() {
+      const status = document.getElementById('storyStatus');
+      const text = (document.getElementById('storyText')?.value || '').trim();
+      const imageUrl = (document.getElementById('storyImageUrl')?.value || '').trim();
+      const session = getSession();
+
+      if (!session.privateKeyHex) {
+        alert('Faça login no LoreSocial antes de publicar um story.');
+        window.location.href = '../Index.html';
+        return;
+      }
+      if (!text && !imageUrl) {
+        alert('Escreva um texto ou informe a URL de uma imagem.');
+        return;
+      }
+      if (imageUrl && !/^https?:\/\//i.test(imageUrl)) {
+        alert('URL da imagem inválida.');
+        return;
+      }
+
+      try {
+        if (status) status.textContent = 'Publicando...';
+        const privKey = hexToBytes(session.privateKeyHex);
+        let content = text;
+        if (imageUrl) content = (content ? content + '\n' : '') + imageUrl;
+
+        const tags = [
+          ['t', STORY_TAG],
+          ['client', 'LorePlay']
+        ];
+        if (imageUrl) tags.push(['image', imageUrl], ['r', imageUrl]);
+
+        const signedEvent = NostrTools.finalizeEvent({
+          kind: 1,
+          created_at: Math.floor(Date.now() / 1000),
+          tags,
+          content
+        }, privKey);
+
+        await Promise.any(pool.publish(RELAYS, signedEvent));
+        if (status) status.textContent = 'Story publicado!';
+        alert('Story publicado com sucesso!');
+        window.location.href = '../Index.html#feed';
+      } catch (e) {
+        console.error(e);
+        if (status) status.textContent = 'Falha ao publicar.';
+        alert('Erro ao publicar o story. Tente novamente.');
+      }
+    };
+  </script>
+</body>
+</html>
