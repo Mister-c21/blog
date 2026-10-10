@@ -10,6 +10,8 @@
  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
  <script src="https://cdn.jsdelivr.net/npm/nsfwjs@2.4.2/dist/nsfwjs.min.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
  <script>
  tailwind.config = {
  theme: { extend: { colors: { primary: '#ffffff', secondary: '#7c3aed' } } }
@@ -241,6 +243,9 @@
  </div>
  </div>
  <a href="Social/Bate-papo.html" class="flex items-center justify-center gap-2 py-3 px-4 w-full bg-white border border-gray-200 rounded-2xl font-semibold text-xs text-gray-700"><i class="fa-solid fa-comments text-secondary"></i> Mensagens</a>
+ <button type="button" onclick="openLinkDeviceModal()" class="flex items-center justify-center gap-2 py-3 px-4 w-full bg-white border border-gray-200 rounded-2xl font-semibold text-xs text-gray-700">
+  <i class="fa-solid fa-qrcode text-secondary"></i> Vincular dispositivo (QR)
+ </button>
  <div class="bg-white p-5 rounded-2xl border border-gray-200 space-y-3">
  <div class="flex items-center gap-2 pb-3 border-b border-gray-100"><i class="fa-solid fa-key text-secondary"></i><h3 class="font-bold text-sm text-gray-900">Sua Chave Privada (Nsec)</h3></div>
  <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 gap-2">
@@ -357,6 +362,7 @@
  <div class="flex bg-gray-50 border p-1 rounded-xl gap-1">
  <button type="button" id="loginMethodNsecBtn" onclick="switchLoginMethod('nsec')" class="flex-1 py-1.5 text-[11px] font-semibold rounded-lg bg-white shadow-sm">Chave (nsec)</button>
  <button type="button" id="loginMethodEmailBtn" onclick="switchLoginMethod('email')" class="flex-1 py-1.5 text-[11px] font-medium text-gray-500">E-mail e senha</button>
+ <button type="button" id="loginMethodQrBtn" onclick="switchLoginMethod('qr')" class="flex-1 py-1.5 text-[11px] font-medium text-gray-500">QR Code</button>
  </div>
  <div id="loginNsecFields" class="space-y-1">
  <label class="text-xs font-semibold">Sua Chave (nsec...)</label>
@@ -378,15 +384,53 @@
  </div>
  <p class="text-[11px] text-gray-400">Use o e-mail e senha vinculados na <strong>Central da conta</strong>. Em outro dispositivo, informe também o npub.</p>
  </div>
+ <div id="loginQrFields" class="space-y-3 hidden">
+  <p class="text-[11px] text-gray-500 text-center">Abra o LoreSocial no celular já logado → Perfil → <strong>Vincular dispositivo</strong> e escaneie este código.</p>
+  <div class="flex flex-col items-center gap-3">
+   <div id="qrLoginCanvasWrap" class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm">
+    <canvas id="qrLoginCanvas" width="200" height="200" class="block"></canvas>
+   </div>
+   <p id="qrLoginStatus" class="text-[11px] text-gray-400 text-center">Gerando QR Code...</p>
+   <button type="button" onclick="startQrLoginSession()" class="text-xs text-secondary font-semibold">
+    <i class="fa-solid fa-rotate"></i> Gerar novo QR
+   </button>
+  </div>
+ </div>
  </div>
  <button type="submit" id="authSubmitBtn" class="w-full py-3 bg-secondary text-white rounded-xl text-xs font-bold">Entrar na Conta</button>
  </form>
  </div>
 </div>
 
+<div id="linkDeviceModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center opacity-0 pointer-events-none p-0 md:p-4">
+ <div id="linkDeviceModalContent" class="bg-white w-full md:max-w-md max-h-[90vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full">
+  <div class="p-4 border-b flex items-center justify-between">
+   <h3 class="font-bold text-sm">Vincular dispositivo</h3>
+   <button type="button" onclick="closeLinkDeviceModal()" class="w-8 h-8 bg-gray-100 rounded-full"><i class="fa-solid fa-xmark text-sm"></i></button>
+  </div>
+  <div class="p-5 space-y-4 overflow-y-auto flex-1">
+   <p class="text-xs text-gray-500">Aponte a câmera para o QR Code exibido no outro dispositivo (computador / tablet).</p>
+   <div class="relative rounded-2xl overflow-hidden bg-black aspect-square max-h-72 mx-auto w-full">
+    <video id="qrScanVideo" class="w-full h-full object-cover" playsinline muted></video>
+    <canvas id="qrScanCanvas" class="hidden"></canvas>
+    <div class="absolute inset-0 border-2 border-secondary/50 rounded-2xl pointer-events-none"></div>
+   </div>
+   <p id="qrScanStatus" class="text-[11px] text-gray-400 text-center">Iniciando câmera...</p>
+   <div class="space-y-1">
+    <label class="text-xs font-semibold text-gray-700">Ou cole o código do QR</label>
+    <div class="flex gap-2">
+     <input type="text" id="qrManualInput" placeholder="loresocial-login:..." class="w-full text-xs px-3 py-2.5 bg-gray-50 border rounded-xl outline-none focus:border-secondary">
+     <button type="button" onclick="submitManualQrPayload()" class="px-3 py-2.5 bg-secondary text-white text-xs font-semibold rounded-xl flex-shrink-0">Enviar</button>
+    </div>
+   </div>
+  </div>
+ </div>
+</div>
+
 <script type="module">
 import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
 import { bytesToHex, hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+import * as nip04 from 'https://esm.sh/nostr-tools@2.10.4/nip04';
 
 async function deriveKeyFromPassword(password, salt = 'loresocial-salt-v1') {
     const enc = new TextEncoder();
@@ -483,6 +527,17 @@ const RELAYS = [
 ];
 let pool = null;
 let currentSearchTab = 'posts';
+
+// QR Login
+const QR_LOGIN_KIND = 24133;
+const QR_LOGIN_PREFIX = 'loresocial-login:';
+let qrLoginEphemeralSk = null;
+let qrLoginEphemeralPk = null;
+let qrLoginChallenge = null;
+let qrLoginSub = null;
+let qrLoginTimeout = null;
+let qrScanStream = null;
+let qrScanRaf = null;
 
 // Parceiros no feed
 const PARTNER_EVERY = 5;
@@ -632,6 +687,253 @@ function syncCredentialsBackup(session) {
             privateKeyHex: session.privateKeyHex, pubkey: session.pubkey || '',
             nickname: session.nickname || '', avatarUrl: session.avatarUrl || ''
         }));
+    }
+}
+
+function randomChallenge() {
+    const arr = new Uint8Array(16);
+    crypto.getRandomValues(arr);
+    return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function stopQrLoginListener() {
+    if (qrLoginSub) {
+        try { qrLoginSub.close(); } catch {}
+        qrLoginSub = null;
+    }
+    if (qrLoginTimeout) {
+        clearTimeout(qrLoginTimeout);
+        qrLoginTimeout = null;
+    }
+}
+
+window.startQrLoginSession = async function() {
+    stopQrLoginListener();
+    const statusEl = document.getElementById('qrLoginStatus');
+    const canvas = document.getElementById('qrLoginCanvas');
+    if (!canvas || typeof QRCode === 'undefined') {
+        if (statusEl) statusEl.textContent = 'Biblioteca de QR indisponível.';
+        return;
+    }
+    try {
+        qrLoginEphemeralSk = NostrTools.generateSecretKey();
+        qrLoginEphemeralPk = NostrTools.getPublicKey(qrLoginEphemeralSk);
+        qrLoginChallenge = randomChallenge();
+        const payload = `${QR_LOGIN_PREFIX}${qrLoginEphemeralPk}:${qrLoginChallenge}`;
+        await QRCode.toCanvas(canvas, payload, {
+            width: 200,
+            margin: 2,
+            color: { dark: '#7c3aed', light: '#ffffff' }
+        });
+        if (statusEl) statusEl.textContent = 'Aguardando leitura no celular...';
+        if (!pool) pool = new NostrTools.SimplePool();
+
+        const filters = [{ kinds: [QR_LOGIN_KIND], '#p': [qrLoginEphemeralPk], since: Math.floor(Date.now() / 1000) - 30 }];
+        qrLoginSub = pool.subscribeMany(RELAYS, filters, {
+            onevent: async (ev) => {
+                try {
+                    const chTag = (ev.tags || []).find(t => t[0] === 'challenge' && t[1] === qrLoginChallenge);
+                    if (!chTag) return;
+                    const plain = await nip04.decrypt(qrLoginEphemeralSk, ev.pubkey, ev.content);
+                    const data = JSON.parse(plain);
+                    if (!data?.privateKeyHex || data.challenge !== qrLoginChallenge) return;
+                    stopQrLoginListener();
+                    if (statusEl) statusEl.textContent = 'Credenciais recebidas! Entrando...';
+                    await completeQrLogin(data);
+                } catch (e) {
+                    console.error('QR login decrypt error', e);
+                }
+            }
+        });
+
+        qrLoginTimeout = setTimeout(() => {
+            stopQrLoginListener();
+            if (statusEl) statusEl.textContent = 'QR expirado. Gere um novo.';
+        }, 3 * 60 * 1000);
+    } catch (e) {
+        console.error(e);
+        if (statusEl) statusEl.textContent = 'Erro ao gerar QR.';
+    }
+};
+
+async function completeQrLogin(data) {
+    try {
+        const privKeyToUse = hexToBytes(data.privateKeyHex);
+        const pubKey = NostrTools.getPublicKey(privKeyToUse);
+        currentUserData.privateKey = privKeyToUse;
+        currentUserData.pubkey = pubKey;
+        currentUserData.nickname = data.nickname || ('@' + NostrTools.nip19.npubEncode(pubKey).substring(0, 12) + '...');
+        currentUserData.avatarUrl = data.avatarUrl || '';
+
+        const nextSession = {
+            pubkey: pubKey,
+            privateKeyHex: data.privateKeyHex,
+            nickname: currentUserData.nickname,
+            avatarUrl: currentUserData.avatarUrl,
+            about: data.about || ''
+        };
+        if (data.loginEmail) nextSession.loginEmail = data.loginEmail;
+        if (data.loginPassword) nextSession.loginPassword = data.loginPassword;
+
+        localStorage.setItem('nostr_session', JSON.stringify(nextSession));
+        localStorage.setItem('isLoggedIn', 'true');
+        syncCredentialsBackup(nextSession);
+
+        applyUserDataToInterface();
+        closeAuthModal();
+        fetchNostrFeed();
+        loadUserContactList();
+        loadFeedPreferencesFromNetwork().then(() => renderFeeds());
+        fetchProfiles([pubKey]).then(() => {
+            const p = profileCache.get(pubKey);
+            if (p?.name) { currentUserData.nickname = '@' + p.name; applyUserDataToInterface(); }
+            if (p?.picture) { currentUserData.avatarUrl = p.picture; setAvatarEverywhere(p.picture); }
+            updateProfileAboutDisplay(p?.about || data.about || '');
+        });
+        alert('Login por QR Code realizado com sucesso!');
+    } catch (e) {
+        console.error(e);
+        alert('Falha ao aplicar credenciais do QR.');
+    }
+}
+
+window.openLinkDeviceModal = function() {
+    if (!currentUserData.privateKey) {
+        alert('Faça login primeiro.');
+        openAuthModal();
+        return;
+    }
+    const modal = document.getElementById('linkDeviceModal');
+    const content = document.getElementById('linkDeviceModalContent');
+    if (!modal || !content) return;
+    modal.classList.remove('pointer-events-none', 'opacity-0');
+    modal.classList.add('opacity-100');
+    content.classList.remove('translate-y-full');
+    startQrScanner();
+};
+
+window.closeLinkDeviceModal = function() {
+    stopQrScanner();
+    const modal = document.getElementById('linkDeviceModal');
+    const content = document.getElementById('linkDeviceModalContent');
+    if (modal && content) {
+        modal.classList.remove('opacity-100');
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        content.classList.add('translate-y-full');
+    }
+};
+
+async function startQrScanner() {
+    const video = document.getElementById('qrScanVideo');
+    const statusEl = document.getElementById('qrScanStatus');
+    stopQrScanner();
+    if (!navigator.mediaDevices?.getUserMedia) {
+        if (statusEl) statusEl.textContent = 'Câmera indisponível. Cole o código manualmente.';
+        return;
+    }
+    try {
+        qrScanStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' },
+            audio: false
+        });
+        video.srcObject = qrScanStream;
+        await video.play();
+        if (statusEl) statusEl.textContent = 'Aponte para o QR Code...';
+        const canvas = document.getElementById('qrScanCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        const tick = () => {
+            if (!qrScanStream) return;
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                if (typeof jsQR !== 'undefined') {
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+                    if (code?.data) {
+                        handleScannedQrPayload(code.data);
+                        return;
+                    }
+                }
+            }
+            qrScanRaf = requestAnimationFrame(tick);
+        };
+        qrScanRaf = requestAnimationFrame(tick);
+    } catch (e) {
+        console.error(e);
+        if (statusEl) statusEl.textContent = 'Permissão de câmera negada. Cole o código manualmente.';
+    }
+}
+
+function stopQrScanner() {
+    if (qrScanRaf) {
+        cancelAnimationFrame(qrScanRaf);
+        qrScanRaf = null;
+    }
+    if (qrScanStream) {
+        qrScanStream.getTracks().forEach(t => t.stop());
+        qrScanStream = null;
+    }
+    const video = document.getElementById('qrScanVideo');
+    if (video) video.srcObject = null;
+}
+
+window.submitManualQrPayload = function() {
+    const val = (document.getElementById('qrManualInput')?.value || '').trim();
+    if (!val) { alert('Cole o conteúdo do QR.'); return; }
+    handleScannedQrPayload(val);
+};
+
+async function handleScannedQrPayload(raw) {
+    const statusEl = document.getElementById('qrScanStatus');
+    if (!raw || !raw.startsWith(QR_LOGIN_PREFIX)) {
+        if (statusEl) statusEl.textContent = 'QR inválido. Use o QR do LoreSocial.';
+        return;
+    }
+    const rest = raw.slice(QR_LOGIN_PREFIX.length);
+    const [targetPk, challenge] = rest.split(':');
+    if (!targetPk || !challenge || targetPk.length !== 64) {
+        if (statusEl) statusEl.textContent = 'QR malformado.';
+        return;
+    }
+    if (!currentUserData.privateKey) {
+        alert('Sessão local inválida.');
+        return;
+    }
+    stopQrScanner();
+    if (statusEl) statusEl.textContent = 'Enviando credenciais...';
+
+    try {
+        let session = {};
+        try { session = JSON.parse(localStorage.getItem('nostr_session') || '{}'); } catch {}
+        const payload = {
+            challenge,
+            privateKeyHex: session.privateKeyHex || bytesToHex(currentUserData.privateKey),
+            nickname: currentUserData.nickname || session.nickname || '',
+            avatarUrl: currentUserData.avatarUrl || session.avatarUrl || '',
+            about: session.about || '',
+            loginEmail: session.loginEmail || session.email || '',
+            loginPassword: session.loginPassword || session.password || ''
+        };
+        const cipher = await nip04.encrypt(currentUserData.privateKey, targetPk, JSON.stringify(payload));
+        const signedEvent = NostrTools.finalizeEvent({
+            kind: QR_LOGIN_KIND,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [
+                ['p', targetPk],
+                ['challenge', challenge],
+                ['client', 'LorePlay']
+            ],
+            content: cipher
+        }, currentUserData.privateKey);
+        await Promise.any(pool.publish(RELAYS, signedEvent));
+        if (statusEl) statusEl.textContent = 'Enviado! O outro dispositivo deve entrar em instantes.';
+        setTimeout(() => closeLinkDeviceModal(), 1500);
+    } catch (e) {
+        console.error(e);
+        if (statusEl) statusEl.textContent = 'Falha ao enviar. Tente de novo.';
+        alert('Erro ao enviar credenciais pelo QR.');
     }
 }
 
@@ -1098,7 +1400,7 @@ function buildResponsiveEmbedHtml(info, { safe = false } = {}) {
     if (safe && safeMode) {
         return `<span class="safe-link-disabled break-all">${escapeHtml(info.url)}</span><span class="safe-link-reveal" onclick="revealLink(this.previousElementSibling, '${escapeHtml(info.url)}')">[Revelar]</span>`;
     }
-    return `<div class="iframely-embed mt-3"><a href="${escapeHtml(info.url)}" target="_blank" rel="noopener noreferrer" class="embed-link-card"><div class="embed-card-icon"><i class="fa-solid fa-link"></i></div><div class="embed-card-body"><div class="embed-card-title">${escapeHtml(info.title || 'Link')}</div><div class="embed-card-url">${escapeHtml(info.displayUrl || info.url)}</div></div></a></div>`;
+    return `<div class="iframely-embed mt-3"><a href="${escapeHtml(info.url)}" target="_blank" rel="noopener noreferrer" class="embed-link-card"><div class="embed-card-icon"><i class="fa-solid fa-link"></i></div><div class="embed-card-body"><div class="embed-card-title">${escapeHtml(info.title || 'Link')}</div><div class="embed-card-url">${escapeHtml(info.displayUrl || info.url)}</div></a></div>`;
 }
 
 window.carouselGo = function(carouselId, direction) {
@@ -1451,42 +1753,65 @@ window.switchAuthTab = function(mode) {
         registerFields.classList.add('hidden');
         loginFields.classList.remove('hidden');
         submitBtn.innerText = 'Entrar na Conta';
+        submitBtn.classList.remove('hidden');
         loginBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-gray-900 shadow-sm';
         registerBtn.className = 'flex-1 py-2 text-xs font-medium text-gray-500';
         switchLoginMethod(currentLoginMethod || 'nsec');
     } else {
+        stopQrLoginListener();
         title.innerText = 'Criar Nova Identidade';
         subtitle.innerText = 'Gere suas chaves Nostr';
         registerFields.classList.remove('hidden');
         loginFields.classList.add('hidden');
         submitBtn.innerText = 'Criar e Entrar';
+        submitBtn.classList.remove('hidden');
         registerBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-gray-900 shadow-sm';
         loginBtn.className = 'flex-1 py-2 text-xs font-medium text-gray-500';
     }
 };
 
 window.switchLoginMethod = function(method) {
-    currentLoginMethod = method === 'email' ? 'email' : 'nsec';
+    currentLoginMethod = method === 'email' ? 'email' : (method === 'qr' ? 'qr' : 'nsec');
     const nsecFields = document.getElementById('loginNsecFields');
     const emailFields = document.getElementById('loginEmailFields');
+    const qrFields = document.getElementById('loginQrFields');
     const nsecBtn = document.getElementById('loginMethodNsecBtn');
     const emailBtn = document.getElementById('loginMethodEmailBtn');
+    const qrBtn = document.getElementById('loginMethodQrBtn');
     const title = document.getElementById('authModalTitle');
     const subtitle = document.getElementById('authModalSubtitle');
+    const submitBtn = document.getElementById('authSubmitBtn');
+
+    nsecFields?.classList.add('hidden');
+    emailFields?.classList.add('hidden');
+    qrFields?.classList.add('hidden');
+    stopQrLoginListener();
+
+    const inactive = 'flex-1 py-1.5 text-[11px] font-medium text-gray-500 rounded-lg';
+    const active = 'flex-1 py-1.5 text-[11px] font-semibold rounded-lg bg-white shadow-sm';
+    if (nsecBtn) nsecBtn.className = inactive;
+    if (emailBtn) emailBtn.className = inactive;
+    if (qrBtn) qrBtn.className = inactive;
+
     if (currentLoginMethod === 'email') {
-        nsecFields?.classList.add('hidden');
         emailFields?.classList.remove('hidden');
-        if (nsecBtn) nsecBtn.className = 'flex-1 py-1.5 text-[11px] font-medium text-gray-500 rounded-lg';
-        if (emailBtn) emailBtn.className = 'flex-1 py-1.5 text-[11px] font-semibold rounded-lg bg-white shadow-sm';
+        if (emailBtn) emailBtn.className = active;
         if (title) title.innerText = 'Entrar com E-mail';
         if (subtitle) subtitle.innerText = 'Credenciais da Central da conta';
+        if (submitBtn) submitBtn.classList.remove('hidden');
+    } else if (currentLoginMethod === 'qr') {
+        qrFields?.classList.remove('hidden');
+        if (qrBtn) qrBtn.className = active;
+        if (title) title.innerText = 'Entrar com QR Code';
+        if (subtitle) subtitle.innerText = 'Como no WhatsApp Web — escaneie no celular logado';
+        if (submitBtn) submitBtn.classList.add('hidden');
+        startQrLoginSession();
     } else {
         nsecFields?.classList.remove('hidden');
-        emailFields?.classList.add('hidden');
-        if (emailBtn) emailBtn.className = 'flex-1 py-1.5 text-[11px] font-medium text-gray-500 rounded-lg';
-        if (nsecBtn) nsecBtn.className = 'flex-1 py-1.5 text-[11px] font-semibold rounded-lg bg-white shadow-sm';
+        if (nsecBtn) nsecBtn.className = active;
         if (title) title.innerText = 'Entre com sua Chave';
         if (subtitle) subtitle.innerText = 'Insira sua chave privada (nsec)';
+        if (submitBtn) submitBtn.classList.remove('hidden');
     }
 };
 
@@ -1517,6 +1842,8 @@ window.handleAuthSubmit = async function(event) {
                 privKeyToUse = decoded.data;
             }
         } catch { alert('Chave inválida.'); return; }
+    } else if (currentLoginMethod === 'qr') {
+        return;
     } else if (currentLoginMethod === 'email') {
         const email = String(document.getElementById('authEmailInput')?.value || '').trim().toLowerCase();
         const password = String(document.getElementById('authPasswordInput')?.value ?? '');
@@ -2297,6 +2624,7 @@ function openAuthModal() {
     }
 }
 function closeAuthModal() {
+    stopQrLoginListener();
     const modal = document.getElementById('authModal');
     const content = document.getElementById('authModalContent');
     if (modal && content) {
@@ -2307,4 +2635,4 @@ function closeAuthModal() {
 }
 </script>
 </body>
- </html>
+</html>
