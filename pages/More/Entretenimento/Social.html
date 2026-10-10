@@ -10,7 +10,6 @@
  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
  <script src="https://cdn.jsdelivr.net/npm/nsfwjs@2.4.2/dist/nsfwjs.min.js"></script>
- <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
  <script>
  tailwind.config = {
@@ -387,8 +386,9 @@
  <div id="loginQrFields" class="space-y-3 hidden">
   <p class="text-[11px] text-gray-500 text-center">Abra o LoreSocial no celular já logado → Perfil → <strong>Vincular dispositivo</strong> e escaneie este código.</p>
   <div class="flex flex-col items-center gap-3">
-   <div id="qrLoginCanvasWrap" class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm">
+   <div id="qrLoginCanvasWrap" class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-center min-h-[200px] min-w-[200px]">
     <canvas id="qrLoginCanvas" width="200" height="200" class="block"></canvas>
+    <img id="qrLoginImg" class="hidden w-[200px] h-[200px]" alt="QR Code de login">
    </div>
    <p id="qrLoginStatus" class="text-[11px] text-gray-400 text-center">Gerando QR Code...</p>
    <button type="button" onclick="startQrLoginSession()" class="text-xs text-secondary font-semibold">
@@ -431,6 +431,7 @@
 import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
 import { bytesToHex, hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
 import * as nip04 from 'https://esm.sh/nostr-tools@2.10.4/nip04';
+import QRCode from 'https://esm.sh/qrcode@1.5.3';
 
 async function deriveKeyFromPassword(password, salt = 'loresocial-salt-v1') {
     const enc = new TextEncoder();
@@ -528,7 +529,6 @@ const RELAYS = [
 let pool = null;
 let currentSearchTab = 'posts';
 
-// QR Login
 const QR_LOGIN_KIND = 24133;
 const QR_LOGIN_PREFIX = 'loresocial-login:';
 let qrLoginEphemeralSk = null;
@@ -539,7 +539,6 @@ let qrLoginTimeout = null;
 let qrScanStream = null;
 let qrScanRaf = null;
 
-// Parceiros no feed
 const PARTNER_EVERY = 5;
 let partnerCampaigns = [];
 let partnerCursor = 0;
@@ -711,8 +710,9 @@ window.startQrLoginSession = async function() {
     stopQrLoginListener();
     const statusEl = document.getElementById('qrLoginStatus');
     const canvas = document.getElementById('qrLoginCanvas');
-    if (!canvas || typeof QRCode === 'undefined') {
-        if (statusEl) statusEl.textContent = 'Biblioteca de QR indisponível.';
+    const imgEl = document.getElementById('qrLoginImg');
+    if (!canvas) {
+        if (statusEl) statusEl.textContent = 'Elemento do QR não encontrado.';
         return;
     }
     try {
@@ -720,15 +720,44 @@ window.startQrLoginSession = async function() {
         qrLoginEphemeralPk = NostrTools.getPublicKey(qrLoginEphemeralSk);
         qrLoginChallenge = randomChallenge();
         const payload = `${QR_LOGIN_PREFIX}${qrLoginEphemeralPk}:${qrLoginChallenge}`;
-        await QRCode.toCanvas(canvas, payload, {
-            width: 200,
-            margin: 2,
-            color: { dark: '#7c3aed', light: '#ffffff' }
-        });
+
+        let qrOk = false;
+        try {
+            if (QRCode && typeof QRCode.toCanvas === 'function') {
+                await QRCode.toCanvas(canvas, payload, {
+                    width: 200,
+                    margin: 2,
+                    color: { dark: '#7c3aed', light: '#ffffff' }
+                });
+                canvas.classList.remove('hidden');
+                if (imgEl) imgEl.classList.add('hidden');
+                qrOk = true;
+            }
+        } catch (e) {
+            console.warn('QRCode.toCanvas falhou, usando fallback de imagem', e);
+        }
+
+        if (!qrOk && imgEl) {
+            imgEl.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&color=7c3aed&bgcolor=ffffff&data=' + encodeURIComponent(payload);
+            imgEl.classList.remove('hidden');
+            canvas.classList.add('hidden');
+            qrOk = true;
+        }
+
+        if (!qrOk) {
+            if (statusEl) statusEl.textContent = 'Não foi possível gerar o QR.';
+            return;
+        }
+
         if (statusEl) statusEl.textContent = 'Aguardando leitura no celular...';
         if (!pool) pool = new NostrTools.SimplePool();
 
-        const filters = [{ kinds: [QR_LOGIN_KIND], '#p': [qrLoginEphemeralPk], since: Math.floor(Date.now() / 1000) - 30 }];
+        const filters = [{
+            kinds: [QR_LOGIN_KIND],
+            '#p': [qrLoginEphemeralPk],
+            since: Math.floor(Date.now() / 1000) - 30
+        }];
+
         qrLoginSub = pool.subscribeMany(RELAYS, filters, {
             onevent: async (ev) => {
                 try {
