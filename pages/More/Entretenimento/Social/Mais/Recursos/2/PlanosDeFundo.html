@@ -39,6 +39,17 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+
+        /* ===== Skeleton ===== */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #e8e8ed 20%, #f5f5f8 50%, #e8e8ed 80%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s ease-in-out infinite;
+        }
     </style>
 </head>
 <body class="text-gray-900 font-sans antialiased selection:bg-secondary selection:text-white flex flex-col min-h-screen">
@@ -785,6 +796,27 @@
             }
         }
 
+        /* ===== Skeleton Loader ===== */
+        function showSkeletonLoaders() {
+            const grid = document.getElementById('wallpapers-grid');
+            if (!grid) return;
+
+            grid.innerHTML = '';
+            grid.className = currentDeviceType === 'mobile'
+                ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6 w-full'
+                : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 w-full';
+
+            const aspectClass = currentDeviceType === 'mobile' ? 'aspect-[9/16]' : 'aspect-[16/9]';
+            const count = currentDeviceType === 'mobile' ? 8 : 6;
+
+            for (let i = 0; i < count; i++) {
+                const card = document.createElement('div');
+                card.className = `rounded-2xl overflow-hidden glass-card ${aspectClass} border border-gray-200`;
+                card.innerHTML = `<div class="w-full h-full skeleton"></div>`;
+                grid.appendChild(card);
+            }
+        }
+
         window.switchDeviceType = switchDeviceType;
         window.setPostDeviceType = setPostDeviceType;
         window.switchMyModalDevice = switchMyModalDevice;
@@ -811,6 +843,8 @@
         updateProfileUI();
 
         (async function init() {
+            showSkeletonLoaders();
+
             if (currentUserData.pubkey) await fetchMyProfileFromNetwork();
             await fetchWallpapersFromNetwork();
             renderWallpapers(wallpapers);
