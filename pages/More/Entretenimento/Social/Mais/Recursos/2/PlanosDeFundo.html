@@ -456,6 +456,70 @@
         }
         /* ===== Fim listagens ===== */
 
+        /* ===== Favoritos na rede ===== */
+        const FAV_KIND = 30078;
+        const FAV_T_TAG = 'violet-wallpaper-favs';
+
+        function favDTag() {
+            return 'violet-wallpaper-favs-' + (currentUserData.pubkey || 'anon');
+        }
+
+        async function publishFavorites() {
+            if (!isLoggedIn()) return false;
+            try {
+                const content = JSON.stringify({
+                    v: 1,
+                    type: 'wallpaper-favorites',
+                    ids: favorites.map(String),
+                    updatedAt: Date.now()
+                });
+                const event = NostrTools.finalizeEvent({
+                    kind: FAV_KIND,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [
+                        ['d', favDTag()],
+                        ['t', FAV_T_TAG],
+                        ['client', 'wallpulse']
+                    ],
+                    content
+                }, currentUserData.privateKey);
+                await Promise.any(pool.publish(RELAYS, event));
+                return true;
+            } catch (e) {
+                console.error('publishFavorites:', e);
+                return false;
+            }
+        }
+
+        async function fetchFavoritesFromNetwork() {
+            if (!isLoggedIn()) return;
+            try {
+                const events = await pool.querySync(RELAYS, {
+                    kinds: [FAV_KIND],
+                    authors: [currentUserData.pubkey],
+                    '#t': [FAV_T_TAG],
+                    limit: 10
+                });
+                if (!events || !events.length) return;
+
+                // Pega o evento mais recente
+                events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+                let data = null;
+                try { data = JSON.parse(events[0].content || '{}'); } catch (_) { return; }
+                if (!data || data.v !== 1 || data.type !== 'wallpaper-favorites') return;
+                if (!Array.isArray(data.ids)) return;
+
+                favorites.length = 0;
+                data.ids.forEach(id => {
+                    if (id != null && id !== '') favorites.push(String(id));
+                });
+                updateFavBadge();
+            } catch (e) {
+                console.error('fetchFavoritesFromNetwork:', e);
+            }
+        }
+        /* ===== Fim favoritos ===== */
+
         /* ===== Upload Nostr ===== */
         const UPLOAD_URL = 'https://nostr.build/api/v2/upload/files';
         const BLOSSOM_SERVERS = [
@@ -847,13 +911,17 @@
 
             if (currentUserData.pubkey) await fetchMyProfileFromNetwork();
             await fetchWallpapersFromNetwork();
+            await fetchFavoritesFromNetwork();
             renderWallpapers(wallpapers);
             renderMyWallpapers();
+            updateFavBadge();
             await bootPartnerCampaigns();
             setInterval(async () => {
                 await fetchWallpapersFromNetwork();
+                if (isLoggedIn()) await fetchFavoritesFromNetwork();
                 renderWallpapers(wallpapers);
                 renderMyWallpapers();
+                updateFavBadge();
             }, 60000);
         })();
 
@@ -983,7 +1051,7 @@
 
             filteredList.forEach((wp, index) => {
                 if (index === insertAt) appendAdCard();
-                const isFav = favorites.includes(wp.id);
+                const isFav = favorites.includes(String(wp.id)) || favorites.includes(wp.id);
                 const card = document.createElement('div');
                 card.className = `group relative rounded-2xl overflow-hidden glass-card ${aspectClass} cursor-pointer shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200`;
                 card.onclick = () => openPreview(wp);
@@ -1047,8 +1115,11 @@
                 await deletePublicListing(entry);
             }
             wallpapers.splice(index, 1);
-            const favIdx = favorites.indexOf(id);
-            if (favIdx > -1) favorites.splice(favIdx, 1);
+            const favIdx = favorites.findIndex(f => String(f) === String(id));
+            if (favIdx > -1) {
+                favorites.splice(favIdx, 1);
+                if (isLoggedIn()) publishFavorites();
+            }
             updateFavBadge();
             await fetchWallpapersFromNetwork();
             renderWallpapers(wallpapers);
@@ -1226,30 +1297,41 @@
             modal.classList.add('hidden');
         }
 
-        function toggleFavorite(id) {
-            const index = favorites.indexOf(id);
+        async function toggleFavorite(id) {
+            const sid = String(id);
+            const index = favorites.findIndex(f => String(f) === sid);
             if (index > -1) {
                 favorites.splice(index, 1);
                 showToast('Removido dos favoritos');
             } else {
-                favorites.push(id);
+                favorites.push(sid);
                 showToast('Adicionado aos favoritos');
             }
             updateFavBadge();
             renderWallpapers(wallpapers);
             if (document.getElementById('fav-modal').classList.contains('flex')) renderFavoritesList();
-            if (activeWallpaper && String(activeWallpaper.id) === String(id)) updateModalFavIcon();
+            if (activeWallpaper && String(activeWallpaper.id) === sid) updateModalFavIcon();
+
+            // Sincroniza com a rede se estiver logado
+            if (isLoggedIn()) {
+                await publishFavorites();
+            }
         }
 
-        function removeFromFavorites(event, id) {
+        async function removeFromFavorites(event, id) {
             event.stopPropagation();
-            const index = favorites.indexOf(id);
+            const sid = String(id);
+            const index = favorites.findIndex(f => String(f) === sid);
             if (index > -1) favorites.splice(index, 1);
             showToast('Removido dos favoritos');
             updateFavBadge();
             renderWallpapers(wallpapers);
             renderFavoritesList();
-            if (activeWallpaper && String(activeWallpaper.id) === String(id)) updateModalFavIcon();
+            if (activeWallpaper && String(activeWallpaper.id) === sid) updateModalFavIcon();
+
+            if (isLoggedIn()) {
+                await publishFavorites();
+            }
         }
 
         function toggleCurrentFavorite() {
@@ -1258,7 +1340,7 @@
 
         function updateModalFavIcon() {
             const btn = document.getElementById('modal-fav-btn');
-            const isFav = favorites.includes(activeWallpaper.id) || favorites.includes(String(activeWallpaper.id));
+            const isFav = favorites.includes(String(activeWallpaper.id)) || favorites.includes(activeWallpaper.id);
             if (isFav) {
                 btn.className = 'w-12 h-12 rounded-2xl bg-secondary text-white flex items-center justify-center border border-secondary shadow-md transition-all';
                 btn.innerHTML = '<i data-lucide="heart" class="w-6 h-6 fill-current"></i>';
@@ -1296,7 +1378,7 @@
             const empty = document.getElementById('empty-favs');
             grid.innerHTML = '';
             const favItems = wallpapers.filter(wp =>
-                (favorites.includes(wp.id) || favorites.includes(String(wp.id))) &&
+                (favorites.includes(String(wp.id)) || favorites.includes(wp.id)) &&
                 wp.deviceType === favModalDeviceType
             );
             if (favItems.length === 0) {
