@@ -5,11 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>LoreSocial Chat</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script type="module">
         import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
         import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+        import QRCode from 'https://esm.sh/qrcode@1.5.3';
         window.NostrTools = NostrTools;
         window.nostrHexToBytes = hexToBytes;
+        window.QRCode = QRCode;
     </script>
     <style>
         :root {
@@ -67,15 +70,20 @@
         .top-tab-bar {
             flex-shrink: 0;
             display: flex;
-            gap: 16px;
+            gap: 14px;
             padding: 0 20px 12px;
             border-bottom: 1px solid var(--border-color);
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
         }
+        .top-tab-bar::-webkit-scrollbar { display: none; }
         .tab-item {
             font-size: 14px; font-weight: 600; color: var(--text-muted);
             cursor: pointer; background: none; border: none;
             position: relative; padding-bottom: 4px;
+            white-space: nowrap; flex-shrink: 0;
         }
         .tab-item.active { color: var(--secondary-color); }
         .tab-item.active::after {
@@ -83,6 +91,235 @@
             width: 100%; height: 3px; background-color: var(--secondary-color);
             border-radius: 2px 2px 0 0;
         }
+        .stories-container {
+            flex-shrink: 0;
+            padding: 12px 0 10px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--primary-bg);
+        }
+        .stories-scroll {
+            display: flex;
+            gap: 14px;
+            overflow-x: auto;
+            padding: 0 16px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .stories-scroll::-webkit-scrollbar { display: none; }
+        .story-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            cursor: pointer;
+            width: 68px;
+        }
+        .story-ring {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            padding: 2.5px;
+            background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .story-ring.own { background: linear-gradient(45deg, var(--secondary-color), #a29bfe); }
+        .story-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: var(--primary-bg);
+            border: 2.5px solid var(--primary-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--secondary-color);
+            position: relative;
+        }
+        .story-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+        .story-add-btn {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--secondary-color);
+            color: #fff;
+            border: 2px solid var(--primary-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+        .story-name {
+            font-size: 11px;
+            color: var(--text-main);
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 68px;
+            line-height: 1.2;
+        }
+        .story-viewer-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            background: #000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .story-viewer-overlay.show { display: flex; }
+        .story-viewer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            max-width: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        @media (min-width: 768px) {
+            .story-viewer {
+                max-width: 420px;
+                max-height: 90vh;
+                max-height: 90dvh;
+                border-radius: 12px;
+                overflow: hidden;
+            }
+            .story-viewer-overlay {
+                background: rgba(0,0,0,0.85);
+                align-items: center;
+                justify-content: center;
+            }
+        }
+        .story-progress-bar {
+            display: flex;
+            gap: 4px;
+            padding: 10px 12px 6px;
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            z-index: 10;
+            padding-top: max(10px, env(safe-area-inset-top));
+        }
+        .story-progress-segment {
+            flex: 1;
+            height: 2.5px;
+            background: rgba(255,255,255,0.35);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .story-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #fff;
+            border-radius: 2px;
+        }
+        .story-progress-segment.done .story-progress-fill { width: 100%; }
+        .story-viewer-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px 10px;
+            position: absolute;
+            top: 22px; left: 0; right: 0;
+            z-index: 10;
+            padding-top: max(30px, calc(env(safe-area-inset-top) + 22px));
+        }
+        .story-viewer-avatar {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: var(--light-violet);
+            color: var(--secondary-color);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 13px;
+            overflow: hidden; flex-shrink: 0;
+            border: 1.5px solid rgba(255,255,255,0.4);
+        }
+        .story-viewer-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .story-viewer-meta { flex: 1; min-width: 0; }
+        .story-viewer-name {
+            color: #fff; font-size: 14px; font-weight: 600;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .story-viewer-time { color: rgba(255,255,255,0.7); font-size: 12px; }
+        .story-viewer-close {
+            background: none; border: none; color: #fff;
+            font-size: 22px; cursor: pointer; padding: 6px; opacity: 0.9;
+        }
+        .story-viewer-content {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            position: relative; width: 100%; min-height: 0; background: #111;
+        }
+        .story-viewer-media {
+            max-width: 100%; max-height: 100%; width: 100%; height: 100%;
+            object-fit: contain; user-select: none;
+        }
+        .story-viewer-placeholder {
+            color: rgba(255,255,255,0.6); font-size: 15px; text-align: center; padding: 24px;
+        }
+        .story-viewer-nav {
+            position: absolute; top: 0; bottom: 0; width: 35%; z-index: 5; cursor: pointer;
+        }
+        .story-viewer-nav.prev { left: 0; }
+        .story-viewer-nav.next { right: 0; }
+        .story-viewer-footer {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 12px 16px;
+            padding-bottom: max(16px, env(safe-area-inset-bottom));
+            z-index: 10; display: flex; align-items: center; gap: 10px;
+        }
+        .story-reply-input {
+            flex: 1; padding: 10px 16px; border-radius: 22px;
+            border: 1px solid rgba(255,255,255,0.35);
+            background: rgba(0,0,0,0.35); color: #fff; font-size: 14px; outline: none;
+        }
+        .story-reply-input::placeholder { color: rgba(255,255,255,0.5); }
+        .story-reply-btn {
+            background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 8px;
+        }
+        .add-contact-tabs {
+            display: flex; gap: 6px;
+            background: var(--gray-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 4px;
+        }
+        .add-contact-tab {
+            flex: 1; padding: 10px 8px; border: none; border-radius: 10px;
+            background: transparent; font-size: 12px; font-weight: 600;
+            color: var(--text-muted); cursor: pointer;
+        }
+        .add-contact-tab.active {
+            background: var(--primary-bg); color: var(--text-main);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .qr-scan-box {
+            position: relative; border-radius: 16px; overflow: hidden;
+            background: #000; aspect-ratio: 1; max-height: 280px; width: 100%; margin: 0 auto;
+        }
+        .qr-scan-box video { width: 100%; height: 100%; object-fit: cover; }
+        .qr-scan-frame {
+            position: absolute; inset: 12px;
+            border: 2px solid rgba(108, 92, 231, 0.55);
+            border-radius: 16px; pointer-events: none;
+        }
+        .qr-my-wrap {
+            background: var(--primary-bg); padding: 16px; border-radius: 16px;
+            border: 1px solid var(--border-color);
+            display: flex; flex-direction: column; align-items: center; gap: 12px;
+            min-height: 220px; justify-content: center;
+        }
+        .qr-status { font-size: 12px; color: var(--text-muted); text-align: center; }
         .search-container { flex-shrink: 0; padding: 12px 20px; }
         .search-box {
             display: flex; align-items: center; background-color: var(--gray-bg);
@@ -92,6 +329,13 @@
         .search-box:focus-within { border-color: var(--secondary-color); background-color: var(--primary-bg); }
         .search-box i { color: var(--text-muted); font-size: 14px; }
         .search-box input { border: none; background: none; outline: none; font-size: 14px; width: 100%; color: var(--text-main); }
+        .search-clear-btn {
+            display: none;
+            background: none; border: none; cursor: pointer;
+            color: var(--text-muted); font-size: 14px; padding: 2px 4px; flex-shrink: 0;
+        }
+        .search-clear-btn.visible { display: flex; align-items: center; justify-content: center; }
+        .search-clear-btn:hover { color: var(--secondary-color); }
         .chat-list { overflow-y: auto; flex: 1; min-height: 0; -webkit-overflow-scrolling: touch; }
         .chat-item {
             display: flex; align-items: center; padding: 14px 18px;
@@ -110,10 +354,6 @@
         .chat-info { flex: 1; min-width: 0; }
         .chat-name { font-size: 15px; font-weight: 600; color: var(--text-main); margin-bottom: 4px; }
         .chat-last-msg { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .request-badge {
-            background: var(--secondary-color); color: #fff; font-size: 10px;
-            font-weight: 700; padding: 2px 6px; border-radius: 10px; margin-left: 6px;
-        }
         .online-dot {
             display: inline-block; width: 8px; height: 8px; background: var(--online);
             border-radius: 50%; margin-left: 6px; vertical-align: middle;
@@ -190,18 +430,6 @@
             width: 42px; height: 42px; border-radius: 50%; cursor: pointer;
             display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
-        .chat-locked-banner {
-            width: 100%; text-align: center; padding: 12px 16px;
-            background: var(--light-violet); color: var(--text-muted);
-            font-size: 13px; border-radius: 10px;
-        }
-        .request-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-        .request-actions button {
-            flex: 1; padding: 10px 12px; border: none; border-radius: 10px;
-            font-size: 13px; font-weight: 600; cursor: pointer;
-        }
-        .btn-accept-req { background: var(--secondary-color); color: #fff; }
-        .btn-reject-req { background: var(--gray-bg); color: var(--text-muted); }
         .modal-overlay {
             display: none; position: fixed; inset: 0;
             background: rgba(0,0,0,0.5); z-index: 1500;
@@ -233,22 +461,6 @@
             display: flex; align-items: center; justify-content: center; gap: 8px;
         }
         .primary-btn:hover { background: var(--secondary-hover); }
-        #userSearchResults {
-            width: 100%; max-height: min(40vh, 280px); overflow-y: auto;
-            display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch;
-        }
-        .user-search-item {
-            display: flex; align-items: center; gap: 12px;
-            padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 12px;
-        }
-        .user-search-item .avatar { width: 42px; height: 42px; margin-right: 0; }
-        .user-search-meta { flex: 1; min-width: 0; }
-        .user-search-name { font-size: 14px; font-weight: 600; }
-        .user-search-about { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .user-search-btn {
-            flex-shrink: 0; padding: 8px 12px; border: none; border-radius: 10px;
-            background: var(--secondary-color); color: #fff; font-size: 12px; font-weight: 600; cursor: pointer;
-        }
         .ig-tabs { display: flex; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
         .ig-tab-btn {
             flex: 1; padding: 12px; border: none; background: none;
@@ -329,20 +541,37 @@
                 <div class="app-title"><i class="fa-solid fa-comments"></i><span>Conversas</span></div>
             </div>
             <div class="sidebar-actions">
-                <i class="fa-solid fa-user-plus" id="addContactHeaderBtn" title="Buscar usuário"></i>
+                <i class="fa-solid fa-masks-theater" title="Personagens IA" onclick="location.href='./Personagens.html'"></i>
+                <i class="fa-solid fa-user-plus" id="addContactHeaderBtn" title="Adicionar contato (QR)"></i>
             </div>
         </div>
         <div class="top-tab-bar">
             <button class="tab-item active" data-tab="contatos" onclick="switchTab('contatos')">Contatos</button>
-            <button class="tab-item" data-tab="solicitacoes" onclick="switchTab('solicitacoes')">
-                Solicitações <span id="requestCountBadge" style="display:none;background:var(--secondary-color);color:#fff;font-size:11px;padding:1px 6px;border-radius:10px;margin-left:4px;">0</span>
-            </button>
+            <button class="tab-item" data-tab="personagens" onclick="switchTab('personagens')">Personagens</button>
             <button class="tab-item" data-tab="bloqueados" onclick="switchTab('bloqueados')">Bloqueados</button>
         </div>
+
+        <div class="stories-container" id="storiesContainer">
+            <div class="stories-scroll" id="storiesScroll">
+                <div class="story-item" id="ownStoryItem" onclick="handleOwnStoryClick()">
+                    <div class="story-ring own">
+                        <div class="story-avatar" id="ownStoryAvatar">
+                            <i class="fa-solid fa-user"></i>
+                            <div class="story-add-btn"><i class="fa-solid fa-plus"></i></div>
+                        </div>
+                    </div>
+                    <div class="story-name">Seu story</div>
+                </div>
+            </div>
+        </div>
+
         <div class="search-container">
             <div class="search-box">
                 <i class="fa-solid fa-magnifying-glass"></i>
                 <input type="text" id="searchInput" placeholder="Pesquisar conversa" autocomplete="off">
+                <button type="button" class="search-clear-btn" id="searchClearBtn" title="Limpar" onclick="clearSearchInput()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
         </div>
         <div class="chat-list" id="chatList"></div>
@@ -385,14 +614,79 @@
     </div>
 </div>
 
-<div class="modal-overlay" id="searchUserModal">
+<div class="story-viewer-overlay" id="storyViewerOverlay">
+    <div class="story-viewer" id="storyViewer">
+        <div class="story-progress-bar" id="storyProgressBar"></div>
+        <div class="story-viewer-header">
+            <div class="story-viewer-avatar" id="storyViewerAvatar"></div>
+            <div class="story-viewer-meta">
+                <div class="story-viewer-name" id="storyViewerName"></div>
+                <div class="story-viewer-time" id="storyViewerTime"></div>
+            </div>
+            <button type="button" class="story-viewer-close" id="storyViewerClose" aria-label="Fechar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="story-viewer-content" id="storyViewerContent">
+            <div class="story-viewer-nav prev" id="storyNavPrev"></div>
+            <div class="story-viewer-nav next" id="storyNavNext"></div>
+            <div class="story-viewer-placeholder" id="storyViewerPlaceholder">Nenhum story disponível</div>
+        </div>
+        <div class="story-viewer-footer" id="storyViewerFooter">
+            <input type="text" class="story-reply-input" id="storyReplyInput" placeholder="Responder..." autocomplete="off">
+            <button type="button" class="story-reply-btn" id="storyReplyBtn" title="Enviar">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="addContactModal">
     <div class="modal-card">
-        <div class="modal-header"><span>Buscar usuário</span><i class="fa-solid fa-xmark" onclick="closeSearchUserModal()"></i></div>
+        <div class="modal-header">
+            <span>Adicionar contato</span>
+            <i class="fa-solid fa-xmark" onclick="closeAddContactModal()"></i>
+        </div>
         <div class="modal-body">
-            <label style="font-size:13px;color:var(--text-muted);">@username, nome ou npub</label>
-            <input type="text" id="userSearchInput" placeholder="@nome, username ou npub1..." autocomplete="off">
-            <button class="primary-btn" type="button" onclick="performUserSearch()">Buscar</button>
-            <div id="userSearchResults"><p style="font-size:12px;color:var(--text-muted);text-align:center;">Digite um nome ou npub e toque em Buscar</p></div>
+            <div class="add-contact-tabs">
+                <button type="button" class="add-contact-tab active" id="addTabScan" onclick="switchAddContactTab('scan')">
+                    <i class="fa-solid fa-camera"></i> Escanear
+                </button>
+                <button type="button" class="add-contact-tab" id="addTabMyQr" onclick="switchAddContactTab('myqr')">
+                    <i class="fa-solid fa-qrcode"></i> Meu QR
+                </button>
+            </div>
+            <div id="addContactPanelScan">
+                <p class="qr-status" style="margin-bottom:8px;">
+                    Aponte a câmera para o <strong>QR de contato</strong> do outro usuário. Ambos serão adicionados automaticamente.
+                </p>
+                <div class="qr-scan-box">
+                    <video id="contactQrScanVideo" playsinline muted></video>
+                    <canvas id="contactQrScanCanvas" style="display:none;"></canvas>
+                    <div class="qr-scan-frame"></div>
+                </div>
+                <p id="contactQrScanStatus" class="qr-status" style="margin-top:10px;">Iniciando câmera...</p>
+                <label style="font-size:13px;color:var(--text-muted);margin-top:8px;display:block;">Ou cole o código do QR</label>
+                <div style="display:flex;gap:8px;margin-top:6px;">
+                    <input type="text" id="contactQrManualInput" placeholder="loresocial-contact:npub1..." autocomplete="off"
+                           style="flex:1;padding:12px 14px;border:1px solid var(--border-color);border-radius:10px;outline:none;font-size:13px;background:var(--gray-bg);">
+                    <button type="button" class="primary-btn" style="width:auto;padding:12px 16px;" onclick="submitManualContactQr()">Enviar</button>
+                </div>
+            </div>
+            <div id="addContactPanelMyQr" style="display:none;">
+                <p class="qr-status" style="margin-bottom:8px;">
+                    Mostre este QR para outra pessoa escanear. Vocês serão adicionados mutuamente.
+                </p>
+                <div class="qr-my-wrap">
+                    <canvas id="contactMyQrCanvas" width="200" height="200"></canvas>
+                    <img id="contactMyQrImg" alt="Meu QR" style="display:none;width:200px;height:200px;">
+                    <p id="contactMyQrStatus" class="qr-status">Gerando QR...</p>
+                    <button type="button" class="primary-btn" style="width:auto;padding:10px 16px;" onclick="generateMyContactQr()">
+                        <i class="fa-solid fa-rotate"></i> Atualizar QR
+                    </button>
+                </div>
+                <p id="contactMyQrNpub" style="font-size:11px;color:var(--text-muted);text-align:center;word-break:break-all;margin-top:4px;"></p>
+            </div>
         </div>
     </div>
 </div>
@@ -461,12 +755,6 @@ const NORST_RELAYS = [
     'wss://relay.primal.net',
     'wss://relay.nostr.band'
 ];
-const SEARCH_RELAYS = [
-    'wss://relay.nostr.band',
-    'wss://relay.primal.net',
-    'wss://nos.lol',
-    'wss://relay.damus.io'
-];
 const PRESENCE_RELAYS = [
     'wss://relay.damus.io',
     'wss://nos.lol',
@@ -477,6 +765,11 @@ const PRESENCE_KIND = 29333;
 const PRESENCE_INTERVAL_MS = 45000;
 const PRESENCE_TTL_MS = 90000;
 const GIPHY_API_KEY = 'SUA_CHAVE_GIPHY_AQUI';
+const STORY_CREATE_PAGE = './StoryCreate.html';
+const STORY_DURATION_MS = 5000;
+const CONTACT_QR_PREFIX = 'loresocial-contact:';
+const CHATS_STORAGE_PREFIX = 'loresocial_chats_';
+const STORY_KIND = 30078;
 
 let chatsData = [];
 let currentTab = 'contatos';
@@ -488,7 +781,6 @@ let activePreviewAudio = null;
 let activeChatAudio = null;
 let igCurrentType = 'gif';
 let igSearchTimeout = null;
-let lastUserSearchResults = [];
 
 let nostrPool = null;
 let currentUserPubkey = null;
@@ -500,6 +792,17 @@ let presenceListRefreshTimer = null;
 const presenceMap = new Map();
 const seenMessageIds = new Set();
 
+let storyQueue = [];
+let storyUserIndex = 0;
+let storySlideIndex = 0;
+let storyProgressTimer = null;
+let storyProgressStart = 0;
+let storyPaused = false;
+
+let contactQrScanStream = null;
+let contactQrScanRaf = null;
+let addContactTab = 'scan';
+
 const appContainer = document.getElementById('appContainer');
 const chatListEl = document.getElementById('chatList');
 const messagesContainer = document.getElementById('messagesContainer');
@@ -510,6 +813,7 @@ const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 const backBtn = document.getElementById('backBtn');
 const searchInput = document.getElementById('searchInput');
+const searchClearBtn = document.getElementById('searchClearBtn');
 const ellipsisBtn = document.getElementById('ellipsisBtn');
 const dropdownMenu = document.getElementById('dropdownMenu');
 const attachBtn = document.getElementById('attachBtn');
@@ -561,6 +865,60 @@ function showMessageNotification(title, body) {
     } catch {}
 }
 
+function chatsStorageKey() {
+    return CHATS_STORAGE_PREFIX + String(currentUserPubkey || 'anon').toLowerCase();
+}
+function saveChatsLocal() {
+    if (!currentUserPubkey) return;
+    try {
+        const toSave = chatsData.map(c => ({
+            id: c.id,
+            name: c.name,
+            lastMsg: c.lastMsg,
+            avatar: c.avatar,
+            avatarUrl: c.avatarUrl,
+            type: c.type,
+            status: c.status,
+            pinned: !!c.pinned,
+            pubkey: c.pubkey,
+            isCharacter: !!c.isCharacter,
+            addedVia: c.addedVia || 'qr',
+            characterMeta: c.characterMeta || null,
+            stories: Array.isArray(c.stories) ? c.stories : [],
+            messages: (c.messages || []).slice(-200)
+        }));
+        localStorage.setItem(chatsStorageKey(), JSON.stringify(toSave));
+    } catch (e) { console.warn('saveChatsLocal', e); }
+}
+function loadChatsLocal() {
+    if (!currentUserPubkey) return;
+    try {
+        const raw = localStorage.getItem(chatsStorageKey());
+        if (!raw) return;
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr)) return;
+        chatsData = arr.filter(c => c && c.pubkey).map(c => ({
+            id: c.id,
+            name: c.name || '@usuario',
+            lastMsg: c.lastMsg || '',
+            avatar: c.avatar || '',
+            avatarUrl: c.avatarUrl || '',
+            type: c.type || 'contatos',
+            status: c.status === 'blocked' ? 'blocked' : 'accepted',
+            pinned: !!c.pinned,
+            pubkey: String(c.pubkey).toLowerCase(),
+            isCharacter: !!c.isCharacter,
+            addedVia: c.addedVia || 'qr',
+            characterMeta: c.characterMeta || null,
+            stories: Array.isArray(c.stories) ? c.stories : [],
+            messages: Array.isArray(c.messages) ? c.messages : []
+        }));
+    } catch (e) { console.warn('loadChatsLocal', e); }
+}
+function nextChatId() {
+    return chatsData.length ? Math.max(...chatsData.map(c => c.id)) + 1 : 1;
+}
+
 function buildMediaPayload(type, data) { return JSON.stringify({ lore: 1, type, ...data }); }
 function tryParseMediaPayload(text) {
     try { const o = JSON.parse(text); if (o && o.lore === 1 && o.type) return o; } catch {}
@@ -575,9 +933,7 @@ function mediaPreviewText(plainText) {
     if (m.type === 'image') return '[Imagem]';
     if (m.type === 'youtube') return '[YouTube]';
     if (m.type === 'music') return `[Música: ${m.title || ''}]`;
-    if (m.type === 'contact_request') return 'Solicitação de contato';
-    if (m.type === 'contact_accept') return 'Solicitação aceita';
-    if (m.type === 'contact_reject') return 'Solicitação recusada';
+    if (m.type === 'contact_qr_mutual') return 'Contato adicionado via QR';
     return plainText;
 }
 function renderMessageContent(msgDiv, text) {
@@ -617,6 +973,7 @@ function renderMessageContent(msgDiv, text) {
 
 async function sendNostrDm(chat, plainText) {
     if (!chat?.pubkey || !plainText) return false;
+    if (String(chat.pubkey).startsWith('char:')) return false;
     const sk = getPrivateKeyBytes();
     if (!sk || !window.NostrTools) return false;
     try {
@@ -636,7 +993,7 @@ async function sendNostrDm(chat, plainText) {
 }
 
 async function fetchNostrProfile(pubkey) {
-    if (!pubkey || !window.NostrTools) return { name: '', picture: '', about: '' };
+    if (!pubkey || !window.NostrTools || String(pubkey).startsWith('char:')) return { name: '', picture: '', about: '' };
     try {
         if (!nostrPool) nostrPool = new NostrTools.SimplePool();
         const ev = await nostrPool.get(NORST_RELAYS, { kinds: [0], authors: [pubkey] });
@@ -660,25 +1017,18 @@ function avatarHtml(chat) {
     return escapeAttr((chat.avatar || (chat.name || '?').replace('@', '').substring(0, 2)).toUpperCase());
 }
 function canMessageChat(chat) {
-    return !!(chat && chat.status === 'accepted' && chat.type === 'contatos');
+    return !!(chat && chat.status === 'accepted' && (chat.type === 'contatos' || chat.type === 'personagens'));
 }
 function setInputLocked(locked) {
     messageInput.disabled = locked;
     sendBtn.disabled = locked;
     attachBtn.style.pointerEvents = locked ? 'none' : 'auto';
     attachBtn.style.opacity = locked ? '0.4' : '1';
-    messageInput.placeholder = locked ? 'Aguarde a solicitação ser aceita…' : 'Digite uma mensagem...';
-}
-function updateRequestBadge() {
-    const n = chatsData.filter(c => c.status === 'pending_received').length;
-    const badge = document.getElementById('requestCountBadge');
-    if (!badge) return;
-    if (n > 0) { badge.style.display = 'inline'; badge.textContent = String(n); }
-    else badge.style.display = 'none';
+    messageInput.placeholder = locked ? 'Contato bloqueado' : 'Digite uma mensagem...';
 }
 
 function isUserOnline(pubkey) {
-    if (!pubkey) return false;
+    if (!pubkey || String(pubkey).startsWith('char:')) return false;
     const last = presenceMap.get(String(pubkey).toLowerCase());
     return !!(last && (Date.now() - last) < PRESENCE_TTL_MS);
 }
@@ -688,8 +1038,7 @@ function setPresence(pubkey, ts = Date.now()) {
 }
 function statusLabelForChat(chat) {
     if (!chat) return 'offline';
-    if (chat.status === 'pending_sent') return 'solicitação enviada';
-    if (chat.status === 'pending_received') return 'solicitação recebida';
+    if (chat.isCharacter || String(chat.pubkey || '').startsWith('char:')) return 'personagem IA';
     if (chat.status === 'blocked' || chat.type === 'bloqueados') return 'bloqueado';
     return isUserOnline(chat.pubkey) ? 'online' : 'offline';
 }
@@ -707,6 +1056,7 @@ function scheduleListPresenceRefresh() {
         presenceListRefreshTimer = null;
         renderChatList();
         updateChatHeaderStatus();
+        renderStories();
     }, 1500);
 }
 async function publishMyPresence() {
@@ -739,7 +1089,7 @@ async function startPresenceListener() {
     if (!window.NostrTools || !currentUserPubkey) return;
     if (!nostrPool) nostrPool = new NostrTools.SimplePool();
     if (presenceSub && typeof presenceSub.close === 'function') { try { presenceSub.close(); } catch {} }
-    const authors = [...new Set(chatsData.map(c => c.pubkey).filter(Boolean).map(p => p.toLowerCase()))];
+    const authors = [...new Set(chatsData.map(c => c.pubkey).filter(p => p && !String(p).startsWith('char:')).map(p => p.toLowerCase()))];
     const since = Math.floor(Date.now() / 1000) - 120;
     try {
         if (authors.length) {
@@ -762,6 +1112,468 @@ async function startPresenceListener() {
 }
 setInterval(updateChatHeaderStatus, 15000);
 
+function hasActiveStories(chat) {
+    if (!chat || !Array.isArray(chat.stories) || !chat.stories.length) return false;
+    return chat.stories.some(s => s && (s.url || s.mediaUrl));
+}
+function getStoriesForChat(chat) {
+    if (!hasActiveStories(chat)) return [];
+    return chat.stories
+        .filter(s => s && (s.url || s.mediaUrl))
+        .map(s => ({
+            url: s.url || s.mediaUrl || '',
+            type: s.type || 'image',
+            time: s.time || s.createdAt || Date.now(),
+            text: s.text || ''
+        }));
+}
+function buildStoryQueue(startChatId) {
+    const withStories = chatsData.filter(c =>
+        c.status === 'accepted' &&
+        (c.type === 'contatos' || c.type === 'personagens') &&
+        c.pubkey &&
+        !String(c.pubkey).startsWith('char:') &&
+        hasActiveStories(c)
+    );
+    const queue = withStories.map(chat => ({
+        id: chat.id,
+        name: chat.name || '@usuario',
+        avatarUrl: chat.avatarUrl || '',
+        avatar: chat.avatar || '',
+        pubkey: chat.pubkey,
+        slides: getStoriesForChat(chat)
+    }));
+    let startIdx = 0;
+    if (startChatId != null) {
+        const i = queue.findIndex(u => u.id === startChatId);
+        if (i >= 0) startIdx = i;
+    }
+    return { queue, startIdx };
+}
+function renderStories() {
+    const scroll = document.getElementById('storiesScroll');
+    if (!scroll) return;
+    const ownItem = document.getElementById('ownStoryItem');
+    scroll.innerHTML = '';
+    if (ownItem) scroll.appendChild(ownItem);
+    updateOwnStoryAvatar();
+    const contactsWithStories = chatsData.filter(c =>
+        c.status === 'accepted' &&
+        (c.type === 'contatos' || c.type === 'personagens') &&
+        c.pubkey &&
+        !String(c.pubkey).startsWith('char:') &&
+        hasActiveStories(c)
+    );
+    contactsWithStories.forEach(chat => {
+        const item = document.createElement('div');
+        item.className = 'story-item';
+        item.onclick = () => openStoryViewer(chat.id);
+        const nameShort = (chat.name || '').replace(/^@/, '').substring(0, 10) || 'user';
+        item.innerHTML = `
+            <div class="story-ring">
+                <div class="story-avatar">${avatarHtml(chat)}</div>
+            </div>
+            <div class="story-name">${escapeAttr(nameShort)}</div>
+        `;
+        scroll.appendChild(item);
+    });
+}
+async function updateOwnStoryAvatar() {
+    const el = document.getElementById('ownStoryAvatar');
+    if (!el || !currentUserPubkey) return;
+    try {
+        const profile = await fetchNostrProfile(currentUserPubkey);
+        if (profile.picture) {
+            el.innerHTML = `<img src="${escapeAttr(profile.picture)}" alt="" onerror="this.style.display='none'"><div class="story-add-btn"><i class="fa-solid fa-plus"></i></div>`;
+        }
+    } catch {}
+}
+function handleOwnStoryClick() { window.location.href = STORY_CREATE_PAGE; }
+
+function openStoryViewer(startChatId) {
+    const { queue, startIdx } = buildStoryQueue(startChatId);
+    if (!queue.length) return;
+    storyQueue = queue;
+    storyUserIndex = startIdx;
+    storySlideIndex = 0;
+    storyPaused = false;
+    document.getElementById('storyViewerOverlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
+    showCurrentStorySlide();
+    startStoryProgress();
+}
+function closeStoryViewer() {
+    stopStoryProgress();
+    document.getElementById('storyViewerOverlay').classList.remove('show');
+    document.body.style.overflow = '';
+    storyQueue = [];
+    storyUserIndex = 0;
+    storySlideIndex = 0;
+}
+function showCurrentStorySlide() {
+    const user = storyQueue[storyUserIndex];
+    if (!user) { closeStoryViewer(); return; }
+    const slides = user.slides || [];
+    if (!slides.length) { closeStoryViewer(); return; }
+    if (storySlideIndex >= slides.length) storySlideIndex = 0;
+    const slide = slides[storySlideIndex];
+    const avEl = document.getElementById('storyViewerAvatar');
+    if (user.avatarUrl) {
+        avEl.innerHTML = `<img src="${escapeAttr(user.avatarUrl)}" alt="" onerror="this.parentNode.textContent='${escapeAttr((user.name || '?').replace('@','').substring(0,2).toUpperCase())}'">`;
+    } else {
+        avEl.textContent = (user.avatar || (user.name || '?').replace('@', '').substring(0, 2)).toUpperCase();
+    }
+    document.getElementById('storyViewerName').textContent = user.name || '';
+    document.getElementById('storyViewerTime').textContent = formatStoryTime(slide.time);
+    const bar = document.getElementById('storyProgressBar');
+    bar.innerHTML = slides.map((_, i) => {
+        const cls = i < storySlideIndex ? 'done' : '';
+        return `<div class="story-progress-segment ${cls}"><div class="story-progress-fill" id="storyFill_${i}"></div></div>`;
+    }).join('');
+    const content = document.getElementById('storyViewerContent');
+    const existingMedia = content.querySelector('.story-viewer-media');
+    if (existingMedia) existingMedia.remove();
+    const placeholder = document.getElementById('storyViewerPlaceholder');
+    if (slide.url && (slide.type === 'image' || slide.type === 'gif' || !slide.type)) {
+        placeholder.style.display = 'none';
+        const img = document.createElement('img');
+        img.className = 'story-viewer-media';
+        img.src = slide.url;
+        img.alt = 'Story';
+        img.onerror = () => {
+            img.remove();
+            placeholder.style.display = 'block';
+            placeholder.textContent = 'Mídia indisponível';
+        };
+        content.insertBefore(img, content.firstChild);
+    } else if (slide.type === 'video' && slide.url) {
+        placeholder.style.display = 'none';
+        const vid = document.createElement('video');
+        vid.className = 'story-viewer-media';
+        vid.src = slide.url;
+        vid.autoplay = true;
+        vid.playsInline = true;
+        content.insertBefore(vid, content.firstChild);
+    } else {
+        placeholder.style.display = 'block';
+        placeholder.textContent = slide.text || 'Nenhum story disponível';
+    }
+}
+function formatStoryTime(ts) {
+    if (!ts) return 'agora';
+    const diff = Date.now() - Number(ts);
+    if (diff < 60000) return 'agora';
+    if (diff < 3600000) return Math.floor(diff / 60000) + ' min';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + ' h';
+    return Math.floor(diff / 86400000) + ' d';
+}
+function stopStoryProgress() {
+    if (storyProgressTimer) {
+        cancelAnimationFrame(storyProgressTimer);
+        storyProgressTimer = null;
+    }
+}
+function startStoryProgress() {
+    stopStoryProgress();
+    const fill = document.getElementById(`storyFill_${storySlideIndex}`);
+    if (!fill) return;
+    storyProgressStart = performance.now();
+    const duration = STORY_DURATION_MS;
+    function tick(now) {
+        if (storyPaused) {
+            storyProgressTimer = requestAnimationFrame(tick);
+            return;
+        }
+        const elapsed = now - storyProgressStart;
+        const pct = Math.min(100, (elapsed / duration) * 100);
+        if (fill) fill.style.width = pct + '%';
+        if (pct >= 100) { goNextStorySlide(); return; }
+        storyProgressTimer = requestAnimationFrame(tick);
+    }
+    storyProgressTimer = requestAnimationFrame(tick);
+}
+function goNextStorySlide() {
+    const user = storyQueue[storyUserIndex];
+    if (!user) { closeStoryViewer(); return; }
+    if (storySlideIndex < (user.slides.length - 1)) {
+        storySlideIndex++;
+        showCurrentStorySlide();
+        startStoryProgress();
+    } else if (storyUserIndex < storyQueue.length - 1) {
+        storyUserIndex++;
+        storySlideIndex = 0;
+        showCurrentStorySlide();
+        startStoryProgress();
+    } else {
+        closeStoryViewer();
+    }
+}
+function goPrevStorySlide() {
+    if (storySlideIndex > 0) {
+        storySlideIndex--;
+        showCurrentStorySlide();
+        startStoryProgress();
+    } else if (storyUserIndex > 0) {
+        storyUserIndex--;
+        const prevUser = storyQueue[storyUserIndex];
+        storySlideIndex = Math.max(0, (prevUser.slides?.length || 1) - 1);
+        showCurrentStorySlide();
+        startStoryProgress();
+    } else {
+        showCurrentStorySlide();
+        startStoryProgress();
+    }
+}
+document.getElementById('storyViewerClose').addEventListener('click', e => { e.stopPropagation(); closeStoryViewer(); });
+document.getElementById('storyNavPrev').addEventListener('click', e => { e.stopPropagation(); goPrevStorySlide(); });
+document.getElementById('storyNavNext').addEventListener('click', e => { e.stopPropagation(); goNextStorySlide(); });
+document.getElementById('storyViewerOverlay').addEventListener('click', e => {
+    if (e.target.id === 'storyViewerOverlay') closeStoryViewer();
+});
+document.addEventListener('keydown', e => {
+    if (!document.getElementById('storyViewerOverlay').classList.contains('show')) return;
+    if (e.key === 'Escape') closeStoryViewer();
+    if (e.key === 'ArrowRight') goNextStorySlide();
+    if (e.key === 'ArrowLeft') goPrevStorySlide();
+});
+document.getElementById('storyReplyBtn').addEventListener('click', () => {
+    const input = document.getElementById('storyReplyInput');
+    const text = (input.value || '').trim();
+    if (!text) return;
+    const user = storyQueue[storyUserIndex];
+    if (user && user.id != null) {
+        closeStoryViewer();
+        switchTab('contatos');
+        selectChat(user.id);
+        messageInput.value = text;
+        messageInput.focus();
+    }
+    input.value = '';
+});
+document.getElementById('storyReplyInput').addEventListener('keypress', e => {
+    if (e.key === 'Enter') document.getElementById('storyReplyBtn').click();
+});
+
+function updateSearchClearBtn() {
+    const has = !!(searchInput.value && searchInput.value.trim());
+    searchClearBtn.classList.toggle('visible', has);
+}
+function clearSearchInput() {
+    searchInput.value = '';
+    searchQuery = '';
+    updateSearchClearBtn();
+    renderChatList();
+    searchInput.focus();
+}
+searchInput.addEventListener('input', e => {
+    searchQuery = e.target.value;
+    updateSearchClearBtn();
+    renderChatList();
+});
+
+document.getElementById('addContactHeaderBtn').addEventListener('click', () => {
+    dropdownMenu.classList.remove('show');
+    attachmentMenu.classList.remove('show');
+    openAddContactModal();
+});
+function openAddContactModal() {
+    document.getElementById('addContactModal').classList.add('show');
+    switchAddContactTab('scan');
+}
+function closeAddContactModal() {
+    stopContactQrScanner();
+    document.getElementById('addContactModal').classList.remove('show');
+    const manual = document.getElementById('contactQrManualInput');
+    if (manual) manual.value = '';
+}
+function switchAddContactTab(tab) {
+    addContactTab = tab;
+    stopContactQrScanner();
+    document.getElementById('addTabScan').classList.toggle('active', tab === 'scan');
+    document.getElementById('addTabMyQr').classList.toggle('active', tab === 'myqr');
+    document.getElementById('addContactPanelScan').style.display = tab === 'scan' ? 'block' : 'none';
+    document.getElementById('addContactPanelMyQr').style.display = tab === 'myqr' ? 'block' : 'none';
+    if (tab === 'scan') startContactQrScanner();
+    if (tab === 'myqr') generateMyContactQr();
+}
+async function generateMyContactQr() {
+    const statusEl = document.getElementById('contactMyQrStatus');
+    const canvas = document.getElementById('contactMyQrCanvas');
+    const imgEl = document.getElementById('contactMyQrImg');
+    const npubEl = document.getElementById('contactMyQrNpub');
+    if (!currentUserPubkey) {
+        if (statusEl) statusEl.textContent = 'Sessão inválida.';
+        return;
+    }
+    let npub = currentUserNpub;
+    try {
+        if (!npub && window.NostrTools) npub = NostrTools.nip19.npubEncode(currentUserPubkey);
+    } catch {}
+    if (!npub) npub = currentUserPubkey;
+    const payload = CONTACT_QR_PREFIX + npub;
+    if (npubEl) npubEl.textContent = npub;
+    if (statusEl) statusEl.textContent = 'Gerando QR...';
+    let ok = false;
+    try {
+        if (window.QRCode && typeof QRCode.toCanvas === 'function') {
+            await QRCode.toCanvas(canvas, payload, {
+                width: 200, margin: 2,
+                color: { dark: '#6c5ce7', light: '#ffffff' }
+            });
+            canvas.style.display = 'block';
+            if (imgEl) imgEl.style.display = 'none';
+            ok = true;
+        }
+    } catch (e) { console.warn(e); }
+    if (!ok && imgEl) {
+        imgEl.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&color=6c5ce7&bgcolor=ffffff&data=' + encodeURIComponent(payload);
+        imgEl.style.display = 'block';
+        if (canvas) canvas.style.display = 'none';
+        ok = true;
+    }
+    if (statusEl) statusEl.textContent = ok ? 'Pronto para escanear' : 'Não foi possível gerar o QR.';
+}
+async function startContactQrScanner() {
+    const video = document.getElementById('contactQrScanVideo');
+    const statusEl = document.getElementById('contactQrScanStatus');
+    stopContactQrScanner();
+    if (!navigator.mediaDevices?.getUserMedia) {
+        if (statusEl) statusEl.textContent = 'Câmera indisponível. Cole o código manualmente.';
+        return;
+    }
+    try {
+        contactQrScanStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }, audio: false
+        });
+        video.srcObject = contactQrScanStream;
+        await video.play();
+        if (statusEl) statusEl.textContent = 'Aponte para o QR de contato...';
+        const canvas = document.getElementById('contactQrScanCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const tick = () => {
+            if (!contactQrScanStream) return;
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                if (typeof jsQR !== 'undefined') {
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+                    if (code?.data) { handleContactQrPayload(code.data); return; }
+                }
+            }
+            contactQrScanRaf = requestAnimationFrame(tick);
+        };
+        contactQrScanRaf = requestAnimationFrame(tick);
+    } catch (e) {
+        console.error(e);
+        if (statusEl) statusEl.textContent = 'Permissão de câmera negada. Cole o código manualmente.';
+    }
+}
+function stopContactQrScanner() {
+    if (contactQrScanRaf) { cancelAnimationFrame(contactQrScanRaf); contactQrScanRaf = null; }
+    if (contactQrScanStream) {
+        contactQrScanStream.getTracks().forEach(t => t.stop());
+        contactQrScanStream = null;
+    }
+    const video = document.getElementById('contactQrScanVideo');
+    if (video) video.srcObject = null;
+}
+function submitManualContactQr() {
+    const val = (document.getElementById('contactQrManualInput')?.value || '').trim();
+    if (!val) { alert('Cole o conteúdo do QR.'); return; }
+    handleContactQrPayload(val);
+}
+
+function upsertMutualContact({ pubkey, name, picture, isCharacter }) {
+    const pk = String(pubkey).toLowerCase();
+    let chat = chatsData.find(c => c.pubkey && c.pubkey.toLowerCase() === pk);
+    if (chat) {
+        if (chat.status !== 'blocked') {
+            chat.status = 'accepted';
+            chat.type = chat.isCharacter ? 'personagens' : 'contatos';
+        }
+        if (name) chat.name = formatDisplayName(name, pk);
+        if (picture) chat.avatarUrl = picture;
+        chat.addedVia = 'qr';
+        chat.lastMsg = chat.lastMsg || 'Contato via QR';
+    } else {
+        const display = formatDisplayName(name, pk);
+        chat = {
+            id: nextChatId(),
+            name: display,
+            lastMsg: 'Contato adicionado via QR',
+            avatar: display.replace('@', '').substring(0, 2).toUpperCase(),
+            avatarUrl: picture || '',
+            type: isCharacter ? 'personagens' : 'contatos',
+            status: 'accepted',
+            pinned: false,
+            pubkey: pk,
+            isCharacter: !!isCharacter,
+            addedVia: 'qr',
+            stories: [],
+            messages: []
+        };
+        chatsData.unshift(chat);
+    }
+    saveChatsLocal();
+    return chat;
+}
+
+async function handleContactQrPayload(raw) {
+    const statusEl = document.getElementById('contactQrScanStatus');
+    let token = String(raw || '').trim();
+    if (token.startsWith(CONTACT_QR_PREFIX)) token = token.slice(CONTACT_QR_PREFIX.length).trim();
+    let pubkey = null;
+    try {
+        if (token.startsWith('npub1') && window.NostrTools) {
+            const decoded = NostrTools.nip19.decode(token);
+            if (decoded.type === 'npub') pubkey = decoded.data;
+        } else if (/^[0-9a-f]{64}$/i.test(token)) {
+            pubkey = token.toLowerCase();
+        }
+    } catch {
+        if (statusEl) statusEl.textContent = 'QR inválido.';
+        return;
+    }
+    if (!pubkey) {
+        if (statusEl) statusEl.textContent = 'QR inválido. Use o QR de contato do LoreSocial.';
+        return;
+    }
+    if (currentUserPubkey && pubkey.toLowerCase() === currentUserPubkey.toLowerCase()) {
+        if (statusEl) statusEl.textContent = 'Esse é você.';
+        alert('Você não pode adicionar a si mesmo.');
+        return;
+    }
+    stopContactQrScanner();
+    if (statusEl) statusEl.textContent = 'Adicionando contato mutuamente...';
+    const profile = await fetchNostrProfile(pubkey);
+    const chat = upsertMutualContact({
+        pubkey,
+        name: profile.name,
+        picture: profile.picture
+    });
+    let myName = '';
+    let myPicture = '';
+    try {
+        const me = await fetchNostrProfile(currentUserPubkey);
+        myName = me.name || '';
+        myPicture = me.picture || '';
+    } catch {}
+    await sendNostrDm(chat, buildMediaPayload('contact_qr_mutual', {
+        from: currentUserPubkey,
+        npub: currentUserNpub || '',
+        name: myName,
+        picture: myPicture
+    }));
+    showMessageNotification('Contato adicionado', chat.name);
+    closeAddContactModal();
+    switchTab('contatos');
+    selectChat(chat.id);
+    renderChatList();
+    startPresenceListener();
+}
+
 function switchTab(tabName) {
     currentTab = tabName;
     document.querySelectorAll('.tab-item').forEach(btn => {
@@ -771,72 +1583,63 @@ function switchTab(tabName) {
 }
 function renderChatList() {
     chatListEl.innerHTML = '';
-    updateRequestBadge();
     const filtered = chatsData.filter(chat => {
         let matchesTab = false;
-        if (currentTab === 'contatos') matchesTab = chat.type === 'contatos' && chat.status === 'accepted';
-        else if (currentTab === 'solicitacoes') matchesTab = chat.status === 'pending_sent' || chat.status === 'pending_received';
-        else if (currentTab === 'bloqueados') matchesTab = chat.type === 'bloqueados' || chat.status === 'blocked';
+        if (currentTab === 'contatos') {
+            matchesTab = chat.type === 'contatos' && chat.status === 'accepted' && !chat.isCharacter;
+        } else if (currentTab === 'personagens') {
+            matchesTab = (chat.type === 'personagens' || chat.isCharacter) && chat.status === 'accepted';
+        } else if (currentTab === 'bloqueados') {
+            matchesTab = chat.type === 'bloqueados' || chat.status === 'blocked';
+        }
         const q = searchQuery.toLowerCase();
         const matchesSearch = (chat.name || '').toLowerCase().includes(q) || (chat.lastMsg || '').toLowerCase().includes(q);
         return matchesTab && matchesSearch;
     });
     if (!filtered.length) {
-        chatListEl.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:14px;">${currentTab === 'solicitacoes' ? 'Nenhuma solicitação' : 'Nenhum item encontrado'}</div>`;
+        const emptyMsg = currentTab === 'personagens' ? 'Nenhum personagem. Crie em Personagens IA.'
+            : currentTab === 'bloqueados' ? 'Nenhum bloqueado'
+            : 'Nenhum contato. Adicione via QR.';
+        chatListEl.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:14px;">${emptyMsg}</div>`;
+        renderStories();
         return;
     }
     filtered.forEach(chat => {
         const item = document.createElement('div');
         item.className = `chat-item ${chat.id === currentChatId ? 'active' : ''}`;
-        let statusLabel = '';
-        if (chat.status === 'pending_sent') statusLabel = '<span class="request-badge">Enviada</span>';
-        if (chat.status === 'pending_received') statusLabel = '<span class="request-badge">Nova</span>';
         const online = chat.status === 'accepted' && isUserOnline(chat.pubkey);
         const onlineDot = online ? '<span class="online-dot" title="Online"></span>' : '';
         item.innerHTML = `
             <div class="avatar">${avatarHtml(chat)}</div>
             <div class="chat-info">
-                <div class="chat-name">${escapeAttr(chat.name || '')}${statusLabel}${onlineDot}${chat.pinned ? ' <i class="fa-solid fa-thumbtack" style="font-size:11px;color:var(--secondary-color);"></i>' : ''}</div>
+                <div class="chat-name">${escapeAttr(chat.name || '')}${onlineDot}${chat.pinned ? ' <i class="fa-solid fa-thumbtack" style="font-size:11px;color:var(--secondary-color);"></i>' : ''}</div>
                 <div class="chat-last-msg">${escapeAttr(chat.lastMsg || '')}</div>
             </div>`;
         item.addEventListener('click', () => selectChat(chat.id));
         chatListEl.appendChild(item);
     });
+    renderStories();
 }
 function selectChat(id) {
     if (activeChatAudio) { activeChatAudio.pause(); activeChatAudio = null; }
     currentChatId = id;
     const chat = chatsData.find(c => c.id === id);
     if (!chat) return;
+    if (chat.isCharacter || String(chat.pubkey || '').startsWith('char:')) {
+        window.location.href = './Personagens.html';
+        return;
+    }
     activeName.textContent = chat.name;
     activeAvatar.innerHTML = avatarHtml(chat);
     activeStatus.textContent = statusLabelForChat(chat);
     activeStatus.style.color = (chat.status === 'accepted' && isUserOnline(chat.pubkey)) ? 'var(--online)' : '';
     document.getElementById('pinText').textContent = chat.pinned ? 'Desfixar contato' : 'Fixar contato';
     document.getElementById('blockText').textContent = (chat.type === 'bloqueados' || chat.status === 'blocked') ? 'Desbloquear' : 'Bloquear';
-
     messagesContainer.style.justifyContent = 'flex-start';
     messagesContainer.style.alignItems = 'stretch';
     messagesContainer.innerHTML = '';
     setInputLocked(!canMessageChat(chat));
-
-    if (chat.status === 'pending_received') {
-        const banner = document.createElement('div');
-        banner.className = 'chat-locked-banner';
-        banner.innerHTML = `<div>${escapeAttr(chat.name)} quer conversar com você.</div>
-            <div class="request-actions">
-                <button class="btn-accept-req" type="button" onclick="acceptContactRequest(${chat.id})">Aceitar</button>
-                <button class="btn-reject-req" type="button" onclick="rejectContactRequest(${chat.id})">Recusar</button>
-            </div>`;
-        messagesContainer.appendChild(banner);
-    } else if (chat.status === 'pending_sent') {
-        const banner = document.createElement('div');
-        banner.className = 'chat-locked-banner';
-        banner.textContent = 'Solicitação enviada. Você poderá enviar mensagens quando for aceita.';
-        messagesContainer.appendChild(banner);
-    }
-
-    chat.messages.forEach(msg => {
+    (chat.messages || []).forEach(msg => {
         const div = document.createElement('div');
         div.className = `message ${msg.sender}`;
         if (tryParseMediaPayload(msg.text || '')) renderMessageContent(div, msg.text);
@@ -845,7 +1648,6 @@ function selectChat(id) {
         messagesContainer.appendChild(div);
     });
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
     if (window.innerWidth <= 767) appContainer.classList.add('mobile-show-chat');
     else appContainer.classList.add('desktop-has-chat');
     renderChatList();
@@ -876,6 +1678,7 @@ function togglePinChat() {
     const chat = chatsData.find(c => c.id === currentChatId);
     if (!chat) return;
     chat.pinned = !chat.pinned;
+    saveChatsLocal();
     selectChat(currentChatId);
 }
 function toggleBlockChat() {
@@ -883,14 +1686,15 @@ function toggleBlockChat() {
     const chat = chatsData.find(c => c.id === currentChatId);
     if (!chat) return;
     if (chat.type === 'bloqueados' || chat.status === 'blocked') {
-        chat.type = 'contatos';
+        chat.type = chat.isCharacter ? 'personagens' : 'contatos';
         chat.status = 'accepted';
-        currentTab = 'contatos';
+        currentTab = chat.isCharacter ? 'personagens' : 'contatos';
     } else {
         chat.type = 'bloqueados';
         chat.status = 'blocked';
         currentTab = 'bloqueados';
     }
+    saveChatsLocal();
     switchTab(currentTab);
     selectChat(currentChatId);
 }
@@ -898,6 +1702,7 @@ function deleteChat() {
     if (currentChatId == null) return;
     if (activeChatAudio) { activeChatAudio.pause(); activeChatAudio = null; }
     chatsData = chatsData.filter(c => c.id !== currentChatId);
+    saveChatsLocal();
     currentChatId = null;
     appContainer.classList.remove('mobile-show-chat', 'desktop-has-chat');
     setInputLocked(false);
@@ -910,239 +1715,11 @@ function deleteChat() {
     renderChatList();
 }
 
-document.getElementById('addContactHeaderBtn').addEventListener('click', () => {
-    dropdownMenu.classList.remove('show');
-    attachmentMenu.classList.remove('show');
-    openSearchUserModal();
-});
-function openSearchUserModal() {
-    document.getElementById('searchUserModal').classList.add('show');
-    const input = document.getElementById('userSearchInput');
-    input.value = '';
-    document.getElementById('userSearchResults').innerHTML = '<p style="font-size:12px;color:var(--text-muted);text-align:center;">Digite um nome ou npub e toque em Buscar</p>';
-    setTimeout(() => input.focus(), 100);
-}
-function closeSearchUserModal() {
-    document.getElementById('searchUserModal').classList.remove('show');
-}
-document.getElementById('userSearchInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); performUserSearch(); }
-});
-
-async function performUserSearch() {
-    const resultsEl = document.getElementById('userSearchResults');
-    const raw = (document.getElementById('userSearchInput')?.value || '').trim();
-    if (!raw) {
-        alert('Digite um username (ex: @fulano), nome ou npub');
-        return;
-    }
-    if (!window.NostrTools) {
-        resultsEl.innerHTML = '<p style="font-size:12px;color:#e74c3c;text-align:center;">Nostr ainda não carregou. Aguarde e tente de novo.</p>';
-        return;
-    }
-
-    resultsEl.innerHTML = '<p style="font-size:12px;color:var(--text-muted);text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> Buscando na rede…</p>';
-
-    try {
-        if (!nostrPool) nostrPool = new NostrTools.SimplePool();
-        const q = raw.toLowerCase().replace(/^@+/, '').trim();
-        let matches = [];
-
-        let targetPubkey = null;
-        try {
-            if (raw.startsWith('npub1')) {
-                const decoded = NostrTools.nip19.decode(raw);
-                if (decoded.type === 'npub') targetPubkey = decoded.data;
-            } else if (/^[0-9a-f]{64}$/i.test(raw)) {
-                targetPubkey = raw.toLowerCase();
-            }
-        } catch {}
-
-        if (targetPubkey) {
-            if (currentUserPubkey && targetPubkey.toLowerCase() === currentUserPubkey.toLowerCase()) {
-                resultsEl.innerHTML = '<p style="font-size:12px;color:var(--text-muted);text-align:center;">Esse é você.</p>';
-                return;
-            }
-            const profile = await fetchNostrProfile(targetPubkey);
-            matches = [{
-                pubkey: targetPubkey,
-                name: profile.name || targetPubkey.slice(0, 12) + '...',
-                picture: profile.picture || '',
-                about: profile.about || ''
-            }];
-        } else {
-            chatsData.forEach(c => {
-                if (!c.pubkey) return;
-                const n = (c.name || '').toLowerCase().replace(/^@/, '');
-                if (n && (n.includes(q) || n === q)) {
-                    matches.push({
-                        pubkey: c.pubkey,
-                        name: (c.name || '').replace(/^@/, ''),
-                        picture: c.avatarUrl || '',
-                        about: ''
-                    });
-                }
-            });
-
-            let events = [];
-            try {
-                events = await Promise.race([
-                    nostrPool.querySync(SEARCH_RELAYS, { kinds: [0], search: q, limit: 40 }),
-                    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 12000))
-                ]);
-            } catch (e) {
-                console.warn('NIP-50 search falhou:', e);
-            }
-
-            if (!events || !events.length) {
-                try {
-                    events = await nostrPool.querySync(SEARCH_RELAYS, { kinds: [0], limit: 200 });
-                } catch (e) {
-                    console.error(e);
-                    events = [];
-                }
-            }
-
-            const latest = new Map();
-            (events || []).forEach(ev => {
-                if (!ev?.pubkey) return;
-                const prev = latest.get(ev.pubkey);
-                if (!prev || (ev.created_at || 0) > (prev.created_at || 0)) latest.set(ev.pubkey, ev);
-            });
-
-            const rebuilt = [];
-            latest.forEach((ev, pubkey) => {
-                if (currentUserPubkey && pubkey.toLowerCase() === currentUserPubkey.toLowerCase()) return;
-                try {
-                    const data = JSON.parse(ev.content || '{}');
-                    const name = (data.name || data.display_name || '').trim();
-                    const about = (data.about || '').trim();
-                    const nameLower = name.toLowerCase();
-                    const aboutLower = about.toLowerCase();
-                    if (!nameLower && !aboutLower) return;
-                    if (nameLower === q || nameLower.startsWith(q) || nameLower.includes(q) || aboutLower.includes(q)) {
-                        rebuilt.push({
-                            pubkey,
-                            name: name || pubkey.slice(0, 12) + '...',
-                            picture: data.picture || data.image || '',
-                            about
-                        });
-                    }
-                } catch {}
-            });
-
-            const byPk = new Map();
-            [...matches, ...rebuilt].forEach(m => {
-                if (m?.pubkey) byPk.set(m.pubkey.toLowerCase(), m);
-            });
-            matches = Array.from(byPk.values());
-            matches.sort((a, b) => {
-                const al = (a.name || '').toLowerCase();
-                const bl = (b.name || '').toLowerCase();
-                const score = (n) => (n === q ? 0 : n.startsWith(q) ? 1 : 2);
-                return score(al) - score(bl) || al.localeCompare(bl);
-            });
-        }
-
-        matches = matches.slice(0, 40);
-        lastUserSearchResults = matches;
-
-        if (!matches.length) {
-            resultsEl.innerHTML = `<p style="font-size:12px;color:var(--text-muted);text-align:center;">Nenhum usuário encontrado para <strong>${escapeAttr(raw)}</strong>.<br>Tente o <strong>npub</strong> completo ou outro nome.</p>`;
-            return;
-        }
-
-        resultsEl.innerHTML = matches.map((u, index) => {
-            const display = (u.name || '').startsWith('@') ? u.name : '@' + (u.name || 'user');
-            const av = u.picture
-                ? `<img src="${escapeAttr(u.picture)}" alt="" onerror="this.parentNode.textContent='${escapeAttr((u.name || '?').substring(0, 2).toUpperCase())}'">`
-                : escapeAttr((u.name || '?').substring(0, 2).toUpperCase());
-            const about = (u.about || '').substring(0, 80);
-            return `
-                <div class="user-search-item">
-                    <div class="avatar">${av}</div>
-                    <div class="user-search-meta">
-                        <div class="user-search-name">${escapeAttr(display)}</div>
-                        ${about ? `<div class="user-search-about">${escapeAttr(about)}</div>` : ''}
-                    </div>
-                    <button type="button" class="user-search-btn" onclick="selectUserForRequestByIndex(${index})">Solicitar</button>
-                </div>`;
-        }).join('');
-    } catch (e) {
-        console.error('Erro busca usuários:', e);
-        resultsEl.innerHTML = '<p style="font-size:12px;color:#e74c3c;text-align:center;">Erro ao buscar. Verifique a conexão e tente de novo.</p>';
-    }
-}
-
-async function selectUserForRequestByIndex(index) {
-    const user = lastUserSearchResults[index];
-    if (user) await selectUserForRequest(user);
-}
-async function selectUserForRequest(user) {
-    if (!user?.pubkey) return;
-    const pubkey = String(user.pubkey).toLowerCase();
-    if (currentUserPubkey && pubkey === currentUserPubkey.toLowerCase()) {
-        alert('Você não pode solicitar a si mesmo.');
-        return;
-    }
-    const existing = chatsData.find(c => c.pubkey && c.pubkey.toLowerCase() === pubkey);
-    if (existing) {
-        closeSearchUserModal();
-        if (existing.status === 'accepted') { switchTab('contatos'); selectChat(existing.id); }
-        else { switchTab('solicitacoes'); selectChat(existing.id); }
-        if (existing.status === 'pending_sent') alert('Você já enviou solicitação para este usuário.');
-        return;
-    }
-    const name = formatDisplayName(user.name, pubkey);
-    const newId = chatsData.length ? Math.max(...chatsData.map(c => c.id)) + 1 : 1;
-    const chat = {
-        id: newId, name, lastMsg: 'Solicitação enviada',
-        avatar: name.replace('@', '').substring(0, 2).toUpperCase(),
-        avatarUrl: user.picture || '', type: 'contatos', status: 'pending_sent',
-        pinned: false, pubkey, messages: []
-    };
-    chatsData.unshift(chat);
-    closeSearchUserModal();
-    switchTab('solicitacoes');
-    selectChat(newId);
-    await sendNostrDm(chat, buildMediaPayload('contact_request', { from: currentUserPubkey, npub: currentUserNpub || '' }));
-    showMessageNotification('Solicitação enviada', `Aguardando ${name} aceitar`);
-    startPresenceListener();
-}
-
-async function acceptContactRequest(chatId) {
-    const chat = chatsData.find(c => c.id === chatId);
-    if (!chat || chat.status !== 'pending_received') return;
-    chat.status = 'accepted';
-    chat.type = 'contatos';
-    chat.lastMsg = 'Solicitação aceita';
-    await sendNostrDm(chat, buildMediaPayload('contact_accept', { from: currentUserPubkey }));
-    showMessageNotification('Solicitação aceita', `Agora você pode conversar com ${chat.name}`);
-    switchTab('contatos');
-    selectChat(chat.id);
-    renderChatList();
-    startPresenceListener();
-}
-async function rejectContactRequest(chatId) {
-    const chat = chatsData.find(c => c.id === chatId);
-    if (!chat) return;
-    if (chat.pubkey) await sendNostrDm(chat, buildMediaPayload('contact_reject', { from: currentUserPubkey }));
-    chatsData = chatsData.filter(c => c.id !== chatId);
-    if (currentChatId === chatId) {
-        currentChatId = null;
-        setInputLocked(false);
-        messagesContainer.style.justifyContent = 'center';
-        messagesContainer.style.alignItems = 'center';
-        messagesContainer.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:15px;">Selecione um contato para conversar</div>';
-    }
-    renderChatList();
-}
-
 function handleAttachmentSelection(type) {
     attachmentMenu.classList.remove('show');
     if (currentChatId == null) return;
     const chat = chatsData.find(c => c.id === currentChatId);
-    if (!canMessageChat(chat)) { alert('Você só pode enviar mensagens depois que a solicitação for aceita.'); return; }
+    if (!canMessageChat(chat)) { alert('Não é possível enviar mensagens neste contato.'); return; }
     if (type === 'GIF') openIgMediaModal('gif');
     else if (type === 'Sticky') openIgMediaModal('sticker');
     else if (type === 'Imagem' || type === 'Vídeo do YouTube') {
@@ -1211,6 +1788,7 @@ function sendIgMediaMessage(url, type) {
     const contentHtml = `<img src="${url}" alt="${mediaType}"/>`;
     chat.messages.push({ sender: 'sent', isHtml: true, content: contentHtml, text: payload });
     chat.lastMsg = `Você: ${mediaType === 'gif' ? '[GIF]' : '[Sticker]'}`;
+    saveChatsLocal();
     const div = document.createElement('div');
     div.className = 'message sent';
     div.innerHTML = contentHtml;
@@ -1251,6 +1829,7 @@ function confirmUrlModal() {
     }
     chat.messages.push({ sender: 'sent', isHtml: true, content: contentHtml, text: payload });
     chat.lastMsg = `Você: ${lastMsgText}`;
+    saveChatsLocal();
     const div = document.createElement('div');
     div.className = 'message sent';
     div.innerHTML = contentHtml;
@@ -1345,6 +1924,7 @@ function sendSelectedMusic(track) {
         </div>`;
     chat.messages.push({ sender: 'sent', isHtml: true, content: contentHtml, text: payload });
     chat.lastMsg = `Você: [Música: ${track.trackName}]`;
+    saveChatsLocal();
     const div = document.createElement('div');
     div.className = 'message sent';
     div.innerHTML = contentHtml;
@@ -1372,15 +1952,15 @@ function toggleChatVinyl(previewUrl, instanceId) {
     }
 }
 
-searchInput.addEventListener('input', e => { searchQuery = e.target.value; renderChatList(); });
 async function sendMessage() {
     const text = messageInput.value.trim();
     if (!text || currentChatId == null) return;
     const chat = chatsData.find(c => c.id === currentChatId);
-    if (!canMessageChat(chat)) { alert('Você só pode enviar mensagens depois que a solicitação for aceita.'); return; }
+    if (!canMessageChat(chat)) { alert('Não é possível enviar mensagens neste contato.'); return; }
     const payload = buildMediaPayload('text', { text });
     chat.messages.push({ sender: 'sent', text: payload, displayText: text });
     chat.lastMsg = `Você: ${text}`;
+    saveChatsLocal();
     const div = document.createElement('div');
     div.className = 'message sent';
     div.textContent = text;
@@ -1418,77 +1998,25 @@ async function handleIncomingDm(ev) {
 
     const media = tryParseMediaPayload(plainText);
 
-    if (media && media.type === 'contact_request' && !fromMe) {
-        let chat = chatsData.find(c => c.pubkey && c.pubkey.toLowerCase() === otherPubkey);
+    if (media && media.type === 'contact_qr_mutual' && !fromMe) {
         const profile = await fetchNostrProfile(otherPubkey);
-        const name = formatDisplayName(profile.name, otherPubkey);
-        if (!chat) {
-            const newId = chatsData.length ? Math.max(...chatsData.map(c => c.id)) + 1 : 1;
-            chat = {
-                id: newId, name, lastMsg: 'Quer conversar com você',
-                avatar: name.replace('@', '').substring(0, 2).toUpperCase(),
-                avatarUrl: profile.picture || '', type: 'contatos', status: 'pending_received',
-                pinned: false, pubkey: otherPubkey, messages: []
-            };
-            chatsData.unshift(chat);
-        } else if (chat.status !== 'accepted') {
-            chat.status = 'pending_received';
-            chat.name = name;
-            if (profile.picture) chat.avatarUrl = profile.picture;
-            chat.lastMsg = 'Quer conversar com você';
-        }
-        updateRequestBadge();
+        const name = media.name || profile.name;
+        const picture = media.picture || profile.picture;
+        const chat = upsertMutualContact({ pubkey: otherPubkey, name, picture });
+        showMessageNotification('Novo contato via QR', chat.name);
         renderChatList();
-        showMessageNotification('Nova solicitação', `${name} quer conversar com você`);
         startPresenceListener();
-        return;
-    }
-    if (media && media.type === 'contact_accept' && !fromMe) {
-        const chat = chatsData.find(c => c.pubkey && c.pubkey.toLowerCase() === otherPubkey);
-        if (chat) {
-            chat.status = 'accepted';
-            chat.type = 'contatos';
-            chat.lastMsg = 'Solicitação aceita — pode conversar';
-            const profile = await fetchNostrProfile(otherPubkey);
-            if (profile.name) chat.name = formatDisplayName(profile.name, otherPubkey);
-            if (profile.picture) chat.avatarUrl = profile.picture;
-            showMessageNotification('Solicitação aceita', `${chat.name} aceitou sua solicitação`);
-            if (currentChatId === chat.id) selectChat(chat.id);
-            renderChatList();
-            startPresenceListener();
-        }
-        return;
-    }
-    if (media && media.type === 'contact_reject' && !fromMe) {
-        const chat = chatsData.find(c => c.pubkey && c.pubkey.toLowerCase() === otherPubkey);
-        if (chat && chat.status === 'pending_sent') {
-            chat.lastMsg = 'Solicitação recusada';
-            showMessageNotification('Solicitação recusada', `${chat.name} recusou sua solicitação`);
-            renderChatList();
-        }
         return;
     }
 
     let chat = chatsData.find(c => c.pubkey && c.pubkey.toLowerCase() === otherPubkey);
-    if (!fromMe && (!chat || chat.status !== 'accepted')) return;
-
-    if (!chat) {
-        const newId = chatsData.length ? Math.max(...chatsData.map(c => c.id)) + 1 : 1;
-        const profile = await fetchNostrProfile(otherPubkey);
-        const name = formatDisplayName(profile.name, otherPubkey);
-        chat = {
-            id: newId, name, lastMsg: '',
-            avatar: name.replace('@', '').substring(0, 2).toUpperCase(),
-            avatarUrl: profile.picture || '', type: 'contatos', status: 'accepted',
-            pinned: false, pubkey: otherPubkey, messages: []
-        };
-        chatsData.unshift(chat);
-    }
+    if (!chat || chat.status !== 'accepted') return;
 
     const lastPreview = mediaPreviewText(plainText);
     const sender = fromMe ? 'sent' : 'received';
     chat.messages.push({ sender, text: plainText });
     chat.lastMsg = fromMe ? `Você: ${lastPreview}` : lastPreview;
+    saveChatsLocal();
 
     if (currentChatId === chat.id) {
         const div = document.createElement('div');
@@ -1518,84 +2046,85 @@ async function startDmListener() {
     } catch (e) { console.error('Listener DM:', e); }
 }
 
-async function loadNostrContacts() {
-    await waitForNostrTools();
-    if (!initNostrFromSession() || !window.NostrTools) { renderChatList(); return; }
+/** Carrega stories da rede (kind 30078) para contatos conhecidos + próprios */
+async function loadStoriesFromNetwork() {
+    if (!window.NostrTools || !currentUserPubkey) return;
     try {
-        nostrPool = new NostrTools.SimplePool();
-        const [contactEv, muteEv] = await Promise.all([
-            nostrPool.get(NORST_RELAYS, { kinds: [3], authors: [currentUserPubkey] }),
-            nostrPool.get(NORST_RELAYS, { kinds: [10000], authors: [currentUserPubkey] })
-        ]);
-        const following = new Set();
-        const blocked = new Set();
-        (contactEv?.tags || []).forEach(t => { if (t[0] === 'p' && t[1]) following.add(t[1].toLowerCase()); });
-        (muteEv?.tags || []).forEach(t => { if (t[0] === 'p' && t[1]) blocked.add(t[1].toLowerCase()); });
-
-        const allPk = [...new Set([...following, ...blocked])];
-        const profileMap = new Map();
-        if (allPk.length) {
+        if (!nostrPool) nostrPool = new NostrTools.SimplePool();
+        const authors = [...new Set([
+            currentUserPubkey,
+            ...chatsData.map(c => c.pubkey).filter(p => p && !String(p).startsWith('char:'))
+        ].map(p => String(p).toLowerCase()))];
+        if (!authors.length) return;
+        const since = Math.floor(Date.now() / 1000) - 24 * 60 * 60;
+        const events = await nostrPool.querySync(NORST_RELAYS, {
+            kinds: [STORY_KIND],
+            authors,
+            since,
+            limit: 100
+        });
+        const byAuthor = new Map();
+        (events || []).forEach(ev => {
             try {
-                const profiles = await nostrPool.querySync(NORST_RELAYS, { kinds: [0], authors: allPk, limit: allPk.length });
-                const latest = new Map();
-                (profiles || []).forEach(ev => {
-                    const prev = latest.get(ev.pubkey);
-                    if (!prev || ev.created_at > prev.created_at) latest.set(ev.pubkey, ev);
-                });
-                latest.forEach((ev, pk) => {
-                    try {
-                        const d = JSON.parse(ev.content || '{}');
-                        profileMap.set(pk.toLowerCase(), {
-                            name: d.name || d.display_name || '',
-                            picture: d.picture || d.image || ''
-                        });
-                    } catch {}
+                const data = JSON.parse(ev.content || '{}');
+                if (data.lore !== 1 || data.type !== 'story' || !data.url) return;
+                const pk = ev.pubkey.toLowerCase();
+                if (!byAuthor.has(pk)) byAuthor.set(pk, []);
+                byAuthor.get(pk).push({
+                    url: data.url,
+                    type: data.mediaType || 'image',
+                    text: data.text || '',
+                    time: data.createdAt || (ev.created_at * 1000)
                 });
             } catch {}
-        }
-
-        const existing = new Map(chatsData.filter(c => c.pubkey).map(c => [c.pubkey.toLowerCase(), c]));
-        let idCounter = chatsData.length ? Math.max(...chatsData.map(c => c.id)) + 1 : 1;
-
-        following.forEach(pk => {
-            if (blocked.has(pk) || existing.has(pk)) return;
-            const p = profileMap.get(pk) || {};
-            const name = formatDisplayName(p.name, pk);
-            chatsData.push({
-                id: idCounter++, name, lastMsg: 'Contato da rede Nostr',
-                avatar: name.replace('@', '').substring(0, 2).toUpperCase(),
-                avatarUrl: p.picture || '', type: 'contatos', status: 'accepted',
-                pinned: false, pubkey: pk, messages: []
-            });
         });
-        blocked.forEach(pk => {
-            if (existing.has(pk)) {
-                const c = existing.get(pk);
-                c.type = 'bloqueados';
-                c.status = 'blocked';
+        byAuthor.forEach((slides, pk) => {
+            slides.sort((a, b) => (b.time || 0) - (a.time || 0));
+            if (pk === String(currentUserPubkey).toLowerCase()) {
+                try {
+                    localStorage.setItem(
+                        'loresocial_own_stories_' + pk,
+                        JSON.stringify(slides.slice(0, 20))
+                    );
+                } catch {}
                 return;
             }
-            const p = profileMap.get(pk) || {};
-            const name = formatDisplayName(p.name, pk);
-            chatsData.push({
-                id: idCounter++, name, lastMsg: 'Usuário bloqueado',
-                avatar: name.replace('@', '').substring(0, 2).toUpperCase(),
-                avatarUrl: p.picture || '', type: 'bloqueados', status: 'blocked',
-                pinned: false, pubkey: pk, messages: []
-            });
+            const chat = chatsData.find(c => c.pubkey && c.pubkey.toLowerCase() === pk);
+            if (chat) {
+                chat.stories = slides.slice(0, 20);
+            }
         });
-    } catch (e) { console.error('Contatos:', e); }
+        saveChatsLocal();
+        renderStories();
+    } catch (e) { console.warn('Stories rede:', e); }
+}
+
+async function bootContactsOnlyLocal() {
+    await waitForNostrTools();
+    if (!initNostrFromSession() || !window.NostrTools) {
+        renderChatList();
+        return;
+    }
+    if (!nostrPool) nostrPool = new NostrTools.SimplePool();
+    loadChatsLocal();
     renderChatList();
 }
 
 async function bootChatNostr() {
     requestNotificationPermission();
-    await loadNostrContacts();
+    await bootContactsOnlyLocal();
     await startDmListener();
     startPresenceHeartbeat();
     await startPresenceListener();
+    await loadStoriesFromNetwork();
+    renderStories();
+    updateSearchClearBtn();
 }
-window.addEventListener('beforeunload', stopPresenceHeartbeat);
+window.addEventListener('beforeunload', () => {
+    stopPresenceHeartbeat();
+    stopContactQrScanner();
+    saveChatsLocal();
+});
 bootChatNostr();
 </script>
 </body>
