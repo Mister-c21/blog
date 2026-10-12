@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Criar Story — LoreSocial</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script type="module">
+        import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+        import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+        window.NostrTools = NostrTools;
+        window.nostrHexToBytes = hexToBytes;
+    </script>
+    <style>
+        :root {
+            --primary-bg: #ffffff;
+            --secondary-color: #6c5ce7;
+            --secondary-hover: #5b4be2;
+            --light-violet: #f3f0ff;
+            --gray-bg: #f8f9fa;
+            --text-main: #2d3436;
+            --text-muted: #636e72;
+            --border-color: #dfe6e9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        html, body { height: 100%; height: 100dvh; background: var(--light-violet); }
+        body { display: flex; justify-content: center; }
+        .page {
+            width: 100%; max-width: 480px; min-height: 100%; min-height: 100dvh;
+            background: var(--primary-bg); display: flex; flex-direction: column;
+        }
+        .header {
+            flex-shrink: 0; padding: 14px 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border-color); font-weight: 600;
+        }
+        .header button {
+            background: none; border: none; color: var(--secondary-color);
+            font-size: 16px; cursor: pointer; padding: 6px;
+        }
+        .header .post-btn {
+            background: var(--secondary-color); color: #fff;
+            border-radius: 16px; padding: 8px 16px; font-weight: 600; font-size: 14px;
+        }
+        .header .post-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .body { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+        .preview-box {
+            width: 100%; aspect-ratio: 9/16; max-height: 55vh;
+            background: #111; border-radius: 16px; overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+            position: relative; color: rgba(255,255,255,0.5);
+        }
+        .preview-box img, .preview-box video {
+            width: 100%; height: 100%; object-fit: contain;
+        }
+        .pick-row { display: flex; gap: 10px; }
+        .pick-btn {
+            flex: 1; padding: 12px; border: 1px dashed var(--border-color);
+            border-radius: 12px; background: var(--gray-bg); cursor: pointer;
+            text-align: center; color: var(--text-main); font-size: 13px; font-weight: 600;
+        }
+        .pick-btn i { display: block; font-size: 20px; color: var(--secondary-color); margin-bottom: 6px; }
+        textarea {
+            width: 100%; min-height: 80px; padding: 12px 14px;
+            border: 1px solid var(--border-color); border-radius: 12px;
+            outline: none; resize: vertical; font-size: 14px; background: var(--gray-bg);
+        }
+        textarea:focus { border-color: var(--secondary-color); background: #fff; }
+        .status { font-size: 13px; color: var(--text-muted); text-align: center; }
+        .status.error { color: #e74c3c; }
+        .status.ok { color: #00b894; }
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <button type="button" onclick="goBack()"><i class="fa-solid fa-arrow-left"></i></button>
+        <span>Novo story</span>
+        <button type="button" class="post-btn" id="postBtn" disabled onclick="publishStory()">Publicar</button>
+    </div>
+    <div class="body">
+        <div class="preview-box" id="previewBox">
+            <span id="previewPlaceholder"><i class="fa-solid fa-image" style="font-size:32px;display:block;margin-bottom:8px;"></i>Escolha uma foto ou vídeo</span>
+        </div>
+        <div class="pick-row">
+            <label class="pick-btn">
+                <i class="fa-solid fa-camera"></i> Foto
+                <input type="file" id="fileImage" accept="image/*">
+            </label>
+            <label class="pick-btn">
+                <i class="fa-solid fa-video"></i> Vídeo
+                <input type="file" id="fileVideo" accept="video/*">
+            </label>
+        </div>
+        <textarea id="caption" placeholder="Legenda (opcional)" maxlength="500"></textarea>
+        <p class="status" id="statusText">Stories ficam visíveis por 24h na rede Nostr.</p>
+    </div>
+</div>
+<script>
+(function auth() {
+    try {
+        const s = JSON.parse(localStorage.getItem('nostr_session') || 'null');
+        if (localStorage.getItem('isLoggedIn') !== 'true' || !s?.privateKeyHex || !s?.pubkey) {
+            window.location.replace('./Social.html');
+        }
+    } catch { window.location.replace('./Social.html'); }
+})();
+
+const RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.primal.net', 'wss://relay.nostr.band'];
+const BLOSSOM_SERVERS = [
+    'https://blossom.primal.net',
+    'https://cdn.nostrcheck.me',
+    'https://blossom.oxtr.dev'
+];
+const STORY_KIND = 30078; // parameterized replaceable: stories
+const STORY_TTL_SEC = 24 * 60 * 60;
+
+let selectedFile = null;
+let selectedType = 'image';
+let pool = null;
+
+function goBack() { window.location.href = './Chat.html'; }
+
+function getSession() {
+    try { return JSON.parse(localStorage.getItem('nostr_session') || 'null'); } catch { return null; }
+}
+function getSk() {
+    const s = getSession();
+    if (!s?.privateKeyHex) return null;
+    if (window.nostrHexToBytes) return window.nostrHexToBytes(s.privateKeyHex);
+    const hex = s.privateKeyHex;
+    const out = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i * 2, 2), 16);
+    return out;
+}
+function setStatus(msg, type) {
+    const el = document.getElementById('statusText');
+    el.textContent = msg;
+    el.className = 'status' + (type === 'error' ? ' error' : type === 'ok' ? ' ok' : '');
+}
+function updatePostBtn() {
+    document.getElementById('postBtn').disabled = !selectedFile;
+}
+
+function onFile(file, type) {
+    if (!file) return;
+    selectedFile = file;
+    selectedType = type;
+    const box = document.getElementById('previewBox');
+    box.innerHTML = '';
+    const url = URL.createObjectURL(file);
+    if (type === 'video') {
+        const v = document.createElement('video');
+        v.src = url; v.controls = true; v.playsInline = true;
+        box.appendChild(v);
+    } else {
+        const img = document.createElement('img');
+        img.src = url; img.alt = 'Preview';
+        box.appendChild(img);
+    }
+    updatePostBtn();
+    setStatus('Pronto para publicar.');
+}
+document.getElementById('fileImage').addEventListener('change', e => {
+    const f = e.target.files?.[0]; if (f) onFile(f, 'image');
+});
+document.getElementById('fileVideo').addEventListener('change', e => {
+    const f = e.target.files?.[0]; if (f) onFile(f, 'video');
+});
+
+async function sha256Hex(buf) {
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Upload Blossom (NIP-B7 / blob storage Nostr) */
+async function uploadBlossom(file, sk, pubkey) {
+    const buf = await file.arrayBuffer();
+    const hash = await sha256Hex(buf);
+    const now = Math.floor(Date.now() / 1000);
+    const authEvent = window.NostrTools.finalizeEvent({
+        kind: 24242,
+        created_at: now,
+        tags: [
+            ['t', 'upload'],
+            ['x', hash],
+            ['expiration', String(now + 300)]
+        ],
+        content: 'Upload story media'
+    }, sk);
+    const authHeader = 'Nostr ' + btoa(JSON.stringify(authEvent));
+
+    for (const base of BLOSSOM_SERVERS) {
+        try {
+            const res = await fetch(base.replace(/\/$/, '') + '/upload', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': authHeader,
+                    'Content-Type': file.type || 'application/octet-stream'
+                },
+                body: buf
+            });
+            if (!res.ok) continue;
+            const data = await res.json().catch(() => ({}));
+            const url = data.url || data.nip94?.[1] || (base.replace(/\/$/, '') + '/' + hash);
+            if (url) return { url, hash, server: base };
+        } catch (e) {
+            console.warn('Blossom fail', base, e);
+        }
+    }
+    throw new Error('Falha no upload Blossom. Tente outra rede ou servidor.');
+}
+
+async function publishStory() {
+    if (!selectedFile) return;
+    const sk = getSk();
+    const session = getSession();
+    if (!sk || !session?.pubkey || !window.NostrTools) {
+        setStatus('Sessão inválida.', 'error');
+        return;
+    }
+    const btn = document.getElementById('postBtn');
+    btn.disabled = true;
+    setStatus('Enviando mídia...');
+
+    try {
+        const { url, hash } = await uploadBlossom(selectedFile, sk, session.pubkey);
+        setStatus('Publicando story na rede...');
+        const caption = (document.getElementById('caption').value || '').trim();
+        const created = Math.floor(Date.now() / 1000);
+        const dTag = 'story-' + created + '-' + Math.random().toString(36).slice(2, 8);
+        const content = JSON.stringify({
+            lore: 1,
+            type: 'story',
+            mediaType: selectedType,
+            url,
+            hash: hash || '',
+            text: caption,
+            createdAt: Date.now()
+        });
+        const event = window.NostrTools.finalizeEvent({
+            kind: STORY_KIND,
+            created_at: created,
+            tags: [
+                ['d', dTag],
+                ['expiration', String(created + STORY_TTL_SEC)],
+                ['m', selectedType === 'video' ? 'video' : 'image'],
+                ['url', url]
+            ],
+            content
+        }, sk);
+
+        if (!pool) pool = new NostrTools.SimplePool();
+        await Promise.any(pool.publish(RELAYS, event));
+
+        // Espelho local para o chat (chatsData do próprio user)
+        try {
+            const key = 'loresocial_chats_' + String(session.pubkey).toLowerCase();
+            // stories do próprio user: chave auxiliar
+            const ownKey = 'loresocial_own_stories_' + String(session.pubkey).toLowerCase();
+            let own = [];
+            try { own = JSON.parse(localStorage.getItem(ownKey) || '[]'); } catch {}
+            own.unshift({
+                url,
+                type: selectedType,
+                text: caption,
+                time: Date.now(),
+                eventId: event.id
+            });
+            own = own.filter(s => Date.now() - (s.time || 0) < STORY_TTL_SEC * 1000).slice(0, 20);
+            localStorage.setItem(ownKey, JSON.stringify(own));
+        } catch {}
+
+        setStatus('Story publicado!', 'ok');
+        setTimeout(() => { window.location.href = './Chat.html'; }, 900);
+    } catch (e) {
+        console.error(e);
+        setStatus(e.message || 'Erro ao publicar.', 'error');
+        btn.disabled = false;
+    }
+}
+</script>
+</body>
+</html>
