@@ -61,9 +61,18 @@
             .story-viewer-overlay { background: rgba(0,0,0,0.85); }
         }
         .story-progress-bar { display: flex; gap: 4px; padding: 10px 12px 6px; position: absolute; top: 0; left: 0; right: 0; z-index: 10; padding-top: max(10px, env(safe-area-inset-top)); }
-        .story-progress-segment { flex: 1; height: 2.5px; background: rgba(255,255,255,0.35); border-radius: 2px; overflow: hidden; }
-        .story-progress-fill { height: 100%; width: 0%; background: #fff; border-radius: 2px; }
-        .story-progress-segment.done .story-progress-fill { width: 100%; }
+        .story-progress-segment { flex: 1; height: 2.5px; background: rgba(255,255,255,0.25); border-radius: 2px; overflow: hidden; }
+        .story-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #a29bfe;
+            border-radius: 2px;
+            will-change: width;
+        }
+        .story-progress-segment.done .story-progress-fill {
+            width: 100%;
+            background: var(--secondary-color);
+        }
         .story-viewer-header { display: flex; align-items: center; gap: 10px; padding: 8px 14px 10px; position: absolute; top: 22px; left: 0; right: 0; z-index: 10; padding-top: max(30px, calc(env(safe-area-inset-top) + 22px)); }
         .story-viewer-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--light-violet); color: var(--secondary-color); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; overflow: hidden; flex-shrink: 0; border: 1.5px solid rgba(255,255,255,0.4); }
         .story-viewer-avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -368,7 +377,7 @@ const PRESENCE_RELAYS = ['wss://relay.damus.io','wss://nos.lol','wss://relay.pri
 const PRESENCE_KIND = 29333, PRESENCE_INTERVAL_MS = 45000, PRESENCE_TTL_MS = 90000;
 const GIPHY_API_KEY = 'SUA_CHAVE_GIPHY_AQUI';
 const STORY_CREATE_PAGE = './StoryCreate.html';
-const STORY_DURATION_MS = 5000;
+const STORY_IMAGE_DURATION_MS = 5000;
 const STORY_MAX_TTL_MS = 24 * 60 * 60 * 1000;
 const CONTACT_QR_PREFIX = 'loresocial-contact:';
 const CHATS_STORAGE_PREFIX = 'loresocial_chats_';
@@ -381,6 +390,7 @@ let nostrPool = null, currentUserPubkey = null, currentUserNpub = null;
 let dmSubscription = null, presenceSub = null, presenceTimer = null, presenceListRefreshTimer = null;
 const presenceMap = new Map(), seenMessageIds = new Set();
 let storyQueue = [], storyUserIndex = 0, storySlideIndex = 0, storyProgressTimer = null, storyProgressStart = 0, storyPaused = false;
+let storyActiveVideo = null;
 let contactQrScanStream = null, contactQrScanRaf = null;
 
 const appContainer = document.getElementById('appContainer');
@@ -621,7 +631,7 @@ async function startPresenceListener() {
 }
 setInterval(updateChatHeaderStatus, 15000);
 
-/* STORIES */
+/* ========== STORIES ========== */
 function getOwnStories() {
     if (!currentUserPubkey) return [];
     try {
@@ -727,27 +737,111 @@ async function updateOwnStoryAvatar() {
             : `<i class="fa-solid fa-user"></i>${plus}`;
     } catch { el.innerHTML = `<i class="fa-solid fa-user"></i>${plus}`; }
 }
-function openStoryViewer(startChatId) {
-    const { queue, startIdx } = buildStoryQueue(startChatId);
-    if (!queue.length) return;
-    storyQueue = queue; storyUserIndex = startIdx; storySlideIndex = 0; storyPaused = false;
-    document.getElementById('storyViewerOverlay').classList.add('show');
-    document.body.style.overflow = 'hidden';
-    showCurrentStorySlide(); startStoryProgress();
+
+function stopStoryProgress() {
+    if (storyProgressTimer) {
+        cancelAnimationFrame(storyProgressTimer);
+        storyProgressTimer = null;
+    }
 }
-function closeStoryViewer() {
+function setCurrentProgressPct(pct) {
+    const fill = document.getElementById(`storyFill_${storySlideIndex}`);
+    if (!fill) return;
+    fill.style.width = Math.max(0, Math.min(100, pct)) + '%';
+}
+function resetProgressFills() {
+    const user = storyQueue[storyUserIndex];
+    const slides = user?.slides || [];
+    slides.forEach((_, i) => {
+        const fill = document.getElementById(`storyFill_${i}`);
+        if (!fill) return;
+        fill.style.width = i < storySlideIndex ? '100%' : '0%';
+        const seg = fill.parentElement;
+        if (seg) seg.classList.toggle('done', i < storySlideIndex);
+    });
+}
+function runTimedProgress(durationMs) {
     stopStoryProgress();
-    document.getElementById('storyViewerOverlay').classList.remove('show');
-    document.body.style.overflow = '';
-    storyQueue = []; storyUserIndex = 0; storySlideIndex = 0;
+    storyProgressStart = performance.now();
+    const duration = Math.max(300, durationMs || STORY_IMAGE_DURATION_MS);
+    function tick(now) {
+        if (storyPaused) {
+            const cur = parseFloat(document.getElementById(`storyFill_${storySlideIndex}`)?.style.width || '0') || 0;
+            storyProgressStart = now - (cur / 100) * duration;
+            storyProgressTimer = requestAnimationFrame(tick);
+            return;
+        }
+        const elapsed = now - storyProgressStart;
+        const pct = Math.min(100, (elapsed / duration) * 100);
+        setCurrentProgressPct(pct);
+        if (pct >= 100) {
+            stopStoryProgress();
+            goNextStorySlide();
+            return;
+        }
+        storyProgressTimer = requestAnimationFrame(tick);
+    }
+    storyProgressTimer = requestAnimationFrame(tick);
 }
+function startStoryProgress() {
+    stopStoryProgress();
+    resetProgressFills();
+    const user = storyQueue[storyUserIndex];
+    const slide = user?.slides?.[storySlideIndex];
+    if (!slide) return;
+
+    const video = document.querySelector('#storyViewerContent video.story-viewer-media');
+    if (video) {
+        storyActiveVideo = video;
+        const tickVideo = () => {
+            if (storyPaused || !storyActiveVideo) return;
+            const v = storyActiveVideo;
+            if (isFinite(v.duration) && v.duration > 0) {
+                setCurrentProgressPct((v.currentTime / v.duration) * 100);
+                if (v.ended || v.currentTime >= v.duration - 0.04) {
+                    stopStoryProgress();
+                    goNextStorySlide();
+                    return;
+                }
+            }
+            storyProgressTimer = requestAnimationFrame(tickVideo);
+        };
+        video.onended = () => {
+            stopStoryProgress();
+            goNextStorySlide();
+        };
+        const tryPlay = () => {
+            try { video.currentTime = 0; } catch {}
+            const p = video.play();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+            storyProgressTimer = requestAnimationFrame(tickVideo);
+        };
+        if (video.readyState >= 1) tryPlay();
+        else {
+            video.addEventListener('loadedmetadata', tryPlay, { once: true });
+            video.addEventListener('error', () => runTimedProgress(STORY_IMAGE_DURATION_MS), { once: true });
+        }
+        return;
+    }
+    storyActiveVideo = null;
+    runTimedProgress(STORY_IMAGE_DURATION_MS);
+}
+
 async function showCurrentStorySlide() {
+    stopStoryProgress();
+    if (storyActiveVideo) {
+        try { storyActiveVideo.pause(); } catch {}
+        storyActiveVideo = null;
+    }
+
     const user = storyQueue[storyUserIndex];
     if (!user) { closeStoryViewer(); return; }
     const slides = user.slides || [];
     if (!slides.length) { closeStoryViewer(); return; }
     if (storySlideIndex >= slides.length) storySlideIndex = 0;
+    if (storySlideIndex < 0) storySlideIndex = 0;
     const slide = slides[storySlideIndex];
+
     const avEl = document.getElementById('storyViewerAvatar');
     document.getElementById('storyViewerName').textContent = user.isOwn ? 'Seu story' : (user.name || '');
     let timeLabel = formatStoryTime(slide.time);
@@ -756,9 +850,11 @@ async function showCurrentStorySlide() {
         if (left > 0) timeLabel += ' · expira em ' + formatRemaining(left);
     }
     document.getElementById('storyViewerTime').textContent = timeLabel;
+
     const delBtn = document.getElementById('storyViewerDelete');
-    delBtn.style.display = user.isOwn ? 'block' : 'none';
-    document.getElementById('storyViewerFooter').style.display = user.isOwn ? 'none' : 'flex';
+    if (delBtn) delBtn.style.display = user.isOwn ? 'block' : 'none';
+    const footer = document.getElementById('storyViewerFooter');
+    if (footer) footer.style.display = user.isOwn ? 'none' : 'flex';
 
     if (user.isOwn) {
         try {
@@ -767,31 +863,51 @@ async function showCurrentStorySlide() {
         } catch { avEl.textContent = 'EU'; }
     } else if (user.avatarUrl) {
         avEl.innerHTML = `<img src="${escapeAttr(user.avatarUrl)}" alt="">`;
-    } else avEl.textContent = (user.avatar || (user.name || '?').replace('@', '').substring(0, 2)).toUpperCase();
+    } else {
+        avEl.textContent = (user.avatar || (user.name || '?').replace('@', '').substring(0, 2)).toUpperCase();
+    }
 
     document.getElementById('storyProgressBar').innerHTML = slides.map((_, i) =>
-        `<div class="story-progress-segment ${i < storySlideIndex ? 'done' : ''}"><div class="story-progress-fill" id="storyFill_${i}"></div></div>`
+        `<div class="story-progress-segment ${i < storySlideIndex ? 'done' : ''}">
+            <div class="story-progress-fill" id="storyFill_${i}" style="width:${i < storySlideIndex ? '100%' : '0%'}"></div>
+        </div>`
     ).join('');
 
     const content = document.getElementById('storyViewerContent');
     content.querySelector('.story-viewer-media')?.remove();
     const placeholder = document.getElementById('storyViewerPlaceholder');
-    if (slide.url && (slide.type === 'image' || slide.type === 'gif' || !slide.type)) {
-        placeholder.style.display = 'none';
-        const img = document.createElement('img');
-        img.className = 'story-viewer-media'; img.src = slide.url;
-        img.onerror = () => { img.remove(); placeholder.style.display = 'block'; placeholder.textContent = 'Mídia indisponível'; };
-        content.insertBefore(img, content.firstChild);
-    } else if (slide.type === 'video' && slide.url) {
+
+    const isVideo = slide.type === 'video' || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(slide.url || '');
+
+    if (isVideo && slide.url) {
         placeholder.style.display = 'none';
         const vid = document.createElement('video');
-        vid.className = 'story-viewer-media'; vid.src = slide.url; vid.autoplay = true; vid.playsInline = true;
+        vid.className = 'story-viewer-media';
+        vid.src = slide.url;
+        vid.playsInline = true;
+        vid.preload = 'auto';
+        vid.setAttribute('playsinline', '');
         content.insertBefore(vid, content.firstChild);
+    } else if (slide.url && (slide.type === 'image' || slide.type === 'gif' || !slide.type)) {
+        placeholder.style.display = 'none';
+        const img = document.createElement('img');
+        img.className = 'story-viewer-media';
+        img.src = slide.url;
+        img.alt = 'Story';
+        img.onerror = () => {
+            img.remove();
+            placeholder.style.display = 'block';
+            placeholder.textContent = 'Mídia indisponível';
+        };
+        content.insertBefore(img, content.firstChild);
     } else {
         placeholder.style.display = 'block';
         placeholder.textContent = slide.text || 'Nenhum story disponível';
     }
+
+    startStoryProgress();
 }
+
 function formatStoryTime(ts) {
     if (!ts) return 'agora';
     const diff = Date.now() - Number(ts);
@@ -805,38 +921,69 @@ function formatRemaining(ms) {
     if (h > 0) return h + 'h' + (m ? m + 'm' : '');
     return Math.max(1, m) + ' min';
 }
-function stopStoryProgress() { if (storyProgressTimer) { cancelAnimationFrame(storyProgressTimer); storyProgressTimer = null; } }
-function startStoryProgress() {
-    stopStoryProgress();
-    const fill = document.getElementById(`storyFill_${storySlideIndex}`);
-    if (!fill) return;
-    storyProgressStart = performance.now();
-    function tick(now) {
-        if (storyPaused) { storyProgressTimer = requestAnimationFrame(tick); return; }
-        const pct = Math.min(100, ((now - storyProgressStart) / STORY_DURATION_MS) * 100);
-        if (fill) fill.style.width = pct + '%';
-        if (pct >= 100) { goNextStorySlide(); return; }
-        storyProgressTimer = requestAnimationFrame(tick);
-    }
-    storyProgressTimer = requestAnimationFrame(tick);
-}
+
 function goNextStorySlide() {
+    stopStoryProgress();
+    if (storyActiveVideo) {
+        try { storyActiveVideo.pause(); } catch {}
+        storyActiveVideo = null;
+    }
     const user = storyQueue[storyUserIndex];
     if (!user) { closeStoryViewer(); return; }
-    if (storySlideIndex < user.slides.length - 1) { storySlideIndex++; showCurrentStorySlide(); startStoryProgress(); }
-    else if (storyUserIndex < storyQueue.length - 1) { storyUserIndex++; storySlideIndex = 0; showCurrentStorySlide(); startStoryProgress(); }
-    else closeStoryViewer();
+    if (storySlideIndex < user.slides.length - 1) {
+        storySlideIndex++;
+        showCurrentStorySlide();
+    } else if (storyUserIndex < storyQueue.length - 1) {
+        storyUserIndex++;
+        storySlideIndex = 0;
+        showCurrentStorySlide();
+    } else {
+        closeStoryViewer();
+    }
 }
 function goPrevStorySlide() {
-    if (storySlideIndex > 0) { storySlideIndex--; showCurrentStorySlide(); startStoryProgress(); }
-    else if (storyUserIndex > 0) {
+    stopStoryProgress();
+    if (storyActiveVideo) {
+        try { storyActiveVideo.pause(); } catch {}
+        storyActiveVideo = null;
+    }
+    if (storySlideIndex > 0) {
+        storySlideIndex--;
+        showCurrentStorySlide();
+    } else if (storyUserIndex > 0) {
         storyUserIndex--;
-        storySlideIndex = Math.max(0, (storyQueue[storyUserIndex].slides?.length || 1) - 1);
-        showCurrentStorySlide(); startStoryProgress();
-    } else { showCurrentStorySlide(); startStoryProgress(); }
+        const prev = storyQueue[storyUserIndex];
+        storySlideIndex = Math.max(0, (prev.slides?.length || 1) - 1);
+        showCurrentStorySlide();
+    } else {
+        storySlideIndex = 0;
+        showCurrentStorySlide();
+    }
+}
+function openStoryViewer(startChatId) {
+    const { queue, startIdx } = buildStoryQueue(startChatId);
+    if (!queue.length) return;
+    storyQueue = queue;
+    storyUserIndex = startIdx;
+    storySlideIndex = 0;
+    storyPaused = false;
+    document.getElementById('storyViewerOverlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
+    showCurrentStorySlide();
+}
+function closeStoryViewer() {
+    stopStoryProgress();
+    if (storyActiveVideo) {
+        try { storyActiveVideo.pause(); } catch {}
+        storyActiveVideo = null;
+    }
+    document.getElementById('storyViewerOverlay').classList.remove('show');
+    document.body.style.overflow = '';
+    storyQueue = [];
+    storyUserIndex = 0;
+    storySlideIndex = 0;
 }
 
-/** Apaga story na rede (NIP-09 kind 5) + local */
 async function deleteCurrentOwnStory() {
     const user = storyQueue[storyUserIndex];
     if (!user?.isOwn) return;
@@ -864,8 +1011,10 @@ async function deleteCurrentOwnStory() {
             if (!storyQueue.length) { closeStoryViewer(); renderStories(); return; }
             if (storyUserIndex >= storyQueue.length) storyUserIndex = storyQueue.length - 1;
             storySlideIndex = 0;
-        } else if (storySlideIndex >= user.slides.length) storySlideIndex = user.slides.length - 1;
-        showCurrentStorySlide(); startStoryProgress();
+        } else if (storySlideIndex >= user.slides.length) {
+            storySlideIndex = user.slides.length - 1;
+        }
+        showCurrentStorySlide();
         renderStories();
     } catch (e) {
         console.error(e);
