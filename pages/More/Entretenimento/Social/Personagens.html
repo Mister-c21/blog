@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Personagens — LoreSocial</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script type="module">
+        import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+        import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+        window.NostrTools = NostrTools;
+        window.nostrHexToBytes = hexToBytes;
+    </script>
+    <!-- WebLLM: modelos quantizados no browser -->
+    <script type="module">
+        import * as webllm from 'https://esm.sh/@mlc-ai/web-llm@0.2.78';
+        window.webllm = webllm;
+    </script>
+    <style>
+        :root {
+            --primary-bg: #ffffff;
+            --secondary-color: #6c5ce7;
+            --secondary-hover: #5b4be2;
+            --light-violet: #f3f0ff;
+            --gray-bg: #f8f9fa;
+            --text-main: #2d3436;
+            --text-muted: #636e72;
+            --border-color: #dfe6e9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        html, body { height: 100%; height: 100dvh; overflow: hidden; background: var(--light-violet); }
+        body { display: flex; justify-content: center; }
+        .app {
+            width: 100%; max-width: 480px; height: 100%; height: 100dvh;
+            background: var(--primary-bg); display: flex; flex-direction: column; overflow: hidden;
+        }
+        .header {
+            flex-shrink: 0; padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+            border-bottom: 1px solid var(--border-color); font-weight: 600;
+        }
+        .header button {
+            background: none; border: none; color: var(--secondary-color); font-size: 18px; cursor: pointer;
+        }
+        .header h1 { flex: 1; font-size: 17px; color: var(--text-main); }
+        .header .add {
+            background: var(--secondary-color); color: #fff; border: none;
+            border-radius: 20px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+        }
+        .tabs {
+            display: flex; border-bottom: 1px solid var(--border-color); flex-shrink: 0;
+        }
+        .tab {
+            flex: 1; padding: 12px; border: none; background: none; font-weight: 600;
+            color: var(--text-muted); cursor: pointer; position: relative; font-size: 14px;
+        }
+        .tab.active { color: var(--secondary-color); }
+        .tab.active::after {
+            content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 2px;
+            background: var(--secondary-color);
+        }
+        .panel { flex: 1; overflow-y: auto; min-height: 0; -webkit-overflow-scrolling: touch; }
+        .panel.hidden { display: none; }
+        .char-item {
+            display: flex; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--gray-bg);
+            cursor: pointer; align-items: center;
+        }
+        .char-item:hover { background: var(--gray-bg); }
+        .char-avatar {
+            width: 52px; height: 52px; border-radius: 50%; background: var(--light-violet);
+            overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+            color: var(--secondary-color); font-weight: 700;
+        }
+        .char-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .char-info { flex: 1; min-width: 0; }
+        .char-name { font-weight: 600; font-size: 15px; color: var(--text-main); }
+        .char-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .char-tone {
+            font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px;
+            background: var(--light-violet); color: var(--secondary-color); flex-shrink: 0;
+        }
+        .empty { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
+        .form-wrap { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+        .form-wrap label { font-size: 13px; font-weight: 600; color: var(--text-main); }
+        .form-wrap input, .form-wrap textarea, .form-wrap select {
+            width: 100%; padding: 12px 14px; border: 1px solid var(--border-color);
+            border-radius: 12px; outline: none; font-size: 14px; background: var(--gray-bg);
+        }
+        .form-wrap textarea { min-height: 100px; resize: vertical; }
+        .form-wrap input:focus, .form-wrap textarea:focus, .form-wrap select:focus {
+            border-color: var(--secondary-color); background: #fff;
+        }
+        .tone-options { display: flex; flex-direction: column; gap: 8px; }
+        .tone-opt {
+            display: flex; align-items: flex-start; gap: 10px; padding: 12px;
+            border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer;
+            background: var(--gray-bg);
+        }
+        .tone-opt.selected { border-color: var(--secondary-color); background: var(--light-violet); }
+        .tone-opt input { margin-top: 3px; }
+        .tone-opt strong { display: block; font-size: 14px; }
+        .tone-opt span { font-size: 12px; color: var(--text-muted); }
+        .img-pick {
+            width: 100%; aspect-ratio: 1; max-width: 160px; margin: 0 auto;
+            border-radius: 16px; background: var(--gray-bg); border: 1px dashed var(--border-color);
+            display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer;
+            position: relative;
+        }
+        .img-pick img { width: 100%; height: 100%; object-fit: cover; }
+        .img-pick span { font-size: 12px; color: var(--text-muted); text-align: center; padding: 8px; }
+        input[type="file"] { display: none; }
+        .primary-btn {
+            width: 100%; padding: 14px; background: var(--secondary-color); color: #fff;
+            border: none; border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 15px;
+        }
+        .primary-btn:disabled { opacity: 0.5; }
+        .status { font-size: 12px; color: var(--text-muted); text-align: center; }
+        .status.error { color: #e74c3c; }
+        .status.ok { color: #00b894; }
+
+        /* Chat personagem */
+        .chat-view { display: none; flex-direction: column; height: 100%; }
+        .chat-view.show { display: flex; }
+        .main-view.hidden { display: none; }
+        .chat-header {
+            flex-shrink: 0; padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .chat-msgs {
+            flex: 1; overflow-y: auto; padding: 16px; background: var(--gray-bg);
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .bubble {
+            max-width: 85%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4;
+            word-wrap: break-word;
+        }
+        .bubble.user { align-self: flex-end; background: var(--secondary-color); color: #fff; border-bottom-right-radius: 4px; }
+        .bubble.bot { align-self: flex-start; background: #fff; color: var(--text-main); border-bottom-left-radius: 4px; }
+        .bubble.sys { align-self: center; background: transparent; color: var(--text-muted); font-size: 12px; text-align: center; }
+        .chat-input-row {
+            flex-shrink: 0; padding: 12px 16px; display: flex; gap: 10px;
+            border-top: 1px solid var(--border-color); padding-bottom: max(12px, env(safe-area-inset-bottom));
+        }
+        .chat-input-row input {
+            flex: 1; padding: 12px 16px; border-radius: 22px; border: 1px solid var(--border-color);
+            outline: none; background: var(--gray-bg); font-size: 14px;
+        }
+        .chat-input-row button {
+            width: 44px; height: 44px; border-radius: 50%; border: none;
+            background: var(--secondary-color); color: #fff; cursor: pointer;
+        }
+        .model-status { font-size: 11px; color: var(--text-muted); padding: 0 16px 8px; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="main-view" id="mainView">
+        <div class="header">
+            <button type="button" onclick="goBack()"><i class="fa-solid fa-arrow-left"></i></button>
+            <h1>Personagens</h1>
+            <button type="button" class="add" onclick="showCreate()"><i class="fa-solid fa-plus"></i> Criar</button>
+        </div>
+        <div class="tabs">
+            <button type="button" class="tab active" data-tab="rede" onclick="switchPanel('rede')">Na rede</button>
+            <button type="button" class="tab" data-tab="meus" onclick="switchPanel('meus')">Meus</button>
+            <button type="button" class="tab" data-tab="criar" onclick="switchPanel('criar')">Novo</button>
+        </div>
+        <div class="panel" id="panelRede"></div>
+        <div class="panel hidden" id="panelMeus"></div>
+        <div class="panel hidden" id="panelCriar">
+            <div class="form-wrap">
+                <label class="img-pick" id="imgPickLabel">
+                    <span id="imgPickText"><i class="fa-solid fa-image" style="font-size:24px;display:block;margin-bottom:6px;"></i>Foto do personagem</span>
+                    <img id="imgPreview" style="display:none;" alt="">
+                    <input type="file" id="charImage" accept="image/*">
+                </label>
+                <label>Nome</label>
+                <input type="text" id="charName" placeholder="Nome do personagem" maxlength="40" autocomplete="off">
+                <label>Personalidade (descrição)</label>
+                <textarea id="charPersonality" placeholder="Quem é, como age, gostos, história..."></textarea>
+                <label>Estilo de fala</label>
+                <div class="tone-options">
+                    <label class="tone-opt selected" data-tone="contidas">
+                        <input type="radio" name="tone" value="contidas" checked>
+                        <div>
+                            <strong>Contidas</strong>
+                            <span>Linguagem sóbria, respeitosa e comedida.</span>
+                        </div>
+                    </label>
+                    <label class="tone-opt" data-tone="euforicas">
+                        <input type="radio" name="tone" value="euforicas">
+                        <div>
+                            <strong>Eufóricas</strong>
+                            <span>Energéticas, animadas e expressivas.</span>
+                        </div>
+                    </label>
+                    <label class="tone-opt" data-tone="eroticas">
+                        <input type="radio" name="tone" value="eroticas">
+                        <div>
+                            <strong>Eróticas</strong>
+                            <span>Mais sensuais e provocantes (conteúdo adulto).</span>
+                        </div>
+                    </label>
+                </div>
+                <button type="button" class="primary-btn" id="createBtn" onclick="createCharacter()">Publicar personagem</button>
+                <p class="status" id="createStatus">Imagem via armazenamento de arquivos Nostr (Blossom). Metadados na rede.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-view" id="chatView">
+        <div class="chat-header">
+            <button type="button" onclick="closeCharChat()" style="background:none;border:none;color:var(--secondary-color);font-size:18px;cursor:pointer;">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <div class="char-avatar" id="chatAv" style="width:40px;height:40px;"></div>
+            <div style="flex:1;min-width:0;">
+                <div class="char-name" id="chatName" style="font-size:15px;"></div>
+                <div class="char-meta" id="chatSub"></div>
+            </div>
+        </div>
+        <p class="model-status" id="modelStatus">Modelo quantizado: aguardando…</p>
+        <div class="chat-msgs" id="chatMsgs"></div>
+        <div class="chat-input-row">
+            <input type="text" id="chatInput" placeholder="Mensagem..." autocomplete="off">
+            <button type="button" id="chatSend" onclick="sendCharMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function auth() {
+    try {
+        const s = JSON.parse(localStorage.getItem('nostr_session') || 'null');
+        if (localStorage.getItem('isLoggedIn') !== 'true' || !s?.privateKeyHex || !s?.pubkey) {
+            window.location.replace('./Social.html');
+        }
+    } catch { window.location.replace('./Social.html'); }
+})();
+
+const RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.primal.net', 'wss://relay.nostr.band'];
+const BLOSSOM_SERVERS = ['https://blossom.primal.net', 'https://cdn.nostrcheck.me', 'https://blossom.oxtr.dev'];
+const CHAR_KIND = 30079; // personagens LoreSocial (parameterized replaceable)
+const MODEL_ID = 'Phi-3.5-mini-instruct-q4f16_1-MLC'; // quantizado, roda no browser
+
+let pool = null;
+let networkChars = [];
+let myChars = [];
+let profileCache = new Map();
+let currentChar = null;
+let engine = null;
+let modelLoading = false;
+let chatHistory = [];
+
+function goBack() { window.location.href = './Chat.html'; }
+function getSession() {
+    try { return JSON.parse(localStorage.getItem('nostr_session') || 'null'); } catch { return null; }
+}
+function getSk() {
+    const s = getSession();
+    if (!s?.privateKeyHex) return null;
+    if (window.nostrHexToBytes) return window.nostrHexToBytes(s.privateKeyHex);
+    const hex = s.privateKeyHex;
+    const out = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i * 2, 2), 16);
+    return out;
+}
+function escapeHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function toneLabel(t) {
+    if (t === 'euforicas') return 'Eufóricas';
+    if (t === 'eroticas') return 'Eróticas';
+    return 'Contidas';
+}
+function systemPromptFor(char) {
+    const tone = char.tone || 'contidas';
+    let style = 'Fale de forma contida, educada e moderada.';
+    if (tone === 'euforicas') style = 'Fale de forma eufórica, animada, energética e expressiva, com entusiasmo.';
+    if (tone === 'eroticas') style = 'Fale de forma sensual e provocante, no tom erótico combinado, sem sair do personagem.';
+    return `Você é o personagem "${char.name}".
+Personalidade e background: ${char.personality || 'Personagem fictício.'}
+Estilo de fala: ${style}
+Responda sempre em português do Brasil, em primeira pessoa, como o personagem.
+Não diga que é uma IA. Mantenha respostas curtas a médias (2–6 frases), a menos que o usuário peça mais.`;
+}
+
+document.querySelectorAll('.tone-opt').forEach(el => {
+    el.addEventListener('click', () => {
+        document.querySelectorAll('.tone-opt').forEach(x => x.classList.remove('selected'));
+        el.classList.add('selected');
+        el.querySelector('input').checked = true;
+    });
+});
+
+document.getElementById('charImage').addEventListener('change', e => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const url = URL.createObjectURL(f);
+    const img = document.getElementById('imgPreview');
+    img.src = url;
+    img.style.display = 'block';
+    document.getElementById('imgPickText').style.display = 'none';
+});
+
+function switchPanel(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.getElementById('panelRede').classList.toggle('hidden', name !== 'rede');
+    document.getElementById('panelMeus').classList.toggle('hidden', name !== 'meus');
+    document.getElementById('panelCriar').classList.toggle('hidden', name !== 'criar');
+}
+function showCreate() { switchPanel('criar'); }
+
+async function sha256Hex(buf) {
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function uploadBlossom(file, sk) {
+    const buf = await file.arrayBuffer();
+    const hash = await sha256Hex(buf);
+    const now = Math.floor(Date.now() / 1000);
+    const authEvent = NostrTools.finalizeEvent({
+        kind: 24242,
+        created_at: now,
+        tags: [['t', 'upload'], ['x', hash], ['expiration', String(now + 300)]],
+        content: 'Upload character image'
+    }, sk);
+    const authHeader = 'Nostr ' + btoa(JSON.stringify(authEvent));
+    for (const base of BLOSSOM_SERVERS) {
+        try {
+            const res = await fetch(base.replace(/\/$/, '') + '/upload', {
+                method: 'PUT',
+                headers: { Authorization: authHeader, 'Content-Type': file.type || 'image/jpeg' },
+                body: buf
+            });
+            if (!res.ok) continue;
+            const data = await res.json().catch(() => ({}));
+            const url = data.url || (base.replace(/\/$/, '') + '/' + hash);
+            if (url) return { url, hash };
+        } catch {}
+    }
+    throw new Error('Falha no upload da imagem (Blossom).');
+}
+
+async function fetchProfile(pubkey) {
+    const pk = String(pubkey).toLowerCase();
+    if (profileCache.has(pk)) return profileCache.get(pk);
+    try {
+        if (!pool) pool = new NostrTools.SimplePool();
+        const ev = await pool.get(RELAYS, { kinds: [0], authors: [pubkey] });
+        let name = '', picture = '';
+        if (ev?.content) {
+            const d = JSON.parse(ev.content);
+            name = d.display_name || d.name || '';
+            picture = d.picture || d.image || '';
+        }
+        const p = { name, picture };
+        profileCache.set(pk, p);
+        return p;
+    } catch {
+        const p = { name: '', picture: '' };
+        profileCache.set(pk, p);
+        return p;
+    }
+}
+
+function parseCharEvent(ev) {
+    try {
+        const data = JSON.parse(ev.content);
+        if (!data || data.lore !== 1 || data.type !== 'character') return null;
+        return {
+            id: ev.id,
+            pubkey: ev.pubkey,
+            name: data.name || 'Personagem',
+            personality: data.personality || '',
+            image: data.image || '',
+            tone: data.tone || 'contidas',
+            d: (ev.tags || []).find(t => t[0] === 'd')?.[1] || '',
+            created_at: ev.created_at
+        };
+    } catch { return null; }
+}
+
+function renderCharList(containerId, list) {
+    const el = document.getElementById(containerId);
+    if (!list.length) {
+        el.innerHTML = '<div class="empty">Nenhum personagem encontrado.</div>';
+        return;
+    }
+    el.innerHTML = list.map(c => {
+        const creator = c.creatorName ? `@${escapeHtml(c.creatorName)}` : (c.pubkey || '').slice(0, 10) + '…';
+        const av = c.image
+            ? `<img src="${escapeHtml(c.image)}" alt="">`
+            : escapeHtml((c.name || '?').substring(0, 2).toUpperCase());
+        const creatorPic = c.creatorPicture
+            ? `<img src="${escapeHtml(c.creatorPicture)}" alt="" style="width:16px;height:16px;border-radius:50%;vertical-align:middle;margin-right:4px;object-fit:cover;">`
+            : '';
+        return `<div class="char-item" data-id="${escapeHtml(c.id)}">
+            <div class="char-avatar">${av}</div>
+            <div class="char-info">
+                <div class="char-name">${escapeHtml(c.name)}</div>
+                <div class="char-meta">${creatorPic}${creator}</div>
+            </div>
+            <span class="char-tone">${toneLabel(c.tone)}</span>
+        </div>`;
+    }).join('');
+    el.querySelectorAll('.char-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const ch = list.find(x => x.id === item.dataset.id);
+            if (ch) openCharChat(ch);
+        });
+    });
+}
+
+async function loadNetworkCharacters() {
+    const el = document.getElementById('panelRede');
+    el.innerHTML = '<div class="empty">Carregando da rede…</div>';
+    try {
+        if (!window.NostrTools) await new Promise(r => setTimeout(r, 500));
+        if (!pool) pool = new NostrTools.SimplePool();
+        const events = await pool.querySync(RELAYS, { kinds: [CHAR_KIND], limit: 80 });
+        const byD = new Map();
+        (events || []).forEach(ev => {
+            const ch = parseCharEvent(ev);
+            if (!ch) return;
+            const key = ch.pubkey + ':' + (ch.d || ch.id);
+            const prev = byD.get(key);
+            if (!prev || (ch.created_at || 0) > (prev.created_at || 0)) byD.set(key, ch);
+        });
+        const list = [...byD.values()].sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+        for (const ch of list) {
+            const p = await fetchProfile(ch.pubkey);
+            ch.creatorName = p.name || '';
+            ch.creatorPicture = p.picture || '';
+        }
+        networkChars = list;
+        renderCharList('panelRede', networkChars);
+
+        const session = getSession();
+        const me = session?.pubkey?.toLowerCase();
+        myChars = list.filter(c => c.pubkey && c.pubkey.toLowerCase() === me);
+        renderCharList('panelMeus', myChars);
+    } catch (e) {
+        console.error(e);
+        el.innerHTML = '<div class="empty">Erro ao buscar personagens.</div>';
+    }
+}
+
+async function createCharacter() {
+    const name = (document.getElementById('charName').value || '').trim();
+    const personality = (document.getElementById('charPersonality').value || '').trim();
+    const tone = document.querySelector('input[name="tone"]:checked')?.value || 'contidas';
+    const file = document.getElementById('charImage').files?.[0];
+    const status = document.getElementById('createStatus');
+    const btn = document.getElementById('createBtn');
+    if (!name) { status.textContent = 'Informe o nome.'; status.className = 'status error'; return; }
+    if (!personality) { status.textContent = 'Descreva a personalidade.'; status.className = 'status error'; return; }
+    const sk = getSk();
+    const session = getSession();
+    if (!sk || !session?.pubkey || !window.NostrTools) {
+        status.textContent = 'Sessão inválida.'; status.className = 'status error'; return;
+    }
+    btn.disabled = true;
+    status.textContent = 'Enviando imagem…'; status.className = 'status';
+    try {
+        let imageUrl = '';
+        if (file) {
+            const up = await uploadBlossom(file, sk);
+            imageUrl = up.url;
+        }
+        status.textContent = 'Publicando personagem…';
+        const dTag = 'char-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+        const content = JSON.stringify({
+            lore: 1,
+            type: 'character',
+            name,
+            personality,
+            tone,
+            image: imageUrl
+        });
+        const event = NostrTools.finalizeEvent({
+            kind: CHAR_KIND,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [
+                ['d', dTag],
+                ['title', name],
+                ...(imageUrl ? [['image', imageUrl]] : [])
+            ],
+            content
+        }, sk);
+        if (!pool) pool = new NostrTools.SimplePool();
+        await Promise.any(pool.publish(RELAYS, event));
+
+        // Espelha no chat local como tipo personagens (para aba Personagens do Chat)
+        try {
+            const key = 'loresocial_chats_' + String(session.pubkey).toLowerCase();
+            let chats = [];
+            try { chats = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
+            const pseudoPk = 'char:' + dTag;
+            const exists = chats.some(c => c.pubkey === pseudoPk);
+            if (!exists) {
+                const id = chats.length ? Math.max(...chats.map(c => c.id || 0)) + 1 : 1;
+                chats.unshift({
+                    id,
+                    name: '@' + name,
+                    lastMsg: 'Personagem IA',
+                    avatar: name.substring(0, 2).toUpperCase(),
+                    avatarUrl: imageUrl,
+                    type: 'personagens',
+                    status: 'accepted',
+                    pinned: false,
+                    pubkey: pseudoPk,
+                    isCharacter: true,
+                    addedVia: 'character',
+                    characterMeta: { name, personality, tone, image: imageUrl, eventId: event.id },
+                    stories: [],
+                    messages: []
+                });
+                localStorage.setItem(key, JSON.stringify(chats));
+            }
+        } catch {}
+
+        status.textContent = 'Personagem publicado!'; status.className = 'status ok';
+        document.getElementById('charName').value = '';
+        document.getElementById('charPersonality').value = '';
+        await loadNetworkCharacters();
+        switchPanel('meus');
+    } catch (e) {
+        console.error(e);
+        status.textContent = e.message || 'Erro ao publicar.'; status.className = 'status error';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function ensureEngine(statusEl) {
+    if (engine) return engine;
+    if (!window.webllm) {
+        statusEl.textContent = 'WebLLM não carregou. Usando modo local simples.';
+        return null;
+    }
+    if (modelLoading) {
+        statusEl.textContent = 'Carregando modelo quantizado…';
+        while (modelLoading) await new Promise(r => setTimeout(r, 300));
+        return engine;
+    }
+    modelLoading = true;
+    try {
+        statusEl.textContent = 'Baixando modelo quantizado (Phi-3.5 mini)… pode demorar na 1ª vez.';
+        engine = await window.webllm.CreateMLCEngine(MODEL_ID, {
+            initProgressCallback: (p) => {
+                statusEl.textContent = p?.text || 'Carregando modelo…';
+            }
+        });
+        statusEl.textContent = 'Modelo pronto (quantizado no dispositivo).';
+        return engine;
+    } catch (e) {
+        console.warn(e);
+        statusEl.textContent = 'Falha no modelo. Usando respostas locais simples.';
+        engine = null;
+        return null;
+    } finally {
+        modelLoading = false;
+    }
+}
+
+function openCharChat(ch) {
+    currentChar = ch;
+    chatHistory = [];
+    document.getElementById('mainView').classList.add('hidden');
+    document.getElementById('chatView').classList.add('show');
+    document.getElementById('chatName').textContent = ch.name;
+    document.getElementById('chatSub').textContent = toneLabel(ch.tone) + (ch.creatorName ? ' · @' + ch.creatorName : '');
+    const av = document.getElementById('chatAv');
+    if (ch.image) av.innerHTML = `<img src="${escapeHtml(ch.image)}" alt="">`;
+    else av.textContent = (ch.name || '?').substring(0, 2).toUpperCase();
+    const msgs = document.getElementById('chatMsgs');
+    msgs.innerHTML = `<div class="bubble sys">Conversando com ${escapeHtml(ch.name)}. A IA roda quantizada no seu aparelho.</div>`;
+    ensureEngine(document.getElementById('modelStatus'));
+}
+
+function closeCharChat() {
+    currentChar = null;
+    chatHistory = [];
+    document.getElementById('chatView').classList.remove('show');
+    document.getElementById('mainView').classList.remove('hidden');
+}
+
+function appendBubble(role, text) {
+    const msgs = document.getElementById('chatMsgs');
+    const div = document.createElement('div');
+    div.className = 'bubble ' + role;
+    div.textContent = text;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function sendCharMessage() {
+    const input = document.getElementById('chatInput');
+    const text = (input.value || '').trim();
+    if (!text || !currentChar) return;
+    input.value = '';
+    appendBubble('user', text);
+    chatHistory.push({ role: 'user', content: text });
+
+    const statusEl = document.getElementById('modelStatus');
+    const eng = await ensureEngine(statusEl);
+    appendBubble('bot', '…');
+    const bubbles = document.getElementById('chatMsgs').querySelectorAll('.bubble.bot');
+    const lastBot = bubbles[bubbles.length - 1];
+
+    try {
+        if (eng) {
+            const messages = [
+                { role: 'system', content: systemPromptFor(currentChar) },
+                ...chatHistory.slice(-12)
+            ];
+            const reply = await eng.chat.completions.create({
+                messages,
+                temperature: currentChar.tone === 'euforicas' ? 0.95 : currentChar.tone === 'eroticas' ? 0.9 : 0.7,
+                max_tokens: 400
+            });
+            const out = reply?.choices?.[0]?.message?.content?.trim() || '…';
+            lastBot.textContent = out;
+            chatHistory.push({ role: 'assistant', content: out });
+        } else {
+            // fallback simples sem modelo
+            const out = `[${currentChar.name}] ${text.length > 0 ? 'Entendi. ' : ''}${
+                currentChar.tone === 'euforicas' ? 'Que animação! ' : currentChar.tone === 'eroticas' ? 'Hmm… ' : ''
+            }Como personagem, reajo com base na minha personalidade: ${(currentChar.personality || '').slice(0, 80)}…`;
+            lastBot.textContent = out;
+            chatHistory.push({ role: 'assistant', content: out });
+        }
+    } catch (e) {
+        lastBot.textContent = 'Erro ao gerar resposta. Tente de novo.';
+        console.error(e);
+    }
+}
+
+document.getElementById('chatInput').addEventListener('keypress', e => {
+    if (e.key === 'Enter') sendCharMessage();
+});
+
+async function boot() {
+    for (let i = 0; i < 50 && !window.NostrTools; i++) await new Promise(r => setTimeout(r, 100));
+    await loadNetworkCharacters();
+}
+boot();
+</script>
+</body>
+</html>
