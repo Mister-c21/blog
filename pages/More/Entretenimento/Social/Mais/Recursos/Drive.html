@@ -81,9 +81,13 @@
             width: 100%; background-color: #0f172a; position: relative; display: flex; align-items: center; justify-content: center;
             overflow: hidden; max-height: 280px; min-height: 100px;
         }
-        .pinterest-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .pinterest-card-media img, .pinterest-card-media video { width: 100%; height: 100%; object-fit: cover; display: block; }
         .pinterest-card-media .file-icon-placeholder { font-size: 2rem; color: var(--violet-accent); padding: 1.5rem 0; }
         .pinterest-card-media .video-badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,.65); color: #fff; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; }
+        .pinterest-card-media .decrypt-loading {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            background: rgba(15,23,42,0.5); color: #fff; font-size: 0.75rem; gap: 6px;
+        }
         .pinterest-card-body { padding: 0.75rem 0.85rem; display: flex; flex-direction: column; gap: 4px; background-color: var(--card-bg); }
         .pinterest-card-title { font-size: 0.85rem; font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .pinterest-card-footer { display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
@@ -312,7 +316,6 @@
         </div>
     </div>
 
-    <!-- Modal renomear -->
     <div class="modal-backdrop" id="renameModal">
         <div class="modal" id="renameModalInner">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -327,7 +330,6 @@
         </div>
     </div>
 
-    <!-- Modal mover para pasta -->
     <div class="modal-backdrop" id="moveModal">
         <div class="modal" id="moveModalInner">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -342,7 +344,6 @@
         </div>
     </div>
 
-    <!-- Modal nova pasta -->
     <div class="modal-backdrop" id="folderModal">
         <div class="modal" id="folderModalInner">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -381,12 +382,16 @@
         let currentUserData = { pubkey: '', privateKey: null, privateKeyHex: '', nickname: '', avatarUrl: '' };
         let currentCategory = 'all';
         let selectedObjectUrl = null;
-        let currentFolderId = null; // null = raiz
-        let renameTarget = null; // { type: 'file'|'folder', id }
+        let currentFolderId = null;
+        let renameTarget = null;
         let moveTargetFileId = null;
         let moveSelectedFolderId = null;
-        let folderModalMode = 'create'; // 'create' | 'rename'
+        let folderModalMode = 'create';
         let folderEditId = null;
+
+        // Cache de mídia já descriptografada (object URLs) para renderização imediata nos cards
+        const decryptedMediaCache = new Map(); // fileId -> { url, kind, mime }
+        const decryptInFlight = new Map(); // fileId -> Promise
 
         function loadSessionFromNostr() {
             try {
@@ -510,7 +515,6 @@
             return bytes.buffer;
         }
 
-        // ——— Pastas (organização local + sync no índice) ———
         function foldersKey() {
             if (!currentUserData.pubkey) return null;
             return 'violet_folders_' + currentUserData.pubkey;
@@ -538,7 +542,6 @@
             return getFilesLocal().filter(f => (f.folderId || null) === folderId).length;
         }
 
-        // Lista de arquivos sincronizável
         function filesForSync(list) {
             return (list || [])
                 .filter(f => f.url && !String(f.url).startsWith('idb://'))
@@ -915,7 +918,90 @@
             return null;
         }
 
-        // ——— UI Pastas / Renomear / Mover ———
+        // ——— Descriptografar e cachear mídia para os cards ———
+        async function getDecryptedMediaUrl(file) {
+            const fileId = file.id || (file.url + '|' + file.name);
+            if (decryptedMediaCache.has(fileId)) {
+                return decryptedMediaCache.get(fileId);
+            }
+            if (decryptInFlight.has(fileId)) {
+                return decryptInFlight.get(fileId);
+            }
+
+            const promise = (async () => {
+                try {
+                    let encBuf;
+                    if (String(file.url).startsWith('idb://')) {
+                        encBuf = await loadEncryptedLocally(file.url);
+                        if (!encBuf) throw new Error('Blob local ausente');
+                    } else {
+                        const res = await fetch(file.url);
+                        if (!res.ok) throw new Error('Falha ao baixar');
+                        encBuf = await res.arrayBuffer();
+                    }
+                    const plainBuf = await decryptBlob(encBuf, currentUserData.privateKeyHex);
+                    const mime = file.mime || 'application/octet-stream';
+                    const blob = new Blob([plainBuf], { type: mime });
+                    const objectUrl = URL.createObjectURL(blob);
+                    const kind = getFileKind(file);
+                    const entry = { url: objectUrl, kind, mime };
+                    decryptedMediaCache.set(fileId, entry);
+                    return entry;
+                } catch (e) {
+                    console.warn('Falha ao descriptografar para card:', file.name, e);
+                    return null;
+                } finally {
+                    decryptInFlight.delete(fileId);
+                }
+            })();
+
+            decryptInFlight.set(fileId, promise);
+            return promise;
+        }
+
+        function applyDecryptedMediaToCard(cardEl, file) {
+            if (!cardEl || !file) return;
+            const kind = getFileKind(file);
+            if (kind !== 'image' && kind !== 'video') return;
+
+            const mediaEl = cardEl.querySelector('.pinterest-card-media');
+            if (!mediaEl) return;
+
+            // Já tem thumbnail local (upload neste aparelho)
+            if (file.thumbnail) {
+                mediaEl.innerHTML = `<img src="${file.thumbnail}" alt="${escapeAttr(file.name)}" loading="lazy">${kind === 'video' ? '<span class="video-badge"><i class="fa-solid fa-play"></i></span>' : ''}`;
+                return;
+            }
+
+            const fileId = file.id || (file.url + '|' + file.name);
+            const cached = decryptedMediaCache.get(fileId);
+            if (cached && cached.url) {
+                if (cached.kind === 'video') {
+                    mediaEl.innerHTML = `<video src="${cached.url}" muted playsinline preload="metadata"></video><span class="video-badge"><i class="fa-solid fa-play"></i></span>`;
+                } else {
+                    mediaEl.innerHTML = `<img src="${cached.url}" alt="${escapeAttr(file.name)}" loading="lazy">`;
+                }
+                return;
+            }
+
+            // Placeholder enquanto descriptografa
+            mediaEl.innerHTML = `
+                <i class="fa-solid ${kind === 'video' ? 'fa-file-video' : 'fa-file-image'} file-icon-placeholder"></i>
+                <div class="decrypt-loading"><i class="fa-solid fa-lock-open fa-spin"></i> Descriptografando...</div>
+            `;
+
+            getDecryptedMediaUrl(file).then(entry => {
+                if (!entry || !cardEl.isConnected) return;
+                const m = cardEl.querySelector('.pinterest-card-media');
+                if (!m) return;
+                if (entry.kind === 'video') {
+                    m.innerHTML = `<video src="${entry.url}" muted playsinline preload="metadata"></video><span class="video-badge"><i class="fa-solid fa-play"></i></span>`;
+                } else {
+                    m.innerHTML = `<img src="${entry.url}" alt="${escapeAttr(file.name)}" loading="lazy">`;
+                }
+            });
+        }
+
         function renderFolderBar() {
             const folders = getFolders();
             const allFiles = getFilesLocal();
@@ -953,7 +1039,6 @@
             buildBar('desktopFolderBar');
             buildBar('mobileFolderBar');
 
-            // Breadcrumb
             const crumbHtml = (() => {
                 if (currentFolderId === null) return '<span onclick="setCurrentFolder(null)"><i class="fa-solid fa-folder-open"></i> Todos os arquivos</span>';
                 if (currentFolderId === '__root__') return '<span onclick="setCurrentFolder(null)">Todos</span><span class="sep">/</span><span>Sem pasta</span>';
@@ -1268,7 +1353,6 @@
                 const filter = (searchInputVal || '').toLowerCase();
                 let files = getFiles().filter(f => (f.name || '').toLowerCase().includes(filter));
 
-                // Filtro por pasta
                 if (currentFolderId === '__root__') {
                     files = files.filter(f => !f.folderId);
                 } else if (currentFolderId !== null) {
@@ -1294,11 +1378,14 @@
                     cardDesktop.innerHTML = cardHTML;
                     cardDesktop.onclick = () => openPreviewModal(file);
                     desktopFeed.appendChild(cardDesktop);
+                    applyDecryptedMediaToCard(cardDesktop, file);
+
                     const cardMobile = document.createElement('div');
                     cardMobile.className = 'pinterest-card';
                     cardMobile.innerHTML = cardHTML;
                     cardMobile.onclick = () => openPreviewModal(file);
                     mobileFeed.appendChild(cardMobile);
+                    applyDecryptedMediaToCard(cardMobile, file);
                 });
             }, 300);
         };
@@ -1307,8 +1394,17 @@
             const kind = getFileKind(file);
             const fileId = escapeAttr(file.id || (file.url + '|' + file.name));
             let mediaContent = '';
+
+            // Preferência: thumbnail local > cache descriptografado > ícone (descriptografia async preenche depois)
+            const cached = decryptedMediaCache.get(file.id || (file.url + '|' + file.name));
             if (file.thumbnail) {
                 mediaContent = `<div class="pinterest-card-media"><img src="${file.thumbnail}" alt="${escapeAttr(file.name)}" loading="lazy">${kind === 'video' ? '<span class="video-badge"><i class="fa-solid fa-play"></i></span>' : ''}</div>`;
+            } else if (cached && cached.url) {
+                if (cached.kind === 'video') {
+                    mediaContent = `<div class="pinterest-card-media"><video src="${cached.url}" muted playsinline preload="metadata"></video><span class="video-badge"><i class="fa-solid fa-play"></i></span></div>`;
+                } else {
+                    mediaContent = `<div class="pinterest-card-media"><img src="${cached.url}" alt="${escapeAttr(file.name)}" loading="lazy"></div>`;
+                }
             } else {
                 let iconClass = 'fa-solid fa-file-lines';
                 if (kind === 'video') iconClass = 'fa-solid fa-file-video';
@@ -1317,6 +1413,7 @@
                 else if (kind === 'image') iconClass = 'fa-solid fa-file-image';
                 mediaContent = `<div class="pinterest-card-media"><i class="${iconClass} file-icon-placeholder"></i></div>`;
             }
+
             const isLocal = String(file.url || '').startsWith('idb://');
             const backendLabel = isLocal ? 'Só este aparelho' : (file.backend === 'blossom' ? 'Blossom' : (file.backend === 'nostr.build' ? 'Nostr' : 'Nuvem'));
             const folder = file.folderId ? getFolderById(file.folderId) : null;
@@ -1366,19 +1463,21 @@
             container.innerHTML = '<p style="color:white; font-size:0.95rem;">Descriptografando arquivo...</p>';
 
             try {
-                let encBuf;
-                if (String(file.url).startsWith('idb://')) {
-                    encBuf = await loadEncryptedLocally(file.url);
-                    if (!encBuf) throw new Error('Arquivo só existe neste aparelho (não sincronizado na nuvem).');
+                // Reutiliza cache se já descriptografado no feed
+                const fileId = file.id || (file.url + '|' + file.name);
+                let objectUrl = null;
+                let mime = file.mime || 'application/octet-stream';
+
+                if (decryptedMediaCache.has(fileId)) {
+                    objectUrl = decryptedMediaCache.get(fileId).url;
+                    mime = decryptedMediaCache.get(fileId).mime || mime;
                 } else {
-                    const res = await fetch(file.url);
-                    if (!res.ok) throw new Error('Falha ao baixar blob criptografado');
-                    encBuf = await res.arrayBuffer();
+                    const entry = await getDecryptedMediaUrl(file);
+                    if (!entry) throw new Error('Não foi possível descriptografar o arquivo.');
+                    objectUrl = entry.url;
+                    mime = entry.mime || mime;
                 }
-                const plainBuf = await decryptBlob(encBuf, currentUserData.privateKeyHex);
-                const mime = file.mime || 'application/octet-stream';
-                const blob = new Blob([plainBuf], { type: mime });
-                const objectUrl = URL.createObjectURL(blob);
+
                 container.innerHTML = '';
                 const kind = getFileKind(file);
                 if (kind === 'video') {
@@ -1394,6 +1493,21 @@
                     img.src = objectUrl;
                     container.appendChild(img);
                 } else if (kind === 'pdf') {
+                    // PDF: precisa do blob completo — se não estiver no cache de mídia visual, baixa de novo
+                    if (!decryptedMediaCache.has(fileId) || getFileKind(file) === 'pdf') {
+                        let encBuf;
+                        if (String(file.url).startsWith('idb://')) {
+                            encBuf = await loadEncryptedLocally(file.url);
+                            if (!encBuf) throw new Error('Arquivo só existe neste aparelho (não sincronizado na nuvem).');
+                        } else {
+                            const res = await fetch(file.url);
+                            if (!res.ok) throw new Error('Falha ao baixar blob criptografado');
+                            encBuf = await res.arrayBuffer();
+                        }
+                        const plainBuf = await decryptBlob(encBuf, currentUserData.privateKeyHex);
+                        const blob = new Blob([plainBuf], { type: mime });
+                        objectUrl = URL.createObjectURL(blob);
+                    }
                     const iframe = document.createElement('iframe');
                     iframe.src = objectUrl;
                     container.appendChild(iframe);
@@ -1469,7 +1583,6 @@
                     backend = 'local';
                 }
 
-                // Coloca na pasta atual se estiver dentro de uma pasta
                 let folderId = null;
                 if (currentFolderId && currentFolderId !== '__root__' && currentFolderId !== null) {
                     folderId = currentFolderId;
@@ -1487,6 +1600,16 @@
                     backend,
                     folderId
                 };
+
+                // Pré-popula cache com o arquivo original (já em claro) para render imediato
+                try {
+                    const plainUrl = URL.createObjectURL(file);
+                    decryptedMediaCache.set(entry.id, {
+                        url: plainUrl,
+                        kind: getFileKind(entry),
+                        mime: entry.mime
+                    });
+                } catch (_) {}
 
                 const custom = getFilesLocal();
                 custom.unshift(entry);
