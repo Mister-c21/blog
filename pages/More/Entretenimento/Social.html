@@ -257,9 +257,11 @@
  <label class="text-xs font-semibold text-gray-700">Biografia</label>
  <textarea id="profileAboutInput" rows="3" maxlength="300" class="w-full text-xs px-3 py-2.5 bg-gray-50 border rounded-xl outline-none focus:border-secondary resize-none"></textarea>
  </div>
- <div class="space-y-1 text-left">
- <label class="text-xs font-semibold text-gray-700">URL da foto</label>
- <input type="url" id="profileImageUrlInput" placeholder="https://..." class="w-full text-xs px-3 py-2.5 bg-gray-50 border rounded-xl outline-none focus:border-secondary" oninput="previewProfileUrlFromInput()">
+ <div class="space-y-2 text-left">
+ <label class="text-xs font-semibold text-gray-700">Foto de perfil (upload na rede Nostr)</label>
+ <input type="file" id="profileImageFileInput" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif" class="w-full text-xs px-3 py-2.5 bg-gray-50 border rounded-xl outline-none focus:border-secondary file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-secondary/10 file:text-secondary file:text-xs file:font-semibold" onchange="handleProfileImageFileSelect(event)">
+ <p id="profileImageUploadStatus" class="text-[11px] text-gray-400">Envio via NIP-96 (armazenamento de arquivos da rede Nostr).</p>
+ <input type="hidden" id="profileImageUrlInput" value="">
  </div>
  </div>
  <div class="p-4 bg-gray-50 border-t"><button type="button" onclick="saveProfileAbout()" class="w-full py-2.5 bg-secondary text-white text-xs font-semibold rounded-xl">Salvar perfil na rede</button></div>
@@ -536,6 +538,134 @@ const NSFW_THRESHOLDS = { Porn: 0.55, Hentai: 0.55, Sexy: 0.70 };
 const profileCache = new Map();
 const JIKAN_BASE = 'https://api.jikan.moe/v4';
 let selectedMalAvatarUrl = null;
+
+const NIP96_SERVERS = [
+    'https://nostr.build',
+    'https://nostrcheck.me',
+    'https://void.cat'
+];
+let profileImageUploading = false;
+
+async function sha256HexOfArrayBuffer(buf) {
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function nip98AuthHeader(signedEvent) {
+    const json = JSON.stringify(signedEvent);
+    let binary = '';
+    const bytes = new TextEncoder().encode(json);
+    bytes.forEach(b => { binary += String.fromCharCode(b); });
+    return 'Nostr ' + btoa(binary);
+}
+
+async function discoverNip96(serverBase) {
+    const url = serverBase.replace(/\/$/, '') + '/.well-known/nostr/nip96.json';
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('NIP-96 config indisponível: ' + serverBase);
+    return res.json();
+}
+
+async function uploadFileNip96(file, privKey) {
+    if (!privKey) throw new Error('Login necessário para upload.');
+    if (!file || !file.type?.startsWith('image/')) throw new Error('Selecione uma imagem válida.');
+    if (file.size > 8 * 1024 * 1024) throw new Error('Imagem muito grande (máx. 8 MB).');
+
+    let lastErr = null;
+    for (const server of NIP96_SERVERS) {
+        try {
+            const cfg = await discoverNip96(server);
+            const apiUrl = cfg.api_url;
+            if (!apiUrl) throw new Error('api_url ausente');
+
+            const formData = new FormData();
+            formData.append('file', file, file.name || 'avatar.jpg');
+
+            const fileHash = await sha256HexOfArrayBuffer(await file.arrayBuffer());
+            const authEvent = NostrTools.finalizeEvent({
+                kind: 27235,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [
+                    ['u', apiUrl],
+                    ['method', 'POST'],
+                    ['payload', fileHash]
+                ],
+                content: ''
+            }, privKey);
+
+            const res = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { Authorization: nip98AuthHeader(authEvent) },
+                body: formData
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.status === 'error') {
+                throw new Error(data.message || ('HTTP ' + res.status));
+            }
+
+            let url = '';
+            const tags = data?.nip94_event?.tags || data?.tags || [];
+            const urlTag = tags.find(t => t[0] === 'url');
+            if (urlTag?.[1]) url = urlTag[1];
+            if (!url) url = data.url || data.fileUrl || data.download_url || data?.data?.url || '';
+            if (!url && data.nip94_event?.content) {
+                try {
+                    const c = JSON.parse(data.nip94_event.content);
+                    url = c.url || '';
+                } catch {}
+            }
+            if (!url || !/^https?:\/\//i.test(url)) throw new Error('Servidor não retornou URL.');
+            return url;
+        } catch (e) {
+            lastErr = e;
+            console.warn('Falha NIP-96 em', server, e);
+        }
+    }
+    throw lastErr || new Error('Falha no upload NIP-96.');
+}
+
+window.handleProfileImageFileSelect = async function(event) {
+    const input = event?.target;
+    const file = input?.files?.[0];
+    const statusEl = document.getElementById('profileImageUploadStatus');
+    const urlInput = document.getElementById('profileImageUrlInput');
+    if (!file) return;
+    if (!currentUserData.privateKey) {
+        alert('Faça login primeiro.');
+        openAuthModal();
+        if (input) input.value = '';
+        return;
+    }
+    if (!file.type.startsWith('image/')) {
+        alert('Selecione uma imagem (PNG, JPEG, WebP ou GIF).');
+        if (input) input.value = '';
+        return;
+    }
+
+    try {
+        const localUrl = URL.createObjectURL(file);
+        updateEditAvatarPreview(localUrl);
+        setAvatarEverywhere(localUrl);
+    } catch {}
+
+    profileImageUploading = true;
+    selectedMalAvatarUrl = null;
+    if (statusEl) statusEl.textContent = 'Enviando imagem para a rede Nostr (NIP-96)...';
+    try {
+        const uploadedUrl = await uploadFileNip96(file, currentUserData.privateKey);
+        if (urlInput) urlInput.value = uploadedUrl;
+        selectedMalAvatarUrl = null;
+        setAvatarEverywhere(uploadedUrl);
+        if (statusEl) statusEl.textContent = 'Upload concluído. Salve o perfil para publicar.';
+    } catch (e) {
+        console.error(e);
+        if (statusEl) statusEl.textContent = 'Falha no upload: ' + (e.message || 'erro desconhecido');
+        alert('Não foi possível enviar a imagem pela rede Nostr.\n' + (e.message || ''));
+        if (urlInput) urlInput.value = '';
+    } finally {
+        profileImageUploading = false;
+    }
+};
 
 const BLOCKED_DOMAINS = [
     'pornhub.com', 'xvideos.com', 'xnxx.com', 'xhamster.com', 'redtube.com',
@@ -1469,16 +1599,16 @@ window.selectMalAvatar = function(url, btnEl) {
     selectedMalAvatarUrl = url;
     const urlInput = document.getElementById('profileImageUrlInput');
     if (urlInput) urlInput.value = url;
+    const statusEl = document.getElementById('profileImageUploadStatus');
+    if (statusEl) statusEl.textContent = 'Avatar MyAnimeList selecionado.';
+    const fileInput = document.getElementById('profileImageFileInput');
+    if (fileInput) fileInput.value = '';
     setAvatarEverywhere(url);
     document.querySelectorAll('.mal-avatar-option').forEach(el => {
         el.classList.remove('border-secondary');
         el.classList.add('border-transparent');
     });
     if (btnEl) { btnEl.classList.remove('border-transparent'); btnEl.classList.add('border-secondary'); }
-};
-window.previewProfileUrlFromInput = function() {
-    const url = (document.getElementById('profileImageUrlInput')?.value || '').trim();
-    if (url && /^https?:\/\//i.test(url)) { selectedMalAvatarUrl = null; setAvatarEverywhere(url); }
 };
 
 function setAvatarEverywhere(url) {
@@ -1513,10 +1643,14 @@ window.openProfileEditModal = function() {
     if (!modal || !content) return;
     const aboutInput = document.getElementById('profileAboutInput');
     const urlInput = document.getElementById('profileImageUrlInput');
+    const fileInput = document.getElementById('profileImageFileInput');
+    const statusEl = document.getElementById('profileImageUploadStatus');
     const p = profileCache.get(currentUserData.pubkey) || {};
     const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
     if (aboutInput) aboutInput.value = p.about || session.about || '';
     if (urlInput) urlInput.value = currentUserData.avatarUrl || p.picture || session.avatarUrl || '';
+    if (fileInput) fileInput.value = '';
+    if (statusEl) statusEl.textContent = 'Envio via NIP-96 (armazenamento de arquivos da rede Nostr).';
     updateEditAvatarPreview(urlInput?.value || currentUserData.avatarUrl || '');
     document.getElementById('malAvatarGrid')?.classList.add('hidden');
     modal.classList.remove('pointer-events-none', 'opacity-0');
@@ -1534,12 +1668,20 @@ window.closeProfileEditModal = function() {
 };
 window.saveProfileAbout = async function() {
     if (!currentUserData.privateKey) { alert('Faça login primeiro.'); openAuthModal(); return; }
+    if (profileImageUploading) {
+        alert('Aguarde o fim do upload da imagem.');
+        return;
+    }
     let pictureUrl = (document.getElementById('profileImageUrlInput')?.value || '').trim();
     if (!pictureUrl && selectedMalAvatarUrl) pictureUrl = selectedMalAvatarUrl;
     const aboutText = (document.getElementById('profileAboutInput')?.value || '').trim().substring(0, 300);
     const existing = profileCache.get(currentUserData.pubkey) || {};
     if (!pictureUrl && existing.picture) pictureUrl = existing.picture;
-    if (pictureUrl && !/^https?:\/\//i.test(pictureUrl)) { alert('URL inválida.'); return; }
+    if (pictureUrl && !/^https?:\/\//i.test(pictureUrl) && !pictureUrl.startsWith('blob:')) { alert('URL inválida.'); return; }
+    if (pictureUrl && pictureUrl.startsWith('blob:')) {
+        alert('Aguarde o upload da imagem na rede Nostr antes de salvar.');
+        return;
+    }
     try {
         const metadata = {
             name: currentUserData.nickname?.replace(/^@/, '') || existing.name || 'anonimo',
