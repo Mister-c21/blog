@@ -244,14 +244,10 @@
  </div>
  </div>
  <div class="space-y-2 text-left">
- <label class="text-xs font-semibold text-gray-700">Avatar MyAnimeList</label>
- <div class="flex gap-2">
- <input type="text" id="malAvatarSearchInput" placeholder="Buscar personagem..." class="w-full text-xs px-3 py-2.5 bg-gray-50 border rounded-xl outline-none focus:border-secondary" onkeydown="if(event.key==='Enter'){event.preventDefault();searchMalAvatars();}">
- <button type="button" onclick="searchMalAvatars()" class="px-3 py-2.5 bg-secondary text-white text-xs font-semibold rounded-xl">Buscar</button>
- </div>
- <button type="button" onclick="loadPopularMalAvatars()" class="text-[11px] text-secondary">Ver populares</button>
- <div id="malAvatarGrid" class="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto hidden"></div>
- <p id="malAvatarStatus" class="text-[11px] text-gray-400"></p>
+ <label class="text-xs font-semibold text-gray-700">Fotos de perfil anteriores</label>
+ <p class="text-[11px] text-gray-400">Toque em uma imagem para usar de novo rapidamente.</p>
+ <div id="avatarHistoryGrid" class="grid grid-cols-4 gap-2"></div>
+ <p id="avatarHistoryStatus" class="text-[11px] text-gray-400"></p>
  </div>
  <div class="space-y-1 text-left">
  <label class="text-xs font-semibold text-gray-700">Biografia</label>
@@ -265,6 +261,22 @@
  </div>
  </div>
  <div class="p-4 bg-gray-50 border-t"><button type="button" onclick="saveProfileAbout()" class="w-full py-2.5 bg-secondary text-white text-xs font-semibold rounded-xl">Salvar perfil na rede</button></div>
+ </div>
+</div>
+
+<div id="avatarHistoryModal" class="fixed inset-0 z-[60] bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center opacity-0 pointer-events-none p-0 md:p-4">
+ <div id="avatarHistoryModalContent" class="bg-white w-full md:max-w-lg max-h-[90vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full">
+  <div class="p-4 border-b flex items-center justify-between">
+   <h3 class="font-bold text-sm">Fotos de perfil anteriores</h3>
+   <button type="button" onclick="closeAvatarHistoryModal()" class="w-8 h-8 bg-gray-100 rounded-full"><i class="fa-solid fa-xmark text-sm"></i></button>
+  </div>
+  <div class="p-5 overflow-y-auto flex-1">
+   <div id="avatarHistoryFullGrid" class="grid grid-cols-4 gap-2"></div>
+   <p id="avatarHistoryFullStatus" class="text-[11px] text-gray-400 mt-3 text-center"></p>
+  </div>
+  <div class="p-4 bg-gray-50 border-t">
+   <button type="button" onclick="clearAvatarHistory()" class="w-full py-2.5 bg-gray-100 text-red-500 text-xs font-semibold rounded-xl">Limpar histórico</button>
+  </div>
  </div>
 </div>
 
@@ -536,8 +548,9 @@ try {
 
 const NSFW_THRESHOLDS = { Porn: 0.55, Hentai: 0.55, Sexy: 0.70 };
 const profileCache = new Map();
-const JIKAN_BASE = 'https://api.jikan.moe/v4';
-let selectedMalAvatarUrl = null;
+const AVATAR_HISTORY_KEY = 'loresocial_avatar_history';
+const AVATAR_HISTORY_MAX = 24;
+let selectedHistoryAvatarUrl = null;
 
 const NIP96_SERVERS = [
     'https://nostr.build',
@@ -649,12 +662,12 @@ window.handleProfileImageFileSelect = async function(event) {
     } catch {}
 
     profileImageUploading = true;
-    selectedMalAvatarUrl = null;
+    selectedHistoryAvatarUrl = null;
     if (statusEl) statusEl.textContent = 'Enviando imagem para a rede Nostr (NIP-96)...';
     try {
         const uploadedUrl = await uploadFileNip96(file, currentUserData.privateKey);
         if (urlInput) urlInput.value = uploadedUrl;
-        selectedMalAvatarUrl = null;
+        selectedHistoryAvatarUrl = null;
         setAvatarEverywhere(uploadedUrl);
         if (statusEl) statusEl.textContent = 'Upload concluído. Salve o perfil para publicar.';
     } catch (e) {
@@ -923,7 +936,7 @@ async function completeQrLogin(data) {
         fetchProfiles([pubKey]).then(() => {
             const p = profileCache.get(pubKey);
             if (p?.name) { currentUserData.nickname = '@' + p.name; applyUserDataToInterface(); }
-            if (p?.picture) { currentUserData.avatarUrl = p.picture; setAvatarEverywhere(p.picture); }
+            if (p?.picture) { currentUserData.avatarUrl = p.picture; setAvatarEverywhere(p.picture); saveAvatarToHistory(p.picture); }
             updateProfileAboutDisplay(p?.about || data.about || '');
         });
         alert('Login por QR Code realizado com sucesso!');
@@ -1563,52 +1576,123 @@ function linkifyAndEscape(text) {
     });
 }
 
-window.searchMalAvatars = async function() {
-    const q = (document.getElementById('malAvatarSearchInput')?.value || '').trim();
-    if (!q) { alert('Digite o nome de um personagem.'); return; }
-    await fetchAndRenderMalAvatars(`${JIKAN_BASE}/characters?q=${encodeURIComponent(q)}&limit=15&order_by=favorites&sort=desc`);
-};
-window.loadPopularMalAvatars = async function() {
-    await fetchAndRenderMalAvatars(`${JIKAN_BASE}/top/characters?limit=15`);
-};
-async function fetchAndRenderMalAvatars(url) {
-    const grid = document.getElementById('malAvatarGrid');
-    const status = document.getElementById('malAvatarStatus');
-    if (!grid) return;
-    grid.classList.remove('hidden');
-    grid.innerHTML = `<div class="col-span-full text-center py-4 text-xs text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i></div>`;
+function getAvatarHistory() {
     try {
-        const res = await fetch(url);
-        const json = await res.json();
-        const items = (json.data || []).map(c => {
-            const img = c.images?.jpg?.image_url || c.images?.webp?.image_url || '';
-            return img ? { img, name: c.name || 'Personagem' } : null;
-        }).filter(Boolean);
-        if (!items.length) { grid.innerHTML = `<div class="col-span-full text-center text-xs text-gray-500">Nenhum resultado.</div>`; return; }
-        grid.innerHTML = items.map(item => `
-            <button type="button" onclick="selectMalAvatar('${escapeHtml(item.img)}', this)" class="mal-avatar-option relative aspect-square rounded-xl overflow-hidden border-2 border-transparent hover:border-secondary" title="${escapeHtml(item.name)}">
-                <img src="${escapeHtml(item.img)}" class="w-full h-full object-cover" loading="lazy">
-            </button>`).join('');
-        if (status) status.textContent = `${items.length} opção(ões)`;
-    } catch {
-        grid.innerHTML = `<div class="col-span-full text-center text-xs text-red-500">Erro ao carregar.</div>`;
-    }
+        const list = JSON.parse(localStorage.getItem(AVATAR_HISTORY_KEY) || '[]');
+        return Array.isArray(list) ? list.filter(u => typeof u === 'string' && /^https?:\/\//i.test(u)) : [];
+    } catch { return []; }
 }
-window.selectMalAvatar = function(url, btnEl) {
+
+function saveAvatarToHistory(url) {
+    if (!url || !/^https?:\/\//i.test(url) || url.startsWith('blob:')) return;
+    let list = getAvatarHistory().filter(u => u !== url);
+    list.unshift(url);
+    if (list.length > AVATAR_HISTORY_MAX) list = list.slice(0, AVATAR_HISTORY_MAX);
+    localStorage.setItem(AVATAR_HISTORY_KEY, JSON.stringify(list));
+}
+
+function buildAvatarHistoryButtons(list) {
+    return list.map(url => `
+        <button type="button" onclick="selectHistoryAvatar('${escapeHtml(url)}', this)"
+          class="avatar-history-option relative aspect-square rounded-xl overflow-hidden border-2 border-transparent hover:border-secondary focus:border-secondary"
+          title="Usar esta foto">
+          <img src="${escapeHtml(url)}" class="w-full h-full object-cover" loading="lazy"
+            onerror="this.closest('button')?.remove()">
+        </button>`).join('');
+}
+
+function renderAvatarHistoryGrid() {
+    const grid = document.getElementById('avatarHistoryGrid');
+    const status = document.getElementById('avatarHistoryStatus');
+    if (!grid) return;
+    const list = getAvatarHistory();
+    if (!list.length) {
+        grid.innerHTML = `<div class="col-span-full text-center py-3 text-xs text-gray-400">Nenhuma foto anterior ainda.</div>`;
+        if (status) status.textContent = '';
+        return;
+    }
+    const preview = list.slice(0, 3);
+    let html = buildAvatarHistoryButtons(preview);
+    if (list.length > 3) {
+        html += `
+        <button type="button" onclick="openAvatarHistoryModal()"
+          class="aspect-square rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 hover:border-secondary hover:bg-secondary/5 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-secondary transition"
+          title="Ver todas">
+          <i class="fa-solid fa-images text-lg"></i>
+          <span class="text-[10px] font-semibold">Mais</span>
+        </button>`;
+    }
+    grid.innerHTML = html;
+    if (status) status.textContent = list.length > 3
+        ? `${list.length} foto(s) · mostrando as 3 mais recentes`
+        : `${list.length} foto(s) salva(s)`;
+}
+
+function renderAvatarHistoryFullGrid() {
+    const grid = document.getElementById('avatarHistoryFullGrid');
+    const status = document.getElementById('avatarHistoryFullStatus');
+    if (!grid) return;
+    const list = getAvatarHistory();
+    if (!list.length) {
+        grid.innerHTML = `<div class="col-span-full text-center py-8 text-xs text-gray-400">Nenhuma foto anterior.</div>`;
+        if (status) status.textContent = '';
+        return;
+    }
+    grid.innerHTML = buildAvatarHistoryButtons(list);
+    if (status) status.textContent = `${list.length} foto(s) no histórico`;
+}
+
+window.openAvatarHistoryModal = function() {
+    const modal = document.getElementById('avatarHistoryModal');
+    const content = document.getElementById('avatarHistoryModalContent');
+    if (!modal || !content) return;
+    renderAvatarHistoryFullGrid();
+    modal.classList.remove('pointer-events-none', 'opacity-0');
+    modal.classList.add('opacity-100');
+    content.classList.remove('translate-y-full');
+};
+
+window.closeAvatarHistoryModal = function() {
+    const modal = document.getElementById('avatarHistoryModal');
+    const content = document.getElementById('avatarHistoryModalContent');
+    if (modal && content) {
+        modal.classList.remove('opacity-100');
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        content.classList.add('translate-y-full');
+    }
+    renderAvatarHistoryGrid();
+};
+
+window.selectHistoryAvatar = function(url, btnEl) {
     if (!url) return;
-    selectedMalAvatarUrl = url;
+    selectedHistoryAvatarUrl = url;
     const urlInput = document.getElementById('profileImageUrlInput');
     if (urlInput) urlInput.value = url;
     const statusEl = document.getElementById('profileImageUploadStatus');
-    if (statusEl) statusEl.textContent = 'Avatar MyAnimeList selecionado.';
+    if (statusEl) statusEl.textContent = 'Foto anterior selecionada. Salve o perfil para publicar.';
     const fileInput = document.getElementById('profileImageFileInput');
     if (fileInput) fileInput.value = '';
     setAvatarEverywhere(url);
-    document.querySelectorAll('.mal-avatar-option').forEach(el => {
+    document.querySelectorAll('.avatar-history-option').forEach(el => {
         el.classList.remove('border-secondary');
         el.classList.add('border-transparent');
     });
-    if (btnEl) { btnEl.classList.remove('border-transparent'); btnEl.classList.add('border-secondary'); }
+    if (btnEl) {
+        btnEl.classList.remove('border-transparent');
+        btnEl.classList.add('border-secondary');
+    }
+    const fullModal = document.getElementById('avatarHistoryModal');
+    if (fullModal && !fullModal.classList.contains('pointer-events-none')) {
+        closeAvatarHistoryModal();
+    }
+};
+
+window.clearAvatarHistory = function() {
+    if (!confirm('Limpar todas as fotos anteriores deste dispositivo?')) return;
+    localStorage.removeItem(AVATAR_HISTORY_KEY);
+    selectedHistoryAvatarUrl = null;
+    renderAvatarHistoryGrid();
+    renderAvatarHistoryFullGrid();
 };
 
 function setAvatarEverywhere(url) {
@@ -1652,7 +1736,8 @@ window.openProfileEditModal = function() {
     if (fileInput) fileInput.value = '';
     if (statusEl) statusEl.textContent = 'Envio via NIP-96 (armazenamento de arquivos da rede Nostr).';
     updateEditAvatarPreview(urlInput?.value || currentUserData.avatarUrl || '');
-    document.getElementById('malAvatarGrid')?.classList.add('hidden');
+    selectedHistoryAvatarUrl = null;
+    renderAvatarHistoryGrid();
     modal.classList.remove('pointer-events-none', 'opacity-0');
     modal.classList.add('opacity-100');
     content.classList.remove('translate-y-full');
@@ -1673,7 +1758,7 @@ window.saveProfileAbout = async function() {
         return;
     }
     let pictureUrl = (document.getElementById('profileImageUrlInput')?.value || '').trim();
-    if (!pictureUrl && selectedMalAvatarUrl) pictureUrl = selectedMalAvatarUrl;
+    if (!pictureUrl && selectedHistoryAvatarUrl) pictureUrl = selectedHistoryAvatarUrl;
     const aboutText = (document.getElementById('profileAboutInput')?.value || '').trim().substring(0, 300);
     const existing = profileCache.get(currentUserData.pubkey) || {};
     if (!pictureUrl && existing.picture) pictureUrl = existing.picture;
@@ -1697,7 +1782,11 @@ window.saveProfileAbout = async function() {
             kind: 0, created_at: Math.floor(Date.now() / 1000), tags: [], content: JSON.stringify(metadata)
         }, currentUserData.privateKey);
         await Promise.any(pool.publish(RELAYS, signedEvent));
-        if (pictureUrl) { currentUserData.avatarUrl = pictureUrl; setAvatarEverywhere(pictureUrl); }
+        if (pictureUrl) {
+            currentUserData.avatarUrl = pictureUrl;
+            setAvatarEverywhere(pictureUrl);
+            saveAvatarToHistory(pictureUrl);
+        }
         profileCache.set(currentUserData.pubkey, metadata);
         if (pictureUrl) session.avatarUrl = pictureUrl;
         session.about = aboutText;
@@ -2100,7 +2189,7 @@ window.handleAuthSubmit = async function(event) {
             fetchProfiles([pubKey]).then(() => {
                 const p = profileCache.get(pubKey);
                 if (p?.name) { currentUserData.nickname = '@' + p.name; applyUserDataToInterface(); }
-                if (p?.picture) { currentUserData.avatarUrl = p.picture; setAvatarEverywhere(p.picture); }
+                if (p?.picture) { currentUserData.avatarUrl = p.picture; setAvatarEverywhere(p.picture); saveAvatarToHistory(p.picture); }
                 updateProfileAboutDisplay(p?.about || '');
             });
         }
@@ -2128,7 +2217,7 @@ function loadSessionFromNostr() {
             fetchProfiles([currentUserData.pubkey]).then(() => {
                 const p = profileCache.get(currentUserData.pubkey);
                 if (p?.name) { currentUserData.nickname = '@' + p.name; applyUserDataToInterface(); }
-                if (p?.picture) { currentUserData.avatarUrl = p.picture; setAvatarEverywhere(p.picture); }
+                if (p?.picture) { currentUserData.avatarUrl = p.picture; setAvatarEverywhere(p.picture); saveAvatarToHistory(p.picture); }
                 updateProfileAboutDisplay(p?.about || parsed.about || '');
             });
         }
@@ -2688,4 +2777,4 @@ function closeAuthModal() {
 }
 </script>
 </body>
-</html>
+ </html>
