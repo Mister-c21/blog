@@ -1407,42 +1407,73 @@
             lucide.createIcons();
         }
 
-        function downloadWallpaper() {
-            if (isDownloading) return;
+        async function downloadWallpaper() {
+            if (isDownloading || !activeWallpaper || !activeWallpaper.url) return;
             isDownloading = true;
             const progressBar = document.getElementById('download-progress-bar');
             const downloadText = document.getElementById('download-text');
             const downloadIcon = document.getElementById('download-icon');
             downloadIcon.style.display = 'none';
             downloadText.innerText = 'Baixando... 0%';
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.floor(Math.random() * 8) + 5;
-                if (progress >= 100) {
-                    progress = 100;
-                    clearInterval(interval);
-                    progressBar.style.width = '100%';
-                    downloadText.innerText = 'Concluído!';
-                    setTimeout(() => {
-                        if (activeWallpaper && activeWallpaper.url) {
-                            const a = document.createElement('a');
-                            a.href = activeWallpaper.url;
-                            a.download = (activeWallpaper.title || 'wallpaper').replace(/\s+/g, '_') + '.jpg';
-                            a.target = '_blank';
-                            a.rel = 'noopener';
-                            document.body.appendChild(a);
-                            a.click();
-                            a.remove();
-                        }
-                        showToast(`Download 4K UHD (${activeWallpaper.deviceType === 'mobile' ? 'Mobile' : 'Desktop'}) concluído!`);
-                        closePreview();
-                        isDownloading = false;
-                    }, 600);
-                } else {
-                    progressBar.style.width = progress + '%';
-                    downloadText.innerText = `Baixando... ${progress}%`;
-                }
-            }, 120);
+            progressBar.style.width = '0%';
+
+            try {
+                let progress = 0;
+                const interval = setInterval(() => {
+                    if (progress < 90) {
+                        progress += Math.floor(Math.random() * 8) + 5;
+                        if (progress > 90) progress = 90;
+                        progressBar.style.width = progress + '%';
+                        downloadText.innerText = `Baixando... ${progress}%`;
+                    }
+                }, 120);
+
+                const response = await fetch(activeWallpaper.url, { mode: 'cors' });
+                if (!response.ok) throw new Error('Falha ao obter a imagem');
+
+                const blob = await response.blob();
+                clearInterval(interval);
+
+                progressBar.style.width = '100%';
+                downloadText.innerText = 'Concluído!';
+
+                const ext = (blob.type && blob.type.includes('png')) ? 'png'
+                          : (blob.type && blob.type.includes('webp')) ? 'webp'
+                          : 'jpg';
+                const fileName = ((activeWallpaper.title || 'wallpaper').replace(/[^\w\-]+/g, '_') || 'wallpaper') + '.' + ext;
+
+                const objectUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = objectUrl;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
+
+                showToast(`Download 4K UHD (${activeWallpaper.deviceType === 'mobile' ? 'Mobile' : 'Desktop'}) concluído!`);
+                setTimeout(() => {
+                    closePreview();
+                    isDownloading = false;
+                }, 600);
+            } catch (err) {
+                console.error('downloadWallpaper:', err);
+                progressBar.style.width = '100%';
+                downloadText.innerText = 'Abrindo…';
+                const a = document.createElement('a');
+                a.href = activeWallpaper.url;
+                a.download = (activeWallpaper.title || 'wallpaper').replace(/\s+/g, '_') + '.jpg';
+                a.target = '_blank';
+                a.rel = 'noopener';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                showToast('Não foi possível forçar o download. Abrindo a imagem…');
+                setTimeout(() => {
+                    closePreview();
+                    isDownloading = false;
+                }, 800);
+            }
         }
 
         function showToast(text) {
