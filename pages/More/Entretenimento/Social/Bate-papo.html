@@ -48,14 +48,16 @@
             border-radius: 20px; padding: 3px; margin: 8px 16px 4px; flex-shrink: 0;
         }
         .list-mode-btn {
-            flex: 1; padding: 7px 12px; border: none; border-radius: 16px; background: transparent;
-            font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 6px;
+            flex: 1; padding: 7px 8px; border: none; border-radius: 16px; background: transparent;
+            font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
             transition: background 0.15s, color 0.15s;
         }
         .list-mode-btn.active { background: var(--primary-bg); color: var(--secondary-color); box-shadow: 0 1px 4px rgba(108,92,231,0.12); }
-        .list-mode-btn i { font-size: 12px; }
-        .stories-container.hidden-mode, .notes-container.hidden-mode { display: none !important; }
+        .list-mode-btn i { font-size: 11px; }
+        .stories-container.hidden-mode,
+        .notes-container.hidden-mode,
+        .momentos-container.hidden-mode { display: none !important; }
 
         .stories-container { flex-shrink: 0; padding: 12px 0 10px; border-bottom: 1px solid var(--border-color); background: var(--primary-bg); }
         .stories-scroll { display: flex; gap: 14px; overflow-x: auto; padding: 0 16px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
@@ -112,6 +114,37 @@
         }
         .note-label { font-size: 11px; color: var(--text-main); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 76px; line-height: 1.2; }
         .note-label.muted { color: var(--text-muted); }
+
+        .momentos-container { flex-shrink: 0; padding: 12px 0 10px; border-bottom: 1px solid var(--border-color); background: var(--primary-bg); }
+        .momentos-scroll { display: flex; gap: 14px; overflow-x: auto; padding: 0 16px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .momentos-scroll::-webkit-scrollbar { display: none; }
+        .moment-item { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; cursor: pointer; width: 68px; }
+        .moment-ring {
+            width: 64px; height: 64px; border-radius: 50%; padding: 2.5px;
+            background: linear-gradient(45deg, #00b894, #00cec9, #0984e3);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .moment-ring.viewed { background: var(--border-color); }
+        .moment-ring.own { background: linear-gradient(45deg, #6c5ce7, #a29bfe); }
+        .moment-avatar {
+            width: 100%; height: 100%; border-radius: 50%; background: var(--primary-bg);
+            border: 2.5px solid var(--primary-bg); display: flex; align-items: center;
+            justify-content: center; overflow: hidden; font-weight: 700; font-size: 15px;
+            color: var(--secondary-color); position: relative;
+        }
+        .moment-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+        .moment-add-btn {
+            position: absolute; bottom: -2px; right: -2px; width: 20px; height: 20px;
+            border-radius: 50%; background: #00b894; color: #fff; border: 2px solid var(--primary-bg);
+            display: flex; align-items: center; justify-content: center; font-size: 10px; z-index: 2;
+        }
+        .moment-name {
+            font-size: 11px; color: var(--text-main); text-align: center;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 68px;
+        }
+        .moment-preview-media {
+            width: 100%; max-height: 220px; border-radius: 12px; object-fit: contain; background: #111;
+        }
 
         .note-viewer-overlay {
             display: none; position: fixed; inset: 0; z-index: 3100; background: rgba(0,0,0,0.5);
@@ -200,18 +233,22 @@
             text-transform: uppercase; letter-spacing: 0.03em;
         }
 
-        #createNoteModal.modal-overlay { align-items: flex-end; }
-        #createNoteModal .modal-card {
+        #createNoteModal.modal-overlay,
+        #createMomentModal.modal-overlay,
+        #noteMusicModal.modal-overlay { align-items: flex-end; }
+        #createNoteModal .modal-card,
+        #createMomentModal .modal-card {
             width: 100%; max-width: 100%; border-radius: 16px 16px 0 0; max-height: min(85vh, 85dvh);
         }
-        #noteMusicModal.modal-overlay { align-items: flex-end; }
         #noteMusicModal .modal-card {
             width: 100%; max-width: 100%; border-radius: 16px 16px 0 0; height: min(80vh, 80dvh);
         }
         @media (min-width: 768px) {
-            #createNoteModal.modal-overlay { align-items: center; }
-            #createNoteModal .modal-card { max-width: 400px; border-radius: 16px; }
+            #createNoteModal.modal-overlay,
+            #createMomentModal.modal-overlay,
             #noteMusicModal.modal-overlay { align-items: center; }
+            #createNoteModal .modal-card,
+            #createMomentModal .modal-card { max-width: 400px; border-radius: 16px; }
             #noteMusicModal .modal-card { max-width: 460px; border-radius: 16px; margin: auto; }
         }
 
@@ -372,10 +409,17 @@
             <button type="button" class="list-mode-btn" id="modeNotesBtn" onclick="setListMode('notes')">
                 <i class="fa-solid fa-note-sticky"></i> Notes
             </button>
+            <button type="button" class="list-mode-btn" id="modeMomentosBtn" onclick="setListMode('momentos')">
+                <i class="fa-solid fa-bolt"></i> Momentos
+            </button>
         </div>
 
         <div class="notes-container hidden-mode" id="notesContainer">
             <div class="notes-scroll" id="notesScroll"></div>
+        </div>
+
+        <div class="momentos-container hidden-mode" id="momentosContainer">
+            <div class="momentos-scroll" id="momentosScroll"></div>
         </div>
 
         <div class="stories-container" id="storiesContainer">
@@ -438,6 +482,9 @@
     </div>
 </div>
 
+<input type="file" id="momentPhotoInput" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="momentVideoInput" accept="video/*" capture="environment" style="display:none">
+
 <div class="note-viewer-overlay" id="noteViewerOverlay">
     <div class="note-viewer-card">
         <button type="button" class="note-viewer-close-x" onclick="closeNoteViewer()"><i class="fa-solid fa-xmark"></i></button>
@@ -495,6 +542,31 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="createMomentModal">
+    <div class="modal-card">
+        <div class="modal-header">
+            <span>Novo momento</span>
+            <i class="fa-solid fa-xmark" onclick="closeCreateMomentModal()"></i>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:13px;color:var(--text-muted);">
+                Foto ou vídeo (máx. 30s). Some em 24h. Cada contato vê só uma vez.
+            </p>
+            <button type="button" class="primary-btn" onclick="document.getElementById('momentPhotoInput').click()">
+                <i class="fa-solid fa-camera"></i> Tirar foto
+            </button>
+            <button type="button" class="primary-btn" style="background:#2d3436;" onclick="document.getElementById('momentVideoInput').click()">
+                <i class="fa-solid fa-video"></i> Gravar vídeo (30s)
+            </button>
+            <div id="momentPreviewWrap" style="display:none;margin-top:8px;"></div>
+            <button type="button" class="primary-btn" id="momentPublishBtn" style="display:none;" onclick="publishMoment()">
+                <i class="fa-solid fa-paper-plane"></i> Publicar momento
+            </button>
+            <p id="momentUploadStatus" class="qr-status" style="margin-top:8px;"></p>
+        </div>
+    </div>
+</div>
+
 <div class="story-viewer-overlay" id="storyViewerOverlay">
     <div class="story-viewer" id="storyViewer">
         <div class="story-progress-bar" id="storyProgressBar"></div>
@@ -515,6 +587,24 @@
         <div class="story-viewer-footer" id="storyViewerFooter">
             <input type="text" class="story-reply-input" id="storyReplyInput" placeholder="Responder..." autocomplete="off">
             <button type="button" class="story-reply-btn" id="storyReplyBtn"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+</div>
+
+<div class="story-viewer-overlay" id="momentViewerOverlay">
+    <div class="story-viewer" id="momentViewer">
+        <div class="story-progress-bar" id="momentProgressBar"></div>
+        <div class="story-viewer-header">
+            <div class="story-viewer-avatar" id="momentViewerAvatar"></div>
+            <div class="story-viewer-meta">
+                <div class="story-viewer-name" id="momentViewerName"></div>
+                <div class="story-viewer-time" id="momentViewerTime"></div>
+            </div>
+            <button type="button" class="story-viewer-delete" id="momentViewerDelete" title="Apagar"><i class="fa-solid fa-trash"></i></button>
+            <button type="button" class="story-viewer-close" id="momentViewerClose"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="story-viewer-content" id="momentViewerContent">
+            <div class="story-viewer-placeholder" id="momentViewerPlaceholder">Momento indisponível</div>
         </div>
     </div>
 </div>
@@ -618,6 +708,13 @@ const STORY_KIND = 30078;
 const NOTE_KIND = 30078;
 const NOTE_MAX_TTL_MS = 24 * 60 * 60 * 1000;
 const NOTE_MAX_LEN = 60;
+const MOMENT_KIND = 30078;
+const MOMENT_MAX_TTL_MS = 24 * 60 * 60 * 1000;
+const MOMENT_VIDEO_MAX_SEC = 30;
+const NOSTR_MEDIA_UPLOAD_URLS = [
+    'https://nostr.build/api/v2/upload/files',
+    'https://blossom.primal.net/upload'
+];
 
 let chatsData = [], currentTab = 'contatos', currentChatId = null, searchQuery = '';
 let activeAttachmentType = null, musicSearchTimeout = null, activePreviewAudio = null, activeChatAudio = null;
@@ -636,6 +733,12 @@ let noteMusicSearchTimeout = null;
 let activeNotePreviewAudio = null;
 let activeNoteViewerAudio = null;
 let noteMusicCurrentPlaylist = 'pop hits';
+let momentsMap = new Map();
+let pendingMomentFile = null;
+let momentProgressTimer = null;
+let momentActiveVideo = null;
+let currentMomentQueue = [];
+let currentMomentIndex = 0;
 
 const NOTE_PLAYLISTS = {
     'pop hits': 'Pop',
@@ -709,6 +812,11 @@ function showMessageNotification(title, body) {
 function chatsStorageKey() { return CHATS_STORAGE_PREFIX + String(currentUserPubkey || 'anon').toLowerCase(); }
 function ownStoriesKey() { return 'loresocial_own_stories_' + String(currentUserPubkey || '').toLowerCase(); }
 function ownNoteKey() { return 'loresocial_own_note_' + String(currentUserPubkey || '').toLowerCase(); }
+function ownMomentsKey() { return 'loresocial_own_moments_' + String(currentUserPubkey || '').toLowerCase(); }
+function viewedMomentsKey() { return 'loresocial_viewed_moments_' + String(currentUserPubkey || '').toLowerCase(); }
+function isMobileDevice() {
+    return window.innerWidth <= 767 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+}
 function isStoryActive(s) {
     if (!s || !(s.url || s.mediaUrl)) return false;
     const now = Date.now();
@@ -725,6 +833,13 @@ function isNoteActive(n) {
     if (exp > 0) return now < exp;
     const created = Number(n.time || n.createdAt || 0);
     return (now - created) < NOTE_MAX_TTL_MS;
+}
+function isMomentActive(m) {
+    if (!m || !m.url) return false;
+    const now = Date.now();
+    const exp = Number(m.expiresAt || 0);
+    if (exp > 0) return now < exp;
+    return (now - Number(m.time || 0)) < MOMENT_MAX_TTL_MS;
 }
 function saveChatsLocal() {
     if (!currentUserPubkey) return;
@@ -851,9 +966,13 @@ function scheduleListPresenceRefresh() {
         presenceListRefreshTimer = null;
         renderChatList();
         updateChatHeaderStatus();
-        if (listMode === 'story') renderStories();
-        else renderNotes();
+        refreshCurrentListMode();
     }, 1500);
+}
+function refreshCurrentListMode() {
+    if (listMode === 'story') renderStories();
+    else if (listMode === 'notes') renderNotes();
+    else renderMomentos();
 }
 async function publishMyPresence() {
     const sk = getPrivateKeyBytes();
@@ -903,18 +1022,15 @@ async function startPresenceListener() {
 setInterval(updateChatHeaderStatus, 15000);
 
 function setListMode(mode) {
-    if (mode !== 'story' && mode !== 'notes') return;
+    if (mode !== 'story' && mode !== 'notes' && mode !== 'momentos') return;
     listMode = mode;
-    const storyBtn = document.getElementById('modeStoryBtn');
-    const notesBtn = document.getElementById('modeNotesBtn');
-    const storiesEl = document.getElementById('storiesContainer');
-    const notesEl = document.getElementById('notesContainer');
-    if (storyBtn) storyBtn.classList.toggle('active', mode === 'story');
-    if (notesBtn) notesBtn.classList.toggle('active', mode === 'notes');
-    if (storiesEl) storiesEl.classList.toggle('hidden-mode', mode !== 'story');
-    if (notesEl) notesEl.classList.toggle('hidden-mode', mode !== 'notes');
-    if (mode === 'story') renderStories();
-    else renderNotes();
+    document.getElementById('modeStoryBtn')?.classList.toggle('active', mode === 'story');
+    document.getElementById('modeNotesBtn')?.classList.toggle('active', mode === 'notes');
+    document.getElementById('modeMomentosBtn')?.classList.toggle('active', mode === 'momentos');
+    document.getElementById('storiesContainer')?.classList.toggle('hidden-mode', mode !== 'story');
+    document.getElementById('notesContainer')?.classList.toggle('hidden-mode', mode !== 'notes');
+    document.getElementById('momentosContainer')?.classList.toggle('hidden-mode', mode !== 'momentos');
+    refreshCurrentListMode();
 }
 
 function getOwnNote() {
@@ -993,7 +1109,7 @@ function openNoteMusicModal() {
     const label = NOTE_PLAYLISTS[noteMusicCurrentPlaylist] || 'Pop';
     const titleEl = document.getElementById('noteMusicSectionTitle');
     if (titleEl) titleEl.textContent = 'Playlist · ' + label;
-    fetchNoteItunesMusic(noteMusicCurrentPlaylist, false);
+    fetchNoteItunesMusic(noteMusicCurrentPlaylist);
 }
 function closeNoteMusicModal() {
     if (activeNotePreviewAudio) { activeNotePreviewAudio.pause(); activeNotePreviewAudio = null; }
@@ -1008,7 +1124,7 @@ function selectNotePlaylist(btn) {
     const label = NOTE_PLAYLISTS[term] || term;
     const titleEl = document.getElementById('noteMusicSectionTitle');
     if (titleEl) titleEl.textContent = 'Playlist · ' + label;
-    fetchNoteItunesMusic(term, false);
+    fetchNoteItunesMusic(term);
 }
 document.getElementById('noteMusicSearchInput')?.addEventListener('input', e => {
     clearTimeout(noteMusicSearchTimeout);
@@ -1021,13 +1137,13 @@ document.getElementById('noteMusicSearchInput')?.addEventListener('input', e => 
             document.querySelectorAll('.note-music-tab').forEach(t => {
                 t.classList.toggle('active', t.getAttribute('data-pl') === noteMusicCurrentPlaylist);
             });
-            fetchNoteItunesMusic(noteMusicCurrentPlaylist, false);
+            fetchNoteItunesMusic(noteMusicCurrentPlaylist);
             return;
         }
         document.querySelectorAll('.note-music-tab').forEach(t => t.classList.remove('active'));
         const titleEl = document.getElementById('noteMusicSectionTitle');
         if (titleEl) titleEl.textContent = 'Resultados · "' + q + '"';
-        fetchNoteItunesMusic(q, true);
+        fetchNoteItunesMusic(q);
     }, 400);
 });
 async function fetchNoteItunesMusic(term) {
@@ -1410,6 +1526,470 @@ async function loadNotesFromNetwork() {
     } catch (e) { console.warn(e); }
 }
 
+/* ===== MOMENTOS ===== */
+function getViewedMomentIds() {
+    try {
+        const arr = JSON.parse(localStorage.getItem(viewedMomentsKey()) || '[]');
+        return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+}
+function markMomentViewed(eventId) {
+    if (!eventId) return;
+    const list = getViewedMomentIds();
+    if (!list.includes(eventId)) {
+        list.push(eventId);
+        try { localStorage.setItem(viewedMomentsKey(), JSON.stringify(list.slice(-500))); } catch {}
+    }
+}
+function hasViewedMoment(eventId) {
+    return getViewedMomentIds().includes(eventId);
+}
+function getOwnMoments() {
+    if (!currentUserPubkey) return [];
+    try {
+        const arr = JSON.parse(localStorage.getItem(ownMomentsKey()) || '[]');
+        if (!Array.isArray(arr)) return [];
+        const valid = arr.filter(isMomentActive);
+        if (valid.length !== arr.length) {
+            try { localStorage.setItem(ownMomentsKey(), JSON.stringify(valid)); } catch {}
+        }
+        return valid;
+    } catch { return []; }
+}
+function saveOwnMoments(list) {
+    try {
+        localStorage.setItem(ownMomentsKey(), JSON.stringify((list || []).filter(isMomentActive)));
+    } catch {}
+}
+async function uploadToNostrMedia(file) {
+    const statusEl = document.getElementById('momentUploadStatus');
+    for (const endpoint of NOSTR_MEDIA_UPLOAD_URLS) {
+        try {
+            if (statusEl) statusEl.textContent = 'Enviando mídia…';
+            const form = new FormData();
+            form.append('file[]', file, file.name || ('moment.' + (file.type.includes('video') ? 'mp4' : 'jpg')));
+            form.append('file', file, file.name || 'moment.bin');
+            const res = await fetch(endpoint, { method: 'POST', body: form });
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data?.data?.[0]?.url) return data.data[0].url;
+            if (data?.nip94_event?.tags) {
+                const urlTag = data.nip94_event.tags.find(t => t[0] === 'url');
+                if (urlTag?.[1]) return urlTag[1];
+            }
+            if (data?.url) return data.url;
+            if (typeof data === 'string' && data.startsWith('http')) return data;
+            if (Array.isArray(data) && data[0]?.url) return data[0].url;
+        } catch (e) {
+            console.warn('upload fail', endpoint, e);
+        }
+    }
+    if (file.type.startsWith('image/') && file.size < 400000) {
+        return await new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = reject;
+            r.readAsDataURL(file);
+        });
+    }
+    throw new Error('Falha no upload da mídia');
+}
+function openCreateMomentModal() {
+    if (!isMobileDevice()) {
+        alert('Postar momentos só está disponível no celular.');
+        return;
+    }
+    pendingMomentFile = null;
+    document.getElementById('momentPreviewWrap').style.display = 'none';
+    document.getElementById('momentPreviewWrap').innerHTML = '';
+    document.getElementById('momentPublishBtn').style.display = 'none';
+    document.getElementById('momentUploadStatus').textContent = '';
+    document.getElementById('createMomentModal').classList.add('show');
+}
+function closeCreateMomentModal() {
+    document.getElementById('createMomentModal').classList.remove('show');
+    if (pendingMomentFile?.previewUrl) URL.revokeObjectURL(pendingMomentFile.previewUrl);
+    pendingMomentFile = null;
+}
+document.getElementById('momentPhotoInput')?.addEventListener('change', e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    prepareMomentFile(file, 'image');
+});
+document.getElementById('momentVideoInput')?.addEventListener('change', e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const vid = document.createElement('video');
+    vid.preload = 'metadata';
+    vid.src = url;
+    vid.onloadedmetadata = () => {
+        const dur = vid.duration;
+        URL.revokeObjectURL(url);
+        if (isFinite(dur) && dur > MOMENT_VIDEO_MAX_SEC + 0.5) {
+            alert('Vídeo deve ter no máximo 30 segundos.');
+            return;
+        }
+        prepareMomentFile(file, 'video');
+    };
+    vid.onerror = () => {
+        URL.revokeObjectURL(url);
+        alert('Não foi possível ler o vídeo.');
+    };
+});
+function prepareMomentFile(file, type) {
+    if (pendingMomentFile?.previewUrl) URL.revokeObjectURL(pendingMomentFile.previewUrl);
+    const previewUrl = URL.createObjectURL(file);
+    pendingMomentFile = { blob: file, type, previewUrl };
+    const wrap = document.getElementById('momentPreviewWrap');
+    wrap.style.display = 'block';
+    if (type === 'video') {
+        wrap.innerHTML = `<video class="moment-preview-media" src="${previewUrl}" controls playsinline></video>`;
+    } else {
+        wrap.innerHTML = `<img class="moment-preview-media" src="${previewUrl}" alt="Preview">`;
+    }
+    document.getElementById('momentPublishBtn').style.display = 'flex';
+    document.getElementById('momentUploadStatus').textContent = '';
+}
+async function publishMoment() {
+    if (!pendingMomentFile) return;
+    const sk = getPrivateKeyBytes();
+    if (!sk || !window.NostrTools || !currentUserPubkey) {
+        alert('Sessão inválida');
+        return;
+    }
+    const statusEl = document.getElementById('momentUploadStatus');
+    const btn = document.getElementById('momentPublishBtn');
+    try {
+        if (btn) btn.disabled = true;
+        if (statusEl) statusEl.textContent = 'Enviando…';
+        const mediaUrl = await uploadToNostrMedia(pendingMomentFile.blob);
+        if (!nostrPool) nostrPool = new NostrTools.SimplePool();
+        const now = Date.now();
+        const expiresAt = now + MOMENT_MAX_TTL_MS;
+        const dTag = 'moment-' + now + '-' + Math.random().toString(36).slice(2, 8);
+        const content = JSON.stringify({
+            lore: 1,
+            type: 'moment',
+            url: mediaUrl,
+            mediaType: pendingMomentFile.type,
+            createdAt: now,
+            expiresAt
+        });
+        const signed = NostrTools.finalizeEvent({
+            kind: MOMENT_KIND,
+            created_at: Math.floor(now / 1000),
+            tags: [
+                ['d', dTag],
+                ['expiration', String(Math.floor(expiresAt / 1000))]
+            ],
+            content
+        }, sk);
+        await Promise.any(nostrPool.publish(NORST_RELAYS, signed));
+        const moment = {
+            url: mediaUrl,
+            type: pendingMomentFile.type,
+            time: now,
+            expiresAt,
+            eventId: signed.id,
+            dTag
+        };
+        const list = getOwnMoments();
+        list.unshift(moment);
+        saveOwnMoments(list);
+        closeCreateMomentModal();
+        if (listMode === 'momentos') renderMomentos();
+    } catch (err) {
+        console.error(err);
+        if (statusEl) statusEl.textContent = 'Erro: ' + (err.message || 'falha ao publicar');
+        alert('Erro ao publicar momento.');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+function renderMomentos() {
+    const scroll = document.getElementById('momentosScroll');
+    if (!scroll) return;
+    scroll.innerHTML = '';
+    const own = getOwnMoments();
+    const ownItem = document.createElement('div');
+    ownItem.className = 'moment-item';
+    const canPost = isMobileDevice();
+    ownItem.onclick = () => {
+        if (own.length) openMomentViewer('__own__');
+        else if (canPost) openCreateMomentModal();
+        else alert('Postar momentos só no celular. Aqui você só visualiza.');
+    };
+    ownItem.innerHTML = `
+        <div class="moment-ring own">
+            <div class="moment-avatar" id="ownMomentAvatar">
+                <i class="fa-solid fa-user"></i>
+                ${canPost ? '<div class="moment-add-btn" title="Novo momento" onclick="event.stopPropagation();openCreateMomentModal()"><i class="fa-solid fa-plus"></i></div>' : ''}
+            </div>
+        </div>
+        <div class="moment-name">${own.length ? 'Seus momentos' : (canPost ? 'Novo momento' : 'Momentos')}</div>
+    `;
+    scroll.appendChild(ownItem);
+    fetchNostrProfile(currentUserPubkey).then(p => {
+        const el = document.getElementById('ownMomentAvatar');
+        if (el && p.picture) {
+            const plus = canPost
+                ? '<div class="moment-add-btn" onclick="event.stopPropagation();openCreateMomentModal()"><i class="fa-solid fa-plus"></i></div>'
+                : '';
+            el.innerHTML = `<img src="${escapeAttr(p.picture)}" alt="">${plus}`;
+        }
+    });
+    chatsData
+        .filter(c => c.status === 'accepted' && c.pubkey && !String(c.pubkey).startsWith('char:'))
+        .forEach(chat => {
+            const pk = chat.pubkey.toLowerCase();
+            let list = (momentsMap.get(pk) || []).filter(isMomentActive);
+            if (!list.length) return;
+            const unviewed = list.filter(m => !hasViewedMoment(m.eventId));
+            const nameShort = (chat.name || '').replace(/^@/, '').substring(0, 10) || 'user';
+            const item = document.createElement('div');
+            item.className = 'moment-item';
+            item.onclick = () => {
+                if (!unviewed.length) {
+                    alert('Você já viu os momentos deste contato.');
+                    return;
+                }
+                openMomentViewer(chat.id);
+            };
+            item.innerHTML = `
+                <div class="moment-ring ${unviewed.length ? '' : 'viewed'}">
+                    <div class="moment-avatar">${avatarHtml(chat)}</div>
+                </div>
+                <div class="moment-name">${escapeAttr(nameShort)}</div>
+            `;
+            scroll.appendChild(item);
+        });
+}
+function buildMomentQueue(startId) {
+    const queue = [];
+    const own = getOwnMoments();
+    if (own.length) {
+        queue.push({
+            id: '__own__', name: 'Seus momentos', isOwn: true,
+            pubkey: currentUserPubkey, slides: [...own]
+        });
+    }
+    chatsData
+        .filter(c => c.status === 'accepted' && c.pubkey && !String(c.pubkey).startsWith('char:'))
+        .forEach(chat => {
+            const pk = chat.pubkey.toLowerCase();
+            let list = (momentsMap.get(pk) || []).filter(isMomentActive);
+            list = list.filter(m => !hasViewedMoment(m.eventId));
+            if (!list.length) return;
+            queue.push({
+                id: chat.id, name: chat.name || '@usuario',
+                avatarUrl: chat.avatarUrl || '', avatar: chat.avatar || '',
+                pubkey: chat.pubkey, isOwn: false, slides: [...list]
+            });
+        });
+    let startIdx = 0;
+    if (startId === '__own__') startIdx = 0;
+    else if (startId != null) {
+        const i = queue.findIndex(u => u.id === startId);
+        if (i >= 0) startIdx = i;
+    }
+    return { queue, startIdx };
+}
+function openMomentViewer(startId) {
+    const { queue, startIdx } = buildMomentQueue(startId);
+    if (!queue.length) return;
+    currentMomentQueue = queue;
+    currentMomentIndex = startIdx;
+    document.getElementById('momentViewerOverlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
+    showCurrentMoment();
+}
+function closeMomentViewer() {
+    if (momentProgressTimer) { cancelAnimationFrame(momentProgressTimer); momentProgressTimer = null; }
+    if (momentActiveVideo) { try { momentActiveVideo.pause(); } catch {} momentActiveVideo = null; }
+    document.getElementById('momentViewerOverlay').classList.remove('show');
+    document.body.style.overflow = '';
+    currentMomentQueue = [];
+    if (listMode === 'momentos') renderMomentos();
+}
+async function showCurrentMoment() {
+    if (momentProgressTimer) { cancelAnimationFrame(momentProgressTimer); momentProgressTimer = null; }
+    if (momentActiveVideo) { try { momentActiveVideo.pause(); } catch {} momentActiveVideo = null; }
+    const user = currentMomentQueue[currentMomentIndex];
+    if (!user || !user.slides?.length) { closeMomentViewer(); return; }
+    const slide = user.slides[0];
+    document.getElementById('momentViewerName').textContent = user.isOwn ? 'Seus momentos' : (user.name || '');
+    document.getElementById('momentViewerTime').textContent = formatStoryTime(slide.time) +
+        (slide.expiresAt ? ' · expira em ' + formatRemaining(slide.expiresAt - Date.now()) : '');
+    const delBtn = document.getElementById('momentViewerDelete');
+    if (delBtn) delBtn.style.display = user.isOwn ? 'block' : 'none';
+    const avEl = document.getElementById('momentViewerAvatar');
+    if (user.isOwn) {
+        try {
+            const p = await fetchNostrProfile(currentUserPubkey);
+            avEl.innerHTML = p.picture ? `<img src="${escapeAttr(p.picture)}" alt="">` : 'EU';
+        } catch { avEl.textContent = 'EU'; }
+    } else if (user.avatarUrl) {
+        avEl.innerHTML = `<img src="${escapeAttr(user.avatarUrl)}" alt="">`;
+    } else {
+        avEl.textContent = (user.avatar || '?').toString().substring(0, 2).toUpperCase();
+    }
+    document.getElementById('momentProgressBar').innerHTML =
+        `<div class="story-progress-segment"><div class="story-progress-fill" id="momentFill" style="width:0%"></div></div>`;
+    const content = document.getElementById('momentViewerContent');
+    content.querySelector('.story-viewer-media')?.remove();
+    const placeholder = document.getElementById('momentViewerPlaceholder');
+    const isVideo = slide.type === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(slide.url || '');
+    if (isVideo && slide.url) {
+        placeholder.style.display = 'none';
+        const vid = document.createElement('video');
+        vid.className = 'story-viewer-media';
+        vid.src = slide.url;
+        vid.playsInline = true;
+        vid.setAttribute('playsinline', '');
+        content.insertBefore(vid, content.firstChild);
+        momentActiveVideo = vid;
+        const tick = () => {
+            if (!momentActiveVideo) return;
+            const v = momentActiveVideo;
+            if (isFinite(v.duration) && v.duration > 0) {
+                const pct = Math.min(100, (v.currentTime / Math.min(v.duration, MOMENT_VIDEO_MAX_SEC)) * 100);
+                const fill = document.getElementById('momentFill');
+                if (fill) fill.style.width = pct + '%';
+                if (v.ended || v.currentTime >= Math.min(v.duration, MOMENT_VIDEO_MAX_SEC) - 0.05) {
+                    finishCurrentMomentSlide(user, slide);
+                    return;
+                }
+            }
+            momentProgressTimer = requestAnimationFrame(tick);
+        };
+        vid.onended = () => finishCurrentMomentSlide(user, slide);
+        const p = vid.play();
+        if (p && p.catch) p.catch(() => {});
+        momentProgressTimer = requestAnimationFrame(tick);
+    } else if (slide.url) {
+        placeholder.style.display = 'none';
+        const img = document.createElement('img');
+        img.className = 'story-viewer-media';
+        img.src = slide.url;
+        img.alt = 'Momento';
+        content.insertBefore(img, content.firstChild);
+        const duration = 5000;
+        const t0 = performance.now();
+        const tick = (now) => {
+            const pct = Math.min(100, ((now - t0) / duration) * 100);
+            const fill = document.getElementById('momentFill');
+            if (fill) fill.style.width = pct + '%';
+            if (pct >= 100) { finishCurrentMomentSlide(user, slide); return; }
+            momentProgressTimer = requestAnimationFrame(tick);
+        };
+        momentProgressTimer = requestAnimationFrame(tick);
+    } else {
+        placeholder.style.display = 'block';
+        placeholder.textContent = 'Mídia indisponível';
+        setTimeout(() => finishCurrentMomentSlide(user, slide), 1500);
+    }
+}
+function finishCurrentMomentSlide(user, slide) {
+    if (momentProgressTimer) { cancelAnimationFrame(momentProgressTimer); momentProgressTimer = null; }
+    if (momentActiveVideo) { try { momentActiveVideo.pause(); } catch {} momentActiveVideo = null; }
+    if (!user.isOwn && slide.eventId) markMomentViewed(slide.eventId);
+    user.slides.shift();
+    if (user.slides.length) {
+        showCurrentMoment();
+        return;
+    }
+    currentMomentIndex++;
+    if (currentMomentIndex < currentMomentQueue.length) {
+        showCurrentMoment();
+    } else {
+        closeMomentViewer();
+    }
+}
+async function deleteCurrentOwnMoment() {
+    const user = currentMomentQueue[currentMomentIndex];
+    if (!user?.isOwn) return;
+    const slide = user.slides[0];
+    if (!slide) return;
+    if (!confirm('Apagar este momento?')) return;
+    const sk = getPrivateKeyBytes();
+    if (!sk || !window.NostrTools) return;
+    try {
+        if (!nostrPool) nostrPool = new NostrTools.SimplePool();
+        if (slide.eventId) {
+            const del = NostrTools.finalizeEvent({
+                kind: 5,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [['e', slide.eventId], ['k', String(MOMENT_KIND)]],
+                content: 'delete moment'
+            }, sk);
+            nostrPool.publish(NORST_RELAYS, del);
+        }
+        saveOwnMoments(getOwnMoments().filter(m => m.eventId !== slide.eventId));
+        user.slides.shift();
+        if (!user.slides.length) closeMomentViewer();
+        else showCurrentMoment();
+        if (listMode === 'momentos') renderMomentos();
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao apagar.');
+    }
+}
+document.getElementById('momentViewerClose')?.addEventListener('click', e => {
+    e.stopPropagation(); closeMomentViewer();
+});
+document.getElementById('momentViewerDelete')?.addEventListener('click', e => {
+    e.stopPropagation(); deleteCurrentOwnMoment();
+});
+document.getElementById('momentViewerOverlay')?.addEventListener('click', e => {
+    if (e.target.id === 'momentViewerOverlay') closeMomentViewer();
+});
+async function loadMomentsFromNetwork() {
+    if (!window.NostrTools || !currentUserPubkey) return;
+    try {
+        if (!nostrPool) nostrPool = new NostrTools.SimplePool();
+        const authors = [...new Set([
+            currentUserPubkey,
+            ...chatsData.map(c => c.pubkey).filter(p => p && !String(p).startsWith('char:'))
+        ].map(p => String(p).toLowerCase()))];
+        if (!authors.length) return;
+        const since = Math.floor(Date.now() / 1000) - 24 * 60 * 60;
+        const events = await nostrPool.querySync(NORST_RELAYS, {
+            kinds: [MOMENT_KIND], authors, since, limit: 150
+        });
+        const now = Date.now();
+        const byAuthor = new Map();
+        (events || []).forEach(ev => {
+            try {
+                const data = JSON.parse(ev.content || '{}');
+                if (data.lore !== 1 || data.type !== 'moment' || !data.url) return;
+                const expTag = (ev.tags || []).find(t => t[0] === 'expiration')?.[1];
+                const expiresAt = data.expiresAt || (expTag ? Number(expTag) * 1000 : (ev.created_at * 1000 + MOMENT_MAX_TTL_MS));
+                if (now >= expiresAt) return;
+                const pk = ev.pubkey.toLowerCase();
+                if (!byAuthor.has(pk)) byAuthor.set(pk, []);
+                byAuthor.get(pk).push({
+                    url: data.url,
+                    type: data.mediaType || 'image',
+                    time: data.createdAt || (ev.created_at * 1000),
+                    expiresAt,
+                    eventId: ev.id,
+                    dTag: (ev.tags || []).find(t => t[0] === 'd')?.[1] || ''
+                });
+            } catch {}
+        });
+        byAuthor.forEach((slides, pk) => {
+            slides.sort((a, b) => (b.time || 0) - (a.time || 0));
+            const trimmed = slides.slice(0, 40);
+            if (pk === String(currentUserPubkey).toLowerCase()) saveOwnMoments(trimmed);
+            else momentsMap.set(pk, trimmed);
+        });
+        if (listMode === 'momentos') renderMomentos();
+    } catch (e) { console.warn(e); }
+}
+
 function getOwnStories() {
     if (!currentUserPubkey) return [];
     try {
@@ -1749,6 +2329,10 @@ document.addEventListener('keydown', e => {
         if (e.key === 'Escape') closeNoteViewer();
         return;
     }
+    if (document.getElementById('momentViewerOverlay')?.classList.contains('show')) {
+        if (e.key === 'Escape') closeMomentViewer();
+        return;
+    }
     if (!document.getElementById('storyViewerOverlay').classList.contains('show')) return;
     if (e.key === 'Escape') closeStoryViewer();
     if (e.key === 'ArrowRight') goNextStorySlide();
@@ -1901,8 +2485,7 @@ function renderChatList() {
     });
     if (!filtered.length) {
         chatListEl.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:14px;">${currentTab === 'personagens' ? 'Nenhum personagem.' : currentTab === 'bloqueados' ? 'Nenhum bloqueado' : 'Nenhum contato. Adicione via QR.'}</div>`;
-        if (listMode === 'story') renderStories();
-        else renderNotes();
+        refreshCurrentListMode();
         return;
     }
     filtered.forEach(chat => {
@@ -1913,8 +2496,7 @@ function renderChatList() {
         item.addEventListener('click', () => selectChat(chat.id));
         chatListEl.appendChild(item);
     });
-    if (listMode === 'story') renderStories();
-    else renderNotes();
+    refreshCurrentListMode();
 }
 function selectChat(id) {
     if (activeChatAudio) { activeChatAudio.pause(); activeChatAudio = null; }
@@ -2253,6 +2835,7 @@ async function bootChatNostr() {
     await startPresenceListener();
     await loadStoriesFromNetwork();
     await loadNotesFromNetwork();
+    await loadMomentsFromNetwork();
     setListMode(listMode);
     updateSearchClearBtn();
 }
