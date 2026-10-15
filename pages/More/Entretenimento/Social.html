@@ -165,7 +165,7 @@
  <span>Foto / Vídeo</span>
  <input type="file" id="postMediaFileInput" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,video/mp4,video/webm,video/quicktime" class="hidden" onchange="handlePostMediaFileSelect(event)">
  </label>
- <span class="text-[11px] text-gray-400">Compacta + NIP-96 ao publicar (menos partes, mais rápido)</span>
+ <span class="text-[11px] text-gray-400">Compacta + NIP-96 ao publicar</span>
  </div>
  <div class="p-4 bg-gray-50 border-t border-gray-100">
  <button onclick="publishNostrNote()" class="w-full bg-secondary text-white py-2.5 rounded-xl text-sm font-semibold">Publicar na Rede</button>
@@ -404,7 +404,6 @@ import { bytesToHex, hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils
 import * as nip04 from 'https://esm.sh/nostr-tools@2.10.4/nip04';
 import QRCode from 'https://esm.sh/qrcode@1.5.3';
 
-/* ═══════════════ CRYPTO / AUTH HELPERS ═══════════════ */
 async function deriveKeyFromPassword(password, salt = 'loresocial-salt-v1') {
     const enc = new TextEncoder();
     const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
@@ -431,14 +430,14 @@ async function decryptPrivateKey(encryptedBase64, password) {
 
 const EMAIL_INDEX_D_PREFIX = 'loreplay-email-v1-';
 const CLIENT_TAG = 'LorePlay';
-const NIP96_MAX_SINGLE = 5 * 1024 * 1024;
+const NIP96_MAX_SINGLE = 20 * 1024 * 1024;
 const COMPRESS_MAX_EDGE = 1920;
 const COMPRESS_JPEG_QUALITY = 0.72;
 const COMPRESS_WEBP_QUALITY = 0.75;
 const FEED_CACHE_KEY = 'loresocial_feed_cache_v2';
 const FEED_CACHE_TTL_MS = 10 * 60 * 1000;
 const RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band', 'wss://relay.primal.net'];
-const NIP96_SERVERS = ['https://nostr.build', 'https://nostrcheck.me', 'https://void.cat'];
+const NIP96_SERVERS = ['https://nostr.build', 'https://nostrcheck.me', 'https://nostrmedia.com'];
 const NSFW_THRESHOLDS = { Porn: 0.55, Hentai: 0.55, Sexy: 0.70 };
 const FEED_PREFS_D_TAG = 'loreplay-feed-preferences';
 const AVATAR_HISTORY_KEY = 'loresocial_avatar_history';
@@ -519,21 +518,139 @@ async function sha256HexOfArrayBuffer(buf) {
     const hash = await crypto.subtle.digest('SHA-256', buf);
     return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
+
 function nip98AuthHeader(signedEvent) {
     const json = JSON.stringify(signedEvent);
+    const bytes = new TextEncoder().encode(json);
     let binary = '';
-    new TextEncoder().encode(json).forEach(b => { binary += String.fromCharCode(b); });
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
     return 'Nostr ' + btoa(binary);
 }
+
 async function discoverNip96(serverBase) {
-    const res = await fetch(serverBase.replace(/\/$/, '') + '/.well-known/nostr/nip96.json');
-    if (!res.ok) throw new Error('NIP-96 config indisponível: ' + serverBase);
-    return res.json();
+    const url = serverBase.replace(/\/$/, '') + '/.well-known/nostr/nip96.json';
+    const res = await fetch(url, { method: 'GET' });
+    if (!res.ok) throw new Error('Discovery falhou (' + res.status + '): ' + serverBase);
+    const cfg = await res.json();
+    if (!cfg?.api_url) throw new Error('api_url ausente em ' + serverBase);
+    return cfg;
 }
 
-/* ═══════════════ COMPRESSÃO + FATIAS (upload rápido) ═══════════════ */
+function extractUploadUrl(data) {
+    if (!data || typeof data !== 'object') return '';
+    const tags = data?.nip94_event?.tags || data?.tags || [];
+    if (Array.isArray(tags)) {
+        const urlTag = tags.find(t => Array.isArray(t) && t[0] === 'url' && t[1]);
+        if (urlTag?.[1]) return String(urlTag[1]);
+    }
+    if (data.url) return String(data.url);
+    if (data.fileUrl) return String(data.fileUrl);
+    if (data.download_url) return String(data.download_url);
+    if (data?.data?.url) return String(data.data.url);
+    if (Array.isArray(data) && data[0]) {
+        const first = data[0];
+        if (typeof first === 'string' && /^https?:\/\//i.test(first)) return first;
+        if (first?.url) return String(first.url);
+        const t = first?.tags?.find?.(x => x[0] === 'url');
+        if (t?.[1]) return String(t[1]);
+    }
+    if (data.nip94_event?.content) {
+        try { const c = JSON.parse(data.nip94_event.content); if (c.url) return String(c.url); } catch {}
+    }
+    return '';
+}
+
+async function uploadFileNip96(fileOrBlob, privKey, fileName = 'media.bin') {
+    if (!privKey) throw new Error('Login necessário para upload.');
+    if (!fileOrBlob) throw new Error('Arquivo ausente.');
+
+    const mime = fileOrBlob.type || 'application/octet-stream';
+    const asFile = fileOrBlob instanceof File
+        ? fileOrBlob
+        : new File([fileOrBlob], fileName, { type: mime });
+
+    const buf = await asFile.arrayBuffer();
+    const fileHash = await sha256HexOfArrayBuffer(buf);
+    let lastErr = null;
+
+    for (const server of NIP96_SERVERS) {
+        try {
+            const cfg = await discoverNip96(server);
+            const apiUrl = cfg.api_url;
+            const serverMax = cfg?.plans?.free?.max_byte_size;
+            if (typeof serverMax === 'number' && asFile.size > serverMax) {
+                throw new Error(`Arquivo ${(asFile.size / 1024 / 1024).toFixed(1)} MB excede limite do servidor (${(serverMax / 1024 / 1024).toFixed(0)} MB)`);
+            }
+
+            const formData = new FormData();
+            formData.append('file', asFile, asFile.name || fileName);
+            formData.append('size', String(asFile.size));
+
+            const authEvent = NostrTools.finalizeEvent({
+                kind: 27235,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [['u', apiUrl], ['method', 'POST'], ['payload', fileHash]],
+                content: ''
+            }, privKey);
+
+            const res = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { Authorization: nip98AuthHeader(authEvent) },
+                body: formData
+            });
+
+            const rawText = await res.text();
+            let data = {};
+            try { data = rawText ? JSON.parse(rawText) : {}; } catch { data = { raw: rawText }; }
+
+            if (res.status < 200 || res.status >= 300) {
+                const msg = data.message || data.error || rawText?.slice(0, 200) || res.statusText;
+                throw new Error(`HTTP ${res.status}: ${msg}`);
+            }
+            if (data.status === 'error') throw new Error(data.message || 'Servidor retornou status error');
+
+            const url = extractUploadUrl(data);
+            if (!url || !/^https?:\/\//i.test(url)) {
+                throw new Error('Resposta sem URL válida: ' + (rawText || '').slice(0, 180));
+            }
+            return url;
+        } catch (e) {
+            lastErr = e;
+            console.warn('Falha NIP-96 em', server, e);
+        }
+    }
+
+    try {
+        const apiUrl = 'https://nostr.build/api/v2/nip96/upload';
+        const formData = new FormData();
+        formData.append('file', asFile, asFile.name || fileName);
+        const authEvent = NostrTools.finalizeEvent({
+            kind: 27235,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [['u', apiUrl], ['method', 'POST'], ['payload', fileHash]],
+            content: ''
+        }, privKey);
+        const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { Authorization: nip98AuthHeader(authEvent) },
+            body: formData
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status >= 200 && res.status < 300 && data.status !== 'error') {
+            const url = extractUploadUrl(data);
+            if (url) return url;
+        }
+        throw new Error(data.message || ('HTTP ' + res.status));
+    } catch (e) {
+        lastErr = e;
+        console.warn('Fallback nostr.build falhou', e);
+    }
+
+    throw lastErr || new Error('Falha no upload NIP-96 em todos os servidores.');
+}
+
 async function compressImageFile(file) {
-    if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
+    if (!file?.type?.startsWith('image/') || file.type === 'image/gif') return file;
     try {
         const bitmap = await createImageBitmap(file);
         let { width, height } = bitmap;
@@ -558,128 +675,59 @@ async function compressImageFile(file) {
     } catch (e) { console.warn('compressImageFile', e); return file; }
 }
 
-async function compressVideoFile(file) {
-    if (!file.type.startsWith('video/') || file.size <= NIP96_MAX_SINGLE) return file;
-    try {
-        const url = URL.createObjectURL(file);
-        const video = document.createElement('video');
-        video.muted = true; video.playsInline = true; video.src = url;
-        await new Promise((resolve, reject) => { video.onloadedmetadata = () => resolve(); video.onerror = () => reject(new Error('vídeo inválido')); });
-        const w = Math.min(video.videoWidth || 1280, 1280);
-        const h = Math.min(video.videoHeight || 720, 720);
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        const stream = canvas.captureStream(24);
-        const mimeCandidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
-        const mime = mimeCandidates.find(m => window.MediaRecorder?.isTypeSupported?.(m)) || '';
-        if (!mime || !window.MediaRecorder) { URL.revokeObjectURL(url); return file; }
-        const parts = [];
-        const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 1_200_000 });
-        recorder.ondataavailable = e => { if (e.data?.size) parts.push(e.data); };
-        const done = new Promise(resolve => { recorder.onstop = resolve; });
-        await video.play();
-        recorder.start(200);
-        const draw = () => { if (video.ended || video.paused) return; ctx.drawImage(video, 0, 0, w, h); requestAnimationFrame(draw); };
-        draw();
-        await new Promise(resolve => {
-            video.onended = resolve;
-            setTimeout(resolve, Math.min((video.duration || 60) * 1000 + 500, 180000));
-        });
-        video.pause(); recorder.stop(); await done;
-        URL.revokeObjectURL(url); stream.getTracks().forEach(t => t.stop());
-        if (!parts.length) return file;
-        const blob = new Blob(parts, { type: 'video/webm' });
-        if (blob.size >= file.size * 0.95) return file;
-        const base = (file.name || 'video').replace(/\.[^.]+$/, '');
-        return new File([blob], `${base}.webm`, { type: 'video/webm', lastModified: Date.now() });
-    } catch (e) { console.warn('compressVideoFile', e); return file; }
-}
+async function compressVideoFile(file) { return file; }
 
 async function compressMediaFile(file, onStatus) {
     if (!file) return file;
-    if (file.type.startsWith('image/')) { if (onStatus) onStatus('Compactando imagem...'); return compressImageFile(file); }
-    if (file.type.startsWith('video/')) { if (onStatus) onStatus('Compactando vídeo...'); return compressVideoFile(file); }
+    if (file.type?.startsWith('image/')) {
+        if (onStatus) onStatus('Compactando imagem...');
+        return compressImageFile(file);
+    }
+    if (file.type?.startsWith('video/')) {
+        if (onStatus) onStatus('Preparando vídeo...');
+        return compressVideoFile(file);
+    }
     return file;
-}
-
-function getChunkSize(fileSize) {
-    if (fileSize <= NIP96_MAX_SINGLE) return fileSize;
-    let chunk = Math.ceil(fileSize * 0.1);
-    if (chunk > NIP96_MAX_SINGLE) chunk = NIP96_MAX_SINGLE;
-    if (chunk < 256 * 1024) chunk = Math.min(NIP96_MAX_SINGLE, fileSize);
-    return chunk;
-}
-function splitFileIntoChunks(file) {
-    const chunkSize = getChunkSize(file.size);
-    const chunks = []; let offset = 0, index = 0;
-    while (offset < file.size) {
-        const end = Math.min(offset + chunkSize, file.size);
-        chunks.push({ index, blob: file.slice(offset, end), size: end - offset });
-        offset = end; index += 1;
-    }
-    return chunks;
-}
-
-async function uploadFileNip96(fileOrBlob, privKey, fileName = 'media.bin') {
-    if (!privKey) throw new Error('Login necessário para upload.');
-    if (!fileOrBlob) throw new Error('Arquivo ausente.');
-    let lastErr = null;
-    for (const server of NIP96_SERVERS) {
-        try {
-            const cfg = await discoverNip96(server);
-            const apiUrl = cfg.api_url;
-            if (!apiUrl) throw new Error('api_url ausente');
-            const formData = new FormData();
-            const asFile = fileOrBlob instanceof File ? fileOrBlob : new File([fileOrBlob], fileName, { type: fileOrBlob.type || 'application/octet-stream' });
-            formData.append('file', asFile, asFile.name);
-            const fileHash = await sha256HexOfArrayBuffer(await asFile.arrayBuffer());
-            const authEvent = NostrTools.finalizeEvent({
-                kind: 27235, created_at: Math.floor(Date.now() / 1000),
-                tags: [['u', apiUrl], ['method', 'POST'], ['payload', fileHash]], content: ''
-            }, privKey);
-            const res = await fetch(apiUrl, { method: 'POST', headers: { Authorization: nip98AuthHeader(authEvent) }, body: formData });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || data.status === 'error') throw new Error(data.message || ('HTTP ' + res.status));
-            let url = '';
-            const tags = data?.nip94_event?.tags || data?.tags || [];
-            const urlTag = tags.find(t => t[0] === 'url');
-            if (urlTag?.[1]) url = urlTag[1];
-            if (!url) url = data.url || data.fileUrl || data.download_url || data?.data?.url || '';
-            if (!url && data.nip94_event?.content) { try { url = JSON.parse(data.nip94_event.content).url || ''; } catch {} }
-            if (!url || !/^https?:\/\//i.test(url)) throw new Error('Servidor não retornou URL.');
-            return url;
-        } catch (e) { lastErr = e; console.warn('Falha NIP-96 em', server, e); }
-    }
-    throw lastErr || new Error('Falha no upload NIP-96.');
 }
 
 async function uploadMediaForPost(file, privKey, onProgress) {
     const statusEl = document.getElementById('mediaUploadStatus');
-    const compressed = await compressMediaFile(file, msg => { if (statusEl) statusEl.textContent = msg; if (onProgress) onProgress(0, 1); });
+    const compressed = await compressMediaFile(file, msg => { if (statusEl) statusEl.textContent = msg; });
     const mime = compressed.type || file.type || 'application/octet-stream';
     const fullBuf = await compressed.arrayBuffer();
     const fullHash = await sha256HexOfArrayBuffer(fullBuf);
-    const needsChunk = compressed.size > NIP96_MAX_SINGLE;
-    const chunks = needsChunk ? splitFileIntoChunks(compressed) : [{ index: 0, blob: compressed, size: compressed.size }];
-    if (statusEl) {
-        const mb = (compressed.size / 1024 / 1024).toFixed(2);
-        const origMb = (file.size / 1024 / 1024).toFixed(2);
-        statusEl.textContent = needsChunk
-            ? `Compactado ${origMb}→${mb} MB · ${chunks.length} parte(s). Enviando...`
-            : `Compactado ${origMb}→${mb} MB · 1 arquivo. Enviando...`;
+
+    if (compressed.size <= NIP96_MAX_SINGLE) {
+        if (statusEl) statusEl.textContent = `Enviando arquivo (${(compressed.size / 1024 / 1024).toFixed(2)} MB)...`;
+        if (onProgress) onProgress(0, 1);
+        const name = compressed.name || (mime.startsWith('video/') ? 'video.mp4' : 'image.jpg');
+        const url = await uploadFileNip96(compressed, privKey, name);
+        if (onProgress) onProgress(1, 1);
+        return { mime, fullHash, size: compressed.size, originalSize: file.size, chunked: false, chunks: [{ index: 0, url, size: compressed.size }] };
     }
-    if (onProgress) onProgress(0, chunks.length);
-    const results = await Promise.all(chunks.map(async ch => {
-        const name = needsChunk
-            ? `chunk_${String(ch.index).padStart(4, '0')}_${compressed.name || 'media.bin'}`
-            : (compressed.name || (mime.startsWith('video/') ? 'video.webm' : 'image.jpg'));
-        const url = await uploadFileNip96(ch.blob, privKey, name);
-        if (onProgress) onProgress(null, chunks.length);
-        return { index: ch.index, url, size: ch.size };
-    }));
+
+    const CHUNK_BYTES = 5 * 1024 * 1024;
+    const parts = [];
+    let offset = 0, index = 0;
+    while (offset < compressed.size) {
+        const end = Math.min(offset + CHUNK_BYTES, compressed.size);
+        parts.push({ index, blob: new Blob([compressed.slice(offset, end)], { type: 'application/octet-stream' }), size: end - offset });
+        offset = end; index += 1;
+    }
+
+    if (statusEl) statusEl.textContent = `Arquivo grande: ${parts.length} partes de ~5 MB. Enviando...`;
+    if (onProgress) onProgress(0, parts.length);
+
+    const results = [];
+    for (const ch of parts) {
+        const name = `lp_chunk_${String(ch.index).padStart(4, '0')}.bin`;
+        const url = await uploadFileNip96(new File([ch.blob], name, { type: 'application/octet-stream' }), privKey, name);
+        results.push({ index: ch.index, url, size: ch.size });
+        if (statusEl) statusEl.textContent = `Parte ${results.length}/${parts.length} enviada...`;
+        if (onProgress) onProgress(results.length, parts.length);
+    }
     results.sort((a, b) => a.index - b.index);
-    return { mime, fullHash, size: compressed.size, originalSize: file.size, chunked: needsChunk || results.length > 1, chunks: results };
+    return { mime, fullHash, size: compressed.size, originalSize: file.size, chunked: true, chunks: results };
 }
 
 function buildMediaTagsFromUpload(uploadResult) {
@@ -740,9 +788,9 @@ window.handlePostMediaFileSelect = function(event) {
     else if (isVideo && videoPreview) { videoPreview.src = localUrl; videoPreview.classList.remove('hidden'); }
     previewContainer?.classList.remove('hidden');
     if (statusEl) {
-        statusEl.textContent = file.size > NIP96_MAX_SINGLE * 1.5
-            ? `Arquivo ${(file.size / 1024 / 1024).toFixed(1)} MB — será compactado e fatiado só ao publicar.`
-            : `Pronto (${(file.size / 1024).toFixed(0)} KB). Compactação + upload só ao publicar.`;
+        statusEl.textContent = file.size > NIP96_MAX_SINGLE
+            ? `Arquivo ${(file.size / 1024 / 1024).toFixed(1)} MB — será compactado ao publicar.`
+            : `Pronto (${(file.size / 1024).toFixed(0)} KB). Upload só ao publicar.`;
     }
     if (input) input.value = '';
 };
@@ -769,7 +817,6 @@ function getFeedSkeletonHtml(count = 3) {
     return Array(count).fill(card).join('');
 }
 
-/* ═══════════════ FEED / MÍDIA DISPLAY ═══════════════ */
 function isBlockedDomain(url) {
     if (!url) return false;
     try {
@@ -928,7 +975,6 @@ function linkifyAndEscape(text) {
     });
 }
 
-/* ═══════════════ CACHE FEED ═══════════════ */
 function saveFeedCache(events) {
     try {
         const slim = events.slice(0, 200).map(e => ({ id: e.id, pubkey: e.pubkey, created_at: e.created_at, content: e.content, tags: e.tags, kind: e.kind, sig: e.sig }));
@@ -939,7 +985,6 @@ function loadFeedCache() { try { return JSON.parse(localStorage.getItem(FEED_CAC
 function invalidateFeedCache() { try { localStorage.removeItem(FEED_CACHE_KEY); } catch {} }
 function isFeedCacheFresh() { const d = loadFeedCache(); return !!(d && (Date.now() - (d.ts || 0)) < FEED_CACHE_TTL_MS); }
 
-/* ═══════════════ AVATAR HISTORY ═══════════════ */
 function getAvatarHistory() {
     try { const list = JSON.parse(localStorage.getItem(AVATAR_HISTORY_KEY) || '[]'); return Array.isArray(list) ? list.filter(u => typeof u === 'string' && /^https?:\/\//i.test(u)) : []; } catch { return []; }
 }
@@ -1138,7 +1183,6 @@ function buildFbPostHtml(ev, p) {
     return `<div class="fb-post"><div class="fb-post-inner"><div class="fb-post-header"><div class="fb-avatar" onclick="openUserProfileModal('${ev.pubkey}')">${avatar}</div><div class="min-w-0 flex-1"><div class="fb-author" onclick="openUserProfileModal('${ev.pubkey}')">${escapeHtml(displayName)}</div><div class="fb-meta"><span>${timeAgo}</span><span>·</span><button type="button" onclick="translatePostText('${ev.id}','${esc}')" class="text-[12px] text-secondary font-medium hover:underline">Traduzir</button></div></div></div>${warning}${textHtml}<div id="translation-${ev.id}" class="hidden mb-2"></div></div>${mediaHtml || ''}<div class="fb-stats"><button type="button" onclick="openLikesModal('${ev.id}')" class="hover:underline"><i class="fa-solid fa-thumbs-up fb-like-icon text-xs mr-1"></i><span id="like-count-${ev.id}">${likesCount}</span></button><button type="button" onclick="openCommentsModal('${ev.id}','${ev.pubkey}')" class="hover:underline"><span id="comment-count-${ev.id}">${commentsCount}</span> comentário${commentsCount === 1 ? '' : 's'}</button></div><div class="fb-actions"><button type="button" id="like-btn-${ev.id}" onclick="toggleLikePost('${ev.id}','${ev.pubkey}')" class="${likeClass}"><i class="${likeIcon}"></i><span>${likeLabel}</span></button><button type="button" onclick="openCommentsModal('${ev.id}','${ev.pubkey}')" class="fb-action-btn"><i class="fa-regular fa-comment"></i><span>Comentar</span></button><button type="button" onclick="sharePost('${ev.id}','${esc}')" class="fb-action-btn"><i class="fa-solid fa-share"></i><span>Compartilhar</span></button></div></div>`;
 }
 
-/* Partner ads, QR, auth, comments, search, feed fetch — compact implementations */
 function parseCampaignFromEvent(ev) {
     try {
         const data = JSON.parse(ev.content || '{}');
@@ -1663,7 +1707,7 @@ window.publishNostrNote = async function() {
         try {
             if (statusEl) statusEl.textContent = 'Compactando e enviando (NIP-96)...';
             const uploadResult = await uploadMediaForPost(selectedFileBlob, currentUserData.privateKey, () => {
-                if (statusEl) statusEl.textContent = 'Enviando partes em paralelo...';
+                if (statusEl) statusEl.textContent = 'Enviando...';
             });
             buildMediaTagsFromUpload(uploadResult).forEach(t => tags.push(t));
             if (!uploadResult.chunked && uploadResult.chunks[0]?.url) {
