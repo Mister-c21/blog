@@ -137,9 +137,12 @@
             </a>
 
             <div class="flex-1 min-w-0 max-w-xs md:max-w-md mx-auto flex items-center gap-2">
-                <div class="flex flex-1 min-w-0 items-center bg-gray-50 border border-gray-200 rounded-full overflow-hidden focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20">
-                    <input type="search" placeholder="Pesquisar filmes, séries..."
-                           class="flex-1 min-w-0 bg-transparent px-3 sm:px-4 py-1.5 text-sm text-gray-800 placeholder:text-gray-400 outline-none">
+                <div class="flex flex-1 min-w-0 items-center bg-gray-50 border border-gray-200 rounded-full overflow-hidden focus-within:border-secondary focus-within:ring-2 focus-within:ring-secondary/20 relative">
+                    <input type="search" id="searchInput" placeholder="Pesquisar filmes, séries..." oninput="handleSearchInput(this.value)"
+                           class="flex-1 min-w-0 bg-transparent px-3 sm:px-4 py-1.5 text-sm text-gray-800 placeholder:text-gray-400 outline-none pr-8">
+                    <button type="button" id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-10 text-gray-400 hover:text-gray-600 px-1 py-1 text-xs transition" title="Apagar busca">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
                     <button type="button" class="shrink-0 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 border-l border-gray-200 text-gray-500 hover:text-secondary transition">
                         <i class="fa-solid fa-magnifying-glass"></i>
                     </button>
@@ -305,69 +308,73 @@
         </div>
     </div>
 
-    <!-- Modal de Detalhes do Título (Estilo da Imagem de Referência) -->
-    <div id="detailModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto" onclick="closeModalOnBackdrop(event, 'detailModal')">
-        <div class="bg-[#121214] text-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl shadow-2xl border border-gray-800 overflow-hidden transform transition-all max-h-[90vh] flex flex-col">
+    <!-- Modal de Detalhes do Título (Modificado para ocupar todo o espaço, sem bordas arredondadas, sem aviso, com seletor de temporada) -->
+    <div id="detailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-0 bg-black/80 backdrop-blur-md overflow-y-auto" onclick="closeModalOnBackdrop(event, 'detailModal')">
+        <div class="bg-[#121214] text-white w-full h-full sm:w-screen sm:h-screen rounded-none shadow-none border-none overflow-hidden transform transition-all flex flex-col">
             
             <!-- Cabeçalho do Modal / Banner de Reprodução -->
-            <div class="relative w-full aspect-video bg-black shrink-0">
+            <div class="relative w-full aspect-video sm:max-h-[40vh] bg-black shrink-0">
                 <img id="detailModalImg" src="" alt="Capa" class="w-full h-full object-cover opacity-85">
                 <div class="absolute inset-0 bg-gradient-to-t from-[#121214] via-transparent to-black/60"></div>
                 
                 <!-- Botão Fechar no Topo -->
-                <button type="button" onclick="closeModal('detailModal')" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition z-20">
-                    <i class="fa-solid fa-xmark text-lg"></i>
+                <button type="button" onclick="closeModal('detailModal')" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition z-20">
+                    <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
 
-                <!-- Informações Superiores sobre o Áudio / Licença (Inspirado no print) -->
-                <div class="absolute top-3 left-3 right-12 z-10 flex items-center justify-between text-[11px] text-gray-300">
-                    <div class="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
-                        <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+                <!-- Informações Superiores sobre o Áudio / Licença -->
+                <div class="absolute top-4 left-4 right-16 z-10 flex items-center justify-between text-xs text-gray-300">
+                    <div class="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                        <span class="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse"></span>
                         <span>[Áudio Português-BR]</span>
                     </div>
                 </div>
 
                 <!-- Título Principal em cima do Banner -->
-                <div class="absolute bottom-3 left-4 right-4 z-10">
-                    <h2 id="detailModalTitle" class="text-xl sm:text-2xl font-black tracking-wide text-white drop-shadow-md">Título do Conteúdo</h2>
+                <div class="absolute bottom-4 left-6 right-6 z-10">
+                    <h2 id="detailModalTitle" class="text-2xl sm:text-4xl font-black tracking-wide text-white drop-shadow-md">Título do Conteúdo</h2>
                 </div>
             </div>
 
             <!-- Corpo com Ações e Conteúdo do Modal com Scroll -->
-            <div class="p-4 sm:p-6 space-y-6 overflow-y-auto no-scrollbar">
+            <div class="p-4 sm:p-8 space-y-6 overflow-y-auto no-scrollbar flex-1">
 
                 <!-- Barra de Status Secundária -->
-                <div class="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-gray-300">
+                <div class="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs sm:text-sm text-gray-300">
                     <span class="truncate">Via Stream · Disponível em HD</span>
-                    <span class="flex items-center gap-1.5 text-secondary font-medium"><i class="fa-solid fa-shield-halved text-[10px]"></i> Verificado</span>
+                    <span class="flex items-center gap-1.5 text-secondary font-medium"><i class="fa-solid fa-shield-halved text-xs"></i> Verificado</span>
                 </div>
 
-                <!-- Botões de Ação Principais (Baixar, Áudio, Aviso, Favorito) -->
-                <div class="grid grid-cols-4 gap-2 text-center">
-                    <button type="button" class="flex flex-col items-center justify-center gap-1.5 bg-white/10 hover:bg-white/15 p-3 rounded-2xl transition group">
-                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:scale-105 transition">
-                            <i class="fa-solid fa-download text-sm"></i>
+                <!-- Botões de Ação Principais (Baixar, Áudio, Favorito - sem aviso) -->
+                <div class="grid grid-cols-3 gap-3 text-center max-w-md mx-auto sm:max-w-none">
+                    <button type="button" class="flex flex-col items-center justify-center gap-1.5 bg-white/10 hover:bg-white/15 p-3.5 rounded-2xl transition group">
+                        <div class="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:scale-105 transition">
+                            <i class="fa-solid fa-download text-base"></i>
                         </div>
-                        <span class="text-[11px] font-medium text-gray-300">Baixar</span>
+                        <span class="text-xs font-medium text-gray-300">Baixar</span>
                     </button>
-                    <button type="button" class="flex flex-col items-center justify-center gap-1.5 bg-white/10 hover:bg-white/15 p-3 rounded-2xl transition group">
-                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:scale-105 transition">
-                            <i class="fa-solid fa-headphones text-sm"></i>
+                    <button type="button" class="flex flex-col items-center justify-center gap-1.5 bg-white/10 hover:bg-white/15 p-3.5 rounded-2xl transition group">
+                        <div class="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:scale-105 transition">
+                            <i class="fa-solid fa-headphones text-base"></i>
                         </div>
-                        <span class="text-[11px] font-medium text-gray-300">Áudio</span>
+                        <span class="text-xs font-medium text-gray-300">Áudio</span>
                     </button>
-                    <button type="button" class="flex flex-col items-center justify-center gap-1.5 bg-white/10 hover:bg-white/15 p-3 rounded-2xl transition group">
-                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:scale-105 transition">
-                            <i class="fa-regular fa-bell text-sm"></i>
+                    <button type="button" class="flex flex-col items-center justify-center gap-1.5 bg-white/10 hover:bg-white/15 p-3.5 rounded-2xl transition group">
+                        <div class="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:scale-105 transition">
+                            <i class="fa-regular fa-star text-base"></i>
                         </div>
-                        <span class="text-[11px] font-medium text-gray-300">Aviso</span>
+                        <span class="text-xs font-medium text-gray-300">Favorito</span>
                     </button>
-                    <button type="button" class="flex flex-col items-center justify-center gap-1.5 bg-white/10 hover:bg-white/15 p-3 rounded-2xl transition group">
-                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:scale-105 transition">
-                            <i class="fa-regular fa-star text-sm"></i>
-                        </div>
-                        <span class="text-[11px] font-medium text-gray-300">Favorito</span>
-                    </button>
+                </div>
+
+                <!-- Seletor de Temporada -->
+                <div class="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3">
+                    <label for="seasonSelect" class="text-sm font-bold uppercase tracking-wider text-white">Temporada</label>
+                    <select id="seasonSelect" class="bg-black/40 text-white text-sm font-medium border border-white/20 rounded-lg px-3 py-1.5 outline-none focus:border-secondary transition cursor-pointer">
+                        <option value="1">Temporada 1</option>
+                        <option value="2">Temporada 2</option>
+                        <option value="3">Temporada 3</option>
+                    </select>
                 </div>
 
                 <!-- Seção de Episódios -->
@@ -389,7 +396,7 @@
                 <!-- Seção de Títulos Semelhantes -->
                 <div>
                     <h3 class="text-sm font-bold uppercase tracking-wider text-white mb-3">Títulos semelhantes</h3>
-                    <div class="grid grid-cols-3 gap-3">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div>
                             <div class="aspect-[2/3] rounded-xl bg-gray-800 overflow-hidden border border-white/5 mb-1.5">
                                 <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=300&q=80" alt="Sugestão 1" class="w-full h-full object-cover">
@@ -446,6 +453,7 @@
         /* Títulos por Provedor e Tipo (Séries / Filmes) */
         let currentProvider = 'netflix';
         let currentMediaType = 'series';
+        let searchQuery = '';
 
         const providerData = {
             netflix: {
@@ -612,14 +620,22 @@
 
         function renderCatalog() {
             const data = providerData[currentProvider] || providerData.netflix;
-            const items = currentMediaType === 'series' ? data.series : data.movies;
+            let items = currentMediaType === 'series' ? data.series : data.movies;
+
+            if (searchQuery.trim() !== '') {
+                const query = searchQuery.toLowerCase().trim();
+                items = items.filter(item => item.name.toLowerCase().includes(query));
+            }
+
             const catalogTitle = document.getElementById('catalogTitle');
             const externalAcervoLink = document.getElementById('externalAcervoLink');
             const contentGrid = document.getElementById('contentGrid');
 
             if (catalogTitle) {
                 const label = currentMediaType === 'series' ? 'Séries' : 'Filmes';
-                catalogTitle.textContent = `Recomendados para Você - ${data.name} (${label})`;
+                catalogTitle.textContent = searchQuery.trim() !== '' 
+                    ? `Resultados para "${searchQuery}" em ${data.name}` 
+                    : `Recomendados para Você - ${data.name} (${label})`;
             }
 
             if (externalAcervoLink) {
@@ -627,6 +643,11 @@
             }
 
             if (contentGrid) {
+                if (items.length === 0) {
+                    contentGrid.innerHTML = `<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título encontrado.</div>`;
+                    return;
+                }
+
                 contentGrid.innerHTML = items.map(item => `
                     <div class="content-card" onclick="openDetailModal('${item.name.replace(/'/g, "\\'")}', '${item.img}', '${item.status}')">
                         <div class="content-thumb shadow-sm">
@@ -638,6 +659,33 @@
                     </div>
                 `).join('');
             }
+        }
+
+        /* Lógica da Barra de Busca e Botão Limpar */
+        function handleSearchInput(value) {
+            searchQuery = value;
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (clearBtn) {
+                if (value.trim().length > 0) {
+                    clearBtn.classList.remove('hidden');
+                } else {
+                    clearBtn.classList.add('hidden');
+                }
+            }
+            renderCatalog();
+        }
+
+        function clearSearch() {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.value = '';
+                searchQuery = '';
+            }
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (clearBtn) {
+                clearBtn.classList.add('hidden');
+            }
+            renderCatalog();
         }
 
         /* Seleção de Mídia (Filmes / Séries) */
