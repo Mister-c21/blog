@@ -303,8 +303,8 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">URL da Capa (Imagem)</label>
-                    <input type="url" id="postCover" required placeholder="https://exemplo.com/capa.jpg" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Arquivo da Capa (Imagem do Dispositivo)</label>
+                    <input type="file" id="postCover" accept="image/*" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-secondary file:text-white hover:file:bg-secondary/90 cursor-pointer">
                 </div>
 
                 <div id="seriesFields" class="space-y-4">
@@ -335,15 +335,15 @@
                 <div id="movieFields" class="hidden space-y-4">
                     <div class="space-y-3">
                         <div class="flex items-center justify-between">
-                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-700">URLs do Filme</label>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-700">Arquivo do Filme (Vídeo do Dispositivo)</label>
                             <div class="inline-flex p-1 bg-gray-100 rounded-lg">
                                 <button type="button" id="movieBtnDub" onclick="setMovieAudioMode('dublado')" class="px-2.5 py-1 text-[11px] font-bold rounded-md transition bg-secondary text-white shadow-sm">Dublado</button>
                                 <button type="button" id="movieBtnSub" onclick="setMovieAudioMode('legendado')" class="px-2.5 py-1 text-[11px] font-bold rounded-md transition text-gray-600 hover:text-gray-900">Legendado</button>
                             </div>
                         </div>
                         <div>
-                            <input type="url" id="postVideoUrlDub" placeholder="https://exemplo.com/filme-dublado.mp4" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
-                            <input type="url" id="postVideoUrlSub" placeholder="https://exemplo.com/filme-legendado.mp4" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition hidden">
+                            <input type="file" id="postVideoFileDub" accept="video/*" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-secondary file:text-white hover:file:bg-secondary/90 cursor-pointer">
+                            <input type="file" id="postVideoFileSub" accept="video/*" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-secondary file:text-white hover:file:bg-secondary/90 cursor-pointer hidden">
                         </div>
                     </div>
                 </div>
@@ -579,11 +579,11 @@
         let activePostAudioMode = 'dublado';
         let postSeasonsData = {
             dublado: {
-                1: { 1: '', 2: '', 3: '' },
-                2: { 1: '', 2: '' }
+                1: { 1: null, 2: null, 3: null },
+                2: { 1: null, 2: null }
             },
             legendado: {
-                1: { 1: '', 2: '' }
+                1: { 1: null, 2: null }
             }
         };
         let activePostSeason = 1;
@@ -617,7 +617,7 @@
             }
 
             if (!postSeasonsData[activePostAudioMode]) {
-                postSeasonsData[activePostAudioMode] = { 1: { 1: '' } };
+                postSeasonsData[activePostAudioMode] = { 1: { 1: null } };
             }
             activePostSeason = 1;
             renderPostSeasonsTabBar();
@@ -628,8 +628,8 @@
         function setMovieAudioMode(mode) {
             const btnDub = document.getElementById('movieBtnDub');
             const btnSub = document.getElementById('movieBtnSub');
-            const inputDub = document.getElementById('postVideoUrlDub');
-            const inputSub = document.getElementById('postVideoUrlSub');
+            const inputDub = document.getElementById('postVideoFileDub');
+            const inputSub = document.getElementById('postVideoFileSub');
 
             if (mode === 'dublado') {
                 btnDub.className = "px-2.5 py-1 text-[11px] font-bold rounded-md transition bg-secondary text-white shadow-sm";
@@ -658,7 +658,7 @@
                 const prevCount = currentModeData[s] ? Object.keys(currentModeData[s]).length : 3;
                 newModeData[s] = {};
                 for (let i = 1; i <= prevCount; i++) {
-                    newModeData[s][i] = currentModeData[s] && currentModeData[s][i] ? currentModeData[s][i] : '';
+                    newModeData[s][i] = currentModeData[s] && currentModeData[s][i] !== undefined ? currentModeData[s][i] : null;
                 }
             }
             postSeasonsData[activePostAudioMode] = newModeData;
@@ -675,7 +675,7 @@
             const tabBar = document.getElementById('postSeasonsTabBar');
             if (!tabBar) return;
 
-            const modeData = postSeasonsData[activePostAudioMode] || { 1: { 1: '' } };
+            const modeData = postSeasonsData[activePostAudioMode] || { 1: { 1: null } };
             const seasonKeys = Object.keys(modeData);
             tabBar.innerHTML = seasonKeys.map(sKey => {
                 const isActive = parseInt(sKey) === parseInt(activePostSeason);
@@ -708,11 +708,11 @@
             `;
 
             for (let i = 1; i <= epsCount; i++) {
-                const val = (modeData[activePostSeason] && modeData[activePostSeason][i]) ? modeData[activePostSeason][i] : '';
+                const hasFile = (postSeasonsData[activePostAudioMode] && postSeasonsData[activePostAudioMode][activePostSeason] && postSeasonsData[activePostAudioMode][activePostSeason][i]);
                 html += `
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] text-gray-500 font-medium shrink-0 w-10">Ep ${i}</span>
-                        <input type="url" required value="${val}" oninput="updatePostEpUrl(${activePostSeason}, ${i}, this.value)" placeholder="https://exemplo.com/s${activePostSeason}e${i}.mp4" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-800 outline-none focus:border-secondary transition">
+                        <input type="file" accept="video/*" onchange="updatePostEpFile(${activePostSeason}, ${i}, this)" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-800 outline-none focus:border-secondary transition file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-gray-200 file:text-gray-700 cursor-pointer">
                     </div>
                 `;
             }
@@ -725,14 +725,12 @@
         }
 
         function changePostSeason(seasonNum) {
-            saveCurrentPostInputsState();
             activePostSeason = parseInt(seasonNum);
             renderPostSeasonsTabBar();
             renderPostSeasonEpisodesInputs();
         }
 
         function updatePostSeasonEpCount(seasonNum, newCount) {
-            saveCurrentPostInputsState();
             const count = Math.max(1, parseInt(newCount) || 1);
             if (!postSeasonsData[activePostAudioMode]) {
                 postSeasonsData[activePostAudioMode] = {};
@@ -740,50 +738,59 @@
             const currentObj = postSeasonsData[activePostAudioMode][seasonNum] || {};
             const newObj = {};
             for (let i = 1; i <= count; i++) {
-                newObj[i] = currentObj[i] ? currentObj[i] : '';
+                newObj[i] = currentObj[i] !== undefined ? currentObj[i] : null;
             }
             postSeasonsData[activePostAudioMode][seasonNum] = newObj;
             renderPostSeasonEpisodesInputs();
         }
 
-        function updatePostEpUrl(seasonNum, epNum, urlValue) {
-            if (!postSeasonsData[activePostAudioMode]) {
-                postSeasonsData[activePostAudioMode] = {};
+        function updatePostEpFile(seasonNum, epNum, fileInput) {
+            if (fileInput.files && fileInput.files[0]) {
+                if (!postSeasonsData[activePostAudioMode]) {
+                    postSeasonsData[activePostAudioMode] = {};
+                }
+                if (!postSeasonsData[activePostAudioMode][seasonNum]) {
+                    postSeasonsData[activePostAudioMode][seasonNum] = {};
+                }
+                postSeasonsData[activePostAudioMode][seasonNum][epNum] = fileInput.files[0];
             }
-            if (!postSeasonsData[activePostAudioMode][seasonNum]) {
-                postSeasonsData[activePostAudioMode][seasonNum] = {};
-            }
-            postSeasonsData[activePostAudioMode][seasonNum][epNum] = urlValue;
         }
 
         function saveCurrentPostInputsState() {
-            const wrapper = document.getElementById('postSeasonsContentWrapper');
-            if (!wrapper) return;
-            const inputs = wrapper.querySelectorAll('input[type="url"]');
-            inputs.forEach((input, index) => {
-                const epNum = index + 1;
-                if (postSeasonsData[activePostAudioMode] && postSeasonsData[activePostAudioMode][activePostSeason]) {
-                    postSeasonsData[activePostAudioMode][activePostSeason][epNum] = input.value;
-                }
-            });
+            // Arquivos já são salvos via onchange individual (updatePostEpFile)
         }
 
-        /* Lógica para enviar o formulário de postagem */
+        /* Lógica para enviar o formulário de postagem com conversão para Object URLs locais */
         function handleContentPost(event) {
             event.preventDefault();
-            saveCurrentPostInputsState();
 
             const provider = document.getElementById('postProvider').value;
             const type = document.getElementById('postType').value;
             const name = document.getElementById('postName').value;
-            const cover = document.getElementById('postCover').value;
+            const coverInput = document.getElementById('postCover');
+
+            if (!coverInput.files || !coverInput.files[0]) {
+                alert('Por favor, selecione uma imagem de capa.');
+                return;
+            }
+
+            const coverUrl = URL.createObjectURL(coverInput.files[0]);
 
             if (providerData[provider]) {
                 if (type === 'series') {
                     const finalSeasons = {};
                     ['dublado', 'legendado'].forEach(mode => {
                         if (postSeasonsData[mode] && Object.keys(postSeasonsData[mode]).length > 0) {
-                            finalSeasons[mode] = JSON.parse(JSON.stringify(postSeasonsData[mode]));
+                            finalSeasons[mode] = {};
+                            for (let sKey in postSeasonsData[mode]) {
+                                finalSeasons[mode][sKey] = {};
+                                for (let epKey in postSeasonsData[mode][sKey]) {
+                                    const fileObj = postSeasonsData[mode][sKey][epKey];
+                                    if (fileObj) {
+                                        finalSeasons[mode][sKey][epKey] = URL.createObjectURL(fileObj);
+                                    }
+                                }
+                            }
                         }
                     });
 
@@ -791,18 +798,21 @@
                         name: name,
                         status: 'Nova Série',
                         badge: 'Dubl./Legend.',
-                        img: cover,
+                        img: coverUrl,
                         seasons: finalSeasons
                     });
                 } else {
-                    const urlDub = document.getElementById('postVideoUrlDub').value || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-                    const urlSub = document.getElementById('postVideoUrlSub').value || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
+                    const fileDub = document.getElementById('postVideoFileDub').files[0];
+                    const fileSub = document.getElementById('postVideoFileSub').files[0];
+
+                    const urlDub = fileDub ? URL.createObjectURL(fileDub) : "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                    const urlSub = fileSub ? URL.createObjectURL(fileSub) : "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
 
                     providerData[provider].movies.unshift({
                         name: name,
                         status: '1h 45m',
                         badge: 'Filme',
-                        img: cover,
+                        img: coverUrl,
                         videoUrls: {
                             dublado: urlDub,
                             legendado: urlSub
@@ -816,8 +826,8 @@
             event.target.reset();
             togglePostFields('series');
             postSeasonsData = {
-                dublado: { 1: { 1: '', 2: '', 3: '' }, 2: { 1: '', 2: '' } },
-                legendado: { 1: { 1: '', 2: '' } }
+                dublado: { 1: { 1: null, 2: null, 3: null }, 2: { 1: null, 2: null } },
+                legendado: { 1: { 1: null, 2: null } }
             };
             activePostAudioMode = 'dublado';
             activePostSeason = 1;
