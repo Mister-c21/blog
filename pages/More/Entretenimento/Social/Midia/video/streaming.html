@@ -260,20 +260,74 @@
     </main>
 
     <!-- Modal Flutuante: Criação -->
-    <div id="creationModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onclick="closeModalOnBackdrop(event, 'creationModal')">
-        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl border border-gray-100 p-5 transform transition-all">
-            <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-3 sm:hidden"></div>
+    <div id="creationModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto" onclick="closeModalOnBackdrop(event, 'creationModal')">
+        <div class="bg-white w-full sm:max-w-lg rounded-2xl shadow-2xl border border-gray-100 p-6 transform transition-all my-8">
             <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
                 <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
-                    <i class="fa-regular fa-plus-square text-secondary"></i> Criação
+                    <i class="fa-regular fa-plus-square text-secondary"></i> Postar Novo Conteúdo
                 </h3>
                 <button type="button" onclick="closeModal('creationModal')" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
-            <div class="space-y-3 max-h-80 overflow-y-auto no-scrollbar pr-1">
-                <p class="text-xs text-gray-500 text-center py-4">Nenhum item criado ainda.</p>
-            </div>
+            
+            <form onsubmit="handleContentPost(event)" class="space-y-4 max-h-[75vh] overflow-y-auto no-scrollbar pr-1">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Plataforma / Streaming</label>
+                    <select id="postProvider" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
+                        <option value="netflix">Netflix</option>
+                        <option value="disney">Disney+</option>
+                        <option value="appletv">Apple TV+</option>
+                        <option value="roku">Roku Channel</option>
+                        <option value="crunchyroll">Crunchyroll</option>
+                        <option value="globoplay">Globoplay</option>
+                        <option value="prime">Prime Video</option>
+                        <option value="hbo">HBO Max</option>
+                        <option value="paramount">Paramount+</option>
+                        <option value="pluto">Pluto TV</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Tipo de Mídia</label>
+                    <select id="postType" onchange="togglePostFields(this.value)" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
+                        <option value="series">Série</option>
+                        <option value="movies">Filme</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Nome do Título</label>
+                    <input type="text" id="postName" required placeholder="Ex: Título Exemplo" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">URL da Capa (Imagem)</label>
+                    <input type="url" id="postCover" required placeholder="https://exemplo.com/capa.jpg" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
+                </div>
+
+                <div id="seriesFields" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Quantidade de Temporadas</label>
+                        <input type="number" id="postSeasons" min="1" value="1" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Quantidade de Episódios</label>
+                        <input type="number" id="postEpisodes" min="1" value="10" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
+                    </div>
+                </div>
+
+                <div id="movieFields" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">URL do Vídeo (Filme)</label>
+                        <input type="url" id="postVideoUrl" placeholder="https://exemplo.com/video.mp4" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-secondary hover:bg-secondary/90 text-white font-bold py-2.5 rounded-xl transition text-sm shadow-sm mt-4">
+                    Publicar Conteúdo
+                </button>
+            </form>
         </div>
     </div>
 
@@ -488,6 +542,53 @@
             5: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
             6: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoylikes.mp4"
         };
+
+        /* Alternar campos do formulário de criação entre Série e Filme */
+        function togglePostFields(type) {
+            const seriesFields = document.getElementById('seriesFields');
+            const movieFields = document.getElementById('movieFields');
+            if (type === 'series') {
+                seriesFields.classList.remove('hidden');
+                movieFields.classList.add('hidden');
+            } else {
+                seriesFields.classList.add('hidden');
+                movieFields.classList.remove('hidden');
+            }
+        }
+
+        /* Lógica para enviar o formulário de postagem */
+        function handleContentPost(event) {
+            event.preventDefault();
+            const provider = document.getElementById('postProvider').value;
+            const type = document.getElementById('postType').value;
+            const name = document.getElementById('postName').value;
+            const cover = document.getElementById('postCover').value;
+
+            if (providerData[provider]) {
+                if (type === 'series') {
+                    const seasons = document.getElementById('postSeasons').value;
+                    const eps = document.getElementById('postEpisodes').value;
+                    providerData[provider].series.unshift({
+                        name: name,
+                        status: `Temporada ${seasons} · ${eps} eps`,
+                        badge: 'Novo',
+                        img: cover
+                    });
+                } else {
+                    providerData[provider].movies.unshift({
+                        name: name,
+                        status: '1h 45m',
+                        badge: 'Filme',
+                        img: cover
+                    });
+                }
+            }
+
+            closeModal('creationModal');
+            renderCatalog();
+            event.target.reset();
+            togglePostFields('series');
+        }
 
         /* Auto Scroll para a lista de episódios */
         let autoScrollInterval = null;
