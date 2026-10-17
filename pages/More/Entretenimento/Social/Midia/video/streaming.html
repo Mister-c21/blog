@@ -449,25 +449,26 @@
                     </button>
                 </div>
 
-                <!-- Seletor de Idiomas (Dublado / Legendado) e Seletor de Temporada -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div class="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3">
-                        <label for="languageSelect" class="text-sm font-bold uppercase tracking-wider text-white">Idioma</label>
-                        <select id="languageSelect" onchange="updateAudioBadge(this.value)" class="bg-black/40 text-white text-sm font-medium border border-white/20 rounded-lg px-3 py-1.5 outline-none focus:border-secondary transition cursor-pointer">
-                            <option value="dublado">Dublado (PT-BR)</option>
-                            <option value="legendado">Legendado (JP/EN)</option>
-                        </select>
-                    </div>
+                <!-- Seletor de Idiomas (Dublado / Legendado) -->
+                <div class="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3">
+                    <label for="languageSelect" class="text-sm font-bold uppercase tracking-wider text-white">Idioma</label>
+                    <select id="languageSelect" onchange="updateAudioBadge(this.value)" class="bg-black/40 text-white text-sm font-medium border border-white/20 rounded-lg px-3 py-1.5 outline-none focus:border-secondary transition cursor-pointer">
+                        <option value="dublado">Dublado (PT-BR)</option>
+                        <option value="legendado">Legendado (JP/EN)</option>
+                    </select>
+                </div>
 
-                    <div class="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3">
-                        <label for="seasonSelect" class="text-sm font-bold uppercase tracking-wider text-white">Temporada</label>
-                        <select id="seasonSelect" onchange="changeSeason(this.value)" class="bg-black/40 text-white text-sm font-medium border border-white/20 rounded-lg px-3 py-1.5 outline-none focus:border-secondary transition cursor-pointer">
-                            <!-- Opções de temporadas geradas dinamicamente -->
-                        </select>
+                <!-- TopTabBar Horizontal de Temporadas -->
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-bold uppercase tracking-wider text-white">Temporadas</h3>
+                    </div>
+                    <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1 border-b border-white/10" id="seasonsTabBar">
+                        <!-- Abas das temporadas geradas dinamicamente -->
                     </div>
                 </div>
 
-                <!-- Seção de Episódios -->
+                <!-- Seção de Episódios da Temporada Selecionada -->
                 <div>
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="text-sm font-bold uppercase tracking-wider text-white">Episódios</h3>
@@ -726,7 +727,7 @@
             }
 
             activeSeason = Object.keys(currentSeasonsData)[0] || 1;
-            renderSeasonSelectOptions();
+            renderSeasonsTabBar();
             renderDetailEpisodesUI();
 
             const modal = document.getElementById('detailModal');
@@ -749,14 +750,20 @@
             }
         }
 
-        function renderSeasonSelectOptions() {
-            const seasonSelect = document.getElementById('seasonSelect');
-            if (!seasonSelect) return;
+        /* Renderiza a TopTabBar horizontal de temporadas */
+        function renderSeasonsTabBar() {
+            const tabBar = document.getElementById('seasonsTabBar');
+            if (!tabBar) return;
 
             const seasonKeys = Object.keys(currentSeasonsData);
-            seasonSelect.innerHTML = seasonKeys.map(sKey => `
-                <option value="${sKey}" ${parseInt(sKey) === parseInt(activeSeason) ? 'selected' : ''}>Temporada ${sKey}</option>
-            `).join('');
+            tabBar.innerHTML = seasonKeys.map(sKey => {
+                const isActive = parseInt(sKey) === parseInt(activeSeason);
+                return `
+                    <button type="button" onclick="changeSeason(${sKey})" class="shrink-0 px-4 py-2 text-xs font-bold rounded-xl transition border ${isActive ? 'bg-secondary text-white border-secondary shadow-md' : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/10'}">
+                        Temp. ${sKey}
+                    </button>
+                `;
+            }).join('');
         }
 
         function renderDetailEpisodesUI() {
@@ -805,6 +812,7 @@
 
         function changeSeason(seasonNum) {
             activeSeason = seasonNum;
+            renderSeasonsTabBar();
             renderDetailEpisodesUI();
 
             // Seleciona automaticamente o primeiro episódio da nova temporada
