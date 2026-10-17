@@ -298,14 +298,6 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Áudio / Legenda</label>
-                    <select id="postAudioType" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
-                        <option value="dublado">Dublado</option>
-                        <option value="legendado">Legendado</option>
-                    </select>
-                </div>
-
-                <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Nome do Título</label>
                     <input type="text" id="postName" required placeholder="Ex: Título Exemplo" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
                 </div>
@@ -323,7 +315,14 @@
                     
                     <!-- TopTabBar Horizontal de Temporadas para o Formulário de Criação -->
                     <div class="space-y-3 pt-2 border-t border-gray-100">
-                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700">Temporadas & Episódios</label>
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-700">Temporadas & Episódios</label>
+                            <!-- Toggle Dublado / Legendado no Cadastro -->
+                            <div class="inline-flex p-1 bg-gray-100 rounded-lg">
+                                <button type="button" id="postBtnDub" onclick="setPostAudioMode('dublado')" class="px-2.5 py-1 text-[11px] font-bold rounded-md transition bg-secondary text-white shadow-sm">Dublado</button>
+                                <button type="button" id="postBtnSub" onclick="setPostAudioMode('legendado')" class="px-2.5 py-1 text-[11px] font-bold rounded-md transition text-gray-600 hover:text-gray-900">Legendado</button>
+                            </div>
+                        </div>
                         <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1 border-b border-gray-200" id="postSeasonsTabBar">
                             <!-- Abas das temporadas geradas dinamicamente -->
                         </div>
@@ -334,9 +333,18 @@
                 </div>
 
                 <div id="movieFields" class="hidden space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">URL do Vídeo (Filme)</label>
-                        <input type="url" id="postVideoUrl" placeholder="https://exemplo.com/video.mp4" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-700">URLs do Filme</label>
+                            <div class="inline-flex p-1 bg-gray-100 rounded-lg">
+                                <button type="button" id="movieBtnDub" onclick="setMovieAudioMode('dublado')" class="px-2.5 py-1 text-[11px] font-bold rounded-md transition bg-secondary text-white shadow-sm">Dublado</button>
+                                <button type="button" id="movieBtnSub" onclick="setMovieAudioMode('legendado')" class="px-2.5 py-1 text-[11px] font-bold rounded-md transition text-gray-600 hover:text-gray-900">Legendado</button>
+                            </div>
+                        </div>
+                        <div>
+                            <input type="url" id="postVideoUrlDub" placeholder="https://exemplo.com/filme-dublado.mp4" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
+                            <input type="url" id="postVideoUrlSub" placeholder="https://exemplo.com/filme-legendado.mp4" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition hidden">
+                        </div>
                     </div>
                 </div>
 
@@ -464,7 +472,7 @@
                 <!-- Seletor de Idiomas (Dublado / Legendado) -->
                 <div class="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3">
                     <label for="languageSelect" class="text-sm font-bold uppercase tracking-wider text-white">Idioma</label>
-                    <select id="languageSelect" onchange="updateAudioBadge(this.value)" class="bg-black/40 text-white text-sm font-medium border border-white/20 rounded-lg px-3 py-1.5 outline-none focus:border-secondary transition cursor-pointer">
+                    <select id="languageSelect" onchange="switchPlaybackAudioMode(this.value)" class="bg-black/40 text-white text-sm font-medium border border-white/20 rounded-lg px-3 py-1.5 outline-none focus:border-secondary transition cursor-pointer">
                         <option value="dublado">Dublado</option>
                         <option value="legendado">Legendado</option>
                     </select>
@@ -539,28 +547,44 @@
         let currentDetailTitle = '';
         let currentDetailImg = '';
         let currentDetailDesc = '';
+        let currentItemFullData = null;
+        let activePlaybackAudioMode = 'dublado';
         let savedTitles = [
             { name: "Mistérios do Além", type: "Série · 8 eps", img: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=200&q=80" }
         ];
 
-        /* Estrutura padrão de temporadas e episódios */
+        /* Estrutura padrão de temporadas e episódios (dual audio mode) */
         let currentSeasonsData = {
-            1: {
-                1: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                2: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-                3: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+            dublado: {
+                1: {
+                    1: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                    2: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+                    3: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+                },
+                2: {
+                    1: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+                    2: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
+                }
             },
-            2: {
-                1: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-                2: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
+            legendado: {
+                1: {
+                    1: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4",
+                    2: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4"
+                }
             }
         };
         let activeSeason = 1;
 
-        /* Estado para o formulário de criação de temporadas/episódios */
+        /* Estado para o formulário de criação de temporadas/episódios (Dual Mode) */
+        let activePostAudioMode = 'dublado';
         let postSeasonsData = {
-            1: { 1: '', 2: '', 3: '' },
-            2: { 1: '', 2: '' }
+            dublado: {
+                1: { 1: '', 2: '', 3: '' },
+                2: { 1: '', 2: '' }
+            },
+            legendado: {
+                1: { 1: '', 2: '' }
+            }
         };
         let activePostSeason = 1;
 
@@ -577,20 +601,67 @@
             }
         }
 
+        /* Alternar modo de áudio no formulário de criação (Dublado / Legendado) */
+        function setPostAudioMode(mode) {
+            saveCurrentPostInputsState();
+            activePostAudioMode = mode;
+            const btnDub = document.getElementById('postBtnDub');
+            const btnSub = document.getElementById('postBtnSub');
+
+            if (mode === 'dublado') {
+                btnDub.className = "px-2.5 py-1 text-[11px] font-bold rounded-md transition bg-secondary text-white shadow-sm";
+                btnSub.className = "px-2.5 py-1 text-[11px] font-bold rounded-md transition text-gray-600 hover:text-gray-900";
+            } else {
+                btnSub.className = "px-2.5 py-1 text-[11px] font-bold rounded-md transition bg-secondary text-white shadow-sm";
+                btnDub.className = "px-2.5 py-1 text-[11px] font-bold rounded-md transition text-gray-600 hover:text-gray-900";
+            }
+
+            if (!postSeasonsData[activePostAudioMode]) {
+                postSeasonsData[activePostAudioMode] = { 1: { 1: '' } };
+            }
+            activePostSeason = 1;
+            renderPostSeasonsTabBar();
+            renderPostSeasonEpisodesInputs();
+        }
+
+        /* Alternar modo de áudio para Filmes no formulário de criação */
+        function setMovieAudioMode(mode) {
+            const btnDub = document.getElementById('movieBtnDub');
+            const btnSub = document.getElementById('movieBtnSub');
+            const inputDub = document.getElementById('postVideoUrlDub');
+            const inputSub = document.getElementById('postVideoUrlSub');
+
+            if (mode === 'dublado') {
+                btnDub.className = "px-2.5 py-1 text-[11px] font-bold rounded-md transition bg-secondary text-white shadow-sm";
+                btnSub.className = "px-2.5 py-1 text-[11px] font-bold rounded-md transition text-gray-600 hover:text-gray-900";
+                inputDub.classList.remove('hidden');
+                inputSub.classList.add('hidden');
+            } else {
+                btnSub.className = "px-2.5 py-1 text-[11px] font-bold rounded-md transition bg-secondary text-white shadow-sm";
+                btnDub.className = "px-2.5 py-1 text-[11px] font-bold rounded-md transition text-gray-600 hover:text-gray-900";
+                inputSub.classList.remove('hidden');
+                inputDub.classList.add('hidden');
+            }
+        }
+
         /* Renderiza dinamicamente a TopTabBar e os inputs de episódios no Modal de Criação */
         function renderPostSeasonsInputs(numSeasons) {
             const count = Math.max(1, parseInt(numSeasons) || 1);
             
-            // Preserva ou inicializa os dados das temporadas no formulário
-            const newPostData = {};
+            if (!postSeasonsData[activePostAudioMode]) {
+                postSeasonsData[activePostAudioMode] = {};
+            }
+
+            const currentModeData = postSeasonsData[activePostAudioMode];
+            const newModeData = {};
             for (let s = 1; s <= count; s++) {
-                const prevCount = postSeasonsData[s] ? Object.keys(postSeasonsData[s]).length : 3;
-                newPostData[s] = {};
+                const prevCount = currentModeData[s] ? Object.keys(currentModeData[s]).length : 3;
+                newModeData[s] = {};
                 for (let i = 1; i <= prevCount; i++) {
-                    newPostData[s][i] = postSeasonsData[s] && postSeasonsData[s][i] ? postSeasonsData[s][i] : '';
+                    newModeData[s][i] = currentModeData[s] && currentModeData[s][i] ? currentModeData[s][i] : '';
                 }
             }
-            postSeasonsData = newPostData;
+            postSeasonsData[activePostAudioMode] = newModeData;
 
             if (activePostSeason > count) {
                 activePostSeason = 1;
@@ -604,7 +675,8 @@
             const tabBar = document.getElementById('postSeasonsTabBar');
             if (!tabBar) return;
 
-            const seasonKeys = Object.keys(postSeasonsData);
+            const modeData = postSeasonsData[activePostAudioMode] || { 1: { 1: '' } };
+            const seasonKeys = Object.keys(modeData);
             tabBar.innerHTML = seasonKeys.map(sKey => {
                 const isActive = parseInt(sKey) === parseInt(activePostSeason);
                 return `
@@ -619,13 +691,14 @@
             const wrapper = document.getElementById('postSeasonsContentWrapper');
             if (!wrapper) return;
 
-            const epsObj = postSeasonsData[activePostSeason] || {};
+            const modeData = postSeasonsData[activePostAudioMode] || {};
+            const epsObj = modeData[activePostSeason] || {};
             const epsCount = Object.keys(epsObj).length;
 
             let html = `
                 <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-3 mt-2">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold text-secondary uppercase">Temporada ${activePostSeason} - Episódios</span>
+                        <span class="text-xs font-bold text-secondary uppercase">${activePostAudioMode} - Temporada ${activePostSeason}</span>
                         <div class="flex items-center gap-1.5">
                             <span class="text-[11px] text-gray-500 font-medium">Qtd:</span>
                             <input type="number" min="1" value="${epsCount}" onchange="updatePostSeasonEpCount(${activePostSeason}, this.value)" class="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs text-center outline-none focus:border-secondary">
@@ -635,7 +708,7 @@
             `;
 
             for (let i = 1; i <= epsCount; i++) {
-                const val = (postSeasonsData[activePostSeason] && postSeasonsData[activePostSeason][i]) ? postSeasonsData[activePostSeason][i] : '';
+                const val = (modeData[activePostSeason] && modeData[activePostSeason][i]) ? modeData[activePostSeason][i] : '';
                 html += `
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] text-gray-500 font-medium shrink-0 w-10">Ep ${i}</span>
@@ -652,7 +725,6 @@
         }
 
         function changePostSeason(seasonNum) {
-            // Salva o estado atual dos inputs antes de trocar
             saveCurrentPostInputsState();
             activePostSeason = parseInt(seasonNum);
             renderPostSeasonsTabBar();
@@ -662,20 +734,26 @@
         function updatePostSeasonEpCount(seasonNum, newCount) {
             saveCurrentPostInputsState();
             const count = Math.max(1, parseInt(newCount) || 1);
-            const currentObj = postSeasonsData[seasonNum] || {};
+            if (!postSeasonsData[activePostAudioMode]) {
+                postSeasonsData[activePostAudioMode] = {};
+            }
+            const currentObj = postSeasonsData[activePostAudioMode][seasonNum] || {};
             const newObj = {};
             for (let i = 1; i <= count; i++) {
                 newObj[i] = currentObj[i] ? currentObj[i] : '';
             }
-            postSeasonsData[seasonNum] = newObj;
+            postSeasonsData[activePostAudioMode][seasonNum] = newObj;
             renderPostSeasonEpisodesInputs();
         }
 
         function updatePostEpUrl(seasonNum, epNum, urlValue) {
-            if (!postSeasonsData[seasonNum]) {
-                postSeasonsData[seasonNum] = {};
+            if (!postSeasonsData[activePostAudioMode]) {
+                postSeasonsData[activePostAudioMode] = {};
             }
-            postSeasonsData[seasonNum][epNum] = urlValue;
+            if (!postSeasonsData[activePostAudioMode][seasonNum]) {
+                postSeasonsData[activePostAudioMode][seasonNum] = {};
+            }
+            postSeasonsData[activePostAudioMode][seasonNum][epNum] = urlValue;
         }
 
         function saveCurrentPostInputsState() {
@@ -684,8 +762,8 @@
             const inputs = wrapper.querySelectorAll('input[type="url"]');
             inputs.forEach((input, index) => {
                 const epNum = index + 1;
-                if (postSeasonsData[activePostSeason]) {
-                    postSeasonsData[activePostSeason][epNum] = input.value;
+                if (postSeasonsData[activePostAudioMode] && postSeasonsData[activePostAudioMode][activePostSeason]) {
+                    postSeasonsData[activePostAudioMode][activePostSeason][epNum] = input.value;
                 }
             });
         }
@@ -697,30 +775,38 @@
 
             const provider = document.getElementById('postProvider').value;
             const type = document.getElementById('postType').value;
-            const audioType = document.getElementById('postAudioType').value;
             const name = document.getElementById('postName').value;
             const cover = document.getElementById('postCover').value;
 
             if (providerData[provider]) {
                 if (type === 'series') {
-                    const seasonsCount = Object.keys(postSeasonsData).length;
+                    const finalSeasons = {};
+                    ['dublado', 'legendado'].forEach(mode => {
+                        if (postSeasonsData[mode] && Object.keys(postSeasonsData[mode]).length > 0) {
+                            finalSeasons[mode] = JSON.parse(JSON.stringify(postSeasonsData[mode]));
+                        }
+                    });
+
                     providerData[provider].series.unshift({
                         name: name,
-                        status: `${seasonsCount} Temporada${seasonsCount > 1 ? 's' : ''}`,
-                        badge: audioType === 'dublado' ? 'Dublado' : 'Legendado',
-                        audioType: audioType,
+                        status: 'Nova Série',
+                        badge: 'Dubl./Legend.',
                         img: cover,
-                        seasons: JSON.parse(JSON.stringify(postSeasonsData))
+                        seasons: finalSeasons
                     });
                 } else {
-                    const videoUrl = document.getElementById('postVideoUrl').value || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                    const urlDub = document.getElementById('postVideoUrlDub').value || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                    const urlSub = document.getElementById('postVideoUrlSub').value || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
+
                     providerData[provider].movies.unshift({
                         name: name,
                         status: '1h 45m',
-                        badge: audioType === 'dublado' ? 'Dublado' : 'Legendado',
-                        audioType: audioType,
+                        badge: 'Filme',
                         img: cover,
-                        videoUrl: videoUrl
+                        videoUrls: {
+                            dublado: urlDub,
+                            legendado: urlSub
+                        }
                     });
                 }
             }
@@ -729,10 +815,13 @@
             renderCatalog();
             event.target.reset();
             togglePostFields('series');
-            postSeasonsData = { 1: { 1: '', 2: '', 3: '' }, 2: { 1: '', 2: '' } };
+            postSeasonsData = {
+                dublado: { 1: { 1: '', 2: '', 3: '' }, 2: { 1: '', 2: '' } },
+                legendado: { 1: { 1: '', 2: '' } }
+            };
+            activePostAudioMode = 'dublado';
             activePostSeason = 1;
-            const postSeasonsInput = document.getElementById('postSeasons');
-            if (postSeasonsInput) postSeasonsInput.value = '2';
+            setPostAudioMode('dublado');
             renderPostSeasonsInputs(2);
         }
 
@@ -785,38 +874,57 @@
             currentDetailTitle = title;
             currentDetailImg = imgUrl;
             currentDetailDesc = description || '';
+            currentItemFullData = itemData;
 
-            // Configura áudio/legenda do item selecionado
+            activePlaybackAudioMode = 'dublado';
             const langSelect = document.getElementById('languageSelect');
-            if (langSelect) {
-                if (itemData && itemData.audioType) {
-                    langSelect.value = itemData.audioType;
-                } else {
-                    langSelect.value = 'dublado';
-                }
-                updateAudioBadge(langSelect.value);
-            }
+            if (langSelect) langSelect.value = 'dublado';
+            updateAudioBadge('dublado');
 
-            // Configura temporadas e episódios para este item específico
+            // Configura temporadas e episódios com suporte a Dual Áudio
             if (itemData && itemData.seasons) {
                 currentSeasonsData = itemData.seasons;
+            } else if (itemData && itemData.videoUrls) {
+                currentSeasonsData = {
+                    dublado: { 1: { 1: itemData.videoUrls.dublado } },
+                    legendado: { 1: { 1: itemData.videoUrls.legendado } }
+                };
             } else if (itemData && itemData.videoUrl) {
-                currentSeasonsData = { 1: { 1: itemData.videoUrl } };
+                currentSeasonsData = {
+                    dublado: { 1: { 1: itemData.videoUrl } },
+                    legendado: { 1: { 1: itemData.videoUrl } }
+                };
             } else {
                 currentSeasonsData = {
-                    1: {
-                        1: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                        2: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-                        3: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+                    dublado: {
+                        1: {
+                            1: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                            2: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+                            3: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+                        },
+                        2: {
+                            1: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+                            2: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
+                        }
                     },
-                    2: {
-                        1: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-                        2: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
+                    legendado: {
+                        1: {
+                            1: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4",
+                            2: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4"
+                        }
                     }
                 };
             }
 
-            activeSeason = Object.keys(currentSeasonsData)[0] || 1;
+            if (!currentSeasonsData[activePlaybackAudioMode] || Object.keys(currentSeasonsData[activePlaybackAudioMode]).length === 0) {
+                activePlaybackAudioMode = Object.keys(currentSeasonsData)[0] || 'dublado';
+                if (langSelect) langSelect.value = activePlaybackAudioMode;
+                updateAudioBadge(activePlaybackAudioMode);
+            }
+
+            const activeModeObj = currentSeasonsData[activePlaybackAudioMode] || {};
+            activeSeason = Object.keys(activeModeObj)[0] || 1;
+
             renderSeasonsTabBar();
             renderDetailEpisodesUI();
 
@@ -826,7 +934,8 @@
 
             if (videoPlayer) {
                 videoPlayer.poster = imgUrl;
-                const firstEpSrc = currentSeasonsData[activeSeason][1] || Object.values(currentSeasonsData[activeSeason])[0];
+                const seasonEps = activeModeObj[activeSeason] || {};
+                const firstEpSrc = seasonEps[1] || Object.values(seasonEps)[0] || "";
                 videoPlayer.src = firstEpSrc;
                 videoPlayer.play().catch(() => {});
             }
@@ -840,12 +949,19 @@
             }
         }
 
-        /* Renderiza a TopTabBar horizontal de temporadas */
+        /* Renderiza a TopTabBar horizontal de temporadas para o Player */
         function renderSeasonsTabBar() {
             const tabBar = document.getElementById('seasonsTabBar');
             if (!tabBar) return;
 
-            const seasonKeys = Object.keys(currentSeasonsData);
+            const activeModeObj = currentSeasonsData[activePlaybackAudioMode] || {};
+            const seasonKeys = Object.keys(activeModeObj);
+            
+            if (seasonKeys.length === 0) {
+                tabBar.innerHTML = `<span class="text-xs text-gray-400">Nenhuma temporada nesta opção.</span>`;
+                return;
+            }
+
             tabBar.innerHTML = seasonKeys.map(sKey => {
                 const isActive = parseInt(sKey) === parseInt(activeSeason);
                 return `
@@ -861,7 +977,8 @@
             const countLabel = document.getElementById('episodesCountLabel');
             if (!container) return;
 
-            const epsObj = currentSeasonsData[activeSeason] || {};
+            const activeModeObj = currentSeasonsData[activePlaybackAudioMode] || {};
+            const epsObj = activeModeObj[activeSeason] || {};
             const keys = Object.keys(epsObj);
 
             if (countLabel) {
@@ -869,7 +986,7 @@
             }
 
             if (keys.length === 0) {
-                container.innerHTML = `<p class="text-xs text-gray-400">Nenhum episódio nesta temporada.</p>`;
+                container.innerHTML = `<p class="text-xs text-gray-400">Nenhum episódio nesta temporada para ${activePlaybackAudioMode}.</p>`;
                 return;
             }
 
@@ -882,7 +999,8 @@
         function selectEpisode(epNum, btnElement) {
             const videoPlayer = document.getElementById('contentVideoPlayer');
             if (videoPlayer) {
-                const seasonEps = currentSeasonsData[activeSeason] || {};
+                const activeModeObj = currentSeasonsData[activePlaybackAudioMode] || {};
+                const seasonEps = activeModeObj[activeSeason] || {};
                 const srcUrl = seasonEps[epNum] || Object.values(seasonEps)[0];
                 if (srcUrl) {
                     videoPlayer.src = srcUrl;
@@ -905,12 +1023,42 @@
             renderSeasonsTabBar();
             renderDetailEpisodesUI();
 
-            // Seleciona automaticamente o primeiro episódio da nova temporada
             const firstEpBtn = document.querySelector('#episodesContainer .ep-btn');
-            const seasonEps = currentSeasonsData[activeSeason] || {};
+            const activeModeObj = currentSeasonsData[activePlaybackAudioMode] || {};
+            const seasonEps = activeModeObj[activeSeason] || {};
             const firstKey = Object.keys(seasonEps)[0];
             if (firstKey) {
                 selectEpisode(firstKey, firstEpBtn);
+            }
+        }
+
+        /* Alternar entre Dublado / Legendado no Player */
+        function switchPlaybackAudioMode(value) {
+            activePlaybackAudioMode = value;
+            updateAudioBadge(value);
+
+            const activeModeObj = currentSeasonsData[activePlaybackAudioMode] || {};
+            const seasonKeys = Object.keys(activeModeObj);
+
+            if (seasonKeys.length > 0) {
+                activeSeason = seasonKeys.includes(String(activeSeason)) ? activeSeason : seasonKeys[0];
+            } else {
+                activeSeason = 1;
+            }
+
+            renderSeasonsTabBar();
+            renderDetailEpisodesUI();
+
+            const firstEpBtn = document.querySelector('#episodesContainer .ep-btn');
+            const seasonEps = activeModeObj[activeSeason] || {};
+            const firstKey = Object.keys(seasonEps)[0];
+            if (firstKey) {
+                selectEpisode(firstKey, firstEpBtn);
+            } else {
+                const videoPlayer = document.getElementById('contentVideoPlayer');
+                if (videoPlayer) {
+                    videoPlayer.src = '';
+                }
             }
         }
 
