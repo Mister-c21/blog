@@ -310,13 +310,17 @@
                 <div id="seriesFields" class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Quantidade de Temporadas</label>
-                        <input type="number" id="postSeasons" min="1" value="2" onchange="renderSeasonsInputs(this.value)" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
+                        <input type="number" id="postSeasons" min="1" value="2" onchange="renderPostSeasonsInputs(this.value)" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-secondary transition">
                     </div>
-                    <!-- Container dinâmico para as temporadas e seus respectivos episódios -->
-                    <div id="seasonsContainerInputs" class="space-y-4 pt-2 border-t border-gray-100">
-                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700">Episódios por Temporada</label>
-                        <div id="seasonsListWrapper" class="space-y-4">
-                            <!-- Gerado dinamicamente -->
+                    
+                    <!-- TopTabBar Horizontal de Temporadas para o Formulário de Criação -->
+                    <div class="space-y-3 pt-2 border-t border-gray-100">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-700">Temporadas & Episódios</label>
+                        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1 border-b border-gray-200" id="postSeasonsTabBar">
+                            <!-- Abas das temporadas geradas dinamicamente -->
+                        </div>
+                        <div id="postSeasonsContentWrapper">
+                            <!-- Conteúdo dos episódios da temporada ativa gerado dinamicamente -->
                         </div>
                     </div>
                 </div>
@@ -545,6 +549,13 @@
         };
         let activeSeason = 1;
 
+        /* Estado para o formulário de criação de temporadas/episódios */
+        let postSeasonsData = {
+            1: { 1: '', 2: '', 3: '' },
+            2: { 1: '', 2: '' }
+        };
+        let activePostSeason = 1;
+
         /* Alternar campos do formulário de criação entre Série e Filme */
         function togglePostFields(type) {
             const seriesFields = document.getElementById('seriesFields');
@@ -558,57 +569,124 @@
             }
         }
 
-        /* Renderiza dinamicamente os inputs de temporadas e seus respectivos episódios */
-        function renderSeasonsInputs(numSeasons) {
-            const count = parseInt(numSeasons) || 1;
-            const container = document.getElementById('seasonsListWrapper');
-            if (!container) return;
-
-            let html = '';
+        /* Renderiza dinamicamente a TopTabBar e os inputs de episódios no Modal de Criação */
+        function renderPostSeasonsInputs(numSeasons) {
+            const count = Math.max(1, parseInt(numSeasons) || 1);
+            
+            // Preserva ou inicializa os dados das temporadas no formulário
+            const newPostData = {};
             for (let s = 1; s <= count; s++) {
-                html += `
-                    <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2 season-group" data-season="${s}">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold text-secondary uppercase">Temporada ${s}</span>
-                            <input type="number" min="1" value="3" onchange="updateSeasonEpisodesInputs(${s}, this.value)" class="season-eps-count w-16 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs text-center outline-none focus:border-secondary">
-                        </div>
-                        <div class="season-ep-inputs-list space-y-1.5 pt-1">
-                            <!-- Inputs de episódios da temporada gerados via JS -->
-                        </div>
-                    </div>
-                `;
+                const prevCount = postSeasonsData[s] ? Object.keys(postSeasonsData[s]).length : 3;
+                newPostData[s] = {};
+                for (let i = 1; i <= prevCount; i++) {
+                    newPostData[s][i] = postSeasonsData[s] && postSeasonsData[s][i] ? postSeasonsData[s][i] : '';
+                }
             }
-            container.innerHTML = html;
+            postSeasonsData = newPostData;
 
-            // Inicializa os inputs de episódios para cada temporada padrão (ex: 3 eps)
-            const seasonGroups = container.querySelectorAll('.season-group');
-            seasonGroups.forEach(group => {
-                const sNum = group.getAttribute('data-season');
-                updateSeasonEpisodesInputs(sNum, 3);
-            });
+            if (activePostSeason > count) {
+                activePostSeason = 1;
+            }
+
+            renderPostSeasonsTabBar();
+            renderPostSeasonEpisodesInputs();
         }
 
-        function updateSeasonEpisodesInputs(seasonNum, epCount) {
-            const group = document.querySelector(`.season-group[data-season="${seasonNum}"]`);
-            if (!group) return;
-            const listContainer = group.querySelector('.season-ep-inputs-list');
-            const num = parseInt(epCount) || 1;
+        function renderPostSeasonsTabBar() {
+            const tabBar = document.getElementById('postSeasonsTabBar');
+            if (!tabBar) return;
 
-            let html = '';
-            for (let i = 1; i <= num; i++) {
+            const seasonKeys = Object.keys(postSeasonsData);
+            tabBar.innerHTML = seasonKeys.map(sKey => {
+                const isActive = parseInt(sKey) === parseInt(activePostSeason);
+                return `
+                    <button type="button" onclick="changePostSeason(${sKey})" class="shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg transition border ${isActive ? 'bg-secondary text-white border-secondary shadow-sm' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200'}">
+                        Temp. ${sKey}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderPostSeasonEpisodesInputs() {
+            const wrapper = document.getElementById('postSeasonsContentWrapper');
+            if (!wrapper) return;
+
+            const epsObj = postSeasonsData[activePostSeason] || {};
+            const epsCount = Object.keys(epsObj).length;
+
+            let html = `
+                <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-3 mt-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-secondary uppercase">Temporada ${activePostSeason} - Episódios</span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[11px] text-gray-500 font-medium">Qtd:</span>
+                            <input type="number" min="1" value="${epsCount}" onchange="updatePostSeasonEpCount(${activePostSeason}, this.value)" class="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs text-center outline-none focus:border-secondary">
+                        </div>
+                    </div>
+                    <div class="space-y-2 pt-1 max-h-44 overflow-y-auto no-scrollbar pr-1">
+            `;
+
+            for (let i = 1; i <= epsCount; i++) {
+                const val = (postSeasonsData[activePostSeason] && postSeasonsData[activePostSeason][i]) ? postSeasonsData[activePostSeason][i] : '';
                 html += `
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] text-gray-500 font-medium shrink-0 w-10">Ep ${i}</span>
-                        <input type="url" required placeholder="https://exemplo.com/s${seasonNum}e${i}.mp4" class="ep-url-input-s${seasonNum} w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-800 outline-none focus:border-secondary transition">
+                        <input type="url" required value="${val}" oninput="updatePostEpUrl(${activePostSeason}, ${i}, this.value)" placeholder="https://exemplo.com/s${activePostSeason}e${i}.mp4" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-800 outline-none focus:border-secondary transition">
                     </div>
                 `;
             }
-            listContainer.innerHTML = html;
+
+            html += `
+                    </div>
+                </div>
+            `;
+            wrapper.innerHTML = html;
+        }
+
+        function changePostSeason(seasonNum) {
+            // Salva o estado atual dos inputs antes de trocar
+            saveCurrentPostInputsState();
+            activePostSeason = parseInt(seasonNum);
+            renderPostSeasonsTabBar();
+            renderPostSeasonEpisodesInputs();
+        }
+
+        function updatePostSeasonEpCount(seasonNum, newCount) {
+            saveCurrentPostInputsState();
+            const count = Math.max(1, parseInt(newCount) || 1);
+            const currentObj = postSeasonsData[seasonNum] || {};
+            const newObj = {};
+            for (let i = 1; i <= count; i++) {
+                newObj[i] = currentObj[i] ? currentObj[i] : '';
+            }
+            postSeasonsData[seasonNum] = newObj;
+            renderPostSeasonEpisodesInputs();
+        }
+
+        function updatePostEpUrl(seasonNum, epNum, urlValue) {
+            if (!postSeasonsData[seasonNum]) {
+                postSeasonsData[seasonNum] = {};
+            }
+            postSeasonsData[seasonNum][epNum] = urlValue;
+        }
+
+        function saveCurrentPostInputsState() {
+            const wrapper = document.getElementById('postSeasonsContentWrapper');
+            if (!wrapper) return;
+            const inputs = wrapper.querySelectorAll('input[type="url"]');
+            inputs.forEach((input, index) => {
+                const epNum = index + 1;
+                if (postSeasonsData[activePostSeason]) {
+                    postSeasonsData[activePostSeason][epNum] = input.value;
+                }
+            });
         }
 
         /* Lógica para enviar o formulário de postagem */
         function handleContentPost(event) {
             event.preventDefault();
+            saveCurrentPostInputsState();
+
             const provider = document.getElementById('postProvider').value;
             const type = document.getElementById('postType').value;
             const name = document.getElementById('postName').value;
@@ -616,27 +694,13 @@
 
             if (providerData[provider]) {
                 if (type === 'series') {
-                    const seasonsCount = document.querySelectorAll('.season-group').length;
-                    const customSeasons = {};
-                    let totalEps = 0;
-
-                    for (let s = 1; s <= seasonsCount; s++) {
-                        const inputs = document.querySelectorAll(`.ep-url-input-s${s}`);
-                        customSeasons[s] = {};
-                        inputs.forEach((input, index) => {
-                            if (input.value.trim()) {
-                                customSeasons[s][index + 1] = input.value.trim();
-                            }
-                            totalEps++;
-                        });
-                    }
-
+                    const seasonsCount = Object.keys(postSeasonsData).length;
                     providerData[provider].series.unshift({
                         name: name,
                         status: `${seasonsCount} Temporada${seasonsCount > 1 ? 's' : ''}`,
                         badge: 'Novo',
                         img: cover,
-                        seasons: customSeasons
+                        seasons: JSON.parse(JSON.stringify(postSeasonsData))
                     });
                 } else {
                     const videoUrl = document.getElementById('postVideoUrl').value || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
@@ -654,7 +718,11 @@
             renderCatalog();
             event.target.reset();
             togglePostFields('series');
-            renderSeasonsInputs(2);
+            postSeasonsData = { 1: { 1: '', 2: '', 3: '' }, 2: { 1: '', 2: '' } };
+            activePostSeason = 1;
+            const postSeasonsInput = document.getElementById('postSeasons');
+            if (postSeasonsInput) postSeasonsInput.value = '2';
+            renderPostSeasonsInputs(2);
         }
 
         /* Auto Scroll para a lista de episódios */
@@ -1234,7 +1302,7 @@
         }
 
         /* Inicialização */
-        renderSeasonsInputs(2);
+        renderPostSeasonsInputs(2);
         renderCatalog();
         renderSavedModalList();
         slideInterval = setInterval(nextSlide, 5000);
