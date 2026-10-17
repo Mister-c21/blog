@@ -43,8 +43,8 @@
         </div>
         <div class="flex items-center gap-1">
             <button type="button" id="postContentBtn" onclick="openModal('creationModal')" class="hidden w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700" title="Criação"><i class="fa-regular fa-plus-square"></i></button>
-            <button type="button" onclick="openModal('historyModal')" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700"><i class="fa-regular fa-clock"></i></button>
-            <button type="button" onclick="openModal('savedModal')" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700"><i class="fa-regular fa-bookmark"></i></button>
+            <button type="button" onclick="openModal('historyModal')" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700" title="Histórico"><i class="fa-regular fa-clock"></i></button>
+            <button type="button" onclick="openModal('savedModal')" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700" title="Salvos"><i class="fa-regular fa-bookmark"></i></button>
             <div id="userAvatarHeader" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-secondary overflow-hidden ml-1 border border-gray-200"><i class="fa-solid fa-user"></i></div>
         </div>
     </div>
@@ -98,14 +98,15 @@
     </div>
 </main>
 
-<!-- Modal Criação -->
+<!-- Modal Criação / Edição -->
 <div id="creationModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4" onclick="closeModalOnBackdrop(event,'creationModal')">
     <div class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
         <div class="flex items-center justify-between pb-3 mb-4 border-b">
-            <h3 class="font-bold flex items-center gap-2"><i class="fa-regular fa-plus-square text-secondary"></i> Postar Novo Conteúdo</h3>
+            <h3 class="font-bold flex items-center gap-2" id="creationModalTitle"><i class="fa-regular fa-plus-square text-secondary"></i> <span id="creationModalTitleText">Postar Novo Conteúdo</span></h3>
             <button type="button" onclick="closeModal('creationModal')" class="w-8 h-8 rounded-full hover:bg-gray-100"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <form onsubmit="handleContentPost(event)" class="space-y-4 overflow-y-auto no-scrollbar flex-1">
+            <input type="hidden" id="editEventDTag" value="">
             <div>
                 <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Plataforma</label>
                 <select id="postProvider" required class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm">
@@ -125,8 +126,8 @@
                 <input type="text" id="postName" required class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm" placeholder="Título">
             </div>
             <div>
-                <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Capa</label>
-                <input type="file" id="postCover" accept="image/*" required class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-secondary file:text-white">
+                <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Capa <span id="coverOptionalHint" class="hidden text-gray-400 font-normal normal-case">(opcional na edição)</span></label>
+                <input type="file" id="postCover" accept="image/*" class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-secondary file:text-white">
             </div>
             <div id="seriesFields" class="space-y-4">
                 <div>
@@ -134,7 +135,7 @@
                     <input type="number" id="postSeasons" min="1" value="2" onchange="renderPostSeasonsInputs(this.value)" class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm">
                 </div>
                 <div class="flex items-center justify-between">
-                    <label class="text-xs font-bold uppercase text-gray-700">Episódios</label>
+                    <label class="text-xs font-bold uppercase text-gray-700">Episódios (novos arquivos substituem)</label>
                     <div class="inline-flex p-1 bg-gray-100 rounded-lg">
                         <button type="button" id="postBtnDub" onclick="setPostAudioMode('dublado')" class="px-2.5 py-1 text-[11px] font-bold rounded-md bg-secondary text-white">Dublado</button>
                         <button type="button" id="postBtnSub" onclick="setPostAudioMode('legendado')" class="px-2.5 py-1 text-[11px] font-bold rounded-md text-gray-600">Legendado</button>
@@ -142,6 +143,7 @@
                 </div>
                 <div class="flex gap-2 overflow-x-auto no-scrollbar border-b pb-1" id="postSeasonsTabBar"></div>
                 <div id="postSeasonsContentWrapper"></div>
+                <p class="text-[11px] text-gray-400" id="editEpisodesHint" class="hidden">Na edição: só envie arquivos nos episódios que quiser alterar; os demais são mantidos.</p>
             </div>
             <div id="movieFields" class="hidden space-y-3">
                 <div class="flex items-center justify-between">
@@ -154,7 +156,7 @@
                 <input type="file" id="postVideoFileDub" accept="video/*" class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-secondary file:text-white">
                 <input type="file" id="postVideoFileSub" accept="video/*" class="hidden w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-secondary file:text-white">
             </div>
-            <p class="text-[11px] text-gray-400">Arquivos grandes são fatiados (Drive/Nostr.build + Blossom), reconstruídos na reprodução. Metadados cifrados nos relays.</p>
+            <p class="text-[11px] text-gray-400">Upload Drive (fatiamento + Blossom/nostr.build). Metadados cifrados nos relays.</p>
             <button type="submit" id="postSubmitBtn" class="w-full bg-secondary text-white font-bold py-2.5 rounded-xl text-sm">Publicar Conteúdo</button>
         </form>
     </div>
@@ -162,15 +164,21 @@
 
 <div id="historyModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" onclick="closeModalOnBackdrop(event,'historyModal')">
     <div class="bg-white w-full sm:max-w-md rounded-2xl p-5" onclick="event.stopPropagation()">
-        <div class="flex justify-between mb-4 border-b pb-3"><h3 class="font-bold"><i class="fa-regular fa-clock text-secondary"></i> Histórico</h3>
-        <button onclick="closeModal('historyModal')"><i class="fa-solid fa-xmark"></i></button></div>
-        <p class="text-xs text-gray-400 text-center py-4">Histórico local.</p>
+        <div class="flex justify-between mb-4 border-b pb-3">
+            <h3 class="font-bold"><i class="fa-regular fa-clock text-secondary"></i> Histórico</h3>
+            <button onclick="closeModal('historyModal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p class="text-[11px] text-gray-400 mb-2">Sincronizado na sua conta Nostr</p>
+        <div id="historyItemsList" class="space-y-3 max-h-80 overflow-y-auto no-scrollbar"></div>
     </div>
 </div>
 <div id="savedModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" onclick="closeModalOnBackdrop(event,'savedModal')">
     <div class="bg-white w-full sm:max-w-md rounded-2xl p-5" onclick="event.stopPropagation()">
-        <div class="flex justify-between mb-4 border-b pb-3"><h3 class="font-bold"><i class="fa-regular fa-bookmark text-secondary"></i> Salvos</h3>
-        <button onclick="closeModal('savedModal')"><i class="fa-solid fa-xmark"></i></button></div>
+        <div class="flex justify-between mb-4 border-b pb-3">
+            <h3 class="font-bold"><i class="fa-regular fa-bookmark text-secondary"></i> Salvos</h3>
+            <button onclick="closeModal('savedModal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p class="text-[11px] text-gray-400 mb-2">Sincronizado na sua conta Nostr</p>
         <div id="savedItemsList" class="space-y-3 max-h-80 overflow-y-auto no-scrollbar"></div>
     </div>
 </div>
@@ -184,12 +192,19 @@
                 <span class="text-xs text-gray-300" id="mediaLoadingText">Reconstruindo mídia...</span>
             </div>
             <button type="button" onclick="closeModal('detailModal')" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 z-30"><i class="fa-solid fa-xmark text-xl"></i></button>
-            <div class="absolute top-4 left-4 z-10 text-xs"><span class="bg-black/40 px-3 py-1.5 rounded-full border border-white/10" id="audioBadge">[Dublado]</span></div>
-            <div class="absolute bottom-4 left-6 z-10"><h2 id="detailModalTitle" class="text-2xl sm:text-4xl font-black">Título</h2></div>
+            <div class="absolute top-4 left-4 z-10 text-xs flex gap-2">
+                <span class="bg-black/40 px-3 py-1.5 rounded-full border border-white/10" id="audioBadge">[Dublado]</span>
+            </div>
+            <div class="absolute bottom-4 left-6 right-6 z-10 flex items-end justify-between gap-3">
+                <h2 id="detailModalTitle" class="text-2xl sm:text-4xl font-black">Título</h2>
+                <button type="button" id="editContentBtn" onclick="openEditCurrentContent()" class="hidden shrink-0 bg-secondary hover:bg-secondary/90 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-lg">
+                    <i class="fa-solid fa-pen mr-1"></i> Editar
+                </button>
+            </div>
         </div>
         <div class="p-4 sm:p-8 space-y-6 flex-1 overflow-y-auto no-scrollbar">
             <div class="flex justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-gray-300">
-                <span>Via Stream · Drive upload</span><span class="text-secondary"><i class="fa-solid fa-shield-halved"></i> Cifrado</span>
+                <span>Via Stream · Rede Nostr</span><span class="text-secondary"><i class="fa-solid fa-shield-halved"></i> Cifrado</span>
             </div>
             <div class="grid grid-cols-3 gap-3 max-w-md mx-auto text-center">
                 <button type="button" class="bg-white/10 p-3.5 rounded-2xl"><i class="fa-solid fa-download"></i><div class="text-xs mt-1">Baixar</div></button>
@@ -221,11 +236,14 @@ function canPostContent(){return isUserLoggedIn()&&currentUserData.privateKeyHex
 function updatePostButtonVisibility(){const b=document.getElementById('postContentBtn');if(b)b.classList.toggle('hidden',!canPostContent())}
 function loadSessionAvatar(){const el=document.getElementById('userAvatarHeader');if(!el)return;if(currentUserData.avatarUrl){el.innerHTML=`<img src="${String(currentUserData.avatarUrl).replace(/"/g,'&quot;')}" class="w-full h-full object-cover" alt="">`;el.title=getMyUsername()}else if(isUserLoggedIn())el.title=getMyUsername()}
 
-let currentDetailTitle='',currentDetailImg='',currentItemFullData=null,activePlaybackAudioMode='dublado',activeSeason=1,savedTitles=[];
+let currentDetailTitle='',currentDetailImg='',currentItemFullData=null,activePlaybackAudioMode='dublado',activeSeason=1;
+let savedTitles=[],historyTitles=[];
 let currentSeasonsData={dublado:{1:{1:''}},legendado:{1:{1:''}}};
 let activePostAudioMode='dublado',activePostSeason=1;
 let postSeasonsData={dublado:{1:{1:null,2:null,3:null},2:{1:null,2:null}},legendado:{1:{1:null,2:null}}};
 let currentProvider='netflix',currentMediaType='series',searchQuery='',currentObjectUrl=null;
+let isEditMode=false,editingBasePayload=null;
+
 const providerData={
     netflix:{name:'Netflix',url:'https://www.netflix.com',series:[],movies:[]},
     disney:{name:'Disney+',url:'https://www.disneyplus.com',series:[],movies:[]},
@@ -238,26 +256,23 @@ const providerData={
     paramount:{name:'Paramount+',url:'https://www.paramountplus.com',series:[],movies:[]},
     pluto:{name:'Pluto TV',url:'https://pluto.tv',series:[],movies:[]}
 };
+
 function isChunkedRef(r){return !!(r&&r.chunked&&Array.isArray(r.chunks)&&r.chunks.length)}
 function hasMediaRef(r){if(!r)return false;if(typeof r==='string')return!!r;return isChunkedRef(r)}
 function setMediaLoading(show,text){const o=document.getElementById('mediaLoadingOverlay'),t=document.getElementById('mediaLoadingText');if(t&&text)t.textContent=text;if(o)o.classList.toggle('hidden',!show)}
 async function resolveMediaSrc(ref){
     if(!ref)return '';
     if(typeof ref==='string')return ref;
-    if(isChunkedRef(ref)&&window.reconstructMediaFromChunks){
-        setMediaLoading(true,`Reconstruindo fatia(s)...`);
-        try{return await window.reconstructMediaFromChunks(ref)}finally{setMediaLoading(false)}
-    }
+    if(isChunkedRef(ref)&&window.reconstructMediaFromChunks){setMediaLoading(true,'Reconstruindo...');try{return await window.reconstructMediaFromChunks(ref)}finally{setMediaLoading(false)}}
     return '';
 }
 async function playMediaRef(ref){
     const v=document.getElementById('contentVideoPlayer');if(!v)return;
     if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
-    const src=await resolveMediaSrc(ref);
-    if(!src){v.removeAttribute('src');v.load();return}
-    if(src.startsWith('blob:'))currentObjectUrl=src;
-    v.src=src;v.play().catch(()=>{});
+    const src=await resolveMediaSrc(ref);if(!src){v.removeAttribute('src');v.load();return}
+    if(src.startsWith('blob:'))currentObjectUrl=src;v.src=src;v.play().catch(()=>{});
 }
+
 function togglePostFields(type){document.getElementById('seriesFields').classList.toggle('hidden',type!=='series');document.getElementById('movieFields').classList.toggle('hidden',type==='series')}
 function setPostAudioMode(mode){
     activePostAudioMode=mode;
@@ -290,41 +305,108 @@ function renderPostSeasonEpisodesInputs(){
     const eps=(postSeasonsData[activePostAudioMode]||{})[activePostSeason]||{};const n=Object.keys(eps).length;
     let h=`<div class="p-3 bg-gray-50 border rounded-xl space-y-3 mt-2"><div class="flex justify-between"><span class="text-xs font-bold text-secondary uppercase">${activePostAudioMode} T${activePostSeason}</span>
     <input type="number" min="1" value="${n}" onchange="updatePostSeasonEpCount(${activePostSeason},this.value)" class="w-16 bg-white border rounded-lg px-2 py-1 text-xs text-center"></div><div class="space-y-2 max-h-44 overflow-y-auto no-scrollbar">`;
-    for(let i=1;i<=n;i++)h+=`<div class="flex gap-2 items-center"><span class="text-[10px] w-10">Ep ${i}</span><input type="file" accept="video/*" onchange="updatePostEpFile(${activePostSeason},${i},this)" class="w-full text-xs file:mr-2 file:px-2 file:py-0.5 file:rounded file:border-0 file:bg-gray-200"></div>`;
+    for(let i=1;i<=n;i++){
+        const existing=eps[i]&&typeof eps[i]!=='object'?null:null;
+        const hasExisting=isEditMode&&editingBasePayload?.seasons?.[activePostAudioMode]?.[activePostSeason]?.[i];
+        h+=`<div class="flex gap-2 items-center"><span class="text-[10px] w-10">Ep ${i}</span><input type="file" accept="video/*" onchange="updatePostEpFile(${activePostSeason},${i},this)" class="w-full text-xs file:mr-2 file:px-2 file:py-0.5 file:rounded file:border-0 file:bg-gray-200">${hasExisting?'<span class="text-[10px] text-green-600 shrink-0">ok</span>':''}</div>`;
+    }
     w.innerHTML=h+'</div></div>';
 }
 function changePostSeason(n){activePostSeason=parseInt(n);renderPostSeasonsTabBar();renderPostSeasonEpisodesInputs()}
 function updatePostSeasonEpCount(s,n){const c=Math.max(1,parseInt(n)||1);if(!postSeasonsData[activePostAudioMode])postSeasonsData[activePostAudioMode]={};const cur=postSeasonsData[activePostAudioMode][s]||{},neu={};for(let i=1;i<=c;i++)neu[i]=cur[i]??null;postSeasonsData[activePostAudioMode][s]=neu;renderPostSeasonEpisodesInputs()}
 function updatePostEpFile(s,e,inp){if(inp.files?.[0]){if(!postSeasonsData[activePostAudioMode])postSeasonsData[activePostAudioMode]={};if(!postSeasonsData[activePostAudioMode][s])postSeasonsData[activePostAudioMode][s]={};postSeasonsData[activePostAudioMode][s][e]=inp.files[0]}}
 
+function resetCreationForm(){
+    isEditMode=false;editingBasePayload=null;
+    document.getElementById('editEventDTag').value='';
+    document.getElementById('creationModalTitleText').textContent='Postar Novo Conteúdo';
+    document.getElementById('postSubmitBtn').textContent='Publicar Conteúdo';
+    document.getElementById('coverOptionalHint').classList.add('hidden');
+    document.getElementById('postCover').required=true;
+    document.getElementById('editEpisodesHint')?.classList.add('hidden');
+    postSeasonsData={dublado:{1:{1:null,2:null,3:null},2:{1:null,2:null}},legendado:{1:{1:null,2:null}}};
+    activePostAudioMode='dublado';activePostSeason=1;
+}
+
+function openEditCurrentContent(){
+    if(!canPostContent()||!currentItemFullData)return;
+    isEditMode=true;
+    editingBasePayload=JSON.parse(JSON.stringify(currentItemFullData));
+    const dTag=currentItemFullData._dTag||'';
+    document.getElementById('editEventDTag').value=dTag;
+    document.getElementById('creationModalTitleText').textContent='Editar Conteúdo';
+    document.getElementById('postSubmitBtn').textContent='Salvar alterações';
+    document.getElementById('coverOptionalHint').classList.remove('hidden');
+    document.getElementById('postCover').required=false;
+    document.getElementById('editEpisodesHint')?.classList.remove('hidden');
+    document.getElementById('postProvider').value=currentItemFullData.provider||currentProvider;
+    document.getElementById('postType').value=currentItemFullData.type||(currentItemFullData.seasons?'series':'movies');
+    document.getElementById('postName').value=currentItemFullData.name||currentDetailTitle;
+    togglePostFields(document.getElementById('postType').value);
+    if(currentItemFullData.seasons){
+        const seasons=currentItemFullData.seasons;
+        postSeasonsData={dublado:{},legendado:{}};
+        for(const mode of ['dublado','legendado']){
+            postSeasonsData[mode]={};
+            const md=seasons[mode]||{};
+            for(const s of Object.keys(md)){
+                postSeasonsData[mode][s]={};
+                for(const e of Object.keys(md[s]||{}))postSeasonsData[mode][s][e]=null; // null = manter existente
+            }
+            if(!Object.keys(postSeasonsData[mode]).length)postSeasonsData[mode]={1:{1:null}};
+        }
+        const nSeasons=Math.max(Object.keys(postSeasonsData.dublado).length,Object.keys(postSeasonsData.legendado).length,1);
+        document.getElementById('postSeasons').value=nSeasons;
+        setPostAudioMode('dublado');
+        renderPostSeasonsInputs(nSeasons);
+    }
+    closeModal('detailModal');
+    openModal('creationModal');
+}
+
 async function handleContentPost(ev){
     ev.preventDefault();
-    if(!canPostContent()){alert('Sem permissão para postar.');return}
+    if(!canPostContent()){alert('Sem permissão.');return}
     if(!window.__lpStreamNet?.publishPost){alert('Módulo de rede ainda carregando.');return}
     const cover=document.getElementById('postCover');
-    if(!cover.files?.[0]){alert('Selecione a capa.');return}
+    if(!isEditMode&&!cover.files?.[0]){alert('Selecione a capa.');return}
     const btn=document.getElementById('postSubmitBtn');
-    if(btn){btn.disabled=true;btn.textContent='Enviando para a rede...'}
+    if(btn){btn.disabled=true;btn.textContent=isEditMode?'Salvando...':'Enviando...'}
     try{
         await window.__lpStreamNet.publishPost({
             provider:document.getElementById('postProvider').value,
             type:document.getElementById('postType').value,
             name:document.getElementById('postName').value,
-            coverFile:cover.files[0],
+            coverFile:cover.files?.[0]||null,
             seasonsFiles:document.getElementById('postType').value==='series'?postSeasonsData:null,
             videoDub:document.getElementById('postVideoFileDub')?.files?.[0]||null,
-            videoSub:document.getElementById('postVideoFileSub')?.files?.[0]||null
+            videoSub:document.getElementById('postVideoFileSub')?.files?.[0]||null,
+            isEdit:isEditMode,
+            existingDTag:document.getElementById('editEventDTag').value||null,
+            basePayload:editingBasePayload
         });
         if(window.loadPostsFromNetwork)await window.loadPostsFromNetwork();
-        closeModal('creationModal');ev.target.reset();togglePostFields('series');
-        postSeasonsData={dublado:{1:{1:null,2:null,3:null},2:{1:null,2:null}},legendado:{1:{1:null,2:null}}};
-        activePostAudioMode='dublado';activePostSeason=1;setPostAudioMode('dublado');renderPostSeasonsInputs(2);
-    }catch(err){console.error(err);alert('Falha ao publicar na rede: '+(err.message||err))}
-    finally{if(btn){btn.disabled=false;btn.textContent='Publicar Conteúdo'}}
+        closeModal('creationModal');ev.target.reset();togglePostFields('series');resetCreationForm();
+        setPostAudioMode('dublado');renderPostSeasonsInputs(2);
+    }catch(err){console.error(err);alert('Falha: '+(err.message||err))}
+    finally{if(btn){btn.disabled=false;btn.textContent=isEditMode?'Salvar alterações':'Publicar Conteúdo'}}
 }
-function openModal(id){if(id==='creationModal'&&!canPostContent()){alert('Sem permissão.');return}document.getElementById(id)?.classList.remove('hidden')}
-function closeModal(id){document.getElementById(id)?.classList.add('hidden');const v=document.getElementById('contentVideoPlayer');if(v){v.pause();v.currentTime=0}if(id==='detailModal'&&currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}}
+
+function openModal(id){
+    if(id==='creationModal'&&!canPostContent()){alert('Sem permissão.');return}
+    if(id==='creationModal'&&!isEditMode)resetCreationForm();
+    document.getElementById(id)?.classList.remove('hidden');
+    if(id==='savedModal')renderSavedModalList();
+    if(id==='historyModal')renderHistoryModalList();
+}
+function closeModal(id){
+    document.getElementById(id)?.classList.add('hidden');
+    const v=document.getElementById('contentVideoPlayer');if(v){v.pause();v.currentTime=0}
+    if(id==='detailModal'&&currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
+    if(id==='creationModal')resetCreationForm();
+}
 function closeModalOnBackdrop(e,id){if(e.target.id===id)closeModal(id)}
+
 async function openDetailModal(title,img,desc,item=null){
     currentDetailTitle=title;currentDetailImg=img;currentItemFullData=item;activePlaybackAudioMode='dublado';
     const ls=document.getElementById('languageSelect');if(ls)ls.value='dublado';updateAudioBadge('dublado');
@@ -335,7 +417,12 @@ async function openDetailModal(title,img,desc,item=null){
     renderSeasonsTabBar();renderDetailEpisodesUI();
     document.getElementById('detailModalTitle').textContent=title;
     const vp=document.getElementById('contentVideoPlayer');if(vp)vp.poster=img||'';
-    updateFavoriteUI();document.getElementById('detailModal').classList.remove('hidden');
+    updateFavoriteUI();
+    const editBtn=document.getElementById('editContentBtn');
+    if(editBtn)editBtn.classList.toggle('hidden',!(canPostContent()&&item&&(item._dTag||item.seasons||item.videoUrls)));
+    document.getElementById('detailModal').classList.remove('hidden');
+    // histórico
+    addToHistory({name:title,img:img,type:item?.type||currentMediaType,provider:item?.provider||currentProvider});
     const eps=am[activeSeason]||{};const fk=Object.keys(eps).find(k=>hasMediaRef(eps[k]));if(fk)await playMediaRef(eps[fk]);
 }
 function renderSeasonsTabBar(){const tb=document.getElementById('seasonsTabBar');if(!tb)return;const keys=Object.keys(currentSeasonsData[activePlaybackAudioMode]||{});tb.innerHTML=keys.map(s=>`<button type="button" onclick="changeSeason(${s})" class="shrink-0 px-4 py-2 text-xs font-bold rounded-xl border ${parseInt(s)===parseInt(activeSeason)?'bg-secondary text-white border-secondary':'bg-white/5 text-gray-300 border-white/10'}">Temp. ${s}</button>`).join('')||'<span class="text-xs text-gray-400">Nenhuma</span>'}
@@ -344,16 +431,41 @@ async function selectEpisode(ep,btn){const eps=(currentSeasonsData[activePlaybac
 async function changeSeason(s){activeSeason=s;renderSeasonsTabBar();renderDetailEpisodesUI();const eps=(currentSeasonsData[activePlaybackAudioMode]||{})[activeSeason]||{};const fk=Object.keys(eps).find(k=>hasMediaRef(eps[k]));if(fk)await selectEpisode(fk,document.querySelector('#episodesContainer .ep-btn'))}
 async function switchPlaybackAudioMode(v){activePlaybackAudioMode=v;updateAudioBadge(v);const keys=Object.keys(currentSeasonsData[v]||{});activeSeason=keys.includes(String(activeSeason))?activeSeason:(keys[0]||1);renderSeasonsTabBar();renderDetailEpisodesUI();const eps=(currentSeasonsData[v]||{})[activeSeason]||{};const fk=Object.keys(eps).find(k=>hasMediaRef(eps[k]));if(fk)await selectEpisode(fk,document.querySelector('#episodesContainer .ep-btn'))}
 function updateAudioBadge(v){const e=document.getElementById('audioBadge');if(e)e.textContent=v==='legendado'?'[Legendado]':'[Dublado]'}
+
 function isTitleSaved(t){return savedTitles.some(i=>i.name===t)}
-function toggleFavorite(){if(!currentDetailTitle)return;if(isTitleSaved(currentDetailTitle))savedTitles=savedTitles.filter(i=>i.name!==currentDetailTitle);else savedTitles.push({name:currentDetailTitle,type:currentMediaType==='series'?'Série':'Filme',img:currentDetailImg});updateFavoriteUI();renderSavedModalList()}
+async function toggleFavorite(){
+    if(!currentDetailTitle)return;
+    if(isTitleSaved(currentDetailTitle))savedTitles=savedTitles.filter(i=>i.name!==currentDetailTitle);
+    else savedTitles.unshift({name:currentDetailTitle,type:currentMediaType==='series'?'Série':'Filme',img:currentDetailImg,provider:currentProvider,savedAt:Date.now()});
+    updateFavoriteUI();renderSavedModalList();
+    if(window.syncUserMetaToNetwork)await window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles});
+}
 function updateFavoriteUI(){const ic=document.getElementById('favoriteIcon'),tx=document.getElementById('favoriteText');const s=isTitleSaved(currentDetailTitle);if(ic)ic.className=s?'fa-solid fa-star text-yellow-400':'fa-regular fa-star';if(tx)tx.textContent=s?'Salvo':'Favorito'}
-function renderSavedModalList(){const c=document.getElementById('savedItemsList');if(!c)return;c.innerHTML=savedTitles.length?savedTitles.map(i=>`<div class="flex gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick='openDetailModal(${JSON.stringify(i.name)},${JSON.stringify(i.img)},${JSON.stringify(i.type)})'><div class="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100"><img src="${i.img}" class="w-full h-full object-cover"></div><div><p class="text-xs font-semibold truncate">${i.name}</p><p class="text-[11px] text-secondary">${i.type}</p></div></div>`).join(''):'<p class="text-xs text-gray-400 text-center py-6">Nenhum salvo.</p>'}
+function renderSavedModalList(){
+    const c=document.getElementById('savedItemsList');if(!c)return;
+    if(!isUserLoggedIn()){c.innerHTML='<p class="text-xs text-gray-400 text-center py-6">Faça login no Social para sincronizar salvos.</p>';return}
+    c.innerHTML=savedTitles.length?savedTitles.map(i=>`<div class="flex gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick='openDetailModal(${JSON.stringify(i.name)},${JSON.stringify(i.img)},${JSON.stringify(i.type)})'><div class="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100"><img src="${i.img}" class="w-full h-full object-cover"></div><div><p class="text-xs font-semibold truncate">${i.name}</p><p class="text-[11px] text-secondary">${i.type||''}</p></div></div>`).join(''):'<p class="text-xs text-gray-400 text-center py-6">Nenhum salvo.</p>';
+}
+async function addToHistory(entry){
+    if(!entry?.name)return;
+    historyTitles=historyTitles.filter(h=>h.name!==entry.name);
+    historyTitles.unshift({...entry,viewedAt:Date.now()});
+    if(historyTitles.length>50)historyTitles=historyTitles.slice(0,50);
+    renderHistoryModalList();
+    if(window.syncUserMetaToNetwork)await window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles});
+}
+function renderHistoryModalList(){
+    const c=document.getElementById('historyItemsList');if(!c)return;
+    if(!isUserLoggedIn()){c.innerHTML='<p class="text-xs text-gray-400 text-center py-6">Faça login no Social para sincronizar histórico.</p>';return}
+    c.innerHTML=historyTitles.length?historyTitles.map(i=>`<div class="flex gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick='openDetailModal(${JSON.stringify(i.name)},${JSON.stringify(i.img||"")},${JSON.stringify(i.type||"")})'><div class="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100">${i.img?`<img src="${i.img}" class="w-full h-full object-cover">`:''}</div><div><p class="text-xs font-semibold truncate">${i.name}</p><p class="text-[11px] text-gray-400">${i.type||''}</p></div></div>`).join(''):'<p class="text-xs text-gray-400 text-center py-6">Nenhum histórico ainda.</p>';
+}
+
 function renderCatalog(){
     const data=providerData[currentProvider]||providerData.netflix;
     let items=currentMediaType==='series'?data.series:data.movies;
     if(searchQuery.trim()){const q=searchQuery.toLowerCase();items=items.filter(i=>i.name.toLowerCase().includes(q))}
     const ct=document.getElementById('catalogTitle'),lk=document.getElementById('externalAcervoLink'),g=document.getElementById('contentGrid');
-    if(ct)ct.textContent=searchQuery.trim()?`Resultados · ${data.name}`:`Recomendados · ${data.name} (${currentMediaType==='series'?'Séries':'Filmes'})`;
+    if(ct)ct.textContent=`Recomendados · ${data.name}`;
     if(lk)lk.href=data.url;
     if(!g)return;
     if(!items.length){g.innerHTML='<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título publicado neste catálogo.</div>';return}
@@ -363,28 +475,28 @@ function handleSearchInput(v){searchQuery=v;document.getElementById('clearSearch
 function clearSearch(){document.getElementById('searchInput').value='';searchQuery='';document.getElementById('clearSearchBtn')?.classList.add('hidden');renderCatalog()}
 function setMediaType(t){currentMediaType=t;document.getElementById('btnSeries').className=t==='series'?'px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white':'px-3 py-1 text-xs font-bold rounded-lg text-gray-600';document.getElementById('btnMovies').className=t==='movies'?'px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white':'px-3 py-1 text-xs font-bold rounded-lg text-gray-600';renderCatalog()}
 function selectProvider(el,k){document.querySelectorAll('#providerList .provider-card').forEach(c=>c.classList.remove('active'));el.classList.add('active');currentProvider=k;renderCatalog()}
-const slides=[{img:'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=1200&q=80',title:'Jornada nas Estrelas',desc:'Aventura épica.'},{img:'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80',title:'Mistérios do Além',desc:'Nova temporada.'},{img:'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1200&q=80',title:'Cyber City 2088',desc:'O futuro.'},{img:'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1200&q=80',title:'Além do Horizonte',desc:'HD.'}];
+const slides=[{img:'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=1200&q=80',title:'Jornada nas Estrelas',desc:'Aventura.'},{img:'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80',title:'Mistérios do Além',desc:'Temporada.'},{img:'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1200&q=80',title:'Cyber City 2088',desc:'Futuro.'},{img:'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1200&q=80',title:'Além do Horizonte',desc:'HD.'}];
 let currentSlide=0,slideInterval;
 function updateSlideUI(){const img=document.getElementById('bannerImg'),t=document.getElementById('bannerTitle'),d=document.getElementById('bannerDesc'),h=document.getElementById('heroBanner');img.style.opacity='.3';setTimeout(()=>{img.src=slides[currentSlide].img;t.textContent=slides[currentSlide].title;d.textContent=slides[currentSlide].desc;h.setAttribute('onclick',`openDetailModal('${slides[currentSlide].title}','${slides[currentSlide].img}','${slides[currentSlide].desc}')`);img.style.opacity='.75'},250);document.querySelectorAll('#carouselDots .carousel-dot').forEach((dot,i)=>{dot.className=i===currentSlide?'carousel-dot w-2 h-2 rounded-full bg-secondary':'carousel-dot w-1.5 h-1.5 rounded-full bg-white/50'})}
 function nextSlide(){currentSlide=(currentSlide+1)%slides.length;updateSlideUI()}
 function setSlide(i){currentSlide=i;updateSlideUI();clearInterval(slideInterval);slideInterval=setInterval(nextSlide,5000)}
 function setNetworkStatus(html){const el=document.getElementById('networkStatus');if(el)el.innerHTML=html}
+function applyUserMeta(meta){if(!meta)return;if(Array.isArray(meta.saved))savedTitles=meta.saved;if(Array.isArray(meta.history))historyTitles=meta.history;renderSavedModalList();renderHistoryModalList()}
 
-loadSessionFromNostr();loadSessionAvatar();updatePostButtonVisibility();renderPostSeasonsInputs(2);renderCatalog();renderSavedModalList();slideInterval=setInterval(nextSlide,5000);
-window.providerData=providerData;window.renderCatalog=renderCatalog;window.setNetworkStatus=setNetworkStatus;
+loadSessionFromNostr();loadSessionAvatar();updatePostButtonVisibility();renderPostSeasonsInputs(2);renderCatalog();renderSavedModalList();renderHistoryModalList();slideInterval=setInterval(nextSlide,5000);
+window.providerData=providerData;window.renderCatalog=renderCatalog;window.setNetworkStatus=setNetworkStatus;window.applyUserMeta=applyUserMeta;
 </script>
 
 <script type="module">
 import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
 import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
 
-/* ===== Constantes do sistema Drive ===== */
 const RELAYS=['wss://relay.damus.io','wss://nos.lol','wss://relay.nostr.band','wss://relay.primal.net'];
 const UPLOAD_URL='https://nostr.build/api/v2/upload/files';
-const MAX_FREE_BYTES=20*1024*1024;
-const CHUNK_SIZE=8*1024*1024;
+const MAX_FREE_BYTES=20*1024*1024,CHUNK_SIZE=8*1024*1024;
 const BLOSSOM_SERVERS=['https://blossom.primal.net','https://cdn.satellite.earth','https://blossom.band','https://nostr.download'];
 const STREAM_KIND=30078,TAG_APP='loreplay-streaming';
+const USER_META_D='loreplay-stream-usermeta-v1';
 const CRYPTO_EPOCH_MS=3*24*60*60*1000,CRYPTO_APP_DOMAIN='LorePlay.Streaming.v1';
 const ALLOWED_HEX='05ed493ea4ae9fa6e16847b7f2a2453f6ea57c815dd948603dbf0a867a952321';
 const pool=new NostrTools.SimplePool();
@@ -420,8 +532,25 @@ async function decryptPayload(b64,epoch,salt){
     const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:packed.slice(0,12)},key,packed.slice(12));
     return JSON.parse(new TextDecoder().decode(plain));
 }
+/* Cifra pessoal (favoritos/histórico) — só o dono da chave abre */
+async function deriveUserKey(privateKeyHex){
+    const enc=new TextEncoder();
+    const km=await crypto.subtle.importKey('raw',enc.encode(privateKeyHex),'PBKDF2',false,['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('loreplay-stream-usermeta-v1'),iterations:100000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function encryptUserMeta(obj,privateKeyHex){
+    const key=await deriveUserKey(privateKeyHex);const iv=crypto.getRandomValues(new Uint8Array(12));
+    const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(obj)));
+    const packed=new Uint8Array(iv.length+cipher.byteLength);packed.set(iv,0);packed.set(new Uint8Array(cipher),iv.length);
+    let bin='';packed.forEach(b=>bin+=String.fromCharCode(b));return btoa(bin);
+}
+async function decryptUserMeta(b64,privateKeyHex){
+    const key=await deriveUserKey(privateKeyHex);const bin=atob(b64);const packed=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)packed[i]=bin.charCodeAt(i);
+    const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:packed.slice(0,12)},key,packed.slice(12));
+    return JSON.parse(new TextDecoder().decode(plain));
+}
 
-/* ===== Drive: NIP-98 / Blossom / extract URL ===== */
 async function createNip98AuthHeader(url,method,privateKeyBytes){
     const signed=NostrTools.finalizeEvent({kind:27235,created_at:Math.floor(Date.now()/1000),tags:[['u',url],['method',method.toUpperCase()]],content:''},privateKeyBytes);
     return 'Nostr '+btoa(unescape(encodeURIComponent(JSON.stringify(signed))));
@@ -435,37 +564,24 @@ function extractUploadUrl(data){
     if(!data)return '';
     if(data.status==='success'&&Array.isArray(data.data)&&data.data[0])return data.data[0].url||data.data[0].download_url||'';
     if(data.url)return data.url;
-    if(data.nip94_event&&Array.isArray(data.nip94_event.tags)){const t=data.nip94_event.tags.find(x=>x[0]==='url');if(t)return t[1]}
-    if(Array.isArray(data.data)&&data.data[0]?.url)return data.data[0].url;
+    if(data.nip94_event?.tags){const t=data.nip94_event.tags.find(x=>x[0]==='url');if(t)return t[1]}
     return '';
 }
 async function uploadViaBlossom(arrayBuffer,privateKeyBytes){
-    const hash=await sha256Hex(arrayBuffer);
-    const auth=await createBlossomAuthHeader(hash,privateKeyBytes);
-    const errors=[];
+    const hash=await sha256Hex(arrayBuffer);const auth=await createBlossomAuthHeader(hash,privateKeyBytes);const errors=[];
     for(const base of BLOSSOM_SERVERS){
         try{
-            const endpoint=base.replace(/\/$/,'')+'/upload';
-            const res=await fetch(endpoint,{method:'PUT',headers:{'Authorization':auth,'Content-Type':'application/octet-stream'},body:arrayBuffer});
+            const res=await fetch(base.replace(/\/$/,'')+'/upload',{method:'PUT',headers:{'Authorization':auth,'Content-Type':'application/octet-stream'},body:arrayBuffer});
             const text=await res.text();let data=null;try{data=JSON.parse(text)}catch(_){}
-            if(res.ok){
-                let url=(data&&data.url)||'';
-                if(!url&&data?.nip94_event?.tags){const t=data.nip94_event.tags.find(x=>x[0]==='url');if(t)url=t[1]}
-                if(!url)url=base.replace(/\/$/,'')+'/'+hash;
-                return url;
-            }
-            errors.push(base+': '+((data&&data.message)||res.status));
+            if(res.ok){let url=data?.url||'';if(!url&&data?.nip94_event?.tags){const t=data.nip94_event.tags.find(x=>x[0]==='url');if(t)url=t[1]}if(!url)url=base.replace(/\/$/,'')+'/'+hash;return url}
+            errors.push(base+': '+(data?.message||res.status));
         }catch(e){errors.push(base+': '+(e.message||e))}
     }
-    throw new Error('Blossom falhou: '+errors.join(' | '));
+    throw new Error('Blossom: '+errors.join(' | '));
 }
-
-/* IndexedDB fallback (Drive) */
 function openIdb(){return new Promise((resolve,reject)=>{const req=indexedDB.open('loreplay_stream_blobs',1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('blobs'))db.createObjectStore('blobs')};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function saveEncryptedLocally(buf){const db=await openIdb();const id='local_'+Date.now()+'_'+Math.random().toString(36).slice(2);return new Promise((resolve,reject)=>{const tx=db.transaction('blobs','readwrite');tx.objectStore('blobs').put(buf,id);tx.oncomplete=()=>resolve('idb://'+id);tx.onerror=()=>reject(tx.error)})}
 async function loadEncryptedLocally(idbUrl){const id=idbUrl.replace(/^idb:\/\//,'');const db=await openIdb();return new Promise((resolve,reject)=>{const tx=db.transaction('blobs','readonly');const g=tx.objectStore('blobs').get(id);g.onsuccess=()=>resolve(g.result);g.onerror=()=>reject(g.error)})}
-
-/* ===== Drive: upload de um buffer ===== */
 async function uploadSingleBuffer(buf,baseName,privateKeyBytes){
     let fileUrl='',backend='';
     try{
@@ -475,117 +591,122 @@ async function uploadSingleBuffer(buf,baseName,privateKeyBytes){
         const response=await fetch(UPLOAD_URL,{method:'POST',headers:{'Authorization':authHeader},body:formData});
         const text=await response.text();let data=null;try{data=JSON.parse(text)}catch(_){}
         if(response.ok&&data&&data.status!=='error'){fileUrl=extractUploadUrl(data);if(fileUrl)backend='nostr.build'}
-    }catch(e){console.warn('nostr.build:',e)}
-    if(!fileUrl){try{fileUrl=await uploadViaBlossom(buf,privateKeyBytes);backend='blossom'}catch(e){console.warn('Blossom:',e)}}
+    }catch(e){console.warn(e)}
+    if(!fileUrl){try{fileUrl=await uploadViaBlossom(buf,privateKeyBytes);backend='blossom'}catch(e){console.warn(e)}}
     if(!fileUrl){fileUrl=await saveEncryptedLocally(buf);backend='local'}
     return{url:fileUrl,backend};
 }
-
-/* ===== Drive: fatiamento ===== */
-function splitBufferIntoChunks(arrayBuffer,chunkSize=CHUNK_SIZE){
-    const bytes=new Uint8Array(arrayBuffer);const chunks=[];
-    for(let offset=0;offset<bytes.length;offset+=chunkSize)chunks.push(bytes.slice(offset,Math.min(offset+chunkSize,bytes.length)).buffer);
-    return chunks;
-}
-function concatArrayBuffers(buffers){
-    const total=buffers.reduce((s,b)=>s+b.byteLength,0);const out=new Uint8Array(total);let offset=0;
-    for(const b of buffers){out.set(new Uint8Array(b),offset);offset+=b.byteLength}
-    return out.buffer;
-}
-function isChunkedFile(file){return !!(file&&file.chunked&&Array.isArray(file.chunks)&&file.chunks.length)}
-
-/** Upload inteligente estilo Drive: fatia se > MAX_FREE_BYTES */
+function splitBufferIntoChunks(arrayBuffer,chunkSize=CHUNK_SIZE){const bytes=new Uint8Array(arrayBuffer);const chunks=[];for(let o=0;o<bytes.length;o+=chunkSize)chunks.push(bytes.slice(o,Math.min(o+chunkSize,bytes.length)).buffer);return chunks}
+function concatArrayBuffers(buffers){const total=buffers.reduce((s,b)=>s+b.byteLength,0);const out=new Uint8Array(total);let o=0;for(const b of buffers){out.set(new Uint8Array(b),o);o+=b.byteLength}return out.buffer}
+function isChunkedFile(f){return !!(f&&f.chunked&&Array.isArray(f.chunks)&&f.chunks.length)}
 async function uploadMediaDriveStyle(file,privateKeyBytes,onStatus){
-    const buf=await file.arrayBuffer();
-    const fileSha=await sha256Hex(buf);
-    const size=buf.byteLength;
+    const buf=await file.arrayBuffer();const fileSha=await sha256Hex(buf);const size=buf.byteLength;
     if(size>MAX_FREE_BYTES){
-        const parts=splitBufferIntoChunks(buf,CHUNK_SIZE);
-        const chunkMeta=[];let backend='cloud';
-        for(let i=0;i<parts.length;i++){
-            if(onStatus)onStatus(`Enviando fatia ${i+1}/${parts.length}...`);
-            const{url,backend:b}=await uploadSingleBuffer(parts[i],`${file.name}.part${String(i).padStart(4,'0')}`,privateKeyBytes);
-            if(b==='local')backend='local';else if(backend!=='local')backend=b||backend;
-            chunkMeta.push({url,index:i,size:parts[i].byteLength});
-        }
+        const parts=splitBufferIntoChunks(buf,CHUNK_SIZE);const chunkMeta=[];let backend='cloud';
+        for(let i=0;i<parts.length;i++){if(onStatus)onStatus(`Fatia ${i+1}/${parts.length}...`);const{url,backend:b}=await uploadSingleBuffer(parts[i],`${file.name}.part${String(i).padStart(4,'0')}`,privateKeyBytes);if(b==='local')backend='local';else if(backend!=='local')backend=b||backend;chunkMeta.push({url,index:i,size:parts[i].byteLength})}
         return{chunked:true,chunks:chunkMeta,mime:file.type||'video/mp4',size,encSize:size,encSha256:fileSha,backend,url:chunkMeta[0]?.url||''};
     }
-    if(onStatus)onStatus('Enviando arquivo...');
-    const{url,backend}=await uploadSingleBuffer(buf,file.name,privateKeyBytes);
-    return url; // string simples se não fatiado
+    if(onStatus)onStatus('Enviando...');const{url}=await uploadSingleBuffer(buf,file.name,privateKeyBytes);return url;
 }
-
-/** Reconstrução estilo Drive */
 async function reconstructMediaFromChunks(ref){
-    if(!isChunkedFile(ref))throw new Error('Referência fragmentada inválida');
-    const sorted=[...ref.chunks].sort((a,b)=>(a.index||0)-(b.index||0));
-    const parts=[];
+    if(!isChunkedFile(ref))throw new Error('Fragmento inválido');
+    const sorted=[...ref.chunks].sort((a,b)=>(a.index||0)-(b.index||0));const parts=[];
     for(let i=0;i<sorted.length;i++){
-        const ch=sorted[i];
-        if(window.setNetworkStatus)window.setNetworkStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>Reconstruindo fatia ${i+1}/${sorted.length}...</span>`);
-        let buf;
-        if(String(ch.url).startsWith('idb://')){
-            buf=await loadEncryptedLocally(ch.url);
-            if(!buf)throw new Error('Fatia local ausente: '+(ch.index??i));
-        }else{
-            const res=await fetch(ch.url);if(!res.ok)throw new Error('Falha ao baixar fatia '+(ch.index??i));
-            buf=await res.arrayBuffer();
-        }
-        if(ch.size!=null&&buf.byteLength!==ch.size)throw new Error(`Integridade fatia ${ch.index??i}: ${buf.byteLength} ≠ ${ch.size}`);
+        const ch=sorted[i];let buf;
+        if(String(ch.url).startsWith('idb://')){buf=await loadEncryptedLocally(ch.url);if(!buf)throw new Error('Fatia local ausente')}
+        else{const res=await fetch(ch.url);if(!res.ok)throw new Error('Falha fatia '+i);buf=await res.arrayBuffer()}
+        if(ch.size!=null&&buf.byteLength!==ch.size)throw new Error('Integridade fatia '+i);
         parts.push(buf);
     }
     const combined=concatArrayBuffers(parts);
-    if(ref.encSha256){const hash=await sha256Hex(combined);if(hash!==ref.encSha256)throw new Error('Integridade: hash não confere')}
-    if(ref.encSize!=null&&combined.byteLength!==ref.encSize)throw new Error(`Integridade: tamanho ${combined.byteLength} ≠ ${ref.encSize}`);
+    if(ref.encSha256){const hash=await sha256Hex(combined);if(hash!==ref.encSha256)throw new Error('Hash inválido')}
     return URL.createObjectURL(new Blob([combined],{type:ref.mime||'video/mp4'}));
 }
+async function publishToRelays(ev){const results=await Promise.allSettled(pool.publish(RELAYS,ev));if(!results.some(r=>r.status==='fulfilled'))throw new Error('Nenhum relay aceitou')}
 
-async function publishToRelays(ev){
-    const results=await Promise.allSettled(pool.publish(RELAYS,ev));
-    if(!results.some(r=>r.status==='fulfilled'))throw new Error('Nenhum relay aceitou o evento');
+/* ===== Favoritos / Histórico na rede ===== */
+async function syncUserMetaToNetwork(meta){
+    const session=getSession();if(!session)return false;
+    try{
+        const content=await encryptUserMeta({v:1,saved:meta.saved||[],history:meta.history||[],updatedAt:Date.now()},session.privateKeyHex);
+        const signed=NostrTools.finalizeEvent({
+            kind:STREAM_KIND,created_at:Math.floor(Date.now()/1000),
+            tags:[['d',USER_META_D],['client','loreplay-streaming'],['t','user-meta']],
+            content
+        },session.privateKey);
+        await publishToRelays(signed);
+        return true;
+    }catch(e){console.error('syncUserMeta',e);return false}
+}
+async function loadUserMetaFromNetwork(){
+    const session=getSession();if(!session)return null;
+    try{
+        const events=await pool.querySync(RELAYS,{kinds:[STREAM_KIND],authors:[session.pubkey],'#d':[USER_META_D],limit:5})||[];
+        events.sort((a,b)=>b.created_at-a.created_at);
+        for(const ev of events){
+            try{return await decryptUserMeta(ev.content,session.privateKeyHex)}catch(_){}
+        }
+    }catch(e){console.warn(e)}
+    return null;
 }
 
-async function publishPost({provider,type,name,coverFile,seasonsFiles,videoDub,videoSub}){
+async function publishPost({provider,type,name,coverFile,seasonsFiles,videoDub,videoSub,isEdit,existingDTag,basePayload}){
     const session=getSession();
-    if(!session)throw new Error('Sessão Nostr ausente. Faça login no Social.');
-    if(session.privateKeyHex!==ALLOWED_HEX)throw new Error('Conta não autorizada a postar.');
+    if(!session)throw new Error('Sessão Nostr ausente.');
+    if(session.privateKeyHex!==ALLOWED_HEX)throw new Error('Conta não autorizada.');
     const status=msg=>{if(window.setNetworkStatus)window.setNetworkStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>${msg}</span>`)};
 
-    status('Enviando capa...');
-    const coverRef=await uploadMediaDriveStyle(coverFile,session.privateKey,status);
-    const coverUrl=typeof coverRef==='string'?coverRef:(coverRef.url||'');
+    let coverUrl=basePayload?.img||'';
+    if(coverFile){status('Enviando capa...');const coverRef=await uploadMediaDriveStyle(coverFile,session.privateKey,status);coverUrl=typeof coverRef==='string'?coverRef:(coverRef.url||coverUrl)}
+    if(!coverUrl)throw new Error('Capa obrigatória.');
 
-    const payload={name,provider,type,img:coverUrl,status:type==='series'?'Nova Série':'Filme',badge:type==='series'?'Dubl./Legend.':'Filme',created_at:Math.floor(Date.now()/1000)};
+    const payload={
+        name,provider,type,img:coverUrl,
+        status:type==='series'?'Série':'Filme',
+        badge:type==='series'?'Dubl./Legend.':'Filme',
+        created_at:basePayload?.created_at||Math.floor(Date.now()/1000),
+        updated_at:Math.floor(Date.now()/1000)
+    };
 
     if(type==='series'){
-        payload.seasons={};let has=false;
+        // começa com o que já existia na edição
+        payload.seasons=basePayload?.seasons?JSON.parse(JSON.stringify(basePayload.seasons)):{};
+        let has=false;
         for(const mode of ['dublado','legendado']){
-            if(!seasonsFiles?.[mode])continue;payload.seasons[mode]={};
+            if(!seasonsFiles?.[mode])continue;
+            if(!payload.seasons[mode])payload.seasons[mode]={};
             for(const s of Object.keys(seasonsFiles[mode])){
-                payload.seasons[mode][s]={};
+                if(!payload.seasons[mode][s])payload.seasons[mode][s]={};
                 for(const e of Object.keys(seasonsFiles[mode][s])){
-                    const f=seasonsFiles[mode][s][e];if(!f)continue;
-                    status(`${mode} T${s}E${e}...`);
-                    payload.seasons[mode][s][e]=await uploadMediaDriveStyle(f,session.privateKey,status);has=true;
+                    const f=seasonsFiles[mode][s][e];
+                    if(f instanceof File||f instanceof Blob){
+                        status(`${mode} T${s}E${e}...`);
+                        payload.seasons[mode][s][e]=await uploadMediaDriveStyle(f,session.privateKey,status);
+                    }
+                    // se null na edição, mantém o que já estava em payload.seasons
                 }
             }
         }
-        if(!has)throw new Error('Envie ao menos um episódio.');
+        has=Object.values(payload.seasons).some(m=>Object.values(m||{}).some(eps=>Object.values(eps||{}).some(Boolean)));
+        if(!has)throw new Error('É preciso haver ao menos um episódio.');
     }else{
-        if(!videoDub&&!videoSub)throw new Error('Envie ao menos um vídeo.');
-        const uD=videoDub?await uploadMediaDriveStyle(videoDub,session.privateKey,status):null;
-        const uS=videoSub?await uploadMediaDriveStyle(videoSub,session.privateKey,status):null;
+        let uD=basePayload?.videoUrls?.dublado||null;
+        let uS=basePayload?.videoUrls?.legendado||null;
+        if(videoDub)uD=await uploadMediaDriveStyle(videoDub,session.privateKey,status);
+        if(videoSub)uS=await uploadMediaDriveStyle(videoSub,session.privateKey,status);
+        if(!uD&&!uS)throw new Error('Envie ao menos um vídeo.');
         payload.videoUrls={dublado:uD||uS,legendado:uS||uD};
     }
 
     const epoch=currentEpoch(),salt=randomSalt(16);
     const encrypted=await encryptPayload(payload,epoch,salt);
+    const dTag=(isEdit&&existingDTag)?existingDTag:('lp-stream-'+(crypto.randomUUID?.()||Date.now()));
     const signed=NostrTools.finalizeEvent({
         kind:STREAM_KIND,created_at:Math.floor(Date.now()/1000),
-        tags:[['d','lp-stream-'+(crypto.randomUUID?.()||Date.now())],['t',TAG_APP],['t','streaming-post'],['provider',provider],['media',type],['crypto_v','1'],['crypto_epoch',String(epoch)],['crypto_salt',salt],['title',String(name).slice(0,80)]],
+        tags:[['d',dTag],['t',TAG_APP],['t','streaming-post'],['provider',provider],['media',type],['crypto_v','1'],['crypto_epoch',String(epoch)],['crypto_salt',salt],['title',String(name).slice(0,80)]],
         content:encrypted
     },session.privateKey);
-    status('Publicando metadados cifrados...');
+    status(isEdit?'Atualizando metadados...':'Publicando metadados...');
     await publishToRelays(signed);
     return payload;
 }
@@ -597,7 +718,7 @@ async function loadPostsFromNetwork(){
     Object.keys(pd).forEach(k=>{pd[k].series=[];pd[k].movies=[]});
     let events=[];
     try{events=await pool.querySync(RELAYS,{kinds:[STREAM_KIND],'#t':[TAG_APP],limit:200})||[]}
-    catch(e){if(window.setNetworkStatus)window.setNetworkStatus(`<span class="text-amber-500">Falha nos relays.</span>`);if(window.renderCatalog)window.renderCatalog();return 0}
+    catch(e){if(window.renderCatalog)window.renderCatalog();return 0}
     const seen=new Set();let count=0;
     for(const ev of events.sort((a,b)=>b.created_at-a.created_at)){
         try{
@@ -606,7 +727,7 @@ async function loadPostsFromNetwork(){
             const data=await decryptPayload(ev.content,tags.crypto_epoch,tags.crypto_salt);
             if(!data?.name||!data?.provider||!pd[data.provider])continue;
             const key=(tags.d||ev.id)+'|'+data.name;if(seen.has(key))continue;seen.add(key);
-            const entry={name:data.name,status:data.status||'',badge:data.badge||null,img:data.img,seasons:data.seasons,videoUrls:data.videoUrls};
+            const entry={name:data.name,status:data.status||'',badge:data.badge||null,img:data.img,seasons:data.seasons,videoUrls:data.videoUrls,type:data.type,provider:data.provider,_dTag:tags.d||null};
             if(data.type==='series'){
                 const ok=entry.seasons&&Object.values(entry.seasons).some(m=>Object.values(m||{}).some(eps=>Object.values(eps||{}).some(mediaPresent)));
                 if(!ok)continue;pd[data.provider].series.push(entry);
@@ -618,14 +739,20 @@ async function loadPostsFromNetwork(){
         }catch(_){}
     }
     if(window.renderCatalog)window.renderCatalog();
-    if(window.setNetworkStatus)window.setNetworkStatus(count?`<span class="text-gray-500">${count} título(s) · Drive upload</span>`:`<span class="text-gray-400">Nenhum título ainda.</span>`);
+    if(window.setNetworkStatus)window.setNetworkStatus(count?`<span class="text-gray-500">${count} título(s)</span>`:`<span class="text-gray-400">Nenhum título ainda.</span>`);
     return count;
 }
 
 window.__lpStreamNet={publishPost};
 window.loadPostsFromNetwork=loadPostsFromNetwork;
 window.reconstructMediaFromChunks=reconstructMediaFromChunks;
+window.syncUserMetaToNetwork=syncUserMetaToNetwork;
+
 loadPostsFromNetwork().catch(console.error);
+(async()=>{
+    const meta=await loadUserMetaFromNetwork();
+    if(meta&&window.applyUserMeta)window.applyUserMeta(meta);
+})();
 setInterval(()=>loadPostsFromNetwork().catch(()=>{}),120000);
 </script>
 </body>
