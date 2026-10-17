@@ -150,6 +150,9 @@
             </div>
 
             <div class="flex items-center gap-1 shrink-0">
+                <button type="button" onclick="openModal('creationModal')" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700 transition" title="Criação">
+                    <i class="fa-regular fa-plus-square"></i>
+                </button>
                 <button type="button" onclick="openModal('historyModal')" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700 transition" title="Histórico">
                     <i class="fa-regular fa-clock"></i>
                 </button>
@@ -255,6 +258,24 @@
         </div>
 
     </main>
+
+    <!-- Modal Flutuante: Criação -->
+    <div id="creationModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onclick="closeModalOnBackdrop(event, 'creationModal')">
+        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl border border-gray-100 p-5 transform transition-all">
+            <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-3 sm:hidden"></div>
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-100">
+                <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <i class="fa-regular fa-plus-square text-secondary"></i> Criação
+                </h3>
+                <button type="button" onclick="closeModal('creationModal')" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="space-y-3 max-h-80 overflow-y-auto no-scrollbar pr-1">
+                <p class="text-xs text-gray-500 text-center py-4">Nenhum item criado ainda.</p>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal Flutuante: Histórico -->
     <div id="historyModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onclick="closeModalOnBackdrop(event, 'historyModal')">
@@ -406,6 +427,20 @@
                     </div>
                 </div>
 
+                <!-- Container de Anúncio -->
+                <div class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 rounded-xl bg-secondary/20 text-secondary flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-bullhorn"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold text-white uppercase tracking-wider">Patrocinado</p>
+                            <p class="text-xs text-gray-400 truncate">Conheça os novos planos e vantagens exclusivas LorePlay.</p>
+                        </div>
+                    </div>
+                    <a href="#" class="shrink-0 text-xs font-semibold bg-secondary hover:bg-secondary/80 text-white px-3.5 py-2 rounded-xl transition">Saiba mais</a>
+                </div>
+
                 <!-- Seção de Títulos Semelhantes -->
                 <div>
                     <h3 class="text-sm font-bold uppercase tracking-wider text-white mb-3">Títulos semelhantes</h3>
@@ -454,6 +489,25 @@
             6: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoylikes.mp4"
         };
 
+        /* Auto Scroll para a lista de episódios */
+        let autoScrollInterval = null;
+
+        function startAutoScrollEpisodes() {
+            const container = document.getElementById('episodesContainer');
+            if (!container) return;
+            
+            clearInterval(autoScrollInterval);
+            autoScrollInterval = setInterval(() => {
+                if (!container.matches(':hover')) {
+                    if (container.scrollLeft + container.clientWidth >= container.scrollWidth - 5) {
+                        container.scrollTo({ left: 0, behavior: 'smooth' });
+                    } else {
+                        container.scrollBy({ left: 120, behavior: 'smooth' });
+                    }
+                }
+            }, 3000);
+        }
+
         /* Modais Básicos */
         function openModal(modalId) {
             const modal = document.getElementById(modalId);
@@ -468,6 +522,9 @@
                 if (video) {
                     video.pause();
                     video.currentTime = 0;
+                }
+                if (modalId === 'detailModal') {
+                    clearInterval(autoScrollInterval);
                 }
             }
         }
@@ -498,7 +555,10 @@
             // Atualiza estado visual do botão de favorito
             updateFavoriteUI();
 
-            if (modal) modal.classList.remove('hidden');
+            if (modal) {
+                modal.classList.remove('hidden');
+                startAutoScrollEpisodes();
+            }
         }
 
         /* Troca de Episódios */
