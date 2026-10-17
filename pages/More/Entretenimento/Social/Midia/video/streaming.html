@@ -46,15 +46,31 @@
             #historyModal,#savedModal{align-items:center;padding:1rem}
             #historyModal>div,#savedModal>div{max-width:28rem;border-radius:1rem;max-height:90vh}
         }
-        /* Desktop responsivo */
+        /* Modal de play — ocupa tudo */
+        #detailModal{position:fixed;inset:0;z-index:50;background:#0a0a0c}
+        #detailShell{width:100%;height:100%;min-height:100dvh;display:flex;flex-direction:column;background:#0a0a0c;color:#fff;overflow:hidden}
+        #playerStage{position:relative;flex:1 1 auto;min-height:42vh;background:#000;display:flex;align-items:center;justify-content:center}
+        #contentVideoPlayer{width:100%;height:100%;max-height:100%;object-fit:contain;background:#000}
+        #detailPanel{flex:0 0 auto;max-height:48vh;overflow-y:auto;background:#121214;border-top:1px solid rgba(255,255,255,.08)}
+        #playerStage:fullscreen,#playerStage:-webkit-full-screen{width:100vw;height:100vh;background:#000}
+        #playerStage:fullscreen #contentVideoPlayer,#playerStage:-webkit-full-screen #contentVideoPlayer{width:100%;height:100%;object-fit:contain}
+        .fs-btn{position:absolute;bottom:1rem;right:1rem;z-index:25;width:2.5rem;height:2.5rem;border-radius:9999px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
+        .fs-btn:hover{background:rgba(124,58,237,.85)}
+        @media (min-width:1024px){
+            #detailShell{flex-direction:row;height:100dvh}
+            #playerStage{flex:1 1 0;min-height:100%;min-width:0;height:100%}
+            #detailPanel{flex:0 0 360px;max-height:100%;height:100%;border-top:none;border-left:1px solid rgba(255,255,255,.08)}
+            #contentVideoPlayer{object-fit:contain}
+        }
+        @media (min-width:1280px){
+            #detailPanel{flex-basis:400px}
+        }
+        /* Desktop página */
         @media (min-width:768px){
             main{padding:1.75rem 2rem 2.5rem!important;max-width:1200px}
             .hero-banner{max-height:420px;border-radius:1.25rem;padding:2rem}
-            .hero-banner h2{font-size:1.85rem}
             .provider-card{width:160px}
             #contentGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:1.25rem}
-            .lp-slot{min-height:112px;border-radius:18px}
-            .lp-slot .lp-slot-media{width:112px;height:88px}
         }
         @media (min-width:1024px){
             body{background:linear-gradient(180deg,#f8fafc 0%,#f3f4f6 100%)}
@@ -66,13 +82,9 @@
             .desktop-stream-aside .lp-slot.is-ready .lp-slot-body{flex-direction:column;align-items:stretch;padding:0;gap:0;min-height:280px}
             .desktop-stream-aside .lp-slot .lp-slot-media{width:100%;height:180px;border-radius:16px 16px 0 0}
             .desktop-stream-aside .lp-slot .lp-slot-meta{padding:14px 16px 16px}
-            .desktop-stream-aside .lp-slot .lp-slot-heading{white-space:normal;font-size:15px}
-            .desktop-stream-aside .lp-slot .lp-slot-text{-webkit-line-clamp:3}
             .hero-banner{max-height:460px}
             #contentGrid{grid-template-columns:repeat(5,minmax(0,1fr));gap:1.35rem}
             .provider-card{width:168px}
-            #detailModal>div{max-width:1100px;margin:0 auto;min-height:100%;border-left:1px solid rgba(255,255,255,.06);border-right:1px solid rgba(255,255,255,.06)}
-            #detailModal .aspect-video{max-height:52vh}
             #creationModal>div{max-width:36rem}
         }
         @media (min-width:1280px){
@@ -80,6 +92,12 @@
             .desktop-stream-layout{grid-template-columns:1fr 340px;gap:2rem}
             #contentGrid{grid-template-columns:repeat(6,minmax(0,1fr))}
             .hero-banner{max-height:480px}
+        }
+        /* Mobile landscape no modal (sem fullscreen nativo) */
+        @media (max-width:1023px) and (orientation:landscape){
+            #detailModal:not(.hidden) #detailShell{flex-direction:row}
+            #detailModal:not(.hidden) #playerStage{min-height:100%;flex:1 1 65%}
+            #detailModal:not(.hidden) #detailPanel{max-height:100%;flex:0 0 35%;border-top:none;border-left:1px solid rgba(255,255,255,.08)}
         }
     </style>
 </head>
@@ -152,11 +170,10 @@
             <div class="lp-slot" data-lp-slot>Espaço disponível</div>
         </aside>
     </div>
-    <div class="pt-6 lg:hidden">
-        <div class="lp-slot" data-lp-slot>Espaço disponível</div>
-    </div>
+    <div class="pt-6 lg:hidden"><div class="lp-slot" data-lp-slot>Espaço disponível</div></div>
 </main>
 
+<!-- Criação (inalterado na lógica) -->
 <div id="creationModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4" onclick="closeModalOnBackdrop(event,'creationModal')">
     <div class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
         <div class="flex items-center justify-between pb-3 mb-4 border-b">
@@ -165,33 +182,23 @@
         </div>
         <form onsubmit="handleContentPost(event)" class="space-y-4 overflow-y-auto no-scrollbar flex-1">
             <input type="hidden" id="editEventDTag" value="">
-            <div>
-                <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Plataforma</label>
+            <div><label class="block text-xs font-bold uppercase text-gray-700 mb-1">Plataforma</label>
                 <select id="postProvider" required class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm">
                     <option value="netflix">Netflix</option><option value="disney">Disney+</option><option value="appletv">Apple TV+</option>
                     <option value="roku">Roku</option><option value="crunchyroll">Crunchyroll</option><option value="globoplay">Globoplay</option>
                     <option value="prime">Prime Video</option><option value="hbo">HBO Max</option><option value="paramount">Paramount+</option><option value="pluto">Pluto TV</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Tipo</label>
+                </select></div>
+            <div><label class="block text-xs font-bold uppercase text-gray-700 mb-1">Tipo</label>
                 <select id="postType" onchange="togglePostFields(this.value)" class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm">
                     <option value="series">Série</option><option value="movies">Filme</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Nome</label>
-                <input type="text" id="postName" required class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm" placeholder="Título">
-            </div>
-            <div>
-                <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Capa <span id="coverOptionalHint" class="hidden text-gray-400 font-normal normal-case">(opcional na edição)</span></label>
-                <input type="file" id="postCover" accept="image/*" class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-secondary file:text-white">
-            </div>
+                </select></div>
+            <div><label class="block text-xs font-bold uppercase text-gray-700 mb-1">Nome</label>
+                <input type="text" id="postName" required class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm" placeholder="Título"></div>
+            <div><label class="block text-xs font-bold uppercase text-gray-700 mb-1">Capa <span id="coverOptionalHint" class="hidden text-gray-400 font-normal normal-case">(opcional na edição)</span></label>
+                <input type="file" id="postCover" accept="image/*" class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-secondary file:text-white"></div>
             <div id="seriesFields" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Temporadas</label>
-                    <input type="number" id="postSeasons" min="1" value="2" onchange="renderPostSeasonsInputs(this.value)" class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm">
-                </div>
+                <div><label class="block text-xs font-bold uppercase text-gray-700 mb-1">Temporadas</label>
+                    <input type="number" id="postSeasons" min="1" value="2" onchange="renderPostSeasonsInputs(this.value)" class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm"></div>
                 <div class="flex items-center justify-between">
                     <label class="text-xs font-bold uppercase text-gray-700">Episódios</label>
                     <div class="inline-flex p-1 bg-gray-100 rounded-lg">
@@ -221,52 +228,55 @@
 <div id="historyModal" class="hidden fixed inset-0 z-50 flex bg-black/40" onclick="closeModalOnBackdrop(event,'historyModal')">
     <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-5 sm:mx-auto mt-auto sm:my-auto max-h-[88vh] flex flex-col shadow-2xl" onclick="event.stopPropagation()">
         <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-3 sm:hidden shrink-0"></div>
-        <div class="flex justify-between mb-3 border-b pb-3 shrink-0">
-            <h3 class="font-bold"><i class="fa-regular fa-clock text-secondary"></i> Histórico</h3>
-            <button type="button" onclick="closeModal('historyModal')" class="w-8 h-8 rounded-full hover:bg-gray-100"><i class="fa-solid fa-xmark"></i></button>
-        </div>
+        <div class="flex justify-between mb-3 border-b pb-3 shrink-0"><h3 class="font-bold"><i class="fa-regular fa-clock text-secondary"></i> Histórico</h3>
+            <button type="button" onclick="closeModal('historyModal')" class="w-8 h-8 rounded-full hover:bg-gray-100"><i class="fa-solid fa-xmark"></i></button></div>
         <p class="text-[11px] text-gray-400 mb-2 shrink-0">Sincronizado na conta Nostr</p>
         <div id="historyItemsList" class="space-y-3 overflow-y-auto no-scrollbar flex-1"></div>
     </div>
 </div>
-
 <div id="savedModal" class="hidden fixed inset-0 z-50 flex bg-black/40" onclick="closeModalOnBackdrop(event,'savedModal')">
     <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-5 sm:mx-auto mt-auto sm:my-auto max-h-[88vh] flex flex-col shadow-2xl" onclick="event.stopPropagation()">
         <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-3 sm:hidden shrink-0"></div>
-        <div class="flex justify-between mb-3 border-b pb-3 shrink-0">
-            <h3 class="font-bold"><i class="fa-regular fa-bookmark text-secondary"></i> Salvos</h3>
-            <button type="button" onclick="closeModal('savedModal')" class="w-8 h-8 rounded-full hover:bg-gray-100"><i class="fa-solid fa-xmark"></i></button>
-        </div>
+        <div class="flex justify-between mb-3 border-b pb-3 shrink-0"><h3 class="font-bold"><i class="fa-regular fa-bookmark text-secondary"></i> Salvos</h3>
+            <button type="button" onclick="closeModal('savedModal')" class="w-8 h-8 rounded-full hover:bg-gray-100"><i class="fa-solid fa-xmark"></i></button></div>
         <p class="text-[11px] text-gray-400 mb-2 shrink-0">Sincronizado na conta Nostr</p>
         <div id="savedItemsList" class="space-y-3 overflow-y-auto no-scrollbar flex-1"></div>
     </div>
 </div>
 
-<div id="detailModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md overflow-y-auto" onclick="closeModalOnBackdrop(event,'detailModal')">
-    <div class="bg-[#121214] text-white w-full min-h-full flex flex-col" onclick="event.stopPropagation()">
-        <div class="relative w-full aspect-video sm:max-h-[45vh] bg-black">
-            <video id="contentVideoPlayer" controls controlslist="nodownload" class="w-full h-full object-cover"></video>
+<!-- Modal PLAY — tela cheia + desktop teatro -->
+<div id="detailModal" class="hidden" onclick="closeModalOnBackdrop(event,'detailModal')">
+    <div id="detailShell" onclick="event.stopPropagation()">
+        <div id="playerStage">
+            <video id="contentVideoPlayer" controls playsinline controlslist="nodownload"></video>
             <div id="mediaLoadingOverlay" class="hidden absolute inset-0 bg-black/70 z-20 flex flex-col items-center justify-center gap-2">
                 <i class="fa-solid fa-spinner fa-spin text-secondary text-2xl"></i>
                 <span class="text-xs text-gray-300" id="mediaLoadingText">Reconstruindo...</span>
             </div>
-            <button type="button" onclick="closeModal('detailModal')" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 z-30"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <button type="button" onclick="closeModal('detailModal')" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 z-30 text-white border border-white/10"><i class="fa-solid fa-xmark text-xl"></i></button>
             <div class="absolute top-4 left-4 z-10 text-xs"><span class="bg-black/40 px-3 py-1.5 rounded-full border border-white/10" id="audioBadge">[Dublado]</span></div>
-            <div class="absolute bottom-4 left-6 right-6 z-10 flex items-end justify-between gap-3">
-                <h2 id="detailModalTitle" class="text-2xl sm:text-4xl font-black">Título</h2>
-                <button type="button" id="editContentBtn" onclick="openEditCurrentContent()" class="hidden shrink-0 bg-secondary text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-pen mr-1"></i> Editar</button>
+            <div class="absolute bottom-4 left-4 z-10 max-w-[70%]">
+                <h2 id="detailModalTitle" class="text-lg sm:text-2xl lg:text-3xl font-black text-white drop-shadow-lg">Título</h2>
             </div>
+            <button type="button" id="fullscreenBtn" onclick="togglePlayerFullscreen()" class="fs-btn" title="Tela cheia">
+                <i class="fa-solid fa-expand" id="fullscreenIcon"></i>
+            </button>
         </div>
-        <div class="p-4 sm:p-8 space-y-6 flex-1 overflow-y-auto no-scrollbar">
-            <div class="flex justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-gray-300">
-                <span>Via Stream · Rede Nostr</span><span class="text-secondary"><i class="fa-solid fa-shield-halved"></i> Cifrado</span>
+        <div id="detailPanel" class="p-4 sm:p-6 space-y-5 no-scrollbar">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex justify-between flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-gray-300">
+                    <span>Via Stream · Rede Nostr</span><span class="text-secondary"><i class="fa-solid fa-shield-halved"></i> Cifrado</span>
+                </div>
+                <button type="button" id="editContentBtn" onclick="openEditCurrentContent()" class="hidden shrink-0 bg-secondary text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-pen mr-1"></i> Editar</button>
             </div>
             <div class="grid grid-cols-3 gap-3 max-w-md mx-auto text-center">
                 <button type="button" id="downloadMediaBtn" onclick="downloadCurrentMedia()" class="bg-white/10 hover:bg-white/15 p-3.5 rounded-2xl flex flex-col items-center gap-1.5 transition">
                     <i class="fa-solid fa-download" id="downloadMediaIcon"></i>
                     <div class="text-xs mt-1" id="downloadMediaText">Baixar</div>
                 </button>
-                <button type="button" class="bg-white/10 p-3.5 rounded-2xl"><i class="fa-solid fa-tv"></i><div class="text-xs mt-1">TV</div></button>
+                <button type="button" onclick="togglePlayerFullscreen()" class="bg-white/10 hover:bg-white/15 p-3.5 rounded-2xl flex flex-col items-center gap-1.5">
+                    <i class="fa-solid fa-tv"></i><div class="text-xs mt-1">Tela cheia</div>
+                </button>
                 <button type="button" id="favoriteBtn" onclick="toggleFavorite()" class="bg-white/10 p-3.5 rounded-2xl"><i id="favoriteIcon" class="fa-regular fa-star"></i><div class="text-xs mt-1" id="favoriteText">Favorito</div></button>
             </div>
             <div class="flex justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3">
@@ -345,11 +355,72 @@ function getActiveMediaRef(){
         const k=Object.keys(eps).find(x=>hasMediaRef(eps[x]));
         return k?eps[k]:null;
     }
-    if(currentItemFullData?.videoUrls){
-        return currentItemFullData.videoUrls[activePlaybackAudioMode]||currentItemFullData.videoUrls.dublado||currentItemFullData.videoUrls.legendado||null;
-    }
+    if(currentItemFullData?.videoUrls)return currentItemFullData.videoUrls[activePlaybackAudioMode]||currentItemFullData.videoUrls.dublado||currentItemFullData.videoUrls.legendado||null;
     return null;
 }
+
+/* ===== Tela cheia + landscape mobile ===== */
+function isPlayerFullscreen(){
+    const stage=document.getElementById('playerStage');
+    return !!(document.fullscreenElement===stage||document.webkitFullscreenElement===stage);
+}
+async function lockLandscapeIfPossible(){
+    try{
+        if(screen.orientation&&typeof screen.orientation.lock==='function'){
+            await screen.orientation.lock('landscape');
+        }
+    }catch(_){/* iOS e alguns browsers bloqueiam */}
+}
+async function unlockOrientationIfPossible(){
+    try{
+        if(screen.orientation&&typeof screen.orientation.unlock==='function'){
+            screen.orientation.unlock();
+        }
+    }catch(_){}
+}
+function updateFullscreenIcon(){
+    const icon=document.getElementById('fullscreenIcon');
+    if(!icon)return;
+    icon.className=isPlayerFullscreen()?'fa-solid fa-compress':'fa-solid fa-expand';
+}
+async function togglePlayerFullscreen(){
+    const stage=document.getElementById('playerStage');
+    const video=document.getElementById('contentVideoPlayer');
+    if(!stage)return;
+    try{
+        if(isPlayerFullscreen()){
+            if(document.exitFullscreen)await document.exitFullscreen();
+            else if(document.webkitExitFullscreen)document.webkitExitFullscreen();
+            await unlockOrientationIfPossible();
+        }else{
+            // Preferir stage; fallback no video (ajuda iOS a rotacionar)
+            if(stage.requestFullscreen)await stage.requestFullscreen();
+            else if(stage.webkitRequestFullscreen)stage.webkitRequestFullscreen();
+            else if(video&&video.webkitEnterFullscreen){video.webkitEnterFullscreen();return}
+            // Mobile: tenta landscape após entrar em fullscreen
+            if(window.matchMedia('(max-width:1023px)').matches){
+                await lockLandscapeIfPossible();
+            }
+        }
+    }catch(err){
+        // Fallback nativo do <video>
+        try{
+            if(video&&video.requestFullscreen)await video.requestFullscreen();
+            else if(video&&video.webkitEnterFullscreen)video.webkitEnterFullscreen();
+            if(window.matchMedia('(max-width:1023px)').matches)await lockLandscapeIfPossible();
+        }catch(e2){console.warn('Fullscreen indisponível',e2)}
+    }
+    updateFullscreenIcon();
+}
+document.addEventListener('fullscreenchange',async()=>{
+    updateFullscreenIcon();
+    if(!document.fullscreenElement)await unlockOrientationIfPossible();
+});
+document.addEventListener('webkitfullscreenchange',async()=>{
+    updateFullscreenIcon();
+    if(!document.webkitFullscreenElement)await unlockOrientationIfPossible();
+});
+
 async function downloadCurrentMedia(){
     const btnText=document.getElementById('downloadMediaText');
     const btnIcon=document.getElementById('downloadMediaIcon');
@@ -369,12 +440,12 @@ async function downloadCurrentMedia(){
             const src=await resolveMediaSrc(ref);
             if(!src)throw new Error('Mídia indisponível.');
             if(src.startsWith('blob:'))blobUrl=src;
-            else{const res=await fetch(src);if(!res.ok)throw new Error('Falha ao obter arquivo ('+res.status+').');const blob=await res.blob();blobUrl=URL.createObjectURL(blob);revoke=true}
+            else{const res=await fetch(src);if(!res.ok)throw new Error('Falha ('+res.status+').');const blob=await res.blob();blobUrl=URL.createObjectURL(blob);revoke=true}
         }else if(currentSrc&&/^https?:\/\//i.test(currentSrc)){
             setUi(true,'Baixando...');
-            const res=await fetch(currentSrc);if(!res.ok)throw new Error('Falha ao obter arquivo.');
+            const res=await fetch(currentSrc);if(!res.ok)throw new Error('Falha.');
             const blob=await res.blob();blobUrl=URL.createObjectURL(blob);revoke=true;
-        }else throw new Error('Nenhuma mídia carregada para baixar.');
+        }else throw new Error('Nenhuma mídia carregada.');
         if(!/\.(mp4|webm|mkv|mov)$/i.test(filename))filename+='.mp4';
         const a=document.createElement('a');a.href=blobUrl;a.download=filename;a.rel='noopener';
         document.body.appendChild(a);a.click();a.remove();
@@ -382,140 +453,27 @@ async function downloadCurrentMedia(){
         if(revoke)setTimeout(()=>{try{URL.revokeObjectURL(blobUrl)}catch(_){}},60000);
     }catch(err){console.error(err);alert('Não foi possível baixar: '+(err.message||err));setUi(false,'Baixar')}
 }
-function renderSkeletonGrid(count=8){
-    const g=document.getElementById('contentGrid');if(!g)return;
-    g.innerHTML=Array.from({length:count}).map(()=>`<div class="content-card skeleton-card pointer-events-none"><div class="content-thumb skeleton"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>`).join('');
-}
-function collectBannerSlidesFromCatalog(){
-    const items=[];
-    Object.keys(providerData).forEach(k=>{
-        (providerData[k].series||[]).forEach(it=>{if(it.img)items.push({img:it.img,title:it.name,desc:it.status||'Série',item:it})});
-        (providerData[k].movies||[]).forEach(it=>{if(it.img)items.push({img:it.img,title:it.name,desc:it.status||'Filme',item:it})});
-    });
-    return items.length?items.slice(0,12):[...SRC_FALLBACK_SLIDES];
-}
-function rebuildBannerFromCatalog(){
-    slides=collectBannerSlidesFromCatalog();currentSlide=0;
-    const dots=document.getElementById('carouselDots');
-    if(dots)dots.innerHTML=slides.map((_,i)=>`<span onclick="setSlide(${i})" class="carousel-dot ${i===0?'w-2 h-2 rounded-full bg-secondary':'w-1.5 h-1.5 rounded-full bg-white/50'}"></span>`).join('');
-    updateSlideUI();clearInterval(slideInterval);slideInterval=setInterval(nextSlide,5000);
-}
-function updateSlideUI(){
-    if(!slides.length)return;
-    const s=slides[currentSlide];
-    const img=document.getElementById('bannerImg'),t=document.getElementById('bannerTitle'),d=document.getElementById('bannerDesc'),h=document.getElementById('heroBanner');
-    img.style.opacity='.3';
-    setTimeout(()=>{
-        img.src=s.img;t.textContent=s.title;d.textContent=s.desc||'';
-        h.onclick=()=>{if(s.item)openDetailModal(s.title,s.img,s.desc||'',s.item);else openDetailModal(s.title,s.img,s.desc||'')};
-        img.style.opacity='.75';
-    },200);
-    document.querySelectorAll('#carouselDots .carousel-dot').forEach((dot,i)=>{dot.className=i===currentSlide?'carousel-dot w-2 h-2 rounded-full bg-secondary':'carousel-dot w-1.5 h-1.5 rounded-full bg-white/50'});
-}
+
+function renderSkeletonGrid(count=8){const g=document.getElementById('contentGrid');if(!g)return;g.innerHTML=Array.from({length:count}).map(()=>`<div class="content-card skeleton-card pointer-events-none"><div class="content-thumb skeleton"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>`).join('')}
+function collectBannerSlidesFromCatalog(){const items=[];Object.keys(providerData).forEach(k=>{(providerData[k].series||[]).forEach(it=>{if(it.img)items.push({img:it.img,title:it.name,desc:it.status||'Série',item:it})});(providerData[k].movies||[]).forEach(it=>{if(it.img)items.push({img:it.img,title:it.name,desc:it.status||'Filme',item:it})})});return items.length?items.slice(0,12):[...SRC_FALLBACK_SLIDES]}
+function rebuildBannerFromCatalog(){slides=collectBannerSlidesFromCatalog();currentSlide=0;const dots=document.getElementById('carouselDots');if(dots)dots.innerHTML=slides.map((_,i)=>`<span onclick="setSlide(${i})" class="carousel-dot ${i===0?'w-2 h-2 rounded-full bg-secondary':'w-1.5 h-1.5 rounded-full bg-white/50'}"></span>`).join('');updateSlideUI();clearInterval(slideInterval);slideInterval=setInterval(nextSlide,5000)}
+function updateSlideUI(){if(!slides.length)return;const s=slides[currentSlide];const img=document.getElementById('bannerImg'),t=document.getElementById('bannerTitle'),d=document.getElementById('bannerDesc'),h=document.getElementById('heroBanner');img.style.opacity='.3';setTimeout(()=>{img.src=s.img;t.textContent=s.title;d.textContent=s.desc||'';h.onclick=()=>{if(s.item)openDetailModal(s.title,s.img,s.desc||'',s.item);else openDetailModal(s.title,s.img,s.desc||'')};img.style.opacity='.75'},200);document.querySelectorAll('#carouselDots .carousel-dot').forEach((dot,i)=>{dot.className=i===currentSlide?'carousel-dot w-2 h-2 rounded-full bg-secondary':'carousel-dot w-1.5 h-1.5 rounded-full bg-white/50'})}
 function nextSlide(){if(!slides.length)return;currentSlide=(currentSlide+1)%slides.length;updateSlideUI()}
 function setSlide(i){currentSlide=i;updateSlideUI();clearInterval(slideInterval);slideInterval=setInterval(nextSlide,5000)}
 function togglePostFields(type){document.getElementById('seriesFields').classList.toggle('hidden',type!=='series');document.getElementById('movieFields').classList.toggle('hidden',type==='series')}
-function setPostAudioMode(mode){
-    activePostAudioMode=mode;
-    document.getElementById('postBtnDub').className=mode==='dublado'?'px-2.5 py-1 text-[11px] font-bold rounded-md bg-secondary text-white':'px-2.5 py-1 text-[11px] font-bold rounded-md text-gray-600';
-    document.getElementById('postBtnSub').className=mode==='legendado'?'px-2.5 py-1 text-[11px] font-bold rounded-md bg-secondary text-white':'px-2.5 py-1 text-[11px] font-bold rounded-md text-gray-600';
-    if(!postSeasonsData[mode])postSeasonsData[mode]={1:{1:null}};
-    activePostSeason=1;renderPostSeasonsTabBar();renderPostSeasonEpisodesInputs();
-}
-function setMovieAudioMode(mode){
-    document.getElementById('movieBtnDub').className=mode==='dublado'?'px-2.5 py-1 text-[11px] font-bold rounded-md bg-secondary text-white':'px-2.5 py-1 text-[11px] font-bold rounded-md text-gray-600';
-    document.getElementById('movieBtnSub').className=mode==='legendado'?'px-2.5 py-1 text-[11px] font-bold rounded-md bg-secondary text-white':'px-2.5 py-1 text-[11px] font-bold rounded-md text-gray-600';
-    document.getElementById('postVideoFileDub').classList.toggle('hidden',mode!=='dublado');
-    document.getElementById('postVideoFileSub').classList.toggle('hidden',mode==='dublado');
-}
-function renderPostSeasonsInputs(n){
-    const count=Math.max(1,parseInt(n)||1);
-    if(!postSeasonsData[activePostAudioMode])postSeasonsData[activePostAudioMode]={};
-    const cur=postSeasonsData[activePostAudioMode],neu={};
-    for(let s=1;s<=count;s++){const p=cur[s]?Object.keys(cur[s]).length:3;neu[s]={};for(let i=1;i<=p;i++)neu[s][i]=cur[s]?.[i]??null}
-    postSeasonsData[activePostAudioMode]=neu;if(activePostSeason>count)activePostSeason=1;
-    renderPostSeasonsTabBar();renderPostSeasonEpisodesInputs();
-}
-function renderPostSeasonsTabBar(){
-    const tb=document.getElementById('postSeasonsTabBar');if(!tb)return;
-    const md=postSeasonsData[activePostAudioMode]||{1:{1:null}};
-    tb.innerHTML=Object.keys(md).map(s=>{const a=parseInt(s)===activePostSeason;return `<button type="button" onclick="changePostSeason(${s})" class="shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg border ${a?'bg-secondary text-white border-secondary':'bg-gray-100 text-gray-700 border-gray-200'}">Temp. ${s}</button>`}).join('');
-}
-function renderPostSeasonEpisodesInputs(){
-    const w=document.getElementById('postSeasonsContentWrapper');if(!w)return;
-    const eps=(postSeasonsData[activePostAudioMode]||{})[activePostSeason]||{};const n=Object.keys(eps).length;
-    let h=`<div class="p-3 bg-gray-50 border rounded-xl space-y-3 mt-2"><div class="flex justify-between"><span class="text-xs font-bold text-secondary uppercase">${activePostAudioMode} T${activePostSeason}</span>
-    <input type="number" min="1" value="${n}" onchange="updatePostSeasonEpCount(${activePostSeason},this.value)" class="w-16 bg-white border rounded-lg px-2 py-1 text-xs text-center"></div><div class="space-y-2 max-h-44 overflow-y-auto no-scrollbar">`;
-    for(let i=1;i<=n;i++){
-        const hasExisting=isEditMode&&editingBasePayload?.seasons?.[activePostAudioMode]?.[activePostSeason]?.[i];
-        h+=`<div class="flex gap-2 items-center"><span class="text-[10px] w-10">Ep ${i}</span><input type="file" accept="video/*" onchange="updatePostEpFile(${activePostSeason},${i},this)" class="w-full text-xs file:mr-2 file:px-2 file:py-0.5 file:rounded file:border-0 file:bg-gray-200">${hasExisting?'<span class="text-[10px] text-green-600 shrink-0">ok</span>':''}</div>`;
-    }
-    w.innerHTML=h+'</div></div>';
-}
+function setPostAudioMode(mode){activePostAudioMode=mode;document.getElementById('postBtnDub').className=mode==='dublado'?'px-2.5 py-1 text-[11px] font-bold rounded-md bg-secondary text-white':'px-2.5 py-1 text-[11px] font-bold rounded-md text-gray-600';document.getElementById('postBtnSub').className=mode==='legendado'?'px-2.5 py-1 text-[11px] font-bold rounded-md bg-secondary text-white':'px-2.5 py-1 text-[11px] font-bold rounded-md text-gray-600';if(!postSeasonsData[mode])postSeasonsData[mode]={1:{1:null}};activePostSeason=1;renderPostSeasonsTabBar();renderPostSeasonEpisodesInputs()}
+function setMovieAudioMode(mode){document.getElementById('movieBtnDub').className=mode==='dublado'?'px-2.5 py-1 text-[11px] font-bold rounded-md bg-secondary text-white':'px-2.5 py-1 text-[11px] font-bold rounded-md text-gray-600';document.getElementById('movieBtnSub').className=mode==='legendado'?'px-2.5 py-1 text-[11px] font-bold rounded-md bg-secondary text-white':'px-2.5 py-1 text-[11px] font-bold rounded-md text-gray-600';document.getElementById('postVideoFileDub').classList.toggle('hidden',mode!=='dublado');document.getElementById('postVideoFileSub').classList.toggle('hidden',mode==='dublado')}
+function renderPostSeasonsInputs(n){const count=Math.max(1,parseInt(n)||1);if(!postSeasonsData[activePostAudioMode])postSeasonsData[activePostAudioMode]={};const cur=postSeasonsData[activePostAudioMode],neu={};for(let s=1;s<=count;s++){const p=cur[s]?Object.keys(cur[s]).length:3;neu[s]={};for(let i=1;i<=p;i++)neu[s][i]=cur[s]?.[i]??null}postSeasonsData[activePostAudioMode]=neu;if(activePostSeason>count)activePostSeason=1;renderPostSeasonsTabBar();renderPostSeasonEpisodesInputs()}
+function renderPostSeasonsTabBar(){const tb=document.getElementById('postSeasonsTabBar');if(!tb)return;const md=postSeasonsData[activePostAudioMode]||{1:{1:null}};tb.innerHTML=Object.keys(md).map(s=>{const a=parseInt(s)===activePostSeason;return `<button type="button" onclick="changePostSeason(${s})" class="shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg border ${a?'bg-secondary text-white border-secondary':'bg-gray-100 text-gray-700 border-gray-200'}">Temp. ${s}</button>`}).join('')}
+function renderPostSeasonEpisodesInputs(){const w=document.getElementById('postSeasonsContentWrapper');if(!w)return;const eps=(postSeasonsData[activePostAudioMode]||{})[activePostSeason]||{};const n=Object.keys(eps).length;let h=`<div class="p-3 bg-gray-50 border rounded-xl space-y-3 mt-2"><div class="flex justify-between"><span class="text-xs font-bold text-secondary uppercase">${activePostAudioMode} T${activePostSeason}</span><input type="number" min="1" value="${n}" onchange="updatePostSeasonEpCount(${activePostSeason},this.value)" class="w-16 bg-white border rounded-lg px-2 py-1 text-xs text-center"></div><div class="space-y-2 max-h-44 overflow-y-auto no-scrollbar">`;for(let i=1;i<=n;i++){const hasExisting=isEditMode&&editingBasePayload?.seasons?.[activePostAudioMode]?.[activePostSeason]?.[i];h+=`<div class="flex gap-2 items-center"><span class="text-[10px] w-10">Ep ${i}</span><input type="file" accept="video/*" onchange="updatePostEpFile(${activePostSeason},${i},this)" class="w-full text-xs file:mr-2 file:px-2 file:py-0.5 file:rounded file:border-0 file:bg-gray-200">${hasExisting?'<span class="text-[10px] text-green-600 shrink-0">ok</span>':''}</div>`}w.innerHTML=h+'</div></div>'}
 function changePostSeason(n){activePostSeason=parseInt(n);renderPostSeasonsTabBar();renderPostSeasonEpisodesInputs()}
 function updatePostSeasonEpCount(s,n){const c=Math.max(1,parseInt(n)||1);if(!postSeasonsData[activePostAudioMode])postSeasonsData[activePostAudioMode]={};const cur=postSeasonsData[activePostAudioMode][s]||{},neu={};for(let i=1;i<=c;i++)neu[i]=cur[i]??null;postSeasonsData[activePostAudioMode][s]=neu;renderPostSeasonEpisodesInputs()}
 function updatePostEpFile(s,e,inp){if(inp.files?.[0]){if(!postSeasonsData[activePostAudioMode])postSeasonsData[activePostAudioMode]={};if(!postSeasonsData[activePostAudioMode][s])postSeasonsData[activePostAudioMode][s]={};postSeasonsData[activePostAudioMode][s][e]=inp.files[0]}}
-function resetCreationForm(){
-    isEditMode=false;editingBasePayload=null;
-    document.getElementById('editEventDTag').value='';
-    document.getElementById('creationModalTitleText').textContent='Postar Novo Conteúdo';
-    document.getElementById('postSubmitBtn').textContent='Publicar Conteúdo';
-    document.getElementById('coverOptionalHint').classList.add('hidden');
-    document.getElementById('postCover').required=true;
-    postSeasonsData={dublado:{1:{1:null,2:null,3:null},2:{1:null,2:null}},legendado:{1:{1:null,2:null}}};
-    activePostAudioMode='dublado';activePostSeason=1;
-}
-function openEditCurrentContent(){
-    if(!canPostContent()||!currentItemFullData)return;
-    isEditMode=true;editingBasePayload=JSON.parse(JSON.stringify(currentItemFullData));
-    document.getElementById('editEventDTag').value=currentItemFullData._dTag||'';
-    document.getElementById('creationModalTitleText').textContent='Editar Conteúdo';
-    document.getElementById('postSubmitBtn').textContent='Salvar alterações';
-    document.getElementById('coverOptionalHint').classList.remove('hidden');
-    document.getElementById('postCover').required=false;
-    document.getElementById('postProvider').value=currentItemFullData.provider||currentProvider;
-    document.getElementById('postType').value=currentItemFullData.type||(currentItemFullData.seasons?'series':'movies');
-    document.getElementById('postName').value=currentItemFullData.name||currentDetailTitle;
-    togglePostFields(document.getElementById('postType').value);
-    if(currentItemFullData.seasons){
-        postSeasonsData={dublado:{},legendado:{}};
-        for(const mode of ['dublado','legendado']){
-            postSeasonsData[mode]={};
-            const md=currentItemFullData.seasons[mode]||{};
-            for(const s of Object.keys(md)){postSeasonsData[mode][s]={};for(const e of Object.keys(md[s]||{}))postSeasonsData[mode][s][e]=null}
-            if(!Object.keys(postSeasonsData[mode]).length)postSeasonsData[mode]={1:{1:null}};
-        }
-        const nSeasons=Math.max(Object.keys(postSeasonsData.dublado).length,Object.keys(postSeasonsData.legendado).length,1);
-        document.getElementById('postSeasons').value=nSeasons;setPostAudioMode('dublado');renderPostSeasonsInputs(nSeasons);
-    }
-    closeModal('detailModal');openModal('creationModal');
-}
-async function handleContentPost(ev){
-    ev.preventDefault();
-    if(!canPostContent()){alert('Sem permissão.');return}
-    if(!window.__lpStreamNet?.publishPost){alert('Módulo de rede carregando.');return}
-    const cover=document.getElementById('postCover');
-    if(!isEditMode&&!cover.files?.[0]){alert('Selecione a capa.');return}
-    const btn=document.getElementById('postSubmitBtn');
-    if(btn){btn.disabled=true;btn.textContent=isEditMode?'Salvando...':'Enviando...'}
-    try{
-        await window.__lpStreamNet.publishPost({
-            provider:document.getElementById('postProvider').value,
-            type:document.getElementById('postType').value,
-            name:document.getElementById('postName').value,
-            coverFile:cover.files?.[0]||null,
-            seasonsFiles:document.getElementById('postType').value==='series'?postSeasonsData:null,
-            videoDub:document.getElementById('postVideoFileDub')?.files?.[0]||null,
-            videoSub:document.getElementById('postVideoFileSub')?.files?.[0]||null,
-            isEdit:isEditMode,existingDTag:document.getElementById('editEventDTag').value||null,basePayload:editingBasePayload
-        });
-        if(window.loadPostsFromNetwork)await window.loadPostsFromNetwork();
-        closeModal('creationModal');ev.target.reset();togglePostFields('series');resetCreationForm();setPostAudioMode('dublado');renderPostSeasonsInputs(2);
-    }catch(err){console.error(err);alert('Falha: '+(err.message||err))}
-    finally{if(btn){btn.disabled=false;btn.textContent=isEditMode?'Salvar alterações':'Publicar Conteúdo'}}
-}
-function openModal(id){if(id==='creationModal'&&!canPostContent()){alert('Sem permissão.');return}if(id==='creationModal'&&!isEditMode)resetCreationForm();document.getElementById(id)?.classList.remove('hidden');if(id==='savedModal')renderSavedModalList();if(id==='historyModal')renderHistoryModalList()}
-function closeModal(id){document.getElementById(id)?.classList.add('hidden');const v=document.getElementById('contentVideoPlayer');if(v){v.pause();v.currentTime=0}if(id==='detailModal'&&currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}if(id==='creationModal')resetCreationForm()}
+function resetCreationForm(){isEditMode=false;editingBasePayload=null;document.getElementById('editEventDTag').value='';document.getElementById('creationModalTitleText').textContent='Postar Novo Conteúdo';document.getElementById('postSubmitBtn').textContent='Publicar Conteúdo';document.getElementById('coverOptionalHint').classList.add('hidden');document.getElementById('postCover').required=true;postSeasonsData={dublado:{1:{1:null,2:null,3:null},2:{1:null,2:null}},legendado:{1:{1:null,2:null}}};activePostAudioMode='dublado';activePostSeason=1}
+function openEditCurrentContent(){if(!canPostContent()||!currentItemFullData)return;isEditMode=true;editingBasePayload=JSON.parse(JSON.stringify(currentItemFullData));document.getElementById('editEventDTag').value=currentItemFullData._dTag||'';document.getElementById('creationModalTitleText').textContent='Editar Conteúdo';document.getElementById('postSubmitBtn').textContent='Salvar alterações';document.getElementById('coverOptionalHint').classList.remove('hidden');document.getElementById('postCover').required=false;document.getElementById('postProvider').value=currentItemFullData.provider||currentProvider;document.getElementById('postType').value=currentItemFullData.type||(currentItemFullData.seasons?'series':'movies');document.getElementById('postName').value=currentItemFullData.name||currentDetailTitle;togglePostFields(document.getElementById('postType').value);if(currentItemFullData.seasons){postSeasonsData={dublado:{},legendado:{}};for(const mode of ['dublado','legendado']){postSeasonsData[mode]={};const md=currentItemFullData.seasons[mode]||{};for(const s of Object.keys(md)){postSeasonsData[mode][s]={};for(const e of Object.keys(md[s]||{}))postSeasonsData[mode][s][e]=null}if(!Object.keys(postSeasonsData[mode]).length)postSeasonsData[mode]={1:{1:null}}}const nSeasons=Math.max(Object.keys(postSeasonsData.dublado).length,Object.keys(postSeasonsData.legendado).length,1);document.getElementById('postSeasons').value=nSeasons;setPostAudioMode('dublado');renderPostSeasonsInputs(nSeasons)}closeModal('detailModal');openModal('creationModal')}
+async function handleContentPost(ev){ev.preventDefault();if(!canPostContent()){alert('Sem permissão.');return}if(!window.__lpStreamNet?.publishPost){alert('Módulo de rede carregando.');return}const cover=document.getElementById('postCover');if(!isEditMode&&!cover.files?.[0]){alert('Selecione a capa.');return}const btn=document.getElementById('postSubmitBtn');if(btn){btn.disabled=true;btn.textContent=isEditMode?'Salvando...':'Enviando...'}try{await window.__lpStreamNet.publishPost({provider:document.getElementById('postProvider').value,type:document.getElementById('postType').value,name:document.getElementById('postName').value,coverFile:cover.files?.[0]||null,seasonsFiles:document.getElementById('postType').value==='series'?postSeasonsData:null,videoDub:document.getElementById('postVideoFileDub')?.files?.[0]||null,videoSub:document.getElementById('postVideoFileSub')?.files?.[0]||null,isEdit:isEditMode,existingDTag:document.getElementById('editEventDTag').value||null,basePayload:editingBasePayload});if(window.loadPostsFromNetwork)await window.loadPostsFromNetwork();closeModal('creationModal');ev.target.reset();togglePostFields('series');resetCreationForm();setPostAudioMode('dublado');renderPostSeasonsInputs(2)}catch(err){console.error(err);alert('Falha: '+(err.message||err))}finally{if(btn){btn.disabled=false;btn.textContent=isEditMode?'Salvar alterações':'Publicar Conteúdo'}}}
+function openModal(id){if(id==='creationModal'&&!canPostContent()){alert('Sem permissão.');return}if(id==='creationModal'&&!isEditMode)resetCreationForm();document.getElementById(id)?.classList.remove('hidden');if(id==='savedModal')renderSavedModalList();if(id==='historyModal')renderHistoryModalList();if(id==='detailModal')document.body.style.overflow='hidden'}
+function closeModal(id){document.getElementById(id)?.classList.add('hidden');const v=document.getElementById('contentVideoPlayer');if(v){v.pause();v.currentTime=0}if(id==='detailModal'){document.body.style.overflow='';if(isPlayerFullscreen()){try{document.exitFullscreen?.()}catch(_){}}unlockOrientationIfPossible();if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}}if(id==='creationModal')resetCreationForm()}
 function closeModalOnBackdrop(e,id){if(e.target.id===id)closeModal(id)}
 async function openDetailModal(title,img,desc,item=null){
     currentDetailTitle=title;currentDetailImg=img;currentItemFullData=item;activePlaybackAudioMode='dublado';activeEpisodeKey=null;
@@ -527,9 +485,10 @@ async function openDetailModal(title,img,desc,item=null){
     renderSeasonsTabBar();renderDetailEpisodesUI();
     document.getElementById('detailModalTitle').textContent=title;
     const vp=document.getElementById('contentVideoPlayer');if(vp)vp.poster=img||'';
-    updateFavoriteUI();
+    updateFavoriteUI();updateFullscreenIcon();
     document.getElementById('editContentBtn')?.classList.toggle('hidden',!(canPostContent()&&item&&(item._dTag||item.seasons||item.videoUrls)));
     document.getElementById('detailModal').classList.remove('hidden');
+    document.body.style.overflow='hidden';
     addToHistory({name:title,img,type:item?.type||currentMediaType,provider:item?.provider||currentProvider});
     if(window.refreshPartnerSlots)window.refreshPartnerSlots();
     const eps=am[activeSeason]||{};const fk=Object.keys(eps).find(k=>hasMediaRef(eps[k]));if(fk){activeEpisodeKey=fk;await playMediaRef(eps[fk])}
@@ -541,29 +500,12 @@ async function changeSeason(s){activeSeason=s;activeEpisodeKey=null;renderSeason
 async function switchPlaybackAudioMode(v){activePlaybackAudioMode=v;activeEpisodeKey=null;updateAudioBadge(v);const keys=Object.keys(currentSeasonsData[v]||{});activeSeason=keys.includes(String(activeSeason))?activeSeason:(keys[0]||1);renderSeasonsTabBar();renderDetailEpisodesUI();const eps=(currentSeasonsData[v]||{})[activeSeason]||{};const fk=Object.keys(eps).find(k=>hasMediaRef(eps[k]));if(fk)await selectEpisode(fk,document.querySelector('#episodesContainer .ep-btn'))}
 function updateAudioBadge(v){const e=document.getElementById('audioBadge');if(e)e.textContent=v==='legendado'?'[Legendado]':'[Dublado]'}
 function isTitleSaved(t){return savedTitles.some(i=>i.name===t)}
-async function toggleFavorite(){
-    if(!currentDetailTitle)return;
-    if(isTitleSaved(currentDetailTitle))savedTitles=savedTitles.filter(i=>i.name!==currentDetailTitle);
-    else savedTitles.unshift({name:currentDetailTitle,type:currentMediaType==='series'?'Série':'Filme',img:currentDetailImg,provider:currentProvider,savedAt:Date.now()});
-    updateFavoriteUI();renderSavedModalList();
-    if(window.syncUserMetaToNetwork)await window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles});
-}
+async function toggleFavorite(){if(!currentDetailTitle)return;if(isTitleSaved(currentDetailTitle))savedTitles=savedTitles.filter(i=>i.name!==currentDetailTitle);else savedTitles.unshift({name:currentDetailTitle,type:currentMediaType==='series'?'Série':'Filme',img:currentDetailImg,provider:currentProvider,savedAt:Date.now()});updateFavoriteUI();renderSavedModalList();if(window.syncUserMetaToNetwork)await window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles})}
 function updateFavoriteUI(){const ic=document.getElementById('favoriteIcon'),tx=document.getElementById('favoriteText');const s=isTitleSaved(currentDetailTitle);if(ic)ic.className=s?'fa-solid fa-star text-yellow-400':'fa-regular fa-star';if(tx)tx.textContent=s?'Salvo':'Favorito'}
 function renderSavedModalList(){const c=document.getElementById('savedItemsList');if(!c)return;if(!isUserLoggedIn()){c.innerHTML='<p class="text-xs text-gray-400 text-center py-6">Login no Social para sincronizar.</p>';return}c.innerHTML=savedTitles.length?savedTitles.map(i=>`<div class="flex gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick='openDetailModal(${JSON.stringify(i.name)},${JSON.stringify(i.img)},${JSON.stringify(i.type)})'><div class="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100"><img src="${i.img}" class="w-full h-full object-cover"></div><div><p class="text-xs font-semibold truncate">${i.name}</p><p class="text-[11px] text-secondary">${i.type||''}</p></div></div>`).join(''):'<p class="text-xs text-gray-400 text-center py-6">Nenhum salvo.</p>'}
 async function addToHistory(entry){if(!entry?.name)return;historyTitles=historyTitles.filter(h=>h.name!==entry.name);historyTitles.unshift({...entry,viewedAt:Date.now()});if(historyTitles.length>50)historyTitles=historyTitles.slice(0,50);renderHistoryModalList();if(window.syncUserMetaToNetwork)await window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles})}
 function renderHistoryModalList(){const c=document.getElementById('historyItemsList');if(!c)return;if(!isUserLoggedIn()){c.innerHTML='<p class="text-xs text-gray-400 text-center py-6">Login no Social para sincronizar.</p>';return}c.innerHTML=historyTitles.length?historyTitles.map(i=>`<div class="flex gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick='openDetailModal(${JSON.stringify(i.name)},${JSON.stringify(i.img||"")},${JSON.stringify(i.type||"")})'><div class="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100">${i.img?`<img src="${i.img}" class="w-full h-full object-cover">`:''}</div><div><p class="text-xs font-semibold truncate">${i.name}</p><p class="text-[11px] text-gray-400">${i.type||''}</p></div></div>`).join(''):'<p class="text-xs text-gray-400 text-center py-6">Nenhum histórico.</p>'}
-function renderCatalog(){
-    if(catalogLoading){renderSkeletonGrid();return}
-    const data=providerData[currentProvider]||providerData.netflix;
-    let items=currentMediaType==='series'?data.series:data.movies;
-    if(searchQuery.trim()){const q=searchQuery.toLowerCase();items=items.filter(i=>i.name.toLowerCase().includes(q))}
-    const ct=document.getElementById('catalogTitle'),lk=document.getElementById('externalAcervoLink'),g=document.getElementById('contentGrid');
-    if(ct)ct.textContent=`Recomendados · ${data.name}`;
-    if(lk)lk.href=data.url;
-    if(!g)return;
-    if(!items.length){g.innerHTML='<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título publicado neste catálogo.</div>';return}
-    g.innerHTML=items.map(item=>{const j=JSON.stringify(item).replace(/'/g,'&#39;');return`<div class="content-card" onclick='openDetailModal(${JSON.stringify(item.name)},${JSON.stringify(item.img)},${JSON.stringify(item.status||"")},${j})'><div class="content-thumb shadow-sm"><img src="${item.img}" alt="" loading="lazy">${item.badge?`<span class="absolute bottom-2 left-2 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">${item.badge}</span>`:''}</div><p class="text-xs font-semibold mt-2 truncate">${item.name}</p><p class="text-[11px] text-gray-400">${item.status||''}</p></div>`}).join('');
-}
+function renderCatalog(){if(catalogLoading){renderSkeletonGrid();return}const data=providerData[currentProvider]||providerData.netflix;let items=currentMediaType==='series'?data.series:data.movies;if(searchQuery.trim()){const q=searchQuery.toLowerCase();items=items.filter(i=>i.name.toLowerCase().includes(q))}const ct=document.getElementById('catalogTitle'),lk=document.getElementById('externalAcervoLink'),g=document.getElementById('contentGrid');if(ct)ct.textContent=`Recomendados · ${data.name}`;if(lk)lk.href=data.url;if(!g)return;if(!items.length){g.innerHTML='<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título publicado neste catálogo.</div>';return}g.innerHTML=items.map(item=>{const j=JSON.stringify(item).replace(/'/g,'&#39;');return`<div class="content-card" onclick='openDetailModal(${JSON.stringify(item.name)},${JSON.stringify(item.img)},${JSON.stringify(item.status||"")},${j})'><div class="content-thumb shadow-sm"><img src="${item.img}" alt="" loading="lazy">${item.badge?`<span class="absolute bottom-2 left-2 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">${item.badge}</span>`:''}</div><p class="text-xs font-semibold mt-2 truncate">${item.name}</p><p class="text-[11px] text-gray-400">${item.status||''}</p></div>`}).join('')}
 function handleSearchInput(v){searchQuery=v;document.getElementById('clearSearchBtn')?.classList.toggle('hidden',!v.trim());renderCatalog()}
 function clearSearch(){document.getElementById('searchInput').value='';searchQuery='';document.getElementById('clearSearchBtn')?.classList.add('hidden');renderCatalog()}
 function setMediaType(t){currentMediaType=t;document.getElementById('btnSeries').className=t==='series'?'px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white':'px-3 py-1 text-xs font-bold rounded-lg text-gray-600';document.getElementById('btnMovies').className=t==='movies'?'px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white':'px-3 py-1 text-xs font-bold rounded-lg text-gray-600';renderCatalog()}
@@ -579,7 +521,6 @@ window.providerData=providerData;window.renderCatalog=renderCatalog;window.setNe
 <script type="module">
 import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
 import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
-
 const RELAYS=['wss://relay.damus.io','wss://nos.lol','wss://relay.nostr.band','wss://relay.primal.net'];
 const UPLOAD_URL='https://nostr.build/api/v2/upload/files';
 const MAX_FREE_BYTES=20*1024*1024,CHUNK_SIZE=8*1024*1024;
@@ -590,7 +531,6 @@ const ALLOWED_HEX='05ed493ea4ae9fa6e16847b7f2a2453f6ea57c815dd948603dbf0a867a952
 const pool=new NostrTools.SimplePool();
 const LEVEL_ORDER={diamante:4,ouro:3,plata:2,bronze:1};
 const SLOT_SELECTOR='[data-lp-slot]',EMPTY_LABEL='Espaço disponível';
-
 function normalizeHexKey(raw){if(!raw)return null;let s=String(raw).trim();if(s.startsWith('nsec1')){try{const d=NostrTools.nip19.decode(s);if(d.type==='nsec'&&d.data instanceof Uint8Array)return Array.from(d.data).map(b=>b.toString(16).padStart(2,'0')).join('')}catch{return null}}return s.toLowerCase().replace(/^0x/,'')}
 function getSession(){try{const p=JSON.parse(localStorage.getItem('nostr_session')||'null');if(!p)return null;const hex=normalizeHexKey(p.privateKeyHex||p.nsec||p.privateKey);if(!hex||!p.pubkey)return null;return{privateKeyHex:hex,privateKey:hexToBytes(hex),pubkey:p.pubkey}}catch{return null}}
 function currentEpoch(ts=Date.now()){return Math.floor(ts/CRYPTO_EPOCH_MS)}
