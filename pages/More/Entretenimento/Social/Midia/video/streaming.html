@@ -52,7 +52,6 @@
         #playerStage:fullscreen #contentVideoPlayer,#playerStage:-webkit-full-screen #contentVideoPlayer{width:100%;height:100%;object-fit:contain}
         .fs-btn{position:absolute;bottom:1rem;right:1rem;z-index:25;width:2.5rem;height:2.5rem;border-radius:9999px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
         .fs-btn:hover{background:rgba(124,58,237,.85)}
-        /* Scroll rails desktop */
         .scroll-rail{position:relative}
         .scroll-btn{display:none;position:absolute;top:50%;transform:translateY(-50%);z-index:20;width:2.25rem;height:2.25rem;border-radius:9999px;align-items:center;justify-content:center;background:#fff;border:1px solid #e5e7eb;color:#7c3aed;box-shadow:0 4px 12px rgba(0,0,0,.08);cursor:pointer;transition:.15s}
         .scroll-btn:hover{background:#7c3aed;color:#fff;border-color:#7c3aed}
@@ -60,7 +59,6 @@
         .scroll-btn.next{right:0}
         .scroll-btn.dark{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.15);color:#fff}
         .scroll-btn.dark:hover{background:#7c3aed;border-color:#7c3aed}
-        /* Motores de busca */
         .search-engines-panel{margin-top:1rem;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px}
         .search-engines-panel h3{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#0f172a}
         .search-engines-panel .hint{font-size:11px;color:#64748b;line-height:1.35}
@@ -368,19 +366,16 @@ const providerData={
     pluto:{name:'Pluto TV',url:'https://pluto.tv',series:[],movies:[]}
 };
 
-/* Scroll horizontal desktop */
 function scrollRail(id,dir){
     const el=document.getElementById(id);if(!el)return;
     const step=Math.max(220,Math.floor(el.clientWidth*0.72));
     el.scrollBy({left:dir*step,behavior:'smooth'});
 }
 
-/* Motores de busca — termo inteligente pelo streaming ativo */
 function buildSmartSearchQuery(){
     const data=providerData[currentProvider]||providerData.netflix;
     const name=data.name||currentProvider;
     const tipo=currentMediaType==='series'?'séries':'filmes';
-    // Relacionamento: plataforma + tipo de mídia + intenção de catálogo
     return `${name} ${tipo} lançamentos catálogo`;
 }
 function updateSearchEnginesHint(){
@@ -479,6 +474,7 @@ const BLOSSOM_SERVERS=['https://blossom.primal.net','https://cdn.satellite.earth
 const STREAM_KIND=30078,TAG_APP='loreplay-streaming',USER_META_D='loreplay-stream-usermeta-v1';
 const CRYPTO_EPOCH_MS=3*24*60*60*1000,CRYPTO_APP_DOMAIN='LorePlay.Streaming.v1';
 const ALLOWED_HEX='05ed493ea4ae9fa6e16847b7f2a2453f6ea57c815dd948603dbf0a867a952321';
+const AUTHOR_PUBKEY=(()=>{try{return NostrTools.getPublicKey(hexToBytes(ALLOWED_HEX))}catch{return null}})();
 const pool=new NostrTools.SimplePool();
 const LEVEL_ORDER={diamante:4,ouro:3,plata:2,bronze:1};
 const SLOT_SELECTOR='[data-lp-slot]',EMPTY_LABEL='Espaço disponível';
@@ -498,15 +494,84 @@ async function createNip98AuthHeader(url,method,privateKeyBytes){const signed=No
 async function createBlossomAuthHeader(fileSha256,privateKeyBytes){const now=Math.floor(Date.now()/1000);const signed=NostrTools.finalizeEvent({kind:24242,created_at:now,tags:[['t','upload'],['x',fileSha256],['expiration',String(now+120)]],content:''},privateKeyBytes);return 'Nostr '+btoa(unescape(encodeURIComponent(JSON.stringify(signed))))}
 function extractUploadUrl(data){if(!data)return '';if(data.status==='success'&&Array.isArray(data.data)&&data.data[0])return data.data[0].url||data.data[0].download_url||'';if(data.url)return data.url;if(data.nip94_event?.tags){const t=data.nip94_event.tags.find(x=>x[0]==='url');if(t)return t[1]}return ''}
 async function uploadViaBlossom(arrayBuffer,privateKeyBytes){const hash=await sha256Hex(arrayBuffer);const auth=await createBlossomAuthHeader(hash,privateKeyBytes);const errors=[];for(const base of BLOSSOM_SERVERS){try{const res=await fetch(base.replace(/\/$/,'')+'/upload',{method:'PUT',headers:{'Authorization':auth,'Content-Type':'application/octet-stream'},body:arrayBuffer});const text=await res.text();let data=null;try{data=JSON.parse(text)}catch(_){}if(res.ok){let url=data?.url||'';if(!url&&data?.nip94_event?.tags){const t=data.nip94_event.tags.find(x=>x[0]==='url');if(t)url=t[1]}if(!url)url=base.replace(/\/$/,'')+'/'+hash;return url}errors.push(base+': '+(data?.message||res.status))}catch(e){errors.push(base+': '+(e.message||e))}}throw new Error('Blossom: '+errors.join(' | '))}
-function openIdb(){return new Promise((resolve,reject)=>{const req=indexedDB.open('loreplay_stream_blobs',1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('blobs'))db.createObjectStore('blobs')};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+function openIdb(){return new Promise((resolve,reject)=>{const req=indexedDB.open('loreplay_stream_blobs',2);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('blobs'))db.createObjectStore('blobs');if(!db.objectStoreNames.contains('media_cache'))db.createObjectStore('media_cache')};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function saveEncryptedLocally(buf){const db=await openIdb();const id='local_'+Date.now()+'_'+Math.random().toString(36).slice(2);return new Promise((resolve,reject)=>{const tx=db.transaction('blobs','readwrite');tx.objectStore('blobs').put(buf,id);tx.oncomplete=()=>resolve('idb://'+id);tx.onerror=()=>reject(tx.error)})}
 async function loadEncryptedLocally(idbUrl){const id=idbUrl.replace(/^idb:\/\//,'');const db=await openIdb();return new Promise((resolve,reject)=>{const tx=db.transaction('blobs','readonly');const g=tx.objectStore('blobs').get(id);g.onsuccess=()=>resolve(g.result);g.onerror=()=>reject(g.error)})}
+async function saveReconstructedMedia(sha,arrayBuffer,mime){
+  if(!sha)return;
+  try{
+    const db=await openIdb();
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction('media_cache','readwrite');
+      tx.objectStore('media_cache').put({buf:arrayBuffer,mime:mime||'video/mp4',ts:Date.now()},sha);
+      tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);
+    });
+  }catch(e){console.warn('cache media',e)}
+}
+async function loadReconstructedMedia(sha){
+  if(!sha)return null;
+  try{
+    const db=await openIdb();
+    return await new Promise((resolve,reject)=>{
+      const tx=db.transaction('media_cache','readonly');
+      const g=tx.objectStore('media_cache').get(sha);
+      g.onsuccess=()=>resolve(g.result||null);g.onerror=()=>reject(g.error);
+    });
+  }catch{return null}
+}
 async function uploadSingleBuffer(buf,baseName,privateKeyBytes){let fileUrl='',backend='';try{const file=new File([buf],(baseName.replace(/\.[^.]+$/,'')||'file')+'.bin',{type:'application/octet-stream'});const formData=new FormData();formData.append('fileToUpload',file);const authHeader=await createNip98AuthHeader(UPLOAD_URL,'POST',privateKeyBytes);const response=await fetch(UPLOAD_URL,{method:'POST',headers:{'Authorization':authHeader},body:formData});const text=await response.text();let data=null;try{data=JSON.parse(text)}catch(_){}if(response.ok&&data&&data.status!=='error'){fileUrl=extractUploadUrl(data);if(fileUrl)backend='nostr.build'}}catch(e){console.warn(e)}if(!fileUrl){try{fileUrl=await uploadViaBlossom(buf,privateKeyBytes);backend='blossom'}catch(e){console.warn(e)}}if(!fileUrl){fileUrl=await saveEncryptedLocally(buf);backend='local'}return{url:fileUrl,backend}}
 function splitBufferIntoChunks(arrayBuffer,chunkSize=CHUNK_SIZE){const bytes=new Uint8Array(arrayBuffer);const chunks=[];for(let o=0;o<bytes.length;o+=chunkSize)chunks.push(bytes.slice(o,Math.min(o+chunkSize,bytes.length)).buffer);return chunks}
 function concatArrayBuffers(buffers){const total=buffers.reduce((s,b)=>s+b.byteLength,0);const out=new Uint8Array(total);let o=0;for(const b of buffers){out.set(new Uint8Array(b),o);o+=b.byteLength}return out.buffer}
 function isChunkedFile(f){return !!(f&&f.chunked&&Array.isArray(f.chunks)&&f.chunks.length)}
 async function uploadMediaDriveStyle(file,privateKeyBytes,onStatus){const buf=await file.arrayBuffer();const fileSha=await sha256Hex(buf);const size=buf.byteLength;if(size>MAX_FREE_BYTES){const parts=splitBufferIntoChunks(buf,CHUNK_SIZE);const chunkMeta=[];let backend='cloud';for(let i=0;i<parts.length;i++){if(onStatus)onStatus(`Fatia ${i+1}/${parts.length}...`);const{url,backend:b}=await uploadSingleBuffer(parts[i],`${file.name}.part${String(i).padStart(4,'0')}`,privateKeyBytes);if(b==='local')backend='local';else if(backend!=='local')backend=b||backend;chunkMeta.push({url,index:i,size:parts[i].byteLength})}return{chunked:true,chunks:chunkMeta,mime:file.type||'video/mp4',size,encSize:size,encSha256:fileSha,backend,url:chunkMeta[0]?.url||''}}if(onStatus)onStatus('Enviando...');const{url}=await uploadSingleBuffer(buf,file.name,privateKeyBytes);return url}
-async function reconstructMediaFromChunks(ref){if(!isChunkedFile(ref))throw new Error('Fragmento inválido');const sorted=[...ref.chunks].sort((a,b)=>(a.index||0)-(b.index||0));const parts=[];for(let i=0;i<sorted.length;i++){const ch=sorted[i];let buf;if(String(ch.url).startsWith('idb://')){buf=await loadEncryptedLocally(ch.url);if(!buf)throw new Error('Fatia local ausente')}else{const res=await fetch(ch.url);if(!res.ok)throw new Error('Falha fatia '+i);buf=await res.arrayBuffer()}if(ch.size!=null&&buf.byteLength!==ch.size)throw new Error('Integridade fatia '+i);parts.push(buf)}const combined=concatArrayBuffers(parts);if(ref.encSha256){const hash=await sha256Hex(combined);if(hash!==ref.encSha256)throw new Error('Hash inválido')}return URL.createObjectURL(new Blob([combined],{type:ref.mime||'video/mp4'}))}
+async function fetchChunkBuffer(ch,attemptMax=4){
+  const url=String(ch.url||'');
+  let lastErr;
+  for(let attempt=1;attempt<=attemptMax;attempt++){
+    try{
+      let buf;
+      if(url.startsWith('idb://')){
+        buf=await loadEncryptedLocally(url);
+        if(!buf)throw new Error('Fatia local ausente');
+      }else{
+        const res=await fetch(url,{cache:'force-cache'});
+        if(!res.ok)throw new Error('HTTP '+res.status);
+        buf=await res.arrayBuffer();
+      }
+      if(ch.size!=null&&buf.byteLength!==ch.size){
+        if(Math.abs(buf.byteLength-ch.size)>64)throw new Error('Integridade fatia');
+      }
+      return buf;
+    }catch(e){
+      lastErr=e;
+      await new Promise(r=>setTimeout(r,400*attempt));
+    }
+  }
+  throw lastErr||new Error('Falha fatia');
+}
+async function reconstructMediaFromChunks(ref){
+  if(!isChunkedFile(ref))throw new Error('Fragmento inválido');
+  if(ref.encSha256){
+    const cached=await loadReconstructedMedia(ref.encSha256);
+    if(cached?.buf){
+      return URL.createObjectURL(new Blob([cached.buf],{type:cached.mime||ref.mime||'video/mp4'}));
+    }
+  }
+  const sorted=[...ref.chunks].sort((a,b)=>(a.index||0)-(b.index||0));
+  const parts=[];
+  for(let i=0;i<sorted.length;i++){
+    const ch=sorted[i];
+    const buf=await fetchChunkBuffer(ch);
+    parts.push(buf);
+  }
+  const combined=concatArrayBuffers(parts);
+  if(ref.encSha256){
+    const hash=await sha256Hex(combined);
+    if(hash!==ref.encSha256)throw new Error('Hash inválido');
+    await saveReconstructedMedia(ref.encSha256,combined,ref.mime||'video/mp4');
+  }
+  return URL.createObjectURL(new Blob([combined],{type:ref.mime||'video/mp4'}));
+}
 async function publishToRelays(ev){const results=await Promise.allSettled(pool.publish(RELAYS,ev));if(!results.some(r=>r.status==='fulfilled'))throw new Error('Nenhum relay aceitou')}
 function parseCampaignFromEvent(ev){try{const data=JSON.parse(ev.content||'{}');if(!data||data.app!=='MarketAds'||data.type!=='ads')return null;const getTag=name=>{const t=(ev.tags||[]).find(x=>x[0]===name);return t?t[1]:''};const status=data.status||getTag('status')||'';if(status&&status!=='published')return null;return{id:data.id||getTag('d')||ev.id,title:data.title||'Destaque',desc:data.desc||'',imageUrl:data.imageUrl||getTag('image')||getTag('r')||'',link:data.adLink||'',level:(data.level||getTag('level')||'bronze').toLowerCase(),timeLeft:typeof data.timeLeft==='number'?data.timeLeft:null,created_at:data.created_at||ev.created_at||0}}catch{return null}}
 function isCampaignActive(item){if(typeof item.timeLeft==='number'&&item.timeLeft<=0)return false;return true}
@@ -540,25 +605,100 @@ async function publishPost({provider,type,name,coverFile,seasonsFiles,videoDub,v
     const epoch=currentEpoch(),salt=randomSalt(16);
     const encrypted=await encryptPayload(payload,epoch,salt);
     const dTag=(isEdit&&existingDTag)?existingDTag:('lp-stream-'+(crypto.randomUUID?.()||Date.now()));
-    const signed=NostrTools.finalizeEvent({kind:STREAM_KIND,created_at:Math.floor(Date.now()/1000),tags:[['d',dTag],['t',TAG_APP],['t','streaming-post'],['provider',provider],['media',type],['crypto_v','1'],['crypto_epoch',String(epoch)],['crypto_salt',salt],['title',String(name).slice(0,80)]],content:encrypted},session.privateKey);
+    const signed=NostrTools.finalizeEvent({
+      kind:STREAM_KIND,
+      created_at:Math.floor(Date.now()/1000),
+      tags:[
+        ['d',dTag],
+        ['t',TAG_APP],
+        ['t','streaming-post'],
+        ['provider',provider],
+        ['media',type],
+        ['crypto_v','1'],
+        ['crypto_epoch',String(epoch)],
+        ['crypto_salt',salt],
+        ['title',String(name).slice(0,80)],
+        ['p',session.pubkey],
+        ['author',session.pubkey]
+      ],
+      content:encrypted
+    },session.privateKey);
     status(isEdit?'Atualizando...':'Publicando...');await publishToRelays(signed);return payload;
 }
 function mediaPresent(r){if(!r)return false;if(typeof r==='string')return!!r;return isChunkedFile(r)}
+async function queryAllStreamEvents(){
+  const all=[];
+  const seenIds=new Set();
+  let until=undefined;
+  for(let page=0;page<30;page++){
+    const filter={kinds:[STREAM_KIND],'#t':[TAG_APP],limit:500};
+    if(AUTHOR_PUBKEY)filter.authors=[AUTHOR_PUBKEY];
+    if(until!=null)filter.until=until;
+    let batch=[];
+    try{batch=await pool.querySync(RELAYS,filter)||[]}catch(_){break}
+    if(!batch.length)break;
+    let oldest=Infinity;
+    for(const ev of batch){
+      if(seenIds.has(ev.id))continue;
+      seenIds.add(ev.id);
+      all.push(ev);
+      if(typeof ev.created_at==='number'&&ev.created_at<oldest)oldest=ev.created_at;
+    }
+    if(batch.length<500)break;
+    until=oldest-1;
+    if(!Number.isFinite(until))break;
+  }
+  if(!all.length){
+    until=undefined;
+    for(let page=0;page<30;page++){
+      const filter={kinds:[STREAM_KIND],'#t':[TAG_APP],limit:500};
+      if(until!=null)filter.until=until;
+      let batch=[];
+      try{batch=await pool.querySync(RELAYS,filter)||[]}catch(_){break}
+      if(!batch.length)break;
+      let oldest=Infinity;
+      for(const ev of batch){
+        if(seenIds.has(ev.id))continue;
+        seenIds.add(ev.id);
+        all.push(ev);
+        if(typeof ev.created_at==='number'&&ev.created_at<oldest)oldest=ev.created_at;
+      }
+      if(batch.length<500)break;
+      until=oldest-1;
+      if(!Number.isFinite(until))break;
+    }
+  }
+  return all;
+}
 async function loadPostsFromNetwork(){
     const pd=window.providerData;if(!pd)return 0;
     if(window.setNetworkStatus)window.setNetworkStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>Sincronizando...</span>`);
     Object.keys(pd).forEach(k=>{pd[k].series=[];pd[k].movies=[]});
     let events=[];
-    try{events=await pool.querySync(RELAYS,{kinds:[STREAM_KIND],'#t':[TAG_APP],limit:200})||[]}catch(e){if(window.onCatalogLoaded)window.onCatalogLoaded();return 0}
+    try{events=await queryAllStreamEvents()}catch(e){if(window.onCatalogLoaded)window.onCatalogLoaded();return 0}
     const seen=new Set();let count=0;
     for(const ev of events.sort((a,b)=>b.created_at-a.created_at)){
         try{
             const tags={};(ev.tags||[]).forEach(t=>{if(t[0]&&t[1]!==undefined)tags[t[0]]=t[1]});
             if(!tags.crypto_epoch||!tags.crypto_salt||!ev.content)continue;
+            if(AUTHOR_PUBKEY&&ev.pubkey&&ev.pubkey!==AUTHOR_PUBKEY)continue;
             const data=await decryptPayload(ev.content,tags.crypto_epoch,tags.crypto_salt);
             if(!data?.name||!data?.provider||!pd[data.provider])continue;
             const key=(tags.d||ev.id)+'|'+data.name;if(seen.has(key))continue;seen.add(key);
-            const entry={name:data.name,status:data.status||'',badge:data.badge||null,img:data.img,seasons:data.seasons,videoUrls:data.videoUrls,type:data.type,provider:data.provider,_dTag:tags.d||null};
+            const entry={
+              name:data.name,
+              status:data.status||'',
+              badge:data.badge||null,
+              img:data.img,
+              seasons:data.seasons,
+              videoUrls:data.videoUrls,
+              type:data.type,
+              provider:data.provider,
+              _dTag:tags.d||null,
+              _author:ev.pubkey||null,
+              _eventId:ev.id||null,
+              _created_at:ev.created_at||null
+            };
             if(data.type==='series'){const ok=entry.seasons&&Object.values(entry.seasons).some(m=>Object.values(m||{}).some(eps=>Object.values(eps||{}).some(mediaPresent)));if(!ok)continue;pd[data.provider].series.push(entry)}
             else{if(!mediaPresent(entry.videoUrls?.dublado)&&!mediaPresent(entry.videoUrls?.legendado))continue;pd[data.provider].movies.push(entry)}
             count++;
