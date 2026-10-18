@@ -256,6 +256,35 @@ body{background:var(--light-violet);display:flex;justify-content:center;align-it
 .moment-cam-shutter:disabled{opacity:.5}
 .moment-cam-timer{color:#e74c3c;font-weight:700;font-size:15px;min-height:20px}
 .moment-cam-flip{position:absolute;bottom:12px;right:12px;background:rgba(0,0,0,.45);border:none;color:#fff;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:16px}
+
+/* Skeleton – lista ao ir para Personagens */
+.skeleton-chat-item{
+  display:flex;
+  align-items:center;
+  padding:14px 18px;
+  gap:15px;
+  border-bottom:1px solid var(--gray-bg);
+  pointer-events:none;
+}
+.skeleton-avatar{
+  width:48px;height:48px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(90deg,#eee 25%,#f5f5f5 50%,#eee 75%);
+  background-size:200% 100%;
+  animation:skeletonShimmer 1.2s ease-in-out infinite;
+}
+.skeleton-lines{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+.skeleton-line{
+  height:12px;border-radius:6px;
+  background:linear-gradient(90deg,#eee 25%,#f5f5f5 50%,#eee 75%);
+  background-size:200% 100%;
+  animation:skeletonShimmer 1.2s ease-in-out infinite;
+}
+.skeleton-line.w70{width:70%}.skeleton-line.w65{width:65%}.skeleton-line.w55{width:55%}
+.skeleton-line.w45{width:45%}.skeleton-line.w40{width:40%}.skeleton-line.w35{width:35%}
+@keyframes skeletonShimmer{
+  0%{background-position:200% 0}
+  100%{background-position:-200% 0}
+}
 </style>
 </head>
 <body>
@@ -267,14 +296,14 @@ body{background:var(--light-violet);display:flex;justify-content:center;align-it
 <div class="app-title"><i class="fa-solid fa-comments"></i><span>Conversas</span></div>
 </div>
 <div class="sidebar-actions">
-<i class="fa-solid fa-masks-theater" title="Personagens IA" onclick="location.href='./Personagens.html'"></i>
+<i class="fa-solid fa-masks-theater" title="Personagens IA" onclick="goToPersonagensPage()"></i>
 <i class="fa-solid fa-user-plus" id="addContactHeaderBtn" title="Adicionar contato (QR)"></i>
 </div>
 </div>
 <div class="top-tab-bar">
-<button class="tab-item active" data-tab="contatos" onclick="switchTab('contatos')">Contatos</button>
-<button class="tab-item" data-tab="personagens" onclick="switchTab('personagens')">Personagens</button>
-<button class="tab-item" data-tab="bloqueados" onclick="switchTab('bloqueados')">Bloqueados</button>
+<button class="tab-item active" data-tab="contatos" type="button" onclick="switchTab('contatos')">Contatos</button>
+<button class="tab-item" data-tab="personagens" type="button" onclick="goToPersonagensPage()">Personagens</button>
+<button class="tab-item" data-tab="bloqueados" type="button" onclick="switchTab('bloqueados')">Bloqueados</button>
 </div>
 <div class="list-mode-toggle" id="listModeToggle">
 <button type="button" class="list-mode-btn active" id="modeStoryBtn" onclick="setListMode('story')"><i class="fa-solid fa-circle-notch"></i> Story</button>
@@ -508,6 +537,23 @@ body{background:var(--light-violet);display:flex;justify-content:center;align-it
 (function(){const L='./Social.html';if(localStorage.getItem('isLoggedIn')!=='true'||!localStorage.getItem('nostr_session')){window.location.replace(L);return}try{const p=JSON.parse(localStorage.getItem('nostr_session'));if(!p.privateKeyHex||!p.pubkey)throw 0}catch{localStorage.removeItem('isLoggedIn');localStorage.removeItem('nostr_session');window.location.replace(L)}})();
 function goBackToNetwork(){window.location.href='../Social.html'}
 
+/** Redireciona para Personagens.html com skeleton na lista */
+function goToPersonagensPage(){
+  document.querySelectorAll('.tab-item').forEach(btn=>{
+    btn.classList.toggle('active', btn.getAttribute('data-tab')==='personagens');
+  });
+  const list=document.getElementById('chatList');
+  if(list){
+    list.innerHTML=`
+      <div class="skeleton-chat-item"><div class="skeleton-avatar"></div><div class="skeleton-lines"><div class="skeleton-line w70"></div><div class="skeleton-line w40"></div></div></div>
+      <div class="skeleton-chat-item"><div class="skeleton-avatar"></div><div class="skeleton-lines"><div class="skeleton-line w55"></div><div class="skeleton-line w35"></div></div></div>
+      <div class="skeleton-chat-item"><div class="skeleton-avatar"></div><div class="skeleton-lines"><div class="skeleton-line w65"></div><div class="skeleton-line w45"></div></div></div>
+      <div class="skeleton-chat-item"><div class="skeleton-avatar"></div><div class="skeleton-lines"><div class="skeleton-line w50"></div><div class="skeleton-line w30"></div></div></div>
+    `;
+  }
+  setTimeout(function(){ location.href='./Personagens.html'; }, 280);
+}
+
 const NORST_RELAYS=['wss://relay.damus.io','wss://nos.lol','wss://relay.primal.net','wss://relay.nostr.band'];
 const PRESENCE_RELAYS=['wss://relay.damus.io','wss://nos.lol','wss://relay.primal.net','wss://relay.snort.social'];
 const PRESENCE_KIND=29333,PRESENCE_INTERVAL_MS=45000,PRESENCE_TTL_MS=90000;
@@ -584,7 +630,7 @@ setInterval(updateChatHeaderStatus,15000);
 
 function setListMode(mode){if(mode!=='story'&&mode!=='notes'&&mode!=='momentos')return;listMode=mode;document.getElementById('modeStoryBtn')?.classList.toggle('active',mode==='story');document.getElementById('modeNotesBtn')?.classList.toggle('active',mode==='notes');document.getElementById('modeMomentosBtn')?.classList.toggle('active',mode==='momentos');document.getElementById('storiesContainer')?.classList.toggle('hidden-mode',mode!=='story');document.getElementById('notesContainer')?.classList.toggle('hidden-mode',mode!=='notes');document.getElementById('momentosContainer')?.classList.toggle('hidden-mode',mode!=='momentos');if(mode==='story')renderStories();else if(mode==='notes'){renderNotes();loadNotesFromNetwork().then(()=>{if(listMode==='notes')renderNotes()})}else{renderMomentos();loadMomentsFromNetwork().then(()=>{if(listMode==='momentos')renderMomentos()})}}
 
-/* NOTES (resumo funcional — mesmas funções do build anterior) */
+/* NOTES */
 function getOwnNote(){if(!currentUserPubkey)return null;try{const n=JSON.parse(localStorage.getItem(ownNoteKey())||'null');if(n&&isNoteActive(n))return n;if(n)localStorage.removeItem(ownNoteKey());return null}catch{return null}}
 function saveOwnNote(note){try{if(note&&isNoteActive(note))localStorage.setItem(ownNoteKey(),JSON.stringify(note));else localStorage.removeItem(ownNoteKey())}catch{}}
 function truncateNoteText(t,max=18){const s=String(t||'').trim();return s.length<=max?s:s.slice(0,max-1)+'…'}
@@ -610,7 +656,7 @@ document.getElementById('noteViewerOverlay')?.addEventListener('click',e=>{if(e.
 function renderNotes(){const scroll=document.getElementById('notesScroll');if(!scroll)return;for(const[pk,n]of[...notesMap.entries()]){if(!isNoteActive(n))notesMap.delete(pk)}const own=getOwnNote();if(own)notesMap.set(String(currentUserPubkey).toLowerCase(),{...own,name:'Você',avatarUrl:notesMap.get(String(currentUserPubkey).toLowerCase())?.avatarUrl||''});else notesMap.delete(String(currentUserPubkey||'').toLowerCase());scroll.innerHTML='';const ownItem=document.createElement('div');ownItem.className='note-item';const ownHas=!!own;ownItem.onclick=()=>{if(ownHas)openNoteViewer(currentUserPubkey);else openCreateNoteModal()};const ownBubbleText=ownHas?(own.music&&!own.text?`♪ ${truncateNoteText(own.music.title||'Música',14)}`:truncateNoteText(own.text)):'';const ownMusicClass=ownHas&&own.music?' has-music':'';ownItem.innerHTML=`${ownHas?`<div class="note-bubble light${ownMusicClass}">${escapeAttr(ownBubbleText)}</div>`:''}<div class="note-avatar-wrap ${ownHas?'has-note':''}"><div class="note-avatar" id="ownNoteAvatar"><i class="fa-solid fa-user"></i></div>${!ownHas?'<div class="note-add-icon"><i class="fa-solid fa-plus"></i></div>':''}</div><div class="note-label ${ownHas?'':'muted'}">${ownHas?'Sua nota':'Adicionar nota'}</div>`;scroll.appendChild(ownItem);fetchNostrProfile(currentUserPubkey).then(p=>{const el=document.getElementById('ownNoteAvatar');if(el&&p.picture)el.innerHTML=`<img src="${escapeAttr(p.picture)}" alt="">`});const accents=['','accent-violet','accent-red','accent-yellow'];let ai=0;chatsData.filter(c=>c.status==='accepted'&&c.pubkey&&!String(c.pubkey).startsWith('char:')).forEach(chat=>{const pk=chat.pubkey.toLowerCase();const note=notesMap.get(pk);if(!note||!isNoteActive(note))return;note.name=chat.name||note.name;note.avatarUrl=chat.avatarUrl||note.avatarUrl;const accent=accents[ai%accents.length];ai++;const nameShort=(chat.name||'').replace(/^@/,'').substring(0,10)||'user';const bubbleText=note.music&&!note.text?`♪ ${truncateNoteText(note.music.title||'Música',14)}`:truncateNoteText(note.text);const item=document.createElement('div');item.className='note-item';item.onclick=()=>openNoteViewer(pk);item.innerHTML=`<div class="note-bubble ${accent}${note.music?' has-music':''}">${escapeAttr(bubbleText)}</div><div class="note-avatar-wrap has-note"><div class="note-avatar">${avatarHtml(chat)}</div></div><div class="note-label">${escapeAttr(nameShort)}</div>`;scroll.appendChild(item)})}
 async function loadNotesFromNetwork(){if(!window.NostrTools||!currentUserPubkey)return;try{if(!nostrPool)nostrPool=new NostrTools.SimplePool();const authors=[...new Set([String(currentUserPubkey).toLowerCase(),...getContactPubkeys()])];if(!authors.length)return;const since=Math.floor(Date.now()/1000)-24*60*60;const events=await nostrPool.querySync(NORST_RELAYS,{kinds:[NOTE_KIND],authors,since,limit:120});const now=Date.now(),byAuthor=new Map();(events||[]).forEach(ev=>{try{const data=JSON.parse(ev.content||'{}');if(data.lore!==1||data.type!=='note'||data.deleted||(!data.text&&!data.music))return;const expTag=(ev.tags||[]).find(t=>t[0]==='expiration')?.[1];const expiresAt=data.expiresAt||(expTag?Number(expTag)*1000:(ev.created_at*1000+NOTE_MAX_TTL_MS));if(now>=expiresAt)return;const pk=ev.pubkey.toLowerCase();const existing=byAuthor.get(pk);if(!existing||(ev.created_at*1000)>(existing.time||0))byAuthor.set(pk,{text:String(data.text||'').slice(0,NOTE_MAX_LEN),time:data.createdAt||(ev.created_at*1000),expiresAt,eventId:ev.id,dTag:(ev.tags||[]).find(t=>t[0]==='d')?.[1]||'',music:data.music&&(data.music.title||data.music.preview)?{title:data.music.title||'',artist:data.music.artist||'',artwork:data.music.artwork||'',preview:data.music.preview||''}:null})}catch{}});byAuthor.forEach((note,pk)=>{if(pk===String(currentUserPubkey).toLowerCase()){saveOwnNote(note);notesMap.set(pk,{...note,name:'Você',avatarUrl:notesMap.get(pk)?.avatarUrl||''});return}const chat=chatsData.find(c=>c.pubkey?.toLowerCase()===pk&&c.status==='accepted');if(!chat)return;notesMap.set(pk,{...note,name:chat.name||'@usuario',avatarUrl:chat.avatarUrl||''})});if(listMode==='notes')renderNotes()}catch(e){console.warn(e)}}
 
-/* ===== UPLOAD NOSTR CORRIGIDO ===== */
+/* ===== UPLOAD NOSTR ===== */
 function uint8ToHex(arr){return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join('')}
 async function sha256HexOfBlob(blob){const buf=await blob.arrayBuffer();const hash=await crypto.subtle.digest('SHA-256',buf);return uint8ToHex(new Uint8Array(hash))}
 function base64FromUtf8(str){return btoa(unescape(encodeURIComponent(str)))}
@@ -655,7 +701,7 @@ function applyIncomingNoteEvent(ev){try{const data=JSON.parse(ev.content||'{}');
 function applyIncomingMomentEvent(ev){try{const data=JSON.parse(ev.content||'{}');if(data.lore!==1||data.type!=='moment'||!data.url)return;const expTag=(ev.tags||[]).find(t=>t[0]==='expiration')?.[1];const expiresAt=data.expiresAt||(expTag?Number(expTag)*1000:(ev.created_at*1000+MOMENT_MAX_TTL_MS));if(Date.now()>=expiresAt)return;const pk=ev.pubkey.toLowerCase();const moment={url:data.url,type:data.mediaType||'image',time:data.createdAt||(ev.created_at*1000),expiresAt,eventId:ev.id,dTag:(ev.tags||[]).find(t=>t[0]==='d')?.[1]||''};if(pk===String(currentUserPubkey||'').toLowerCase()){const list=getOwnMoments().filter(m=>m.eventId!==moment.eventId);list.unshift(moment);list.sort((a,b)=>(b.time||0)-(a.time||0));saveOwnMoments(list.slice(0,40))}else{const chat=chatsData.find(c=>c.pubkey?.toLowerCase()===pk&&c.status==='accepted');if(!chat)return;const list=(momentsMap.get(pk)||[]).filter(m=>m.eventId!==moment.eventId&&isMomentActive(m));list.unshift(moment);list.sort((a,b)=>(b.time||0)-(a.time||0));momentsMap.set(pk,list.slice(0,40))}if(listMode==='momentos')renderMomentos()}catch{}}
 async function startNotesMomentsListener(){if(!window.NostrTools||!currentUserPubkey)return;if(!nostrPool)nostrPool=new NostrTools.SimplePool();if(notesMomentsSub?.close)try{notesMomentsSub.close()}catch{}const authors=[...new Set([String(currentUserPubkey).toLowerCase(),...getContactPubkeys()])];if(!authors.length)return;try{notesMomentsSub=nostrPool.subscribeMany(NORST_RELAYS,[{kinds:[NOTE_KIND],authors,since:Math.floor(Date.now()/1000)-60}],{onevent:ev=>{if(!ev?.content)return;try{const data=JSON.parse(ev.content||'{}');if(data.type==='note')applyIncomingNoteEvent(ev);else if(data.type==='moment')applyIncomingMomentEvent(ev)}catch{}}})}catch(e){console.warn(e)}}
 
-/* STORIES + CHAT — funções essenciais compactas */
+/* STORIES + CHAT */
 function getOwnStories(){if(!currentUserPubkey)return[];try{const arr=JSON.parse(localStorage.getItem(ownStoriesKey())||'[]');if(!Array.isArray(arr))return[];const valid=arr.filter(isStoryActive).map(s=>({url:s.url||s.mediaUrl||'',type:s.type||s.mediaType||'image',time:s.time||s.createdAt||Date.now(),text:s.text||s.caption||'',expiresAt:s.expiresAt||0,eventId:s.eventId||'',dTag:s.dTag||''}));if(valid.length!==arr.length)try{localStorage.setItem(ownStoriesKey(),JSON.stringify(valid))}catch{}return valid}catch{return[]}}
 function saveOwnStories(list){try{localStorage.setItem(ownStoriesKey(),JSON.stringify((list||[]).filter(isStoryActive)))}catch{}}
 function hasActiveStories(chat){return!!(chat?.stories?.some(isStoryActive))}
@@ -704,7 +750,7 @@ async function handleContactQrPayload(raw){const statusEl=document.getElementByI
 
 function switchTab(tabName){currentTab=tabName;document.querySelectorAll('.tab-item').forEach(btn=>btn.classList.toggle('active',btn.getAttribute('data-tab')===tabName));renderChatList()}
 function renderChatList(){chatListEl.innerHTML='';const filtered=chatsData.filter(chat=>{let matchesTab=false;if(currentTab==='contatos')matchesTab=chat.type==='contatos'&&chat.status==='accepted'&&!chat.isCharacter;else if(currentTab==='personagens')matchesTab=(chat.type==='personagens'||chat.isCharacter)&&chat.status==='accepted';else if(currentTab==='bloqueados')matchesTab=chat.type==='bloqueados'||chat.status==='blocked';const q=searchQuery.toLowerCase();return matchesTab&&((chat.name||'').toLowerCase().includes(q)||(chat.lastMsg||'').toLowerCase().includes(q))});if(!filtered.length){chatListEl.innerHTML=`<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:14px">${currentTab==='personagens'?'Nenhum personagem.':currentTab==='bloqueados'?'Nenhum bloqueado':'Nenhum contato. Adicione via QR.'}</div>`;refreshCurrentListMode();return}filtered.forEach(chat=>{const item=document.createElement('div');item.className=`chat-item ${chat.id===currentChatId?'active':''}`;const online=chat.status==='accepted'&&isUserOnline(chat.pubkey);item.innerHTML=`<div class="avatar">${avatarHtml(chat)}</div><div class="chat-info"><div class="chat-name">${escapeAttr(chat.name||'')}${online?'<span class="online-dot"></span>':''}${chat.pinned?' <i class="fa-solid fa-thumbtack" style="font-size:11px;color:var(--secondary-color)"></i>':''}</div><div class="chat-last-msg">${escapeAttr(chat.lastMsg||'')}</div></div>`;item.addEventListener('click',()=>selectChat(chat.id));chatListEl.appendChild(item)});refreshCurrentListMode()}
-function selectChat(id){if(activeChatAudio){activeChatAudio.pause();activeChatAudio=null}currentChatId=id;const chat=chatsData.find(c=>c.id===id);if(!chat)return;if(chat.isCharacter||String(chat.pubkey||'').startsWith('char:')){window.location.href='./Personagens.html';return}activeName.textContent=chat.name;activeAvatar.innerHTML=avatarHtml(chat);activeStatus.textContent=statusLabelForChat(chat);activeStatus.style.color=(chat.status==='accepted'&&isUserOnline(chat.pubkey))?'var(--online)':'';document.getElementById('pinText').textContent=chat.pinned?'Desfixar contato':'Fixar contato';document.getElementById('blockText').textContent=(chat.type==='bloqueados'||chat.status==='blocked')?'Desbloquear':'Bloquear';messagesContainer.style.justifyContent='flex-start';messagesContainer.style.alignItems='stretch';messagesContainer.innerHTML='';setInputLocked(!canMessageChat(chat));(chat.messages||[]).forEach(msg=>{const div=document.createElement('div');div.className=`message ${msg.sender}`;if(tryParseMediaPayload(msg.text||''))renderMessageContent(div,msg.text);else if(msg.isHtml&&msg.content)div.innerHTML=msg.content;else div.textContent=msg.displayText||msg.text||'';messagesContainer.appendChild(div)});messagesContainer.scrollTop=messagesContainer.scrollHeight;if(window.innerWidth<=767)appContainer.classList.add('mobile-show-chat');else appContainer.classList.add('desktop-has-chat');renderChatList()}
+function selectChat(id){if(activeChatAudio){activeChatAudio.pause();activeChatAudio=null}currentChatId=id;const chat=chatsData.find(c=>c.id===id);if(!chat)return;if(chat.isCharacter||String(chat.pubkey||'').startsWith('char:')){goToPersonagensPage();return}activeName.textContent=chat.name;activeAvatar.innerHTML=avatarHtml(chat);activeStatus.textContent=statusLabelForChat(chat);activeStatus.style.color=(chat.status==='accepted'&&isUserOnline(chat.pubkey))?'var(--online)':'';document.getElementById('pinText').textContent=chat.pinned?'Desfixar contato':'Fixar contato';document.getElementById('blockText').textContent=(chat.type==='bloqueados'||chat.status==='blocked')?'Desbloquear':'Bloquear';messagesContainer.style.justifyContent='flex-start';messagesContainer.style.alignItems='stretch';messagesContainer.innerHTML='';setInputLocked(!canMessageChat(chat));(chat.messages||[]).forEach(msg=>{const div=document.createElement('div');div.className=`message ${msg.sender}`;if(tryParseMediaPayload(msg.text||''))renderMessageContent(div,msg.text);else if(msg.isHtml&&msg.content)div.innerHTML=msg.content;else div.textContent=msg.displayText||msg.text||'';messagesContainer.appendChild(div)});messagesContainer.scrollTop=messagesContainer.scrollHeight;if(window.innerWidth<=767)appContainer.classList.add('mobile-show-chat');else appContainer.classList.add('desktop-has-chat');renderChatList()}
 backBtn.addEventListener('click',()=>{if(activeChatAudio){activeChatAudio.pause();activeChatAudio=null}appContainer.classList.remove('mobile-show-chat','desktop-has-chat');currentChatId=null;setInputLocked(false);activeName.textContent='Bem-vindo';activeAvatar.innerHTML='<i class="fa-solid fa-user"></i>';activeStatus.textContent='offline';dropdownMenu.classList.remove('show');attachmentMenu.classList.remove('show');messagesContainer.style.justifyContent='center';messagesContainer.style.alignItems='center';messagesContainer.innerHTML='<div style="text-align:center;color:var(--text-muted);font-size:15px">Selecione um contato para conversar</div>';renderChatList()});
 ellipsisBtn.addEventListener('click',e=>{e.stopPropagation();attachmentMenu.classList.remove('show');if(currentChatId!==null)dropdownMenu.classList.toggle('show')});
 attachBtn.addEventListener('click',e=>{e.stopPropagation();dropdownMenu.classList.remove('show');if(currentChatId!==null)attachmentMenu.classList.toggle('show')});
