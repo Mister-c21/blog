@@ -9,6 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>tailwind.config={theme:{extend:{colors:{primary:'#ffffff',secondary:'#7c3aed'}}}}</script>
+    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <style>
         .no-scrollbar::-webkit-scrollbar{display:none}
         .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
@@ -189,7 +190,7 @@
         </div>
         <aside class="desktop-stream-aside hidden lg:block">
             <div class="lp-slot" data-lp-slot>Espaço disponível</div>
-            <div class="search-engines-panel">
+            <div class="search-engines-panel" id="searchEnginesPanelDesktop">
                 <h3>Buscar no streaming ativo</h3>
                 <p class="hint">Termo inteligente: <strong id="searchEnginesHintDesktop">Netflix · Séries</strong></p>
                 <button type="button" class="se-btn" onclick="openSearchEngine('google')"><i class="fa-brands fa-google"></i> Google</button>
@@ -203,7 +204,7 @@
     </div>
     <div class="pt-6 lg:hidden space-y-4">
         <div class="lp-slot" data-lp-slot>Espaço disponível</div>
-        <div class="search-engines-panel">
+        <div class="search-engines-panel" id="searchEnginesPanelMobile">
             <h3>Buscar no streaming ativo</h3>
             <p class="hint">Termo inteligente: <strong id="searchEnginesHintMobile">Netflix · Séries</strong></p>
             <button type="button" class="se-btn" onclick="openSearchEngine('google')"><i class="fa-brands fa-google"></i> Google</button>
@@ -330,17 +331,21 @@
             <div>
                 <div class="flex justify-between mb-3"><h3 class="text-sm font-bold uppercase">Episódios</h3><span id="episodesCountLabel" class="text-xs text-gray-400"></span></div>
                 <div class="scroll-rail">
-                    <button type="button" class="scroll-btn prev dark" onclick="scrollRail('episodesContainer',-1)" aria-label="Anterior"><i class="fa-solid fa-chevron-left text-sm"></i></button>
-                    <div class="scroll-track"><div class="flex gap-2.5 overflow-x-auto no-scrollbar" id="episodesContainer"></div></div>
-                    <button type="button" class="scroll-btn next dark" onclick="scrollRail('episodesContainer',1)" aria-label="Próximo"><i class="fa-solid fa-chevron-right text-sm"></i></button>
+                    <button type="button" class="scroll-btn prev dark" onclick="scrollRail('episodesContainer',-1)" aria-label="Episódios anteriores"><i class="fa-solid fa-chevron-left text-sm"></i></button>
+                    <div class="scroll-track">
+                        <div class="flex gap-2.5 overflow-x-auto no-scrollbar" id="episodesContainer"></div>
+                    </div>
+                    <button type="button" class="scroll-btn next dark" onclick="scrollRail('episodesContainer',1)" aria-label="Próximos episódios"><i class="fa-solid fa-chevron-right text-sm"></i></button>
                 </div>
             </div>
             <div>
                 <div class="flex justify-between mb-3"><h3 class="text-sm font-bold uppercase">Sugestões</h3></div>
                 <div class="scroll-rail">
-                    <button type="button" class="scroll-btn prev dark" onclick="scrollRail('suggestionsContainer',-1)" aria-label="Anterior"><i class="fa-solid fa-chevron-left text-sm"></i></button>
-                    <div class="scroll-track"><div class="flex gap-3 overflow-x-auto no-scrollbar" id="suggestionsContainer"></div></div>
-                    <button type="button" class="scroll-btn next dark" onclick="scrollRail('suggestionsContainer',1)" aria-label="Próximo"><i class="fa-solid fa-chevron-right text-sm"></i></button>
+                    <button type="button" class="scroll-btn prev dark" onclick="scrollRail('suggestionsContainer',-1)" aria-label="Sugestões anteriores"><i class="fa-solid fa-chevron-left text-sm"></i></button>
+                    <div class="scroll-track">
+                        <div class="flex gap-3 overflow-x-auto no-scrollbar" id="suggestionsContainer"></div>
+                    </div>
+                    <button type="button" class="scroll-btn next dark" onclick="scrollRail('suggestionsContainer',1)" aria-label="Próximas sugestões"><i class="fa-solid fa-chevron-right text-sm"></i></button>
                 </div>
             </div>
             <div class="lp-slot" data-lp-slot>Espaço disponível</div>
@@ -349,45 +354,6 @@
 </div>
 
 <script>
-/* ===== Receptor TV: HTTPS da própria página ?lpcast=1 ===== */
-(function bootCastReceiverMode(){
-  const params=new URLSearchParams(window.location.search);
-  if(params.get('lpcast')!=='1')return;
-  const src=params.get('src')||'';
-  const title=(params.get('title')||'LorePlay').replace(/</g,'');
-  const poster=(params.get('poster')||'').replace(/</g,'');
-  const startT=parseFloat(params.get('t')||'0')||0;
-  document.documentElement.innerHTML=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;background:#000;color:#fff;font-family:system-ui,sans-serif}
-#wrap{position:fixed;inset:0;background:#000}video{width:100%;height:100%;object-fit:contain;background:#000}
-#bar{position:absolute;left:0;right:0;bottom:0;padding:14px 18px;background:linear-gradient(transparent,rgba(0,0,0,.8));font-size:15px;font-weight:600;pointer-events:none}</style></head><body>
-<div id="wrap"><video id="v" controls autoplay playsinline></video><div id="bar">${title}</div></div>
-<script>
-(function(){
-  var v=document.getElementById('v');
-  var src=${JSON.stringify(src)};
-  var poster=${JSON.stringify(poster)};
-  var startT=${JSON.stringify(startT)};
-  if(poster)v.poster=poster;
-  function playSrc(u,t){
-    if(!u)return;v.src=u;
-    if(t>0){v.addEventListener('loadedmetadata',function once(){v.currentTime=t;v.removeEventListener('loadedmetadata',once)},{once:true})}
-    v.play().catch(function(){});
-  }
-  playSrc(src,startT);
-  try{
-    if(navigator.presentation&&navigator.presentation.receiver){
-      navigator.presentation.receiver.connectionList.then(function(list){
-        function bind(c){c.onmessage=function(ev){try{var msg=JSON.parse(ev.data);if(msg.type==='play'&&msg.src){document.getElementById('bar').textContent=msg.title||'LorePlay';if(msg.poster)v.poster=msg.poster;playSrc(msg.src,msg.t||0)}}catch(e){}};}
-        list.connections.forEach(bind);
-        list.onconnectionavailable=function(e){bind(e.connection)};
-      });
-    }
-  }catch(e){}
-})();
-<\/script></body></html>`;
-})();
-
 const ALLOWED_POST_PRIVATE_KEY_HEX='05ed493ea4ae9fa6e16847b7f2a2453f6ea57c815dd948603dbf0a867a952321';
 const SRC_FALLBACK_SLIDES=[
     {img:'./Src/netflix.png',title:'Netflix',desc:'Catálogo Netflix no LorePlay'},
@@ -414,7 +380,7 @@ let isEditMode=false,editingBasePayload=null,catalogLoading=true;
 let slides=[...SRC_FALLBACK_SLIDES],currentSlide=0,slideInterval=null;
 const mediaPreloadCache=new Map();
 const MAX_PRELOAD_ENTRIES=12;
-let presentationConnection=null,castPendingPlay=false;
+let castContext=null,castSession=null,castInitDone=false,castPendingPlay=false;
 window.__lpMediaIndex=window.__lpMediaIndex||Object.create(null);
 
 const providerData={
@@ -434,69 +400,64 @@ function lightCatalogEntry(entry){return{name:entry.name,status:entry.status||''
 function storeFullEntry(entry){if(!entry)return;const key=entry._dTag||(entry.provider+'|'+entry.name);window.__lpMediaIndex[key]=entry;if(entry.name)window.__lpMediaIndex['name:'+entry.provider+'|'+entry.name]=entry}
 function getFullEntry(item){if(!item)return null;if(item.seasons||item.videoUrls)return item;const key=item._dTag||(item.provider+'|'+item.name);return window.__lpMediaIndex[key]||window.__lpMediaIndex['name:'+(item.provider||currentProvider)+'|'+item.name]||item}
 
-function scrollRail(id,dir){const el=document.getElementById(id);if(!el)return;el.scrollBy({left:dir*Math.max(220,Math.floor(el.clientWidth*0.72)),behavior:'smooth'})}
-function buildSmartSearchQuery(){const data=providerData[currentProvider]||providerData.netflix;return `${data.name||currentProvider} ${currentMediaType==='series'?'séries':'filmes'} lançamentos catálogo`}
-function updateSearchEnginesHint(){const data=providerData[currentProvider]||providerData.netflix;const label=`${data.name} · ${currentMediaType==='series'?'Séries':'Filmes'}`;['searchEnginesHintDesktop','searchEnginesHintMobile'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=label})}
+function scrollRail(id,dir){const el=document.getElementById(id);if(!el)return;const step=Math.max(220,Math.floor(el.clientWidth*0.72));el.scrollBy({left:dir*step,behavior:'smooth'})}
+function buildSmartSearchQuery(){const data=providerData[currentProvider]||providerData.netflix;const name=data.name||currentProvider;const tipo=currentMediaType==='series'?'séries':'filmes';return `${name} ${tipo} lançamentos catálogo`}
+function updateSearchEnginesHint(){const data=providerData[currentProvider]||providerData.netflix;const tipo=currentMediaType==='series'?'Séries':'Filmes';const label=`${data.name} · ${tipo}`;const d=document.getElementById('searchEnginesHintDesktop');const m=document.getElementById('searchEnginesHintMobile');if(d)d.textContent=label;if(m)m.textContent=label}
 function openSearchEngine(engine){const q=encodeURIComponent(buildSmartSearchQuery());const map={google:`https://www.google.com/search?q=${q}`,duckduckgo:`https://duckduckgo.com/?q=${q}`,bing:`https://www.bing.com/search?q=${q}`,youtube:`https://www.youtube.com/results?search_query=${q}`,startpage:`https://www.startpage.com/sp/search?query=${q}`,brave:`https://search.brave.com/search?q=${q}`};if(map[engine])window.open(map[engine],'_blank','noopener,noreferrer')}
 
 function isChunkedRef(r){return !!(r&&r.chunked&&Array.isArray(r.chunks)&&r.chunks.length)}
 function hasMediaRef(r){if(!r)return false;if(typeof r==='string')return!!r;if(r.publicUrl||r.playbackUrl||r.url)return true;return isChunkedRef(r)}
 function mediaRefKey(ref){if(!ref)return null;if(typeof ref==='string')return 's:'+ref;if(ref.encSha256)return 'h:'+ref.encSha256;if(ref.publicUrl)return 'p:'+ref.publicUrl;if(ref.playbackUrl)return 'p:'+ref.playbackUrl;if(ref.url&&!ref.chunked)return 'u:'+ref.url;if(isChunkedRef(ref))return 'c:'+ref.chunks.map(c=>c.url+'|'+(c.index||0)).join(';');return null}
-function getPublicMediaUrl(ref){if(!ref)return '';if(typeof ref==='string'){if(/^https?:\/\//i.test(ref))return ref;if(ref.startsWith('blob:'))return ref;return ''}if(ref.publicUrl&&/^https?:\/\//i.test(ref.publicUrl))return ref.publicUrl;if(ref.playbackUrl&&/^https?:\/\//i.test(ref.playbackUrl))return ref.playbackUrl;if(ref.url&&/^https?:\/\//i.test(ref.url)&&!ref.chunked)return ref.url;if(ref.chunked&&ref.chunks?.length===1){const u=ref.chunks[0]?.url;if(u&&/^https?:\/\//i.test(u))return u}return ''}
+function getPublicMediaUrl(ref){if(!ref)return '';if(typeof ref==='string'){if(/^https?:\/\//i.test(ref))return ref;if(ref.startsWith('blob:'))return ref;return ''}if(ref.publicUrl&&/^https?:\/\//i.test(ref.publicUrl))return ref.publicUrl;if(ref.playbackUrl&&/^https?:\/\//i.test(ref.playbackUrl))return ref.playbackUrl;if(ref.url&&/^https?:\/\//i.test(ref.url)&&!ref.chunked)return ref.url;if(ref.chunked&&Array.isArray(ref.chunks)&&ref.chunks.length===1){const u=ref.chunks[0]?.url;if(u&&/^https?:\/\//i.test(u))return u}return ''}
 async function lookupBlossomPublicUrl(shaHex){if(!shaHex||typeof shaHex!=='string'||shaHex.length<32)return '';const hash=shaHex.toLowerCase().replace(/^0x/,'');for(const base of BLOSSOM_LOOKUP){const url=base.replace(/\/$/,'')+'/'+hash;try{const res=await fetch(url,{method:'HEAD',mode:'cors'});if(res.ok)return url}catch(_){}try{const res=await fetch(url,{method:'GET',headers:{Range:'bytes=0-0'},mode:'cors'});if(res.ok||res.status===206)return url}catch(_){}}return ''}
 function setMediaLoading(show,text){const o=document.getElementById('mediaLoadingOverlay'),t=document.getElementById('mediaLoadingText');if(t&&text)t.textContent=text;if(o)o.classList.toggle('hidden',!show)}
 function clearPlayerPath(keepPreload=true){const v=document.getElementById('contentVideoPlayer');if(v){try{v.pause()}catch(_){}v.removeAttribute('src');try{v.load()}catch(_){}}if(currentObjectUrl){const stillNeeded=[...mediaPreloadCache.values()].some(e=>e.url===currentObjectUrl);if(!keepPreload||!stillNeeded){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}}currentObjectUrl=null}currentPlayKey=null}
-function trimPreloadCache(){while(mediaPreloadCache.size>MAX_PRELOAD_ENTRIES){const first=mediaPreloadCache.keys().next().value;const entry=mediaPreloadCache.get(first);mediaPreloadCache.delete(first);if(entry?.url?.startsWith('blob:')&&entry.url!==currentObjectUrl){try{URL.revokeObjectURL(entry.url)}catch(_){}}}}
+function trimPreloadCache(){while(mediaPreloadCache.size>MAX_PRELOAD_ENTRIES){const first=mediaPreloadCache.keys().next().value;const entry=mediaPreloadCache.get(first);mediaPreloadCache.delete(first);if(entry?.url&&entry.url.startsWith('blob:')&&entry.url!==currentObjectUrl){try{URL.revokeObjectURL(entry.url)}catch(_){}}}}
 async function resolveMediaSrc(ref,{showLoading=true,storePreload=true}={}){if(!ref)return '';const key=mediaRefKey(ref);if(key&&mediaPreloadCache.has(key))return mediaPreloadCache.get(key).url;let publicUrl=getPublicMediaUrl(ref);if(publicUrl){if(storePreload&&key){mediaPreloadCache.set(key,{url:publicUrl,ts:Date.now()});trimPreloadCache()}return publicUrl}const sha=ref&&ref.encSha256;if(sha){if(showLoading)setMediaLoading(true,'Buscando na rede...');try{publicUrl=await lookupBlossomPublicUrl(sha);if(publicUrl){if(typeof ref==='object'){ref.publicUrl=publicUrl;ref.playbackUrl=publicUrl}if(storePreload&&key){mediaPreloadCache.set(key,{url:publicUrl,ts:Date.now()});trimPreloadCache()}return publicUrl}}finally{if(showLoading)setMediaLoading(false)}}if(typeof ref==='string'){if(storePreload&&key){mediaPreloadCache.set(key,{url:ref,ts:Date.now()});trimPreloadCache()}return ref}if(isChunkedRef(ref)&&window.reconstructMediaFromChunks){if(showLoading)setMediaLoading(true,'Reconstruindo...');try{const src=await window.reconstructMediaFromChunks(ref);if(storePreload&&key&&src){mediaPreloadCache.set(key,{url:src,ts:Date.now()});trimPreloadCache()}return src||''}finally{if(showLoading)setMediaLoading(false)}}return ''}
-async function preloadMediaRef(ref){const key=mediaRefKey(ref);if(!key||mediaPreloadCache.has(key)||!hasMediaRef(ref))return;const pub=getPublicMediaUrl(ref);if(pub){mediaPreloadCache.set(key,{url:pub,ts:Date.now()});trimPreloadCache();return}try{await resolveMediaSrc(ref,{showLoading:false,storePreload:true})}catch(e){console.warn(e)}}
+async function preloadMediaRef(ref){const key=mediaRefKey(ref);if(!key||mediaPreloadCache.has(key)||!hasMediaRef(ref))return;const pub=getPublicMediaUrl(ref);if(pub){mediaPreloadCache.set(key,{url:pub,ts:Date.now()});trimPreloadCache();return}try{await resolveMediaSrc(ref,{showLoading:false,storePreload:true})}catch(e){console.warn('preload',e)}}
 function preloadNeighborEpisodes(){const eps=(currentSeasonsData[activePlaybackAudioMode]||{})[activeSeason]||{};const keys=Object.keys(eps).filter(k=>hasMediaRef(eps[k]));const idx=keys.indexOf(String(activeEpisodeKey));const targets=[];if(idx>=0){if(keys[idx+1])targets.push(eps[keys[idx+1]]);if(keys[idx-1])targets.push(eps[keys[idx-1]]);if(keys[idx+2])targets.push(eps[keys[idx+2]])}else keys.slice(0,2).forEach(k=>targets.push(eps[k]));targets.forEach(r=>preloadMediaRef(r))}
-async function playMediaRef(ref){const v=document.getElementById('contentVideoPlayer');if(!v)return;clearPlayerPath(true);const src=await resolveMediaSrc(ref,{showLoading:true,storePreload:true});if(!src)return;if(src.startsWith('blob:'))currentObjectUrl=src;currentPlayKey=mediaRefKey(ref);v.src=src;v.play().catch(()=>{});preloadNeighborEpisodes()}
+async function playMediaRef(ref){const v=document.getElementById('contentVideoPlayer');if(!v)return;const key=mediaRefKey(ref);clearPlayerPath(true);const src=await resolveMediaSrc(ref,{showLoading:true,storePreload:true});if(!src)return;if(src.startsWith('blob:'))currentObjectUrl=src;currentPlayKey=key;v.src=src;v.play().catch(()=>{});preloadNeighborEpisodes()}
 function getActiveMediaRef(){if(currentItemFullData?.seasons){const eps=(currentSeasonsData[activePlaybackAudioMode]||{})[activeSeason]||{};if(activeEpisodeKey&&hasMediaRef(eps[activeEpisodeKey]))return eps[activeEpisodeKey];const k=Object.keys(eps).find(x=>hasMediaRef(eps[x]));return k?eps[k]:null}if(currentItemFullData?.videoUrls)return currentItemFullData.videoUrls[activePlaybackAudioMode]||currentItemFullData.videoUrls.dublado||currentItemFullData.videoUrls.legendado||null;return null}
+function getCastableUrl(){const player=document.getElementById('contentVideoPlayer');const src=player?.currentSrc||player?.src||'';if(src&&/^https?:\/\//i.test(src))return src;const ref=getActiveMediaRef();const pub=getPublicMediaUrl(ref);if(pub&&/^https?:\/\//i.test(pub))return pub;if(typeof ref==='string'&&/^https?:\/\//i.test(ref))return ref;return ''}
+function isPlayerFullscreen(){const stage=document.getElementById('playerStage');return !!(document.fullscreenElement===stage||document.webkitFullscreenElement===stage)}
+async function lockLandscapeIfPossible(){try{if(screen.orientation&&typeof screen.orientation.lock==='function')await screen.orientation.lock('landscape')}catch(_){}}
+async function unlockOrientationIfPossible(){try{if(screen.orientation&&typeof screen.orientation.unlock==='function')screen.orientation.unlock()}catch(_){}}
+function updateFullscreenIcon(){const icon=document.getElementById('fullscreenIcon');if(!icon)return;icon.className=isPlayerFullscreen()?'fa-solid fa-compress':'fa-solid fa-expand'}
+async function togglePlayerFullscreen(){const stage=document.getElementById('playerStage');const video=document.getElementById('contentVideoPlayer');if(!stage)return;try{if(isPlayerFullscreen()){if(document.exitFullscreen)await document.exitFullscreen();else if(document.webkitExitFullscreen)document.webkitExitFullscreen();await unlockOrientationIfPossible()}else{if(stage.requestFullscreen)await stage.requestFullscreen();else if(stage.webkitRequestFullscreen)stage.webkitRequestFullscreen();else if(video&&video.webkitEnterFullscreen){video.webkitEnterFullscreen();return}if(window.matchMedia('(max-width:1023px)').matches)await lockLandscapeIfPossible()}}catch(err){try{if(video&&video.requestFullscreen)await video.requestFullscreen();else if(video&&video.webkitEnterFullscreen)video.webkitEnterFullscreen();if(window.matchMedia('(max-width:1023px)').matches)await lockLandscapeIfPossible()}catch(e2){console.warn(e2)}}updateFullscreenIcon()}
+document.addEventListener('fullscreenchange',async()=>{updateFullscreenIcon();if(!document.fullscreenElement)await unlockOrientationIfPossible()});
+document.addEventListener('webkitfullscreenchange',async()=>{updateFullscreenIcon();if(!document.webkitFullscreenElement)await unlockOrientationIfPossible()});
 
-/* ===== Cast via HTTPS da própria página ===== */
 function setCastUi(state,label){const t=document.getElementById('castTvText');const i=document.getElementById('castTvIcon');if(t)t.textContent=label||(state==='casting'?'Na TV':state==='busy'?'…':'TV');if(i)i.className=state==='busy'?'fa-solid fa-spinner fa-spin':state==='casting'?'fa-solid fa-cast text-secondary':'fa-solid fa-cast'}
 function ensureVideoCastReady(){const video=document.getElementById('contentVideoPlayer');if(!video)return null;try{video.disableRemotePlayback=false}catch(_){}try{video.setAttribute('x-webkit-airplay','allow')}catch(_){}return video}
-function getCastableUrl(){const player=document.getElementById('contentVideoPlayer');const src=player?.currentSrc||player?.src||'';if(src&&/^https?:\/\//i.test(src))return src;const ref=getActiveMediaRef();const pub=getPublicMediaUrl(ref);if(pub&&/^https?:\/\//i.test(pub))return pub;if(typeof ref==='string'&&/^https?:\/\//i.test(ref))return ref;return ''}
-function buildOwnPageCastUrl(mediaUrl){const u=new URL(window.location.href);u.hash='';u.search='';u.searchParams.set('lpcast','1');u.searchParams.set('src',mediaUrl);u.searchParams.set('title',currentDetailTitle||'LorePlay');if(currentDetailImg)u.searchParams.set('poster',currentDetailImg);const t=(document.getElementById('contentVideoPlayer')||{}).currentTime;if(typeof t==='number'&&t>0)u.searchParams.set('t',String(Math.floor(t)));return u.toString()}
-async function castViaOwnPagePresentation(mediaUrl){if(typeof PresentationRequest==='undefined')return false;const receiverUrl=buildOwnPageCastUrl(mediaUrl);try{const request=new PresentationRequest([receiverUrl]);try{if(navigator.presentation)navigator.presentation.defaultRequest=request}catch(_){}presentationConnection=await request.start();const sendPlay=()=>{try{presentationConnection.send(JSON.stringify({type:'play',src:mediaUrl,title:currentDetailTitle||'LorePlay',poster:currentDetailImg||'',t:(document.getElementById('contentVideoPlayer')||{}).currentTime||0}))}catch(_){}};presentationConnection.onconnect=sendPlay;if(presentationConnection.state==='connected')sendPlay();presentationConnection.onclose=()=>{presentationConnection=null;setCastUi('idle','TV')};presentationConnection.onterminate=()=>{presentationConnection=null;setCastUi('idle','TV')};setCastUi('casting','Na TV');try{document.getElementById('contentVideoPlayer')?.pause()}catch(_){}return true}catch(e){console.warn(e);return false}}
-async function castViaRemotePlayback(video){if(!video?.remote||typeof video.remote.prompt!=='function')return false;try{await video.remote.prompt();try{await video.play()}catch(_){}setCastUi('casting','Na TV');return true}catch(e){console.warn(e);return false}}
-function castViaAirPlay(video){if(typeof video?.webkitShowPlaybackTargetPicker!=='function')return false;try{video.webkitShowPlaybackTargetPicker();setCastUi('casting','Na TV');return true}catch(_){return false}}
-function castViaOwnPageWindow(mediaUrl){const url=buildOwnPageCastUrl(mediaUrl);const w=window.open(url,'lp_cast_receiver','noopener,noreferrer');if(!w)return false;setCastUi('casting','Na TV');try{document.getElementById('contentVideoPlayer')?.pause()}catch(_){}return true}
+function buildCastMediaInfo(castUrl){const mediaInfo=new chrome.cast.media.MediaInfo(castUrl,'video/mp4');mediaInfo.metadata=new chrome.cast.media.GenericMediaMetadata();mediaInfo.metadata.title=currentDetailTitle||'LorePlay';if(currentDetailImg)mediaInfo.metadata.images=[{url:currentDetailImg}];mediaInfo.streamType=chrome.cast.media.StreamType.BUFFERED;return mediaInfo}
+async function loadMediaOnCastSession(session,castUrl){const video=ensureVideoCastReady();const mediaInfo=buildCastMediaInfo(castUrl);const req=new chrome.cast.media.LoadRequest(mediaInfo);req.autoplay=true;req.currentTime=(video&&video.currentTime)||0;await session.loadMedia(req);try{if(video)video.pause()}catch(_){}setCastUi('casting','Na TV');castPendingPlay=false}
+function initCastFramework(){if(castInitDone||!window.cast||!cast.framework||!window.chrome||!chrome.cast)return;try{const ctx=cast.framework.CastContext.getInstance();ctx.setOptions({receiverApplicationId:chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,autoJoinPolicy:chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,resumeSavedSession:true});castContext=ctx;ctx.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED,async(e)=>{const st=e.sessionState;if(st===cast.framework.SessionState.SESSION_STARTED||st===cast.framework.SessionState.SESSION_RESUMED){castSession=ctx.getCurrentSession();if(castPendingPlay){const url=getCastableUrl();if(url&&castSession){try{await loadMediaOnCastSession(castSession,url)}catch(err){console.warn(err);setCastUi('idle','TV')}}}else if(castSession)setCastUi('casting','Na TV')}else if(st===cast.framework.SessionState.SESSION_ENDED){castSession=null;setCastUi('idle','TV')}});castInitDone=true;const existing=ctx.getCurrentSession();if(existing){castSession=existing;setCastUi('casting','Na TV')}}catch(e){console.warn('cast init',e)}}
+window['__onGCastApiAvailable']=function(isAvailable){if(isAvailable)initCastFramework()};
 async function castToTv(){
   const video=ensureVideoCastReady();if(!video)return;
   setCastUi('busy','…');castPendingPlay=true;
-  const mediaUrl=getCastableUrl();
-  if(!mediaUrl){castPendingPlay=false;setCastUi('idle','TV');return}
   try{
-    if(presentationConnection&&presentationConnection.state==='connected'){
-      try{presentationConnection.send(JSON.stringify({type:'play',src:mediaUrl,title:currentDetailTitle||'LorePlay',poster:currentDetailImg||'',t:video.currentTime||0}));setCastUi('casting','Na TV');try{video.pause()}catch(_){}castPendingPlay=false;return}catch(_){}
-    }
-    if(await castViaOwnPagePresentation(mediaUrl)){castPendingPlay=false;return}
-    if(await castViaRemotePlayback(video)){castPendingPlay=false;return}
-    if(castViaAirPlay(video)){castPendingPlay=false;return}
-    if(castViaOwnPageWindow(mediaUrl)){castPendingPlay=false;return}
+    initCastFramework();
+    if(castContext){castSession=castContext.getCurrentSession();const castUrl=getCastableUrl();if(castSession&&castUrl){await loadMediaOnCastSession(castSession,castUrl);return}}
+    if(video.remote&&typeof video.remote.watchAvailability==='function'){try{await new Promise((resolve)=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};try{video.remote.watchAvailability(()=>finish())}catch(_){}setTimeout(finish,600)})}catch(_){}}
+    if(video.remote&&typeof video.remote.prompt==='function'){try{await video.remote.prompt();try{await video.play()}catch(_){}setCastUi('casting','Na TV');castPendingPlay=false;return}catch(e){}}
+    const castUrl=getCastableUrl();
+    if(castContext&&castUrl){try{await castContext.requestSession();castSession=castContext.getCurrentSession();if(castSession){await loadMediaOnCastSession(castSession,castUrl);return}}catch(e){console.warn(e)}}
+    if(typeof video.webkitShowPlaybackTargetPicker==='function'){try{video.webkitShowPlaybackTargetPicker();setCastUi('casting','Na TV');castPendingPlay=false;return}catch(_){}}
     castPendingPlay=false;setCastUi('idle','TV');
   }catch(err){console.warn(err);castPendingPlay=false;setCastUi('idle','TV')}
 }
 
-function isPlayerFullscreen(){const stage=document.getElementById('playerStage');return !!(document.fullscreenElement===stage||document.webkitFullscreenElement===stage)}
-async function lockLandscapeIfPossible(){try{if(screen.orientation?.lock)await screen.orientation.lock('landscape')}catch(_){}}
-async function unlockOrientationIfPossible(){try{if(screen.orientation?.unlock)screen.orientation.unlock()}catch(_){}}
-function updateFullscreenIcon(){const icon=document.getElementById('fullscreenIcon');if(!icon)return;icon.className=isPlayerFullscreen()?'fa-solid fa-compress':'fa-solid fa-expand'}
-async function togglePlayerFullscreen(){const stage=document.getElementById('playerStage');const video=document.getElementById('contentVideoPlayer');if(!stage)return;try{if(isPlayerFullscreen()){if(document.exitFullscreen)await document.exitFullscreen();else if(document.webkitExitFullscreen)document.webkitExitFullscreen();await unlockOrientationIfPossible()}else{if(stage.requestFullscreen)await stage.requestFullscreen();else if(stage.webkitRequestFullscreen)stage.webkitRequestFullscreen();else if(video?.webkitEnterFullscreen){video.webkitEnterFullscreen();return}if(window.matchMedia('(max-width:1023px)').matches)await lockLandscapeIfPossible()}}catch(err){try{if(video?.requestFullscreen)await video.requestFullscreen();else if(video?.webkitEnterFullscreen)video.webkitEnterFullscreen()}catch(e2){console.warn(e2)}}updateFullscreenIcon()}
-document.addEventListener('fullscreenchange',async()=>{updateFullscreenIcon();if(!document.fullscreenElement)await unlockOrientationIfPossible()});
-document.addEventListener('webkitfullscreenchange',async()=>{updateFullscreenIcon();if(!document.webkitFullscreenElement)await unlockOrientationIfPossible()});
-
-async function downloadCurrentMedia(){const btnText=document.getElementById('downloadMediaText');const btnIcon=document.getElementById('downloadMediaIcon');const setUi=(loading,label)=>{if(btnText)btnText.textContent=label;if(btnIcon)btnIcon.className=loading?'fa-solid fa-spinner fa-spin':'fa-solid fa-download'};try{const player=document.getElementById('contentVideoPlayer');const currentSrc=player?.currentSrc||'';const ref=getActiveMediaRef();setUi(true,'Preparando...');let blobUrl=null,revoke=false;let filename=(currentDetailTitle||'loreplay-video').replace(/[^\w\s.-]/g,'').trim().replace(/\s+/g,'_')||'loreplay-video';if(activeEpisodeKey)filename+=`_T${activeSeason}E${activeEpisodeKey}`;filename+=`_${activePlaybackAudioMode}`;if(currentSrc?.startsWith('blob:'))blobUrl=currentSrc;else if(ref){setUi(true,'Baixando...');const src=await resolveMediaSrc(ref);if(!src)throw new Error('Mídia indisponível.');if(src.startsWith('blob:'))blobUrl=src;else{const res=await fetch(src);if(!res.ok)throw new Error('Falha');const blob=await res.blob();blobUrl=URL.createObjectURL(blob);revoke=true}}else if(currentSrc&&/^https?:\/\//i.test(currentSrc)){const res=await fetch(currentSrc);const blob=await res.blob();blobUrl=URL.createObjectURL(blob);revoke=true}else throw new Error('Nenhuma mídia');if(!/\.(mp4|webm|mkv|mov)$/i.test(filename))filename+='.mp4';const a=document.createElement('a');a.href=blobUrl;a.download=filename;document.body.appendChild(a);a.click();a.remove();setUi(false,'Baixado');setTimeout(()=>setUi(false,'Baixar'),2000);if(revoke)setTimeout(()=>{try{URL.revokeObjectURL(blobUrl)}catch(_){}},60000)}catch(err){console.error(err);alert('Não foi possível baixar: '+(err.message||err));setUi(false,'Baixar')}}
+async function downloadCurrentMedia(){const btnText=document.getElementById('downloadMediaText');const btnIcon=document.getElementById('downloadMediaIcon');const setUi=(loading,label)=>{if(btnText)btnText.textContent=label;if(btnIcon)btnIcon.className=loading?'fa-solid fa-spinner fa-spin':'fa-solid fa-download'};try{const player=document.getElementById('contentVideoPlayer');const currentSrc=player&&player.currentSrc?player.currentSrc:'';const ref=getActiveMediaRef();setUi(true,'Preparando...');let blobUrl=null,revoke=false;let filename=(currentDetailTitle||'loreplay-video').replace(/[^\w\s.-]/g,'').trim().replace(/\s+/g,'_')||'loreplay-video';if(activeEpisodeKey)filename+=`_T${activeSeason}E${activeEpisodeKey}`;filename+=`_${activePlaybackAudioMode}`;if(currentSrc&&currentSrc.startsWith('blob:'))blobUrl=currentSrc;else if(ref){setUi(true,'Baixando...');const src=await resolveMediaSrc(ref);if(!src)throw new Error('Mídia indisponível.');if(src.startsWith('blob:'))blobUrl=src;else{const res=await fetch(src);if(!res.ok)throw new Error('Falha ('+res.status+').');const blob=await res.blob();blobUrl=URL.createObjectURL(blob);revoke=true}}else if(currentSrc&&/^https?:\/\//i.test(currentSrc)){setUi(true,'Baixando...');const res=await fetch(currentSrc);if(!res.ok)throw new Error('Falha.');const blob=await res.blob();blobUrl=URL.createObjectURL(blob);revoke=true}else throw new Error('Nenhuma mídia carregada.');if(!/\.(mp4|webm|mkv|mov)$/i.test(filename))filename+='.mp4';const a=document.createElement('a');a.href=blobUrl;a.download=filename;a.rel='noopener';document.body.appendChild(a);a.click();a.remove();setUi(false,'Baixado');setTimeout(()=>setUi(false,'Baixar'),2000);if(revoke)setTimeout(()=>{try{URL.revokeObjectURL(blobUrl)}catch(_){}},60000)}catch(err){console.error(err);alert('Não foi possível baixar: '+(err.message||err));setUi(false,'Baixar')}}
 
 function renderSkeletonGrid(count=8){const g=document.getElementById('contentGrid');if(!g)return;g.innerHTML=Array.from({length:count}).map(()=>`<div class="content-card skeleton-card pointer-events-none"><div class="content-thumb skeleton"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>`).join('')}
-function collectBannerSlidesFromCatalog(){const items=[];Object.keys(providerData).forEach(k=>{const fulls=Object.values(window.__lpMediaIndex||{}).filter(it=>it&&it.provider===k&&it.img);if(fulls.length)fulls.forEach(it=>{if(it.img&&it.name)items.push({img:it.img,title:it.name,desc:it.status||'',item:lightCatalogEntry(it)})});else{(providerData[k].series||[]).forEach(it=>{if(it.img)items.push({img:it.img,title:it.name,desc:it.status||'Série',item:it})});(providerData[k].movies||[]).forEach(it=>{if(it.img)items.push({img:it.img,title:it.name,desc:it.status||'Filme',item:it})})}});return items.length?items.slice(0,12):[...SRC_FALLBACK_SLIDES]}
+function collectBannerSlidesFromCatalog(){const items=[];Object.keys(providerData).forEach(k=>{const fulls=Object.values(window.__lpMediaIndex||{}).filter(it=>it&&it.provider===k&&it.img);if(fulls.length){fulls.forEach(it=>{if(it.img&&it.name)items.push({img:it.img,title:it.name,desc:it.status||'',item:lightCatalogEntry(it)})})}else{(providerData[k].series||[]).forEach(it=>{if(it.img)items.push({img:it.img,title:it.name,desc:it.status||'Série',item:it})});(providerData[k].movies||[]).forEach(it=>{if(it.img)items.push({img:it.img,title:it.name,desc:it.status||'Filme',item:it})})}});return items.length?items.slice(0,12):[...SRC_FALLBACK_SLIDES]}
 function rebuildBannerFromCatalog(){slides=collectBannerSlidesFromCatalog();currentSlide=0;const dots=document.getElementById('carouselDots');if(dots)dots.innerHTML=slides.map((_,i)=>`<span onclick="event.stopPropagation();setSlide(${i})" class="carousel-dot ${i===0?'w-2 h-2 rounded-full bg-secondary':'w-1.5 h-1.5 rounded-full bg-white/50'}"></span>`).join('');updateSlideUI();clearInterval(slideInterval);slideInterval=setInterval(nextSlide,5000)}
 function updateSlideUI(){if(!slides.length)return;const s=slides[currentSlide];const img=document.getElementById('bannerImg'),t=document.getElementById('bannerTitle'),d=document.getElementById('bannerDesc'),h=document.getElementById('heroBanner');img.style.opacity='.3';setTimeout(()=>{img.src=s.img;t.textContent=s.title;d.textContent=s.desc||'';h.onclick=()=>{if(s.item)openDetailModal(s.title,s.img,s.desc||'',s.item);else openDetailModal(s.title,s.img,s.desc||'')};img.style.opacity='.75'},200);document.querySelectorAll('#carouselDots .carousel-dot').forEach((dot,i)=>{dot.className=i===currentSlide?'carousel-dot w-2 h-2 rounded-full bg-secondary':'carousel-dot w-1.5 h-1.5 rounded-full bg-white/50'})}
 function nextSlide(){if(!slides.length)return;currentSlide=(currentSlide+1)%slides.length;updateSlideUI()}
 function prevSlide(){if(!slides.length)return;currentSlide=(currentSlide-1+slides.length)%slides.length;updateSlideUI()}
 function setSlide(i){currentSlide=i;updateSlideUI();clearInterval(slideInterval);slideInterval=setInterval(nextSlide,5000)}
-(function setupHeroSwipe(){const h=document.getElementById('heroBanner');if(!h)return;let startX=0,startY=0,tracking=false;h.addEventListener('touchstart',e=>{if(!e.touches[0])return;tracking=true;startX=e.touches[0].clientX;startY=e.touches[0].clientY;clearInterval(slideInterval)},{passive:true});h.addEventListener('touchend',e=>{if(!tracking)return;tracking=false;const t=e.changedTouches?.[0];if(!t)return;const dx=t.clientX-startX,dy=t.clientY-startY;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)){if(dx<0)nextSlide();else prevSlide()}slideInterval=setInterval(nextSlide,5000)},{passive:true})})();
+(function setupHeroSwipe(){const h=document.getElementById('heroBanner');if(!h)return;let startX=0,startY=0,tracking=false;h.addEventListener('touchstart',e=>{if(!e.touches[0])return;tracking=true;startX=e.touches[0].clientX;startY=e.touches[0].clientY;clearInterval(slideInterval)},{passive:true});h.addEventListener('touchend',e=>{if(!tracking)return;tracking=false;const t=e.changedTouches&&e.changedTouches[0];if(!t)return;const dx=t.clientX-startX,dy=t.clientY-startY;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)){if(dx<0)nextSlide();else prevSlide()}slideInterval=setInterval(nextSlide,5000)},{passive:true})})();
 
 function togglePostFields(type){document.getElementById('seriesFields').classList.toggle('hidden',type!=='series');document.getElementById('movieFields').classList.toggle('hidden',type==='series')}
 function setPostAudioMode(mode){activePostAudioMode=mode;document.getElementById('postBtnDub').className=mode==='dublado'?'px-2.5 py-1 text-[11px] font-bold rounded-md bg-secondary text-white':'px-2.5 py-1 text-[11px] font-bold rounded-md text-gray-600';document.getElementById('postBtnSub').className=mode==='legendado'?'px-2.5 py-1 text-[11px] font-bold rounded-md bg-secondary text-white':'px-2.5 py-1 text-[11px] font-bold rounded-md text-gray-600';if(!postSeasonsData[mode])postSeasonsData[mode]={1:{1:null}};activePostSeason=1;renderPostSeasonsTabBar();renderPostSeasonEpisodesInputs()}
@@ -516,25 +477,26 @@ function closeModalOnBackdrop(e,id){if(e.target.id===id)closeModal(id)}
 function collectSuggestions(current){const list=[];const seen=new Set([current?.name||currentDetailTitle]);const push=(it)=>{if(!it||!it.name||seen.has(it.name))return;seen.add(it.name);list.push(it)};const prov=current?.provider||currentProvider;Object.values(window.__lpMediaIndex||{}).forEach(it=>{if(it&&it.provider===prov)push(lightCatalogEntry(it))});(providerData[prov]?.series||[]).forEach(push);(providerData[prov]?.movies||[]).forEach(push);Object.keys(providerData).forEach(k=>{if(k===prov)return;(providerData[k].series||[]).forEach(push);(providerData[k].movies||[]).forEach(push)});return list.slice(0,24)}
 function renderSuggestions(){const c=document.getElementById('suggestionsContainer');if(!c)return;const items=collectSuggestions(currentItemFullData);if(!items.length){c.innerHTML='<p class="text-xs text-gray-500">Sem sugestões no momento.</p>';return}c.innerHTML=items.map(item=>{const j=JSON.stringify(item).replace(/'/g,'&#39;');return `<div class="suggest-card" onclick='openDetailModal(${JSON.stringify(item.name)},${JSON.stringify(item.img||"")},${JSON.stringify(item.status||"")},${j})'><div class="thumb"><img src="${item.img||''}" alt="" loading="lazy"></div><p>${item.name}</p></div>`}).join('')}
 async function openDetailModal(title,img,desc,item=null){
-  clearPlayerPath(true);currentDetailTitle=title;currentDetailImg=img;
-  let full=getFullEntry(item);
-  if((!full||(!full.seasons&&!full.videoUrls))&&item?._dTag&&window.__lpStreamNet?.fetchPostByDTag){setMediaLoading(true,'Carregando título...');try{const remote=await window.__lpStreamNet.fetchPostByDTag(item._dTag);if(remote){storeFullEntry(remote);full=remote}}catch(e){console.warn(e)}finally{setMediaLoading(false)}}
-  currentItemFullData=full||item;activePlaybackAudioMode='dublado';activeEpisodeKey=null;
-  const ls=document.getElementById('languageSelect');if(ls)ls.value='dublado';updateAudioBadge('dublado');
-  if(currentItemFullData?.seasons)currentSeasonsData=currentItemFullData.seasons;
-  else if(currentItemFullData?.videoUrls)currentSeasonsData={dublado:{1:{1:currentItemFullData.videoUrls.dublado||currentItemFullData.videoUrls.legendado||''}},legendado:{1:{1:currentItemFullData.videoUrls.legendado||currentItemFullData.videoUrls.dublado||''}}};
-  else currentSeasonsData={dublado:{1:{1:''}},legendado:{1:{1:''}}};
-  const am=currentSeasonsData[activePlaybackAudioMode]||{};activeSeason=Object.keys(am)[0]||1;
-  renderSeasonsTabBar();renderDetailEpisodesUI();renderSuggestions();
-  document.getElementById('detailModalTitle').textContent=title;
-  const vp=document.getElementById('contentVideoPlayer');if(vp)vp.poster=img||'';
-  updateFavoriteUI();updateFullscreenIcon();setCastUi('idle','TV');ensureVideoCastReady();
-  document.getElementById('editContentBtn')?.classList.toggle('hidden',!(canPostContent()&&currentItemFullData&&(currentItemFullData._dTag||currentItemFullData.seasons||currentItemFullData.videoUrls)));
-  document.getElementById('detailModal').classList.remove('hidden');document.body.style.overflow='hidden';
-  addToHistory({name:title,img,type:currentItemFullData?.type||currentMediaType,provider:currentItemFullData?.provider||currentProvider});
-  if(window.refreshPartnerSlots)window.refreshPartnerSlots();
-  const eps=am[activeSeason]||{};const fk=Object.keys(eps).find(k=>hasMediaRef(eps[k]));
-  if(fk){activeEpisodeKey=fk;await playMediaRef(eps[fk])}
+    clearPlayerPath(true);currentDetailTitle=title;currentDetailImg=img;
+    let full=getFullEntry(item);
+    if((!full||(!full.seasons&&!full.videoUrls))&&item?._dTag&&window.__lpStreamNet?.fetchPostByDTag){setMediaLoading(true,'Carregando título...');try{const remote=await window.__lpStreamNet.fetchPostByDTag(item._dTag);if(remote){storeFullEntry(remote);full=remote}}catch(e){console.warn(e)}finally{setMediaLoading(false)}}
+    currentItemFullData=full||item;activePlaybackAudioMode='dublado';activeEpisodeKey=null;
+    const ls=document.getElementById('languageSelect');if(ls)ls.value='dublado';updateAudioBadge('dublado');
+    if(currentItemFullData?.seasons)currentSeasonsData=currentItemFullData.seasons;
+    else if(currentItemFullData?.videoUrls)currentSeasonsData={dublado:{1:{1:currentItemFullData.videoUrls.dublado||currentItemFullData.videoUrls.legendado||''}},legendado:{1:{1:currentItemFullData.videoUrls.legendado||currentItemFullData.videoUrls.dublado||''}}};
+    else currentSeasonsData={dublado:{1:{1:''}},legendado:{1:{1:''}}};
+    const am=currentSeasonsData[activePlaybackAudioMode]||{};activeSeason=Object.keys(am)[0]||1;
+    renderSeasonsTabBar();renderDetailEpisodesUI();renderSuggestions();
+    document.getElementById('detailModalTitle').textContent=title;
+    const vp=document.getElementById('contentVideoPlayer');if(vp)vp.poster=img||'';
+    updateFavoriteUI();updateFullscreenIcon();setCastUi('idle','TV');
+    ensureVideoCastReady();initCastFramework();
+    document.getElementById('editContentBtn')?.classList.toggle('hidden',!(canPostContent()&&currentItemFullData&&(currentItemFullData._dTag||currentItemFullData.seasons||currentItemFullData.videoUrls)));
+    document.getElementById('detailModal').classList.remove('hidden');document.body.style.overflow='hidden';
+    addToHistory({name:title,img,type:currentItemFullData?.type||currentMediaType,provider:currentItemFullData?.provider||currentProvider});
+    if(window.refreshPartnerSlots)window.refreshPartnerSlots();
+    const eps=am[activeSeason]||{};const fk=Object.keys(eps).find(k=>hasMediaRef(eps[k]));
+    if(fk){activeEpisodeKey=fk;await playMediaRef(eps[fk])}
 }
 function renderSeasonsTabBar(){const tb=document.getElementById('seasonsTabBar');if(!tb)return;const keys=Object.keys(currentSeasonsData[activePlaybackAudioMode]||{});tb.innerHTML=keys.map(s=>`<button type="button" onclick="changeSeason(${s})" class="shrink-0 px-4 py-2 text-xs font-bold rounded-xl border ${parseInt(s)===parseInt(activeSeason)?'bg-secondary text-white border-secondary':'bg-white/5 text-gray-300 border-white/10'}">Temp. ${s}</button>`).join('')||'<span class="text-xs text-gray-400">Nenhuma</span>'}
 function renderDetailEpisodesUI(){const c=document.getElementById('episodesContainer'),l=document.getElementById('episodesCountLabel');if(!c)return;const eps=(currentSeasonsData[activePlaybackAudioMode]||{})[activeSeason]||{};const keys=Object.keys(eps).filter(k=>hasMediaRef(eps[k]));if(l)l.textContent=keys.length+' ep(s)';c.innerHTML=keys.map((ep,i)=>`<button type="button" onclick="selectEpisode('${ep}',this)" class="ep-btn w-12 h-12 rounded-xl ${i===0?'bg-white text-gray-900':'bg-white/10 text-white'} font-bold text-sm shrink-0">${ep}</button>`).join('')||'<p class="text-xs text-gray-400">Nenhum</p>'}
@@ -557,15 +519,11 @@ function setNetworkStatus(html){const el=document.getElementById('networkStatus'
 function applyUserMeta(meta){if(!meta)return;if(Array.isArray(meta.saved))savedTitles=meta.saved;if(Array.isArray(meta.history))historyTitles=meta.history;renderSavedModalList();renderHistoryModalList()}
 function onCatalogLoaded(){catalogLoading=false;renderCatalog();rebuildBannerFromCatalog()}
 
-if(!new URLSearchParams(window.location.search).get('lpcast')){
-  loadSessionFromNostr();loadSessionAvatar();updatePostButtonVisibility();renderPostSeasonsInputs(2);renderSkeletonGrid();rebuildBannerFromCatalog();updateSearchEnginesHint();
-  window.providerData=providerData;window.renderCatalog=renderCatalog;window.setNetworkStatus=setNetworkStatus;window.applyUserMeta=applyUserMeta;window.onCatalogLoaded=onCatalogLoaded;window.storeFullEntry=storeFullEntry;window.lightCatalogEntry=lightCatalogEntry;
-}
+loadSessionFromNostr();loadSessionAvatar();updatePostButtonVisibility();renderPostSeasonsInputs(2);renderSkeletonGrid();rebuildBannerFromCatalog();updateSearchEnginesHint();
+window.providerData=providerData;window.renderCatalog=renderCatalog;window.setNetworkStatus=setNetworkStatus;window.applyUserMeta=applyUserMeta;window.onCatalogLoaded=onCatalogLoaded;window.storeFullEntry=storeFullEntry;window.lightCatalogEntry=lightCatalogEntry;
 </script>
 
 <script type="module">
-if(new URLSearchParams(window.location.search).get('lpcast')==='1'){/* receptor TV — não carrega rede */}
-else{
 import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
 import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
 const RELAYS=['wss://relay.damus.io','wss://nos.lol','wss://relay.nostr.band','wss://relay.primal.net'];
@@ -598,14 +556,14 @@ async function uploadViaBlossom(arrayBuffer,privateKeyBytes){const hash=await sh
 function openIdb(){return new Promise((resolve,reject)=>{const req=indexedDB.open('loreplay_stream_blobs',2);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('blobs'))db.createObjectStore('blobs');if(!db.objectStoreNames.contains('media_cache'))db.createObjectStore('media_cache')};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function saveEncryptedLocally(buf){const db=await openIdb();const id='local_'+Date.now()+'_'+Math.random().toString(36).slice(2);return new Promise((resolve,reject)=>{const tx=db.transaction('blobs','readwrite');tx.objectStore('blobs').put(buf,id);tx.oncomplete=()=>resolve('idb://'+id);tx.onerror=()=>reject(tx.error)})}
 async function loadEncryptedLocally(idbUrl){const id=idbUrl.replace(/^idb:\/\//,'');const db=await openIdb();return new Promise((resolve,reject)=>{const tx=db.transaction('blobs','readonly');const g=tx.objectStore('blobs').get(id);g.onsuccess=()=>resolve(g.result);g.onerror=()=>reject(g.error)})}
-async function saveReconstructedMedia(sha,arrayBuffer,mime){if(!sha)return;try{const db=await openIdb();await new Promise((resolve,reject)=>{const tx=db.transaction('media_cache','readwrite');tx.objectStore('media_cache').put({buf:arrayBuffer,mime:mime||'video/mp4',ts:Date.now()},sha);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}catch(e){console.warn(e)}}
+async function saveReconstructedMedia(sha,arrayBuffer,mime){if(!sha)return;try{const db=await openIdb();await new Promise((resolve,reject)=>{const tx=db.transaction('media_cache','readwrite');tx.objectStore('media_cache').put({buf:arrayBuffer,mime:mime||'video/mp4',ts:Date.now()},sha);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}catch(e){console.warn('cache media',e)}}
 async function loadReconstructedMedia(sha){if(!sha)return null;try{const db=await openIdb();return await new Promise((resolve,reject)=>{const tx=db.transaction('media_cache','readonly');const g=tx.objectStore('media_cache').get(sha);g.onsuccess=()=>resolve(g.result||null);g.onerror=()=>reject(g.error)})}catch{return null}}
 async function uploadSingleBuffer(buf,baseName,privateKeyBytes){let fileUrl='',backend='';try{const file=new File([buf],(baseName.replace(/\.[^.]+$/,'')||'file')+'.bin',{type:'application/octet-stream'});const formData=new FormData();formData.append('fileToUpload',file);const authHeader=await createNip98AuthHeader(UPLOAD_URL,'POST',privateKeyBytes);const response=await fetch(UPLOAD_URL,{method:'POST',headers:{'Authorization':authHeader},body:formData});const text=await response.text();let data=null;try{data=JSON.parse(text)}catch(_){}if(response.ok&&data&&data.status!=='error'){fileUrl=extractUploadUrl(data);if(fileUrl)backend='nostr.build'}}catch(e){console.warn(e)}if(!fileUrl){try{fileUrl=await uploadViaBlossom(buf,privateKeyBytes);backend='blossom'}catch(e){console.warn(e)}}if(!fileUrl){fileUrl=await saveEncryptedLocally(buf);backend='local'}return{url:fileUrl,backend}}
 function splitBufferIntoChunks(arrayBuffer,chunkSize=CHUNK_SIZE){const bytes=new Uint8Array(arrayBuffer);const chunks=[];for(let o=0;o<bytes.length;o+=chunkSize)chunks.push(bytes.slice(o,Math.min(o+chunkSize,bytes.length)).buffer);return chunks}
 function concatArrayBuffers(buffers){const total=buffers.reduce((s,b)=>s+b.byteLength,0);const out=new Uint8Array(total);let o=0;for(const b of buffers){out.set(new Uint8Array(b),o);o+=b.byteLength}return out.buffer}
 function isChunkedFile(f){return !!(f&&f.chunked&&Array.isArray(f.chunks)&&f.chunks.length)}
 async function uploadMediaDriveStyle(file,privateKeyBytes,onStatus){const buf=await file.arrayBuffer();const fileSha=await sha256Hex(buf);const size=buf.byteLength;if(onStatus)onStatus('Enviando arquivo...');let fullUrl='';try{const up=await uploadSingleBuffer(buf,file.name,privateKeyBytes);fullUrl=up?.url||''}catch(e){console.warn(e)}if(fullUrl&&/^https?:\/\//i.test(fullUrl)){if(size>MAX_FREE_BYTES){const parts=splitBufferIntoChunks(buf,CHUNK_SIZE);const chunkMeta=[];let backend='cloud';for(let i=0;i<parts.length;i++){if(onStatus)onStatus(`Backup fatia ${i+1}/${parts.length}...`);try{const{url,backend:b}=await uploadSingleBuffer(parts[i],`${file.name}.part${String(i).padStart(4,'0')}`,privateKeyBytes);if(b==='local')backend='local';else if(backend!=='local')backend=b||backend;chunkMeta.push({url,index:i,size:parts[i].byteLength})}catch(_){}}return{chunked:chunkMeta.length>1,chunks:chunkMeta.length?chunkMeta:[{url:fullUrl,index:0,size}],mime:file.type||'video/mp4',size,encSize:size,encSha256:fileSha,backend,url:fullUrl,publicUrl:fullUrl,playbackUrl:fullUrl}}return fullUrl}if(size>MAX_FREE_BYTES){const parts=splitBufferIntoChunks(buf,CHUNK_SIZE);const chunkMeta=[];let backend='cloud';for(let i=0;i<parts.length;i++){if(onStatus)onStatus(`Fatia ${i+1}/${parts.length}...`);const{url,backend:b}=await uploadSingleBuffer(parts[i],`${file.name}.part${String(i).padStart(4,'0')}`,privateKeyBytes);if(b==='local')backend='local';else if(backend!=='local')backend=b||backend;chunkMeta.push({url,index:i,size:parts[i].byteLength})}return{chunked:true,chunks:chunkMeta,mime:file.type||'video/mp4',size,encSize:size,encSha256:fileSha,backend,url:chunkMeta[0]?.url||''}}if(onStatus)onStatus('Enviando...');const{url}=await uploadSingleBuffer(buf,file.name,privateKeyBytes);return url}
-async function fetchChunkBuffer(ch,attemptMax=4){const url=String(ch.url||'');let lastErr;for(let attempt=1;attempt<=attemptMax;attempt++){try{let buf;if(url.startsWith('idb://')){buf=await loadEncryptedLocally(url);if(!buf)throw new Error('Fatia local ausente')}else{const res=await fetch(url,{cache:'force-cache'});if(!res.ok)throw new Error('HTTP '+res.status);buf=await res.arrayBuffer()}if(ch.size!=null&&buf.byteLength!==ch.size&&Math.abs(buf.byteLength-ch.size)>64)throw new Error('Integridade fatia');return buf}catch(e){lastErr=e;await new Promise(r=>setTimeout(r,400*attempt))}}throw lastErr||new Error('Falha fatia')}
+async function fetchChunkBuffer(ch,attemptMax=4){const url=String(ch.url||'');let lastErr;for(let attempt=1;attempt<=attemptMax;attempt++){try{let buf;if(url.startsWith('idb://')){buf=await loadEncryptedLocally(url);if(!buf)throw new Error('Fatia local ausente')}else{const res=await fetch(url,{cache:'force-cache'});if(!res.ok)throw new Error('HTTP '+res.status);buf=await res.arrayBuffer()}if(ch.size!=null&&buf.byteLength!==ch.size){if(Math.abs(buf.byteLength-ch.size)>64)throw new Error('Integridade fatia')}return buf}catch(e){lastErr=e;await new Promise(r=>setTimeout(r,400*attempt))}}throw lastErr||new Error('Falha fatia')}
 async function reconstructMediaFromChunks(ref){if(!isChunkedFile(ref))throw new Error('Fragmento inválido');if(ref.encSha256){const cached=await loadReconstructedMedia(ref.encSha256);if(cached?.buf)return URL.createObjectURL(new Blob([cached.buf],{type:cached.mime||ref.mime||'video/mp4'}))}const sorted=[...ref.chunks].sort((a,b)=>(a.index||0)-(b.index||0));const parts=[];for(let i=0;i<sorted.length;i++)parts.push(await fetchChunkBuffer(sorted[i]));const combined=concatArrayBuffers(parts);if(ref.encSha256){const hash=await sha256Hex(combined);if(hash!==ref.encSha256)throw new Error('Hash inválido');await saveReconstructedMedia(ref.encSha256,combined,ref.mime||'video/mp4')}return URL.createObjectURL(new Blob([combined],{type:ref.mime||'video/mp4'}))}
 async function publishToRelays(ev){const results=await Promise.allSettled(pool.publish(RELAYS,ev));if(!results.some(r=>r.status==='fulfilled'))throw new Error('Nenhum relay aceitou')}
 function parseCampaignFromEvent(ev){try{const data=JSON.parse(ev.content||'{}');if(!data||data.app!=='MarketAds'||data.type!=='ads')return null;const getTag=name=>{const t=(ev.tags||[]).find(x=>x[0]===name);return t?t[1]:''};const status=data.status||getTag('status')||'';if(status&&status!=='published')return null;return{id:data.id||getTag('d')||ev.id,title:data.title||'Destaque',desc:data.desc||'',imageUrl:data.imageUrl||getTag('image')||getTag('r')||'',link:data.adLink||'',level:(data.level||getTag('level')||'bronze').toLowerCase(),timeLeft:typeof data.timeLeft==='number'?data.timeLeft:null,created_at:data.created_at||ev.created_at||0}}catch{return null}}
@@ -632,7 +590,6 @@ bootPartnerSlots();
 loadPostsFromNetwork().catch(()=>{if(window.onCatalogLoaded)window.onCatalogLoaded()});
 (async()=>{const meta=await loadUserMetaFromNetwork();if(meta&&window.applyUserMeta)window.applyUserMeta(meta)})();
 setInterval(()=>loadPostsFromNetwork().catch(()=>{}),120000);
-}
 </script>
 </body>
 </html>
