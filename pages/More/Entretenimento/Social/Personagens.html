@@ -376,6 +376,35 @@
                 display: flex !important; width: 100%; height: 100%; height: 100dvh;
             }
         }
+
+        /* Skeleton loading */
+        @keyframes skeleton-shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--gray-bg);
+            pointer-events: none;
+        }
+        .skeleton-avatar {
+            width: 49px; height: 49px; border-radius: 50%; flex-shrink: 0;
+            background: linear-gradient(90deg, #eceff1 25%, #f5f6f7 50%, #eceff1 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.2s ease-in-out infinite;
+        }
+        .skeleton-lines { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+        .skeleton-line {
+            height: 12px; border-radius: 6px;
+            background: linear-gradient(90deg, #eceff1 25%, #f5f6f7 50%, #eceff1 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.2s ease-in-out infinite;
+        }
+        .skeleton-line.w60 { width: 60%; }
+        .skeleton-line.w40 { width: 40%; }
+        .skeleton-line.w80 { width: 80%; }
+        .skeleton-line.short { height: 10px; }
     </style>
 </head>
 <body>
@@ -664,6 +693,23 @@ function parseCharEvent(ev) {
     } catch { return null; }
 }
 
+function renderSkeletonList(containerId, count) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    const n = count || 6;
+    el.innerHTML = Array.from({ length: n }, (_, i) => {
+        const w1 = i % 2 === 0 ? 'w60' : 'w80';
+        const w2 = i % 3 === 0 ? 'w40' : 'w60';
+        return `<div class="skeleton-item" aria-hidden="true">
+            <div class="skeleton-avatar"></div>
+            <div class="skeleton-lines">
+                <div class="skeleton-line ${w1}"></div>
+                <div class="skeleton-line short ${w2}"></div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
 function renderCharList(containerId, list) {
     const el = document.getElementById(containerId);
     let filtered = list;
@@ -705,8 +751,8 @@ function renderCharList(containerId, list) {
 }
 
 async function loadNetworkCharacters() {
-    const el = document.getElementById('panelRede');
-    el.innerHTML = '<div class="empty">Carregando da rede…</div>';
+    renderSkeletonList('panelRede', 7);
+    renderSkeletonList('panelMeus', 4);
     try {
         if (!window.NostrTools) await new Promise(r => setTimeout(r, 500));
         if (!pool) pool = new NostrTools.SimplePool();
@@ -733,7 +779,8 @@ async function loadNetworkCharacters() {
         renderCharList('panelMeus', myChars);
     } catch (e) {
         console.error(e);
-        el.innerHTML = '<div class="empty">Erro ao buscar personagens.</div>';
+        document.getElementById('panelRede').innerHTML = '<div class="empty">Erro ao buscar personagens.</div>';
+        document.getElementById('panelMeus').innerHTML = '<div class="empty">Erro ao buscar personagens.</div>';
     }
 }
 
