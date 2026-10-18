@@ -37,7 +37,6 @@
             display: flex; width: 100%; height: 100%; height: 100dvh; max-height: 100dvh;
             background: var(--primary-bg); overflow: hidden;
         }
-        /* Desktop: ocupa 100% da tela, sem limite de largura */
         @media (min-width: 900px) {
             .app-container {
                 width: 100%;
@@ -167,6 +166,7 @@
             border-color: var(--secondary-color); background: #fff;
         }
 
+        /* Estilos de fala — scroll horizontal estável (sem cards cortados) */
         .tone-options {
             display: flex;
             flex-direction: row;
@@ -828,7 +828,6 @@ function getNetworkProfile() {
     const effectiveType = (conn && conn.effectiveType) || '4g';
     const saveData = !!(conn && conn.saveData);
     const downlink = (conn && conn.downlink) || 10;
-    /* Concorrência mais agressiva para download mais rápido */
     let concurrency = 8, chunkSize = 10 * 1024 * 1024, p2pConcurrency = 4, rangeConcurrency = 6;
     if (saveData || mem <= 2 || effectiveType === 'slow-2g' || effectiveType === '2g') {
         concurrency = 2; chunkSize = 2 * 1024 * 1024; p2pConcurrency = 1; rangeConcurrency = 2;
@@ -1292,12 +1291,12 @@ async function hydrateFromSharedBlossom(merged, statusEl) {
             console.warn('hydrate', f.path, e);
         }
         doneFiles++;
-        if (statusEl && statusEl.style) {
+        if (statusEl) {
             statusEl.textContent = `Rede P2P/Blossom: ${doneFiles}/${total} · ${profile.effectiveType}`;
             setModelProgress(Math.round((doneFiles / total) * 100), true);
         }
     });
-    if (statusEl && statusEl.style) {
+    if (statusEl) {
         statusEl.textContent = ok
             ? `${ok}/${total} arquivos da rede. Completando…`
             : 'Pool vazio; baixando com latência adaptativa…';
@@ -1314,7 +1313,7 @@ async function syncModelToSharedBlossom(statusEl) {
     modelSyncRunning = true;
     const profile = getNetworkProfile();
     try {
-        if (statusEl && statusEl.style) statusEl.textContent = 'Semeando partes na rede (Blossom + P2P)…';
+        if (statusEl) statusEl.textContent = 'Semeando partes na rede (Blossom + P2P)…';
         const entries = await listModelCacheEntries();
         if (!entries.length) return;
         const knownHashes = new Set();
@@ -1369,14 +1368,14 @@ async function syncModelToSharedBlossom(statusEl) {
         }, sk);
         await Promise.any(pool.publish(RELAYS, event));
         publishPeerAnnounce({});
-        if (statusEl && statusEl.style) {
+        if (statusEl) {
             statusEl.textContent = uploaded
                 ? `Rede alimentada: ${uploaded} partes novas (Blossom+P2P).`
                 : 'Semente P2P ativa; Blossom já tinha as partes.';
         }
     } catch (e) {
         console.warn(e);
-        if (statusEl && statusEl.style) statusEl.textContent = 'Modelo OK. Semeadura: ' + (e.message || 'parcial');
+        if (statusEl) statusEl.textContent = 'Modelo OK. Semeadura: ' + (e.message || 'parcial');
     } finally {
         modelSyncRunning = false;
     }
@@ -1385,53 +1384,47 @@ async function syncModelToSharedBlossom(statusEl) {
 async function ensureEngine(statusEl) {
     if (engine) return engine;
     if (!window.webllm) {
-        if (statusEl && statusEl.style) {
-            statusEl.textContent = 'WebLLM não carregou. Usando modo local simples.';
-            setModelProgress(0, false);
-        }
+        if (statusEl) statusEl.textContent = 'WebLLM não carregou. Usando modo local simples.';
+        setModelProgress(0, false);
         return null;
     }
     if (modelLoading) {
-        if (statusEl && statusEl.style) statusEl.textContent = 'Carregando modelo…';
+        if (statusEl) statusEl.textContent = 'Carregando modelo…';
         while (modelLoading) await new Promise(r => setTimeout(r, 300));
         return engine;
     }
     modelLoading = true;
     patchFetchForModel();
     const profile = getNetworkProfile();
-    const canUpdateUI = statusEl && statusEl.style;
     try {
-        if (canUpdateUI) {
+        if (statusEl) {
             statusEl.style.display = 'block';
             statusEl.textContent = `Qwen2.5-0.5B · carregando rápido (${profile.effectiveType})…`;
-            setModelProgress(2, true);
         }
+        setModelProgress(2, true);
         startPeerNetwork();
         const packs = await fetchSharedModelManifests();
         const merged = mergeSharedManifests(packs);
         if (merged.files.length) {
             await hydrateFromSharedBlossom(merged, statusEl);
         }
-        if (canUpdateUI) {
+        if (statusEl) {
             statusEl.textContent = modelBlobMap.size
                 ? `Montando (${modelBlobMap.size} arquivos em cache/rede)…`
                 : 'Baixando modelo leve (~278MB) em paralelo…';
-            setModelProgress(Math.max(10, Math.min(50, modelBlobMap.size * 4)), true);
         }
+        setModelProgress(Math.max(10, Math.min(50, modelBlobMap.size * 4)), true);
         engine = await window.webllm.CreateMLCEngine(MODEL_ID, {
             initProgressCallback: (p) => {
-                if (!canUpdateUI) return;
                 const progress = typeof p?.progress === 'number' ? p.progress : 0;
                 const pct = Math.round(progress * 100);
                 setModelProgress(pct || 12, true);
-                statusEl.textContent = pct >= 100 ? 'Finalizando no dispositivo…' : `${pct}% — ${p?.text || 'carregando'}`;
+                if (statusEl) statusEl.textContent = pct >= 100 ? 'Finalizando no dispositivo…' : `${pct}% — ${p?.text || 'carregando'}`;
             }
         });
-        if (canUpdateUI) {
-            setModelProgress(100, true);
-            statusEl.textContent = 'Modelo pronto · semeando rede…';
-            setTimeout(() => setModelProgress(0, false), 400);
-        }
+        setModelProgress(100, true);
+        if (statusEl) statusEl.textContent = 'Modelo pronto · semeando rede…';
+        setTimeout(() => setModelProgress(0, false), 400);
         setTimeout(() => {
             syncModelToSharedBlossom(statusEl).catch(() => {});
             publishPeerAnnounce({});
@@ -1439,10 +1432,8 @@ async function ensureEngine(statusEl) {
         return engine;
     } catch (e) {
         console.warn(e);
-        if (canUpdateUI) {
-            statusEl.textContent = 'Falha no modelo. Usando respostas locais simples.';
-            setModelProgress(0, false);
-        }
+        if (statusEl) statusEl.textContent = 'Falha no modelo. Usando respostas locais simples.';
+        setModelProgress(0, false);
         engine = null;
         return null;
     } finally {
@@ -1548,7 +1539,6 @@ document.getElementById('chatInput').addEventListener('keypress', e => {
 async function boot() {
     for (let i = 0; i < 50 && !window.NostrTools; i++) await new Promise(r => setTimeout(r, 100));
     await loadNetworkCharacters();
-    /* Pré-carga silenciosa do modelo em background — chat abre bem mais rápido */
     if (window.webllm) {
         const silent = { style: {}, textContent: '' };
         ensureEngine(silent).catch(() => {});
