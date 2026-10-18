@@ -166,7 +166,6 @@
             border-color: var(--secondary-color); background: #fff;
         }
 
-        /* Estilos de fala — scroll horizontal estável (sem cards cortados) */
         .tone-options {
             display: flex;
             flex-direction: row;
@@ -208,7 +207,7 @@
         .tone-opt.selected {
             border-color: var(--secondary-color);
             background: var(--light-violet);
-            box-shadow: 0 0 0 1px rgba(108, 92, 231, 0.25);
+            box-shadow: 0 0 0 1px rgba(108, 92, 231, sair 0.25);
         }
         .tone-opt input[type="radio"] {
             width: 18px;
@@ -377,7 +376,6 @@
             }
         }
 
-        /* Skeleton loading */
         @keyframes skeleton-shimmer {
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
@@ -499,7 +497,7 @@
             <div class="welcome-placeholder" id="welcomePlaceholder">
                 <i class="fa-solid fa-masks-theater"></i>
                 <h2>Personagens LoreSocial</h2>
-                <p>Escolha um personagem na lista ao lado para conversar. A IA roda quantizada no seu aparelho.</p>
+                <p>Escolha um personagem na lista ao lado para conversar. A IA roda quantizada no seu aparelho (mesmo cache do LoreSpace).</p>
             </div>
         </div>
         <div class="chat-input-area" id="chatInputArea" style="display:none;">
@@ -524,12 +522,10 @@
 const RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.primal.net', 'wss://relay.nostr.band'];
 const BLOSSOM_SERVERS = ['https://blossom.primal.net', 'https://cdn.nostrcheck.me', 'https://blossom.oxtr.dev'];
 const CHAR_KIND = 30079;
+
+/* ===== IA igual ao LoreSpace (mesmo modelo + mesmo cache) ===== */
 const MODEL_ID = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
-const MODEL_HF_BASE = 'https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC/resolve/main/';
-const MODEL_PACK_KIND = 30080;
-const MODEL_PEER_KIND = 20081;
-const MODEL_MANIFEST_D = 'loresocial-model-shared-' + MODEL_ID;
-const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }];
+const CACHE_NAME = 'lorespace-ai-model-v1';
 
 let pool = null;
 let networkChars = [];
@@ -538,19 +534,12 @@ let profileCache = new Map();
 let currentChar = null;
 let currentCharId = null;
 let engine = null;
+let modelReady = false;
 let modelLoading = false;
-let modelSyncRunning = false;
+let isDownloading = false;
 let chatHistory = [];
 let searchQuery = '';
 let currentPanel = 'rede';
-
-const modelBlobMap = new Map();
-const localPartIndex = new Map();
-const peerRtc = new Map();
-let fetchPatched = false;
-let originalFetch = null;
-let peerSub = null;
-let networkProfile = null;
 
 const appContainer = document.getElementById('appContainer');
 
@@ -868,623 +857,142 @@ function setModelProgress(pct, show) {
     }
 }
 
-function getNetworkProfile() {
-    if (networkProfile) return networkProfile;
-    const mem = Number(navigator.deviceMemory) || 4;
-    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    const effectiveType = (conn && conn.effectiveType) || '4g';
-    const saveData = !!(conn && conn.saveData);
-    const downlink = (conn && conn.downlink) || 10;
-    let concurrency = 8, chunkSize = 10 * 1024 * 1024, p2pConcurrency = 4, rangeConcurrency = 6;
-    if (saveData || mem <= 2 || effectiveType === 'slow-2g' || effectiveType === '2g') {
-        concurrency = 2; chunkSize = 2 * 1024 * 1024; p2pConcurrency = 1; rangeConcurrency = 2;
-    } else if (mem <= 4 || effectiveType === '3g' || downlink < 1.5) {
-        concurrency = 4; chunkSize = 4 * 1024 * 1024; p2pConcurrency = 2; rangeConcurrency = 3;
-    } else if (downlink < 5) {
-        concurrency = 6; chunkSize = 6 * 1024 * 1024; p2pConcurrency = 3; rangeConcurrency = 4;
-    }
-    networkProfile = { mem, effectiveType, saveData, downlink, concurrency, chunkSize, p2pConcurrency, rangeConcurrency };
-    return networkProfile;
-}
-
-function modelFileUrl(path) {
-    return MODEL_HF_BASE.replace(/\/?$/, '/') + String(path || '').replace(/^\//, '');
-}
-function normalizePath(urlOrPath) {
-    const s = String(urlOrPath || '');
-    const idx = s.indexOf('/resolve/main/');
-    if (idx >= 0) return s.slice(idx + '/resolve/main/'.length).split('?')[0];
-    try { return new URL(s, location.href).pathname.split('/').pop() || s; }
-    catch { return s.split('/').pop() || s; }
-}
-function isModelArtifactUrl(url) {
-    return !!(url && (url.includes('Qwen2.5-0.5B-Instruct') || url.includes(MODEL_ID)));
-}
-
-function patchFetchForModel() {
-    if (fetchPatched) return;
-    originalFetch = window.fetch.bind(window);
-    window.fetch = async function (input, init) {
-        try {
-            const url = typeof input === 'string' ? input : (input && input.url) ? input.url : '';
-            if (isModelArtifactUrl(url)) {
-                const path = normalizePath(url);
-                const key = modelFileUrl(path);
-                const buf = modelBlobMap.get(key) || modelBlobMap.get(url);
-                if (buf) {
-                    return new Response(buf.slice(0), {
-                        status: 200,
-                        headers: {
-                            'Content-Type': 'application/octet-stream',
-                            'Content-Length': String(buf.byteLength)
-                        }
-                    });
-                }
-            }
-        } catch {}
-        return originalFetch(input, init);
-    };
-    fetchPatched = true;
-}
-
-async function putModelInAllCaches(url, buf) {
-    if (!('caches' in window)) return;
+/* ===== Cache + engine no padrão LoreSpace ===== */
+async function isModelCached() {
+    if (!('caches' in window)) return false;
     try {
-        const names = await caches.keys();
-        const targets = new Set([...names, 'webllm-cache', 'loresocial-webllm-model', 'tvmjs']);
-        await Promise.all([...targets].map(async (name) => {
-            try {
-                const c = await caches.open(name);
-                await c.put(url, new Response(buf.slice(0), {
-                    headers: {
-                        'Content-Type': 'application/octet-stream',
-                        'Content-Length': String(buf.byteLength)
-                    }
-                }));
-            } catch {}
-        }));
-    } catch {}
-}
-
-function splitBuffer(buf, maxBytes) {
-    const parts = [];
-    const u8 = new Uint8Array(buf);
-    for (let off = 0; off < u8.length; off += maxBytes) {
-        parts.push(u8.slice(off, Math.min(off + maxBytes, u8.length)).buffer);
-    }
-    return parts;
-}
-
-async function registerLocalPartsFromFile(path, fullBuf, chunkSize) {
-    const chunks = splitBuffer(fullBuf, chunkSize);
-    return Promise.all(chunks.map(async (chunk, i) => {
-        const hash = await sha256Hex(chunk);
-        localPartIndex.set(hash, chunk);
-        return { index: i, hash, size: chunk.byteLength };
-    }));
-}
-
-async function listModelCacheEntries() {
-    const out = [];
-    const seen = new Set();
-    for (const [url, buf] of modelBlobMap) {
-        const path = normalizePath(url);
-        if (seen.has(path)) continue;
-        seen.add(path);
-        out.push({ url, path, buf, size: buf.byteLength });
-    }
-    if (!('caches' in window)) return out;
-    try {
-        for (const name of await caches.keys()) {
-            const cache = await caches.open(name);
-            for (const req of await cache.keys()) {
-                const url = req.url || '';
-                if (!isModelArtifactUrl(url)) continue;
-                const path = normalizePath(url);
-                if (seen.has(path)) continue;
-                const res = await cache.match(req);
-                if (!res) continue;
-                const buf = await res.arrayBuffer();
-                seen.add(path);
-                const fullUrl = modelFileUrl(path);
-                out.push({ url: fullUrl, path, buf, size: buf.byteLength });
-                modelBlobMap.set(fullUrl, buf);
-            }
-        }
-    } catch (e) { console.warn(e); }
-    return out;
-}
-
-async function mapPool(items, concurrency, worker) {
-    const results = new Array(items.length);
-    let i = 0;
-    async function run() {
-        while (i < items.length) {
-            const idx = i++;
-            results[idx] = await worker(items[idx], idx);
-        }
-    }
-    await Promise.all(Array.from({ length: Math.min(concurrency, Math.max(1, items.length)) }, () => run()));
-    return results;
-}
-
-async function uploadBlossomBuf(buf, contentType, sk, fileLabel) {
-    const hash = await sha256Hex(buf);
-    for (const base of BLOSSOM_SERVERS) {
-        try {
-            const head = await fetch(base.replace(/\/$/, '') + '/' + hash, { method: 'HEAD' });
-            if (head.ok) return { url: base.replace(/\/$/, '') + '/' + hash, hash, size: buf.byteLength, existed: true };
-        } catch {}
-    }
-    const now = Math.floor(Date.now() / 1000);
-    const authEvent = NostrTools.finalizeEvent({
-        kind: 24242,
-        created_at: now,
-        tags: [['t', 'upload'], ['x', hash], ['expiration', String(now + 600)]],
-        content: 'Upload model part ' + (fileLabel || hash.slice(0, 12))
-    }, sk);
-    const authHeader = 'Nostr ' + btoa(JSON.stringify(authEvent));
-    for (const base of BLOSSOM_SERVERS) {
-        try {
-            const res = await fetch(base.replace(/\/$/, '') + '/upload', {
-                method: 'PUT',
-                headers: { Authorization: authHeader, 'Content-Type': contentType || 'application/octet-stream' },
-                body: buf
-            });
-            if (!res.ok) continue;
-            const data = await res.json().catch(() => ({}));
-            const url = data.url || (base.replace(/\/$/, '') + '/' + hash);
-            if (url) return { url, hash, size: buf.byteLength, existed: false };
-        } catch {}
-    }
-    throw new Error('Falha Blossom: ' + (fileLabel || hash.slice(0, 8)));
-}
-
-async function fetchSharedModelManifests() {
-    if (!window.NostrTools) return [];
-    try {
-        if (!pool) pool = new NostrTools.SimplePool();
-        const events = await pool.querySync(RELAYS, [
-            { kinds: [MODEL_PACK_KIND], '#d': [MODEL_MANIFEST_D], limit: 40 },
-            { kinds: [MODEL_PACK_KIND], '#model': [MODEL_ID], limit: 40 }
-        ]);
-        const packs = [];
-        (events || []).forEach(ev => {
-            try {
-                const data = JSON.parse(ev.content || '{}');
-                if (data.lore !== 1 || data.type !== 'model_pack') return;
-                if (data.model_id && data.model_id !== MODEL_ID) return;
-                if (!Array.isArray(data.files) || !data.files.length) return;
-                packs.push({ ...data, _created: ev.created_at || 0, _pubkey: ev.pubkey });
-            } catch {}
-        });
-        return packs;
-    } catch (e) { console.warn(e); return []; }
-}
-
-function mergeSharedManifests(packs) {
-    const byPath = new Map();
-    packs.sort((a, b) => (b._created || 0) - (a._created || 0));
-    for (const pack of packs) {
-        for (const f of pack.files || []) {
-            if (!f?.path) continue;
-            let prev = byPath.get(f.path);
-            if (!prev) {
-                byPath.set(f.path, {
-                    path: f.path, size: f.size, sha256: f.sha256,
-                    parts: (f.parts || []).map(p => ({ ...p }))
-                });
-                continue;
-            }
-            if (!prev.sha256 && f.sha256) prev.sha256 = f.sha256;
-            if (!prev.size && f.size) prev.size = f.size;
-            const partMap = new Map();
-            (prev.parts || []).forEach(p => partMap.set(p.index + ':' + (p.hash || ''), p));
-            (f.parts || []).forEach(p => {
-                const k = p.index + ':' + (p.hash || '');
-                if (!partMap.has(k)) partMap.set(k, { ...p });
-                else if (!partMap.get(k).url && p.url) partMap.get(k).url = p.url;
-            });
-            prev.parts = [...partMap.values()].sort((a, b) => a.index - b.index);
-        }
-    }
-    return { lore: 1, type: 'model_pack', model_id: MODEL_ID, hf_base: MODEL_HF_BASE, files: [...byPath.values()] };
-}
-
-async function fetchPartBufferBlossom(part) {
-    const urls = [];
-    if (part.url) urls.push(part.url);
-    for (const base of BLOSSOM_SERVERS) {
-        if (part.hash) urls.push(base.replace(/\/$/, '') + '/' + part.hash);
-    }
-    for (const u of urls) {
-        try {
-            const res = await fetch(u);
-            if (!res.ok) continue;
-            const buf = await res.arrayBuffer();
-            if (part.hash && (await sha256Hex(buf)) !== part.hash) continue;
-            localPartIndex.set(part.hash, buf);
-            return buf;
-        } catch {}
-    }
-    return null;
-}
-
-async function publishPeerAnnounce(extra = {}) {
-    const sk = getSk();
-    const session = getSession();
-    if (!sk || !session?.pubkey || !window.NostrTools) return;
-    const hashes = [...localPartIndex.keys()].slice(0, 200);
-    if (!hashes.length && !extra.offer && !extra.answer && !extra.ice) return;
-    try {
-        if (!pool) pool = new NostrTools.SimplePool();
-        const content = JSON.stringify({
-            lore: 1, type: 'model_peer', model_id: MODEL_ID, hashes, ...extra, ts: Date.now()
-        });
-        const tags = [
-            ['model', MODEL_ID],
-            ['expiration', String(Math.floor(Date.now() / 1000) + 180)]
-        ];
-        if (extra.to) tags.push(['p', extra.to]);
-        const event = NostrTools.finalizeEvent({
-            kind: MODEL_PEER_KIND,
-            created_at: Math.floor(Date.now() / 1000),
-            tags,
-            content
-        }, sk);
-        pool.publish(RELAYS, event);
-    } catch (e) { console.warn('announce', e); }
-}
-
-function setupDataChannel(channel, remotePk) {
-    channel.binaryType = 'arraybuffer';
-    channel.onmessage = async (ev) => {
-        try {
-            if (typeof ev.data === 'string') {
-                const msg = JSON.parse(ev.data);
-                if (msg.t === 'req' && msg.hash && localPartIndex.has(msg.hash)) {
-                    const buf = localPartIndex.get(msg.hash);
-                    channel.send(JSON.stringify({ t: 'part', hash: msg.hash, size: buf.byteLength }));
-                    channel.send(buf);
-                }
-            }
-        } catch (e) { console.warn('dc msg', e); }
-    };
-}
-
-async function createPeerConnection(remotePk, asOfferer) {
-    if (peerRtc.has(remotePk)) return peerRtc.get(remotePk);
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-    const entry = { pc, channel: null, ready: false };
-    peerRtc.set(remotePk, entry);
-    pc.onicecandidate = (e) => {
-        if (e.candidate) {
-            publishPeerAnnounce({
-                to: remotePk,
-                ice: e.candidate.toJSON(),
-                role: asOfferer ? 'offer' : 'answer'
-            });
-        }
-    };
-    if (asOfferer) {
-        const ch = pc.createDataChannel('model', { ordered: true });
-        entry.channel = ch;
-        setupDataChannel(ch, remotePk);
-        ch.onopen = () => { entry.ready = true; };
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        await publishPeerAnnounce({ to: remotePk, offer, role: 'offer' });
-    } else {
-        pc.ondatachannel = (e) => {
-            entry.channel = e.channel;
-            setupDataChannel(e.channel, remotePk);
-            e.channel.onopen = () => { entry.ready = true; };
-        };
-    }
-    return entry;
-}
-
-async function handlePeerSignal(ev) {
-    const session = getSession();
-    if (!session?.pubkey || ev.pubkey === session.pubkey) return;
-    let data;
-    try { data = JSON.parse(ev.content || '{}'); } catch { return; }
-    if (data.lore !== 1 || data.type !== 'model_peer' || data.model_id !== MODEL_ID) return;
-    if (Array.isArray(data.hashes)) {
-        if (!window._remotePartPeers) window._remotePartPeers = new Map();
-        data.hashes.forEach(h => {
-            if (!window._remotePartPeers.has(h)) window._remotePartPeers.set(h, new Set());
-            window._remotePartPeers.get(h).add(ev.pubkey);
-        });
-    }
-    if (data.to && data.to !== session.pubkey) return;
-    try {
-        if (data.offer && data.role === 'offer') {
-            const entry = await createPeerConnection(ev.pubkey, false);
-            await entry.pc.setRemoteDescription(data.offer);
-            const answer = await entry.pc.createAnswer();
-            await entry.pc.setLocalDescription(answer);
-            await publishPeerAnnounce({ to: ev.pubkey, answer, role: 'answer' });
-        } else if (data.answer && data.role === 'answer') {
-            const entry = peerRtc.get(ev.pubkey) || await createPeerConnection(ev.pubkey, true);
-            if (entry.pc.signalingState !== 'stable') {
-                await entry.pc.setRemoteDescription(data.answer);
-            }
-        } else if (data.ice) {
-            const entry = peerRtc.get(ev.pubkey);
-            if (entry) {
-                try { await entry.pc.addIceCandidate(data.ice); } catch {}
-            }
-        }
-    } catch (e) { console.warn('signal', e); }
-}
-
-async function startPeerNetwork() {
-    if (!window.NostrTools || !getSession()?.pubkey) return;
-    try {
-        if (!pool) pool = new NostrTools.SimplePool();
-        if (peerSub?.close) try { peerSub.close(); } catch {}
-        const since = Math.floor(Date.now() / 1000) - 60;
-        peerSub = pool.subscribeMany(RELAYS, [
-            { kinds: [MODEL_PEER_KIND], '#model': [MODEL_ID], since }
-        ], { onevent: handlePeerSignal });
-        await publishPeerAnnounce({});
-        if (!window._peerAnnounceTimer) {
-            window._peerAnnounceTimer = setInterval(() => publishPeerAnnounce({}), 45000);
-        }
-    } catch (e) { console.warn('startPeerNetwork', e); }
-}
-
-function requestPartFromPeers(hash, timeoutMs) {
-    return new Promise(async (resolve) => {
-        if (localPartIndex.has(hash)) {
-            resolve(localPartIndex.get(hash));
-            return;
-        }
-        const peers = window._remotePartPeers?.get(hash);
-        if (!peers || !peers.size) {
-            resolve(null);
-            return;
-        }
-        const profile = getNetworkProfile();
-        let settled = false;
-        const timer = setTimeout(() => {
-            if (!settled) { settled = true; resolve(null); }
-        }, timeoutMs || (profile.effectiveType === '4g' ? 4000 : 7000));
-
-        for (const pk of peers) {
-            try {
-                let entry = peerRtc.get(pk);
-                if (!entry) entry = await createPeerConnection(pk, true);
-                const waitOpen = Date.now() + 3000;
-                while ((!entry.channel || entry.channel.readyState !== 'open') && Date.now() < waitOpen) {
-                    await new Promise(r => setTimeout(r, 100));
-                }
-                if (!entry.channel || entry.channel.readyState !== 'open') continue;
-                const onMsg = async (ev) => {
-                    try {
-                        if (typeof ev.data === 'string') {
-                            const meta = JSON.parse(ev.data);
-                            if (meta.t === 'part' && meta.hash === hash) {
-                                entry._expectHash = hash;
-                            }
-                        } else if (ev.data instanceof ArrayBuffer && entry._expectHash === hash) {
-                            const buf = ev.data;
-                            if (!hash || (await sha256Hex(buf)) === hash) {
-                                localPartIndex.set(hash, buf);
-                                if (!settled) {
-                                    settled = true;
-                                    clearTimeout(timer);
-                                    entry.channel.removeEventListener('message', onMsg);
-                                    resolve(buf);
-                                }
-                            }
-                        }
-                    } catch {}
-                };
-                entry.channel.addEventListener('message', onMsg);
-                entry.channel.send(JSON.stringify({ t: 'req', hash }));
-            } catch {}
-        }
-    });
-}
-
-async function fetchPartFast(part) {
-    if (part.hash && localPartIndex.has(part.hash)) return localPartIndex.get(part.hash);
-    if (part.hash) {
-        const p2p = await requestPartFromPeers(part.hash, getNetworkProfile().saveData ? 2500 : 4500);
-        if (p2p) return p2p;
-    }
-    return fetchPartBufferBlossom(part);
-}
-
-async function hydrateFromSharedBlossom(merged, statusEl) {
-    if (!merged?.files?.length) return { ok: 0, total: 0 };
-    const profile = getNetworkProfile();
-    const total = merged.files.length;
-    let ok = 0;
-    let doneFiles = 0;
-    await mapPool(merged.files, profile.concurrency, async (f) => {
-        const targetUrl = modelFileUrl(f.path);
-        if (modelBlobMap.has(targetUrl)) {
-            ok++;
-            doneFiles++;
-            return;
-        }
-        const parts = (f.parts || []).slice().sort((a, b) => a.index - b.index);
-        if (!parts.length) { doneFiles++; return; }
-        try {
-            const buffers = await mapPool(parts, profile.p2pConcurrency, async (p) => {
-                const buf = await fetchPartFast(p);
-                if (!buf) throw new Error('parte ' + p.index);
-                return buf;
-            });
-            const totalLen = buffers.reduce((n, b) => n + b.byteLength, 0);
-            const mergedU8 = new Uint8Array(totalLen);
-            let off = 0;
-            for (const b of buffers) {
-                mergedU8.set(new Uint8Array(b), off);
-                off += b.byteLength;
-            }
-            if (f.sha256) {
-                const got = await sha256Hex(mergedU8.buffer);
-                if (got !== f.sha256) throw new Error('sha256 ' + f.path);
-            }
-            modelBlobMap.set(targetUrl, mergedU8.buffer);
-            await putModelInAllCaches(targetUrl, mergedU8.buffer);
-            await registerLocalPartsFromFile(f.path, mergedU8.buffer, profile.chunkSize);
-            ok++;
-        } catch (e) {
-            console.warn('hydrate', f.path, e);
-        }
-        doneFiles++;
-        if (statusEl) {
-            statusEl.textContent = `Rede P2P/Blossom: ${doneFiles}/${total} · ${profile.effectiveType}`;
-            setModelProgress(Math.round((doneFiles / total) * 100), true);
-        }
-    });
-    if (statusEl) {
-        statusEl.textContent = ok
-            ? `${ok}/${total} arquivos da rede. Completando…`
-            : 'Pool vazio; baixando com latência adaptativa…';
-    }
-    publishPeerAnnounce({});
-    return { ok, total };
-}
-
-async function syncModelToSharedBlossom(statusEl) {
-    if (modelSyncRunning) return;
-    const sk = getSk();
-    const session = getSession();
-    if (!sk || !session?.pubkey || !window.NostrTools) return;
-    modelSyncRunning = true;
-    const profile = getNetworkProfile();
-    try {
-        if (statusEl) statusEl.textContent = 'Semeando partes na rede (Blossom + P2P)…';
-        const entries = await listModelCacheEntries();
-        if (!entries.length) return;
-        const knownHashes = new Set();
-        const existingPacks = await fetchSharedModelManifests();
-        existingPacks.forEach(p => (p.files || []).forEach(f =>
-            (f.parts || []).forEach(part => { if (part.hash) knownHashes.add(part.hash); })
-        ));
-        const files = [];
-        let uploaded = 0;
-        for (const ent of entries) {
-            const fullHash = await sha256Hex(ent.buf);
-            const chunks = splitBuffer(ent.buf, profile.chunkSize);
-            const parts = [];
-            for (let i = 0; i < chunks.length; i++) {
-                const h = await sha256Hex(chunks[i]);
-                localPartIndex.set(h, chunks[i]);
-                if (knownHashes.has(h)) {
-                    parts.push({
-                        index: i, hash: h,
-                        url: BLOSSOM_SERVERS[0].replace(/\/$/, '') + '/' + h,
-                        size: chunks[i].byteLength
-                    });
-                    continue;
-                }
-                try {
-                    const up = await uploadBlossomBuf(chunks[i], 'application/octet-stream', sk, ent.path + '.p' + i);
-                    knownHashes.add(up.hash);
-                    parts.push({ index: i, hash: up.hash, url: up.url, size: up.size });
-                    if (!up.existed) uploaded++;
-                } catch (e) { console.warn(e); }
-            }
-            if (parts.length) files.push({ path: ent.path, size: ent.size, sha256: fullHash, parts });
-        }
-        if (!files.length) {
-            publishPeerAnnounce({});
-            return;
-        }
-        if (!pool) pool = new NostrTools.SimplePool();
-        const event = NostrTools.finalizeEvent({
-            kind: MODEL_PACK_KIND,
-            created_at: Math.floor(Date.now() / 1000),
-            tags: [
-                ['d', MODEL_MANIFEST_D],
-                ['title', 'LoreSocial shared model ' + MODEL_ID],
-                ['model', MODEL_ID],
-                ['shared', '1']
-            ],
-            content: JSON.stringify({
-                lore: 1, type: 'model_pack', model_id: MODEL_ID, hf_base: MODEL_HF_BASE,
-                files, shared: true, p2p: true, created_at: Date.now()
-            })
-        }, sk);
-        await Promise.any(pool.publish(RELAYS, event));
-        publishPeerAnnounce({});
-        if (statusEl) {
-            statusEl.textContent = uploaded
-                ? `Rede alimentada: ${uploaded} partes novas (Blossom+P2P).`
-                : 'Semente P2P ativa; Blossom já tinha as partes.';
-        }
+        const cache = await caches.open(CACHE_NAME);
+        const keys = await cache.keys();
+        return keys.some(req =>
+            req.url.includes(MODEL_ID) ||
+            req.url.includes('mlc-ai') ||
+            req.url.includes('web-llm') ||
+            req.url.includes('huggingface')
+        );
     } catch (e) {
-        console.warn(e);
-        if (statusEl) statusEl.textContent = 'Modelo OK. Semeadura: ' + (e.message || 'parcial');
+        console.warn('Erro ao verificar cache do modelo:', e);
+        return false;
+    }
+}
+
+async function startSilentModelDownload(statusEl) {
+    if (isDownloading || modelReady) return;
+    isDownloading = true;
+    modelLoading = true;
+    try {
+        if (!window.webllm?.CreateMLCEngine) {
+            throw new Error('WebLLM não disponível');
+        }
+        if (statusEl) {
+            statusEl.style.display = 'block';
+            statusEl.textContent = 'Baixando modelo em segundo plano (cache LoreSpace)…';
+        }
+        setModelProgress(5, true);
+
+        engine = await window.webllm.CreateMLCEngine(MODEL_ID, {
+            initProgressCallback: (p) => {
+                const progress = typeof p?.progress === 'number' ? p.progress : 0;
+                const pct = Math.round(progress * 100);
+                setModelProgress(pct || 8, true);
+                if (statusEl) {
+                    statusEl.textContent = pct >= 100
+                        ? 'Finalizando modelo…'
+                        : (pct + '% — ' + (p?.text || 'carregando'));
+                }
+            }
+        });
+
+        modelReady = true;
+        setModelProgress(100, true);
+        if (statusEl) statusEl.textContent = 'Modelo pronto (cache LoreSpace).';
+        setTimeout(() => setModelProgress(0, false), 500);
+        console.log('[Personagens] Modelo carregado e alinhado ao cache LoreSpace.');
+    } catch (err) {
+        console.warn('[Personagens] Falha no download do modelo:', err);
+        if (statusEl) statusEl.textContent = 'Modelo ainda não pronto. Tentará de novo.';
+        setModelProgress(0, false);
+        engine = null;
+        modelReady = false;
     } finally {
-        modelSyncRunning = false;
+        isDownloading = false;
+        modelLoading = false;
     }
 }
 
 async function ensureEngine(statusEl) {
-    if (engine) return engine;
-    if (!window.webllm) {
-        if (statusEl) statusEl.textContent = 'WebLLM não carregou. Usando modo local simples.';
-        setModelProgress(0, false);
-        return null;
-    }
+    if (engine && modelReady) return engine;
     if (modelLoading) {
         if (statusEl) statusEl.textContent = 'Carregando modelo…';
         while (modelLoading) await new Promise(r => setTimeout(r, 300));
         return engine;
     }
+    if (!window.webllm?.CreateMLCEngine) {
+        if (statusEl) statusEl.textContent = 'WebLLM não carregou. Usando modo local simples.';
+        setModelProgress(0, false);
+        return null;
+    }
+
     modelLoading = true;
-    patchFetchForModel();
-    const profile = getNetworkProfile();
     try {
         if (statusEl) {
             statusEl.style.display = 'block';
-            statusEl.textContent = `Qwen2.5-0.5B · carregando rápido (${profile.effectiveType})…`;
+            statusEl.textContent = 'Verificando cache LoreSpace…';
         }
-        setModelProgress(2, true);
-        startPeerNetwork();
-        const packs = await fetchSharedModelManifests();
-        const merged = mergeSharedManifests(packs);
-        if (merged.files.length) {
-            await hydrateFromSharedBlossom(merged, statusEl);
+        setModelProgress(3, true);
+
+        const alreadyCached = await isModelCached();
+        if (alreadyCached && statusEl) {
+            statusEl.textContent = 'Modelo no cache — carregando…';
+        } else if (statusEl) {
+            statusEl.textContent = 'Primeiro uso: baixando modelo (~cache LoreSpace)…';
         }
-        if (statusEl) {
-            statusEl.textContent = modelBlobMap.size
-                ? `Montando (${modelBlobMap.size} arquivos em cache/rede)…`
-                : 'Baixando modelo leve (~278MB) em paralelo…';
-        }
-        setModelProgress(Math.max(10, Math.min(50, modelBlobMap.size * 4)), true);
+
         engine = await window.webllm.CreateMLCEngine(MODEL_ID, {
             initProgressCallback: (p) => {
                 const progress = typeof p?.progress === 'number' ? p.progress : 0;
                 const pct = Math.round(progress * 100);
-                setModelProgress(pct || 12, true);
-                if (statusEl) statusEl.textContent = pct >= 100 ? 'Finalizando no dispositivo…' : `${pct}% — ${p?.text || 'carregando'}`;
+                setModelProgress(pct || 10, true);
+                if (statusEl) {
+                    statusEl.textContent = pct >= 100
+                        ? 'Finalizando no dispositivo…'
+                        : (pct + '% — ' + (p?.text || 'carregando'));
+                }
             }
         });
+
+        modelReady = true;
         setModelProgress(100, true);
-        if (statusEl) statusEl.textContent = 'Modelo pronto · semeando rede…';
+        if (statusEl) statusEl.textContent = 'Modelo pronto · cache LoreSpace';
         setTimeout(() => setModelProgress(0, false), 400);
-        setTimeout(() => {
-            syncModelToSharedBlossom(statusEl).catch(() => {});
-            publishPeerAnnounce({});
-        }, 600);
         return engine;
     } catch (e) {
         console.warn(e);
         if (statusEl) statusEl.textContent = 'Falha no modelo. Usando respostas locais simples.';
         setModelProgress(0, false);
         engine = null;
+        modelReady = false;
         return null;
     } finally {
         modelLoading = false;
+    }
+}
+
+async function initAiModel() {
+    const alreadyCached = await isModelCached();
+    if (alreadyCached) {
+        try {
+            if (!window.webllm?.CreateMLCEngine) return;
+            engine = await window.webllm.CreateMLCEngine(MODEL_ID, {
+                initProgressCallback: () => {}
+            });
+            modelReady = true;
+            console.log('[Personagens] Modelo encontrado no cache LoreSpace – pronto.');
+        } catch (e) {
+            console.warn('Erro ao carregar modelo do cache:', e);
+            startSilentModelDownload(null);
+        }
+    } else {
+        startSilentModelDownload(null);
     }
 }
 
@@ -1500,7 +1008,7 @@ function openCharChat(ch) {
     else av.textContent = (ch.name || '?').substring(0, 2).toUpperCase();
     const msgs = document.getElementById('chatMsgs');
     msgs.classList.remove('welcome');
-    msgs.innerHTML = `<div class="bubble sys">Conversando com ${escapeHtml(ch.name)}. A IA roda no seu aparelho.</div>`;
+    msgs.innerHTML = `<div class="bubble sys">Conversando com ${escapeHtml(ch.name)}. A IA usa o mesmo cache do LoreSpace.</div>`;
     document.getElementById('welcomePlaceholder')?.remove();
     document.getElementById('chatInputArea').style.display = 'flex';
     document.getElementById('modelStatus').style.display = 'block';
@@ -1526,7 +1034,7 @@ function closeCharChat() {
     msgs.innerHTML = `<div class="welcome-placeholder" id="welcomePlaceholder">
         <i class="fa-solid fa-masks-theater"></i>
         <h2>Personagens LoreSocial</h2>
-        <p>Escolha um personagem na lista ao lado para conversar. A IA roda quantizada no seu aparelho.</p>
+        <p>Escolha um personagem na lista ao lado para conversar. A IA roda quantizada no seu aparelho (mesmo cache do LoreSpace).</p>
     </div>`;
     renderCharList('panelRede', networkChars);
     renderCharList('panelMeus', myChars);
@@ -1553,7 +1061,7 @@ async function sendCharMessage() {
     const eng = await ensureEngine(statusEl);
     const lastBot = appendBubble('bot', '…');
     try {
-        if (eng) {
+        if (eng && modelReady) {
             const messages = [
                 { role: 'system', content: systemPromptFor(currentChar) },
                 ...chatHistory.slice(-12)
@@ -1586,9 +1094,11 @@ document.getElementById('chatInput').addEventListener('keypress', e => {
 async function boot() {
     for (let i = 0; i < 50 && !window.NostrTools; i++) await new Promise(r => setTimeout(r, 100));
     await loadNetworkCharacters();
-    if (window.webllm) {
-        const silent = { style: {}, textContent: '' };
-        ensureEngine(silent).catch(() => {});
+    // Pré-carrega a IA com o mesmo cache do LoreSpace
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAiModel);
+    } else {
+        initAiModel();
     }
 }
 boot();
