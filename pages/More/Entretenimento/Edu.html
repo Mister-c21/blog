@@ -1116,6 +1116,13 @@
   let activePostId = null;
   let activeResponseType = 'texto';
 
+  // Função para extrair ID do YouTube da URL
+  function extractYouTubeId(url) {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  }
+
   // Função para alternar seções do menu principal e gerenciar exibição contextual dos FABs
   window.switchSection = function(sectionId) {
     document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
@@ -1248,23 +1255,150 @@
     }
   };
 
+  // Envio da Resposta do Usuário e Inserção Dinâmica na Lista do Modal de Respostas
   window.submitUserResponse = function() {
+    let cardHtml = '';
+    let targetPaneClass = '';
+    let targetTabKey = '';
+
     if (activeResponseType === 'texto') {
       const txt = document.getElementById('responseTextInput').value.trim();
       if (!txt) { alert('Digite sua resposta antes de enviar!'); return; }
+      
+      targetPaneClass = 'pane-textos';
+      targetTabKey = 'textos';
+      cardHtml = `
+        <div class="response-card flex items-start gap-3 py-3 px-3 rounded-2xl border border-gray-100 hover:border-purple-100 bg-white transition shadow-xs" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
+          <div class="w-9 h-9 rounded-full bg-secondary/10 text-secondary font-bold flex items-center justify-center text-xs flex-shrink-0 shadow-xs">
+            <i class="fa-solid fa-user-graduate"></i>
+          </div>
+          <div class="flex-1 space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-xs text-gray-900">Orion</span>
+              <span class="text-[10px] text-gray-400">Agora mesmo</span>
+            </div>
+            <div class="response-media-content">
+              <p class="text-xs text-gray-700 leading-relaxed">${txt}</p>
+            </div>
+            <div class="pt-1 flex items-center gap-1.5 flex-wrap">
+              <button onclick="voteAnswer(this, 'util')" class="btn-vote-util flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200/60 hover:bg-green-100 transition">
+                <i class="fa-solid fa-thumbs-up text-[10px]"></i>
+                <span>Útil</span>
+                <span class="count font-bold ml-0.5">0</span>
+              </button>
+              <button onclick="voteAnswer(this, 'galho')" class="btn-vote-galho flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/60 hover:bg-amber-100 transition">
+                <i class="fa-solid fa-hand-holding-hand text-[10px]"></i>
+                <span>Quebra um Galho</span>
+                <span class="count font-bold ml-0.5">0</span>
+              </button>
+              <button onclick="voteAnswer(this, 'perda')" class="btn-vote-perda flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/60 hover:bg-rose-100 transition">
+                <i class="fa-solid fa-thumbs-down text-[10px]"></i>
+                <span>Perda de Tempo</span>
+                <span class="count font-bold ml-0.5">0</span>
+              </button>
+            </div>
+          </div>
+        </div>`;
     } else if (activeResponseType === 'imagem') {
-      const file = document.getElementById('responseImageFileInput').files[0];
+      const fileInput = document.getElementById('responseImageFileInput');
+      const file = fileInput.files[0];
       if (!file) { alert('Selecione uma imagem do seu dispositivo!'); return; }
+      
+      const imageUrl = URL.createObjectURL(file);
+      targetPaneClass = 'pane-imagens';
+      targetTabKey = 'imagens';
+      cardHtml = `
+        <div class="response-card bg-ghost border border-gray-200 p-3 rounded-2xl space-y-3" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-xs text-gray-900">Resolução Anexada</span>
+            <span class="text-[10px] text-gray-400">Por Orion</span>
+          </div>
+          <div class="response-media-content">
+            <div class="rounded-xl overflow-hidden border border-gray-200 max-h-60 flex items-center justify-center bg-white">
+              <img src="${imageUrl}" alt="Resolução do usuário" class="w-full object-cover max-h-60">
+            </div>
+          </div>
+          <div class="pt-1 flex items-center gap-1.5 flex-wrap">
+            <button onclick="voteAnswer(this, 'util')" class="btn-vote-util flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200/60 hover:bg-green-100 transition">
+              <i class="fa-solid fa-thumbs-up text-[10px]"></i>
+              <span>Útil</span>
+              <span class="count font-bold ml-0.5">0</span>
+            </button>
+            <button onclick="voteAnswer(this, 'galho')" class="btn-vote-galho flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/60 hover:bg-amber-100 transition">
+              <i class="fa-solid fa-hand-holding-hand text-[10px]"></i>
+              <span>Quebra um Galho</span>
+              <span class="count font-bold ml-0.5">0</span>
+            </button>
+            <button onclick="voteAnswer(this, 'perda')" class="btn-vote-perda flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/60 hover:bg-rose-100 transition">
+              <i class="fa-solid fa-thumbs-down text-[10px]"></i>
+              <span>Perda de Tempo</span>
+              <span class="count font-bold ml-0.5">0</span>
+            </button>
+          </div>
+        </div>`;
     } else if (activeResponseType === 'video') {
       const url = document.getElementById('responseVideoUrlInput').value.trim();
       if (!url) { alert('Cole a URL de um vídeo do YouTube!'); return; }
+      
+      const videoId = extractYouTubeId(url) || 'dQw4w9WgXcQ';
+      targetPaneClass = 'pane-videos';
+      targetTabKey = 'videos';
+      cardHtml = `
+        <div class="response-card bg-ghost border border-gray-200 p-3 rounded-2xl space-y-3" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-xs text-gray-900">Videoaula de Resolução</span>
+            <span class="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded-md">YouTube</span>
+          </div>
+          <div class="response-media-content">
+            <div class="relative w-full rounded-xl overflow-hidden aspect-video bg-black shadow-inner">
+              <iframe class="w-full h-full" src="https://www.youtube.com/embed/${videoId}" title="Videoaula Explicativa" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+          </div>
+          <div class="pt-1 flex items-center gap-1.5 flex-wrap">
+            <button onclick="voteAnswer(this, 'util')" class="btn-vote-util flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200/60 hover:bg-green-100 transition">
+              <i class="fa-solid fa-thumbs-up text-[10px]"></i>
+              <span>Útil</span>
+              <span class="count font-bold ml-0.5">0</span>
+            </button>
+            <button onclick="voteAnswer(this, 'galho')" class="btn-vote-galho flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/60 hover:bg-amber-100 transition">
+              <i class="fa-solid fa-hand-holding-hand text-[10px]"></i>
+              <span>Quebra um Galho</span>
+              <span class="count font-bold ml-0.5">0</span>
+            </button>
+            <button onclick="voteAnswer(this, 'perda')" class="btn-vote-perda flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/60 hover:bg-rose-100 transition">
+              <i class="fa-solid fa-thumbs-down text-[10px]"></i>
+              <span>Perda de Tempo</span>
+              <span class="count font-bold ml-0.5">0</span>
+            </button>
+          </div>
+        </div>`;
     }
 
-    alert('Sua resposta foi enviada com sucesso para a comunidade!');
+    // Adiciona o novo card na aba correspondente do modal de respostas
+    const pane = document.querySelector('.' + targetPaneClass);
+    if (pane) {
+      pane.insertAdjacentHTML('beforeend', cardHtml);
+    }
+
+    // Atualiza o contador visual de respostas no card da pergunta
+    if (activePostId) {
+      const commentCountElem = document.getElementById(`comment-count-${activePostId}`);
+      if (commentCountElem) {
+        let currentCount = parseInt(commentCountElem.innerText || '0', 10);
+        commentCountElem.innerText = currentCount + 1;
+      }
+    }
+
+    // Limpa os campos de formulário
     document.getElementById('responseTextInput').value = '';
     document.getElementById('responseVideoUrlInput').value = '';
     document.getElementById('responseImageFileName').innerText = '';
+    document.getElementById('responseImageFileInput').value = '';
+    
+    // Fecha o modal de envio e abre o modal de visualização na aba certa
     closeSubmitResponseModal();
+    openCommentsModal(activePostId);
+    switchResponseTab(targetTabKey);
   };
 
   // Modal de Comentários / Respostas (Exibe a pergunta original no header e organiza respostas por melhor pontuação)
