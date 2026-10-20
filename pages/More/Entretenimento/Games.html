@@ -99,22 +99,6 @@
             transform: translateY(-4px);
             box-shadow: 0 12px 24px -6px rgba(124, 58, 237, 0.12);
         }
-
-        /* Top Tab Active Bar Indicator */
-        .top-tab-active {
-            color: #7C3AED;
-            font-weight: 700;
-        }
-        .top-tab-active::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 20%;
-            right: 20%;
-            height: 3px;
-            background-color: #7C3AED;
-            border-radius: 9999px;
-        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col md:flex-row pb-24 md:pb-0 md:pl-64">
@@ -186,18 +170,6 @@
             </div>
         </header>
 
-        <!-- TOP TAB BAR (MEUS GAMES / EXPLORAR) -->
-        <div class="sticky top-0 z-30 bg-ghost/90 backdrop-blur-md pt-2 pb-4 border-b border-slate-200/80 mb-6">
-            <div class="flex items-center justify-center gap-8 text-sm font-semibold text-slate-500">
-                <button onclick="switchTopTab('explorar')" id="top-tab-explorar" class="relative py-2 px-4 transition-all top-tab-active">
-                    Explorar
-                </button>
-                <button onclick="switchTopTab('meus-games')" id="top-tab-meus-games" class="relative py-2 px-4 transition-all">
-                    Meus Games
-                </button>
-            </div>
-        </div>
-
         <!-- SECTION: JOGOS (ACTIVE BY DEFAULT) -->
         <section id="section-jogos" class="space-y-8">
 
@@ -256,21 +228,6 @@
                     <!-- Dynamic Game Cards JS Injected -->
                 </div>
 
-            </div>
-
-            <!-- TAB CONTENT: MEUS GAMES -->
-            <div id="tab-content-meus-games" class="hidden space-y-6">
-                <div class="bg-white p-6 rounded-3xl border border-slate-200/80 space-y-4">
-                    <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-bookmark text-violetAccent"></i>
-                        Seus Jogos Salvos & Recentes
-                    </h3>
-                    <p class="text-xs text-slate-500">Acesse rapidamente seus títulos favoritos salvos na nuvem.</p>
-                </div>
-
-                <div id="saved-games-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                    <!-- Dynamic Saved Game Cards -->
-                </div>
             </div>
 
         </section>
@@ -419,12 +376,10 @@
 
         let currentSlide = 0;
         let activeSection = 'jogos';
-        let activeTopTab = 'explorar';
 
         // INITIALIZATION
         document.addEventListener('DOMContentLoaded', () => {
             renderGameGrid(gamesList);
-            renderSavedGames();
             renderGameUpdatesFeed();
             updateBottomNavIndicator('jogos');
         });
@@ -481,28 +436,6 @@
             }
         }
 
-        // TOP TAB BAR SWITCHER (EXPLORAR / MEUS GAMES)
-        function switchTopTab(tab) {
-            activeTopTab = tab;
-            const btnExplorar = document.getElementById('top-tab-explorar');
-            const btnMeusGames = document.getElementById('top-tab-meus-games');
-            const contentExplorar = document.getElementById('tab-content-explorar');
-            const contentMeusGames = document.getElementById('tab-content-meus-games');
-
-            if (tab === 'explorar') {
-                btnExplorar.classList.add('top-tab-active');
-                btnMeusGames.classList.remove('top-tab-active');
-                contentExplorar.classList.remove('hidden');
-                contentMeusGames.classList.add('hidden');
-            } else {
-                btnMeusGames.classList.add('top-tab-active');
-                btnExplorar.classList.remove('top-tab-active');
-                contentMeusGames.classList.remove('hidden');
-                contentExplorar.classList.add('hidden');
-                renderSavedGames();
-            }
-        }
-
         // RENDER GAME GRID
         function renderGameGrid(list) {
             const grid = document.getElementById('game-grid');
@@ -532,41 +465,12 @@
             `).join('');
         }
 
-        // RENDER SAVED GAMES
-        function renderSavedGames() {
-            const grid = document.getElementById('saved-games-grid');
-            const savedList = gamesList.filter(g => g.saved);
-
-            if (savedList.length === 0) {
-                grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-xs">Nenhum jogo salvo na sua biblioteca ainda.</div>`;
-                return;
-            }
-
-            grid.innerHTML = savedList.map(game => `
-                <div class="game-card bg-white rounded-2xl overflow-hidden border border-slate-200/80 p-3 flex flex-col justify-between">
-                    <div class="relative rounded-xl overflow-hidden mb-3 aspect-[4/3] bg-slate-100">
-                        <img src="${game.img}" alt="${game.title}" class="w-full h-full object-cover">
-                        <span class="absolute top-2 left-2 px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/90 backdrop-blur-md text-slate-800">
-                            ${game.type}
-                        </span>
-                    </div>
-                    <div class="space-y-2">
-                        <h3 class="font-bold text-xs sm:text-sm text-slate-900 line-clamp-1">${game.title}</h3>
-                        <button onclick="${game.category === 'web' ? `launchWebCanvasGame('${game.title}')` : `launchConsoleGame('${game.title}', '${game.img}')`}" class="w-full py-1.5 rounded-full bg-violetAccent text-white text-xs font-bold transition-all text-center">
-                            Iniciar Game
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
         // TOGGLE SAVE GAME
         function toggleSaveGame(id) {
             const game = gamesList.find(g => g.id === id);
             if (game) {
                 game.saved = !game.saved;
                 renderGameGrid(gamesList);
-                renderSavedGames();
                 triggerToast(game.saved ? 'Jogo adicionado aos Meus Games!' : 'Jogo removido dos salvos.');
             }
         }
