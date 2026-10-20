@@ -180,7 +180,7 @@
              <i class="fa-regular fa-comment"></i> <span id="comment-count-post2">3</span> Respostas
            </button>
          </div>
-         <button onclick="openCommentsModal('post2')" class="px-4 py-2 bg-secondary text-white text-xs font-bold rounded-xl hover:bg-purple-700 transition shadow-sm shadow-secondary/30 flex items-center gap-1.5">
+         <button onclick="openSubmitResponseModal('post2')" class="px-4 py-2 bg-secondary text-white text-xs font-bold rounded-xl hover:bg-purple-700 transition shadow-sm shadow-secondary/30 flex items-center gap-1.5">
            <i class="fa-solid fa-pen"></i> Responder
          </button>
        </div>
@@ -230,7 +230,7 @@
              <i class="fa-regular fa-comment"></i> <span id="comment-count-post1">5</span> Respostas
            </button>
          </div>
-         <button onclick="openCommentsModal('post1')" class="px-4 py-2 bg-secondary text-white text-xs font-bold rounded-xl hover:bg-purple-700 transition shadow-sm shadow-secondary/30 flex items-center gap-1.5">
+         <button onclick="openSubmitResponseModal('post1')" class="px-4 py-2 bg-secondary text-white text-xs font-bold rounded-xl hover:bg-purple-700 transition shadow-sm shadow-secondary/30 flex items-center gap-1.5">
            <i class="fa-solid fa-pen"></i> Responder
          </button>
        </div>
@@ -780,6 +780,71 @@
  </div>
 </div>
 
+<!-- MODAL: POSTAR RESPOSTA (NOVO MODAL ABERTO AO CLICAR EM RESPONDER) -->
+<div id="submitResponseModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end md:items-center md:justify-center opacity-0 pointer-events-none p-0 md:p-4 modal-backdrop">
+ <div id="submitResponseModalContent" class="bg-white w-full md:max-w-lg max-h-[90vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full modal-content">
+   <div class="p-5 border-b flex items-center justify-between bg-white">
+     <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2">
+       <i class="fa-solid fa-pen-to-square text-secondary"></i> Enviar sua Resposta
+     </h3>
+     <button type="button" onclick="closeSubmitResponseModal()" class="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 transition"><i class="fa-solid fa-xmark text-sm"></i></button>
+   </div>
+
+   <!-- Seleção do tipo de mídia da resposta -->
+   <div class="flex items-center gap-2 px-5 py-3 bg-ghost border-b border-gray-200/80">
+     <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mr-1">Formato:</span>
+     <button type="button" onclick="switchResponseType('texto')" id="resp-type-btn-texto" class="px-3 py-1.5 rounded-xl text-xs font-bold text-secondary bg-secondary/10 transition flex items-center gap-1">
+       <i class="fa-solid fa-align-left text-xs"></i> Texto
+     </button>
+     <button type="button" onclick="switchResponseType('imagem')" id="resp-type-btn-imagem" class="px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition flex items-center gap-1">
+       <i class="fa-solid fa-image text-xs"></i> Imagem
+     </button>
+     <button type="button" onclick="switchResponseType('video')" id="resp-type-btn-video" class="px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition flex items-center gap-1">
+       <i class="fa-brands fa-youtube text-xs"></i> YouTube
+     </button>
+   </div>
+
+   <div class="p-6 overflow-y-auto flex-1 space-y-4">
+     <!-- Campo Texto (Com limite de 280 caracteres - Estilo Juvenil) -->
+     <div id="responseFormSectionTexto" class="space-y-1.5">
+       <div class="flex justify-between items-center">
+         <label class="text-xs font-bold text-gray-700">Explica aí pra galera! 🚀</label>
+         <span id="textCharCounter" class="text-[10px] font-bold text-secondary bg-secondary/10 px-2 py-0.5 rounded-md">0 / 280</span>
+       </div>
+       <textarea id="responseTextInput" rows="4" maxlength="280" oninput="updateResponseCharCount(this)" placeholder="Manda ver na explicação! Seja direto, direto ao ponto e ajude a galera a entender sem enrolação..." class="w-full text-xs p-4 bg-ghost border border-gray-200 rounded-xl outline-none focus:border-secondary focus:bg-white transition resize-none shadow-xs placeholder:text-gray-400"></textarea>
+     </div>
+
+     <!-- Campo Imagem do Arquivo -->
+     <div id="responseFormSectionImagem" class="space-y-2 hidden">
+       <label class="text-xs font-bold text-gray-700 block">Sua resolução em foto 📸</label>
+       <label class="inline-flex items-center justify-center gap-2 px-4 py-4 bg-ghost border border-dashed border-secondary/40 rounded-xl cursor-pointer hover:bg-purple-50/50 transition text-xs text-gray-700 font-semibold shadow-xs w-full">
+         <i class="fa-solid fa-file-image text-secondary text-lg"></i>
+         <span>Escolher Imagem do Caderno / Rascunho</span>
+         <input type="file" id="responseImageFileInput" accept="image/*" class="hidden" onchange="handleResponseImageSelected(event)">
+       </label>
+       <span id="responseImageFileName" class="text-[11px] text-secondary font-bold block text-center mt-1"></span>
+     </div>
+
+     <!-- Campo Vídeo do YouTube -->
+     <div id="responseFormSectionVideo" class="space-y-1.5 hidden">
+       <label class="text-xs font-bold text-gray-700 block">Link da videoaula do YouTube 🎬</label>
+       <div class="relative">
+         <i class="fa-brands fa-youtube absolute left-3.5 top-1/2 -translate-y-1/2 text-red-600 text-sm"></i>
+         <input type="url" id="responseVideoUrlInput" placeholder="https://www.youtube.com/watch?v=..." class="w-full text-xs pl-10 pr-4 py-3.5 bg-ghost border border-gray-200 rounded-xl outline-none focus:border-secondary focus:bg-white transition shadow-xs">
+       </div>
+       <p class="text-[10px] text-gray-400">Cole o link completo de uma resolução explicativa do YouTube.</p>
+     </div>
+   </div>
+
+   <div class="p-4 bg-ghost border-t flex justify-end gap-2.5">
+     <button type="button" onclick="closeSubmitResponseModal()" class="px-5 py-3.5 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-200/60 transition">Cancelar</button>
+     <button type="button" onclick="submitUserResponse()" class="bg-secondary text-white px-6 py-3.5 rounded-xl text-xs font-bold hover:bg-purple-700 transition shadow-sm shadow-secondary/30 flex items-center gap-1.5">
+       <i class="fa-solid fa-paper-plane"></i> Mandar Resposta
+     </button>
+   </div>
+ </div>
+</div>
+
 <!-- MODAL: COMENTÁRIOS / RESPOSTAS (TELA CHEIA NO MOBILE, SEM BORDAS ARREDONDADAS, COM PERGUNTA NO HEADER E SISTEMA DE VOTAÇÃO) -->
 <div id="commentsModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center opacity-0 pointer-events-none p-0 md:p-4 modal-backdrop">
  <div id="commentsModalContent" class="bg-white w-full h-full md:h-auto md:max-w-xl md:max-h-[85vh] overflow-hidden rounded-none flex flex-col shadow-2xl transform scale-95 modal-content">
@@ -1049,6 +1114,7 @@
 <!-- JAVASCRIPT DE NAVEGAÇÃO E RECURSOS DA INTERFACE -->
 <script>
   let activePostId = null;
+  let activeResponseType = 'texto';
 
   // Função para alternar seções do menu principal e gerenciar exibição contextual dos FABs
   window.switchSection = function(sectionId) {
@@ -1128,6 +1194,77 @@
     }
     alert(`Sua pergunta foi enviada para a comunidade: "${question}"`);
     input.value = '';
+  };
+
+  // Modal de Postar Resposta (Abre diretamente ao clicar no botão Responder)
+  window.openSubmitResponseModal = function(postId) {
+    activePostId = postId;
+    switchResponseType('texto');
+    const modal = document.getElementById('submitResponseModal');
+    const content = document.getElementById('submitResponseModalContent');
+    modal.classList.remove('pointer-events-none', 'opacity-0');
+    modal.classList.add('opacity-100');
+    content.classList.remove('translate-y-full');
+  };
+
+  window.closeSubmitResponseModal = function() {
+    const modal = document.getElementById('submitResponseModal');
+    const content = document.getElementById('submitResponseModalContent');
+    modal.classList.remove('opacity-100');
+    modal.classList.add('opacity-0', 'pointer-events-none');
+    content.classList.add('translate-y-full');
+  };
+
+  window.switchResponseType = function(type) {
+    activeResponseType = type;
+    ['texto', 'imagem', 'video'].forEach(t => {
+      const btn = document.getElementById('resp-type-btn-' + t);
+      const section = document.getElementById('responseFormSection' + t.charAt(0).toUpperCase() + t.slice(1));
+      if (btn && section) {
+        if (t === type) {
+          btn.classList.add('text-secondary', 'bg-secondary/10', 'font-bold');
+          btn.classList.remove('text-gray-500', 'font-medium', 'hover:bg-gray-100');
+          section.classList.remove('hidden');
+        } else {
+          btn.classList.remove('text-secondary', 'bg-secondary/10', 'font-bold');
+          btn.classList.add('text-gray-500', 'font-medium', 'hover:bg-gray-100');
+          section.classList.add('hidden');
+        }
+      }
+    });
+  };
+
+  window.updateResponseCharCount = function(textarea) {
+    const counter = document.getElementById('textCharCounter');
+    if (counter) {
+      counter.innerText = `${textarea.value.length} / 280`;
+    }
+  };
+
+  window.handleResponseImageSelected = function(event) {
+    const file = event.target.files[0];
+    if (file) {
+      document.getElementById('responseImageFileName').innerText = "Anexo: " + file.name;
+    }
+  };
+
+  window.submitUserResponse = function() {
+    if (activeResponseType === 'texto') {
+      const txt = document.getElementById('responseTextInput').value.trim();
+      if (!txt) { alert('Digite sua resposta antes de enviar!'); return; }
+    } else if (activeResponseType === 'imagem') {
+      const file = document.getElementById('responseImageFileInput').files[0];
+      if (!file) { alert('Selecione uma imagem do seu dispositivo!'); return; }
+    } else if (activeResponseType === 'video') {
+      const url = document.getElementById('responseVideoUrlInput').value.trim();
+      if (!url) { alert('Cole a URL de um vídeo do YouTube!'); return; }
+    }
+
+    alert('Sua resposta foi enviada com sucesso para a comunidade!');
+    document.getElementById('responseTextInput').value = '';
+    document.getElementById('responseVideoUrlInput').value = '';
+    document.getElementById('responseImageFileName').innerText = '';
+    closeSubmitResponseModal();
   };
 
   // Modal de Comentários / Respostas (Exibe a pergunta original no header e organiza respostas por melhor pontuação)
