@@ -30,15 +30,10 @@
      border: 1px solid rgba(138, 43, 226, 0.12);
    }
    
-   #bottomNavbar { 
-     transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease-in-out; 
-     transform: translateY(0);
-     opacity: 1;
-   }
-   #bottomNavbar.nav-hidden { 
-     transform: translateY(200%); 
-     opacity: 0; 
-     pointer-events: none; 
+   #bottomNavbar { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease-in-out; }
+   #bottomNavbar.nav-hidden { transform: translate(-50%, 200%); opacity: 0; pointer-events: none; }
+   @media (min-width: 768px) {
+     #bottomNavbar.nav-hidden { transform: translate(0, 0); opacity: 1; pointer-events: auto; }
    }
    
    .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -148,7 +143,7 @@
    <div id="feed-container" class="space-y-4">
      
      <!-- Pergunta 1 -->
-     <div class="brainly-card feed-item" data-type="respondida" data-author="Lucas M.">
+     <div class="brainly-card feed-item item-sem-resposta item-tudo">
        <div class="flex items-center justify-between gap-2 mb-3">
          <div class="flex items-center gap-2.5">
            <div class="brainly-avatar">
@@ -192,7 +187,7 @@
      </div>
 
      <!-- Pergunta 2 -->
-     <div class="brainly-card feed-item" data-type="sem-resposta" data-author="Orion">
+     <div class="brainly-card feed-item item-minhas-perguntas item-tudo">
        <div class="flex items-center justify-between gap-2 mb-3">
          <div class="flex items-center gap-2.5">
            <div class="brainly-avatar">
@@ -221,7 +216,7 @@
        <div class="pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
          <div class="flex items-center gap-3">
            <button type="button" onclick="openCommentsModal('post1')" class="text-xs font-semibold text-gray-500 hover:text-secondary flex items-center gap-1.5 transition">
-             <i class="fa-regular fa-comment"></i> <span id="comment-count-post1">0</span> Respostas
+             <i class="fa-regular fa-comment"></i> <span id="comment-count-post1">5</span> Respostas
            </button>
          </div>
          <button onclick="openCommentsModal('post1')" class="px-4 py-2 bg-secondary text-white text-xs font-bold rounded-xl hover:bg-purple-700 transition shadow-sm shadow-secondary/30 flex items-center gap-1.5">
@@ -521,7 +516,7 @@
     }
   };
 
-  // Alternar tabs internas do Feed e Filtrar o Conteúdo
+  // Alternar tabs internas do Feed e renderizar os cards dinamicamente
   window.switchFeedTab = function(tabName) {
     ['tudo', 'sem-resposta', 'minhas-perguntas'].forEach(t => {
       const btn = document.getElementById('tab-' + t);
@@ -536,22 +531,13 @@
       activeBtn.classList.remove('text-gray-500', 'font-medium');
     }
 
-    // Filtragem dinâmica dos cards no DOM
+    // Filtrar visualização do feed
     const items = document.querySelectorAll('.feed-item');
     items.forEach(item => {
-      const type = item.getAttribute('data-type');
-      const author = item.getAttribute('data-author');
-
       if (tabName === 'tudo') {
         item.classList.remove('hidden');
-      } else if (tabName === 'sem-resposta') {
-        if (type === 'sem-resposta') {
-          item.classList.remove('hidden');
-        } else {
-          item.classList.add('hidden');
-        }
-      } else if (tabName === 'minhas-perguntas') {
-        if (author === 'Orion') {
+      } else {
+        if (item.classList.contains('item-' + tabName)) {
           item.classList.remove('hidden');
         } else {
           item.classList.add('hidden');
@@ -709,7 +695,7 @@
     alert(`Filtrando tópicos das matérias por: "${query}"`);
   };
 
-  // Efeito de auto-hide suave na navbar ao rolar (Deslizando para baixo e retornando para cima no Mobile)
+  // Efeito de auto-hide na navbar ao rolar (Mobile desliza perfeitamente para baixo ao esconder e para cima ao retornar)
   let lastScrollY = window.scrollY;
   window.addEventListener('scroll', () => {
     const currentScrollY = window.scrollY;
