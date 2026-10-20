@@ -30,8 +30,16 @@
      border: 1px solid rgba(138, 43, 226, 0.12);
    }
    
-   #bottomNavbar { transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease-in-out; }
-   #bottomNavbar.nav-hidden { transform: translateY(150%); opacity: 0; pointer-events: none; }
+   #bottomNavbar { 
+     transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease-in-out; 
+     transform: translateY(0);
+     opacity: 1;
+   }
+   #bottomNavbar.nav-hidden { 
+     transform: translateY(200%); 
+     opacity: 0; 
+     pointer-events: none; 
+   }
    
    .no-scrollbar::-webkit-scrollbar { display: none; }
    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -140,7 +148,7 @@
    <div id="feed-container" class="space-y-4">
      
      <!-- Pergunta 1 -->
-     <div class="brainly-card">
+     <div class="brainly-card feed-item" data-type="respondida" data-author="Lucas M.">
        <div class="flex items-center justify-between gap-2 mb-3">
          <div class="flex items-center gap-2.5">
            <div class="brainly-avatar">
@@ -184,14 +192,14 @@
      </div>
 
      <!-- Pergunta 2 -->
-     <div class="brainly-card">
+     <div class="brainly-card feed-item" data-type="sem-resposta" data-author="Orion">
        <div class="flex items-center justify-between gap-2 mb-3">
          <div class="flex items-center gap-2.5">
            <div class="brainly-avatar">
              <i class="fa-solid fa-user-graduate text-sm"></i>
            </div>
            <div>
-             <span class="font-bold text-xs text-gray-900 block">Prof.ª Ana Clara</span>
+             <span class="font-bold text-xs text-gray-900 block">Orion</span>
              <span class="text-[10px] text-gray-400">Ensino Superior • Há 2 horas</span>
            </div>
          </div>
@@ -213,7 +221,7 @@
        <div class="pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
          <div class="flex items-center gap-3">
            <button type="button" onclick="openCommentsModal('post1')" class="text-xs font-semibold text-gray-500 hover:text-secondary flex items-center gap-1.5 transition">
-             <i class="fa-regular fa-comment"></i> <span id="comment-count-post1">5</span> Respostas
+             <i class="fa-regular fa-comment"></i> <span id="comment-count-post1">0</span> Respostas
            </button>
          </div>
          <button onclick="openCommentsModal('post1')" class="px-4 py-2 bg-secondary text-white text-xs font-bold rounded-xl hover:bg-purple-700 transition shadow-sm shadow-secondary/30 flex items-center gap-1.5">
@@ -513,7 +521,7 @@
     }
   };
 
-  // Alternar tabs internas do Feed
+  // Alternar tabs internas do Feed e Filtrar o Conteúdo
   window.switchFeedTab = function(tabName) {
     ['tudo', 'sem-resposta', 'minhas-perguntas'].forEach(t => {
       const btn = document.getElementById('tab-' + t);
@@ -527,6 +535,29 @@
       activeBtn.classList.add('text-secondary', 'bg-secondary/10', 'font-bold', 'shadow-xs');
       activeBtn.classList.remove('text-gray-500', 'font-medium');
     }
+
+    // Filtragem dinâmica dos cards no DOM
+    const items = document.querySelectorAll('.feed-item');
+    items.forEach(item => {
+      const type = item.getAttribute('data-type');
+      const author = item.getAttribute('data-author');
+
+      if (tabName === 'tudo') {
+        item.classList.remove('hidden');
+      } else if (tabName === 'sem-resposta') {
+        if (type === 'sem-resposta') {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      } else if (tabName === 'minhas-perguntas') {
+        if (author === 'Orion') {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      }
+    });
   };
 
   // Envio rápido de pergunta estilo Brainly
@@ -678,14 +709,14 @@
     alert(`Filtrando tópicos das matérias por: "${query}"`);
   };
 
-  // Efeito de auto-hide na navbar ao rolar (Mobile)
+  // Efeito de auto-hide suave na navbar ao rolar (Deslizando para baixo e retornando para cima no Mobile)
   let lastScrollY = window.scrollY;
   window.addEventListener('scroll', () => {
     const currentScrollY = window.scrollY;
     const bottomNavbar = document.getElementById('bottomNavbar');
     
     if (window.innerWidth < 768) {
-      if (currentScrollY > lastScrollY && currentScrollY > 80) {
+      if (currentScrollY > lastScrollY && currentScrollY > 60) {
         bottomNavbar?.classList.add('nav-hidden');
       } else {
         bottomNavbar?.classList.remove('nav-hidden');
