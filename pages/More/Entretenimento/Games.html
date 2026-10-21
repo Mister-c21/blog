@@ -86,6 +86,16 @@
         }
         #ejs-player, #ejs-player > div { width: 100% !important; height: 100% !important; }
         #web-game-frame { border: 0; width: 100%; height: 100%; background: #0f172a; }
+        @keyframes skeleton-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .skeleton-pulse {
+            background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.4s ease-in-out infinite;
+            border-radius: 0.75rem;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col md:flex-row pb-24 md:pb-0 md:pl-64">
@@ -177,13 +187,10 @@
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between gap-4 overflow-x-auto no-scrollbar py-1">
-                    <div class="flex items-center gap-2">
-                        <button onclick="filterCategory('todos')" class="cat-pill active px-4 py-2 rounded-full text-xs font-bold bg-violetAccent text-white shadow-sm transition-all">Todos</button>
-                        <button onclick="filterCategory('web')" class="cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 transition-all">Jogos Web</button>
-                        <button onclick="filterCategory('console')" class="cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 transition-all">Console Cloud</button>
-                    </div>
-                    <span id="network-status" class="text-[10px] text-slate-400 whitespace-nowrap"><i class="fa-solid fa-spinner fa-spin"></i> Sincronizando rede...</span>
+                <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                    <button onclick="filterCategory('todos')" class="cat-pill active px-4 py-2 rounded-full text-xs font-bold bg-violetAccent text-white shadow-sm transition-all">Todos</button>
+                    <button onclick="filterCategory('web')" class="cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 transition-all">Jogos Web</button>
+                    <button onclick="filterCategory('console')" class="cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 transition-all">Console Cloud</button>
                 </div>
 
                 <div id="tiktok-console-bar" class="hidden overflow-x-auto no-scrollbar border-b border-slate-200/80 pb-2">
@@ -207,6 +214,10 @@
                         <button onclick="filterConsolePlatform('cps2')" id="tk-console-cps2" class="relative pb-2 transition-all">Capcom CPS-2</button>
                         <button onclick="filterConsolePlatform('cps3')" id="tk-console-cps3" class="relative pb-2 transition-all">Capcom CPS-3</button>
                     </div>
+                </div>
+
+                <div class="flex items-center gap-2 py-1">
+                    <span id="network-status" class="text-[10px] text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> Sincronizando rede...</span>
                 </div>
 
                 <div id="game-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6"></div>
@@ -367,18 +378,9 @@
 
     <script>
         const DEFAULT_COVER = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80';
-        const DEMO_GAMES = [
-            { id: 'demo-2', title: "Pixel Runner Canvas", category: "web", type: "Jogo Web", img: "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80", plays: "98K", saved: false, fileUrl: null, isDemo: true, platform: 'web' },
-            { id: 'demo-3', title: "Aero Strike Force", category: "console", platform: "ps1", type: "Console Cloud", img: "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=600&q=80", plays: "64K", saved: false, fileUrl: null, isDemo: true },
-            { id: 'demo-4', title: "Cosmic Odyssey", category: "web", type: "Jogo Web", img: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80", plays: "82K", saved: false, fileUrl: null, isDemo: true, platform: 'web' },
-            { id: 'demo-5', title: "Neo Rally Horizon", category: "console", platform: "ps2", type: "Console Cloud", img: "https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=600&q=80", plays: "115K", saved: false, fileUrl: null, isDemo: true },
-            { id: 'demo-6', title: "Shadow Dungeon", category: "web", type: "Jogo Web", img: "https://images.unsplash.com/photo-1579373903781-fd5c0c30c4cd?auto=format&fit=crop&w=600&q=80", plays: "45K", saved: false, fileUrl: null, isDemo: true, platform: 'web' }
-        ];
 
-        let gamesList = [...DEMO_GAMES];
-        let gameUpdatesPosts = [
-            { id: 102, game: "Pixel Runner Canvas", text: "Atualização de desempenho: taxa de quadros aprimorada em navegadores mobile.", date: "Há 3 horas" }
-        ];
+        let gamesList = [];
+        let gameUpdatesPosts = [];
         let savedGameIds = new Set();
         let activeSection = 'jogos';
         let activeCategoryFilter = 'todos';
@@ -388,6 +390,7 @@
         let temporaryCoverFile = null;
         let canvasInterval = null;
         let ejsScriptLoading = false;
+        let isLoadingGames = true;
 
         const consolePlatformsList = ['todos', 'gba', 'ps1', 'ps2', 'snes', 'nes', 'nds', '3ds', 'master-system', 'mega-drive', 'sega-saturn', 'dreamcast', 'game-gear', 'mame', 'neo-geo', 'cps1', 'cps2', 'cps3'];
 
@@ -412,6 +415,7 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
+            renderSkeletonGrid();
             filterCategory('todos');
             renderGameUpdatesFeed();
             updateBottomNavIndicator('jogos');
@@ -478,11 +482,33 @@
             return savedGameIds.has(String(game.id)) || !!game.saved;
         }
 
+        function renderSkeletonGrid(targetId = 'game-grid', count = 8) {
+            const grid = document.getElementById(targetId);
+            if (!grid) return;
+            grid.innerHTML = Array.from({ length: count }).map(() => `
+                <div class="bg-white rounded-2xl overflow-hidden border border-slate-200/80 p-3 flex flex-col">
+                    <div class="skeleton-pulse aspect-[4/3] w-full mb-3 rounded-xl"></div>
+                    <div class="space-y-2">
+                        <div class="skeleton-pulse h-3 w-3/4"></div>
+                        <div class="skeleton-pulse h-2.5 w-1/2"></div>
+                        <div class="flex items-center justify-between pt-1">
+                            <div class="skeleton-pulse h-2.5 w-10"></div>
+                            <div class="skeleton-pulse h-6 w-14 rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         function renderGameGrid(list, targetId = 'game-grid') {
             const grid = document.getElementById(targetId);
             if (!grid) return;
+            if (isLoadingGames && targetId === 'game-grid') {
+                renderSkeletonGrid(targetId);
+                return;
+            }
             if (!list.length) {
-                grid.innerHTML = `<div class="col-span-full text-center text-xs text-slate-400 py-10">Nenhum jogo encontrado.</div>`;
+                grid.innerHTML = `<div class="col-span-full text-center text-xs text-slate-400 py-10">Nenhum jogo encontrado na rede.</div>`;
                 return;
             }
             grid.innerHTML = list.map(game => {
@@ -575,6 +601,10 @@
         }
 
         function applyFilters() {
+            if (isLoadingGames) {
+                renderSkeletonGrid();
+                return;
+            }
             const query = (document.getElementById('game-search-input')?.value || '').toLowerCase();
             let result = gamesList.slice();
             if (activeCategoryFilter !== 'todos') result = result.filter(g => g.category === activeCategoryFilter);
@@ -630,7 +660,7 @@
             if (activeMeusTab === 'salvos') {
                 list = gamesList.filter(g => isSaved(g));
             } else {
-                list = gamesList.filter(g => isMine(g) && !g.isDemo);
+                list = gamesList.filter(g => isMine(g));
             }
             const empty = document.getElementById('meus-empty');
             if (!list.length) {
@@ -731,7 +761,7 @@
             document.getElementById('cloud-status-text').innerText = 'Preparando emulação...';
 
             if (!game.fileUrl) {
-                document.getElementById('cloud-status-text').innerText = 'Este jogo de demonstração não possui ROM na rede. Publique um com arquivo para emular.';
+                document.getElementById('cloud-status-text').innerText = 'Este jogo não possui arquivo/ROM na rede.';
                 return;
             }
 
@@ -781,7 +811,6 @@
             player.innerHTML = '';
             player.classList.add('hidden');
             document.getElementById('cloud-status-container').classList.remove('hidden');
-            // cleanup globals
             try {
                 ['EJS_player','EJS_core','EJS_gameUrl','EJS_gameName','EJS_startOnLoaded'].forEach(k => { try { delete window[k]; } catch {} });
             } catch {}
@@ -892,7 +921,6 @@
                 if (temporaryCoverFile) {
                     coverUrl = await window.uploadFileToHost(temporaryCoverFile);
                 } else if (temporaryCoverUrl && temporaryCoverUrl.startsWith('data:')) {
-                    // keep data URL only as fallback local; prefer network cover when possible
                     coverUrl = temporaryCoverUrl;
                 }
 
@@ -938,6 +966,7 @@
                     if (idx >= 0) gamesList.splice(idx, 1);
                 }
                 gamesList.unshift(newGame);
+                isLoadingGames = false;
                 applyFilters();
 
                 gameUpdatesPosts.unshift({
@@ -961,6 +990,10 @@
 
         function renderGameUpdatesFeed() {
             const feed = document.getElementById('game-updates-feed');
+            if (!gameUpdatesPosts.length) {
+                feed.innerHTML = '';
+                return;
+            }
             feed.innerHTML = gameUpdatesPosts.map(post => `
                 <div class="bg-white p-5 rounded-2xl border border-slate-200/80 space-y-2 shadow-sm">
                     <div class="flex items-center justify-between">
@@ -985,20 +1018,15 @@
 
         window.mergeNetworkGames = function(list) {
             const byId = new Map();
-            gamesList.forEach(g => byId.set(String(g.id), g));
             list.forEach(g => {
                 const id = String(g.id);
-                const prev = byId.get(id);
                 byId.set(id, {
                     ...g,
-                    saved: savedGameIds.has(id) || !!(prev && prev.saved)
+                    saved: savedGameIds.has(id)
                 });
             });
-            // keep demos if not replaced
-            DEMO_GAMES.forEach(d => {
-                if (!byId.has(String(d.id))) byId.set(String(d.id), { ...d, saved: savedGameIds.has(String(d.id)) });
-            });
             gamesList = Array.from(byId.values());
+            isLoadingGames = false;
             applyFilters();
             if (activeSection === 'meus') renderMeusGames();
         };
@@ -1125,7 +1153,6 @@
             }
         };
 
-        // Lista de salvos: evento substituível kind 30078 por usuário
         window.publishSavedList = async function (ids) {
             if (!window.currentUserData.privateKey) return null;
             const eventTemplate = {
@@ -1148,6 +1175,8 @@
         };
 
         window.fetchGamesFeed = async function () {
+            isLoadingGames = true;
+            renderSkeletonGrid();
             window.setNetworkStatus?.('<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando rede...');
             try {
                 const events = await pool.querySync(RELAYS, { kinds: [1], '#t': [GAMES_TAG], limit: 120 });
@@ -1174,11 +1203,12 @@
                     } catch { return null; }
                 }).filter(Boolean).sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
 
-                // Se houver editOf, preferir versão mais recente do mesmo autor
                 window.mergeNetworkGames?.(list);
                 window.setNetworkStatus?.(`<i class="fa-solid fa-check text-emerald-500"></i> ${list.length} jogos na rede`);
             } catch (e) {
                 console.error(e);
+                isLoadingGames = false;
+                applyFilters();
                 window.setNetworkStatus?.('<i class="fa-solid fa-triangle-exclamation text-amber-500"></i> Rede parcial');
             }
         };
