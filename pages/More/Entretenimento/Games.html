@@ -99,6 +99,22 @@
             transform: translateY(-4px);
             box-shadow: 0 12px 24px -6px rgba(124, 58, 237, 0.12);
         }
+
+        /* TikTok Style Top Tab Bar Active Indicator */
+        .tiktok-tab-active {
+            color: #7C3AED;
+            font-weight: 800;
+        }
+        .tiktok-tab-active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background-color: #7C3AED;
+            border-radius: 9999px;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col md:flex-row pb-24 md:pb-0 md:pl-64">
@@ -220,6 +236,17 @@
                         <button onclick="filterCategory('todos')" class="cat-pill active px-4 py-2 rounded-full text-xs font-bold bg-violetAccent text-white shadow-sm transition-all">Todos</button>
                         <button onclick="filterCategory('web')" class="cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 transition-all">Jogos Web</button>
                         <button onclick="filterCategory('console')" class="cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 transition-all">Console Cloud</button>
+                    </div>
+                </div>
+
+                <!-- SECONDARY TIKTOK-STYLE CONSOLE TOP TAB BAR (ONLY VISIBLE WHEN CONSOLE CLOUD IS ACTIVE) -->
+                <div id="tiktok-console-bar" class="hidden overflow-x-auto no-scrollbar border-b border-slate-200/80 pb-2">
+                    <div class="flex items-center gap-8 text-xs font-semibold text-slate-500 whitespace-nowrap px-1">
+                        <button onclick="filterConsolePlatform('todos')" id="tk-console-todos" class="relative pb-2 transition-all tiktok-tab-active">Todos os Consoles</button>
+                        <button onclick="filterConsolePlatform('ps5')" id="tk-console-ps5" class="relative pb-2 transition-all">PlayStation 5</button>
+                        <button onclick="filterConsolePlatform('xbox')" id="tk-console-xbox" class="relative pb-2 transition-all">Xbox Series X</button>
+                        <button onclick="filterConsolePlatform('switch')" id="tk-console-switch" class="relative pb-2 transition-all">Nintendo Switch</button>
+                        <button onclick="filterConsolePlatform('retro')" id="tk-console-retro" class="relative pb-2 transition-all">Retro Cloud</button>
                     </div>
                 </div>
 
@@ -391,9 +418,9 @@
         // GAME DATABASE
         const gamesList = [
             { id: 2, title: "Pixel Runner Canvas", category: "web", type: "Jogo Web", img: "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80", plays: "98K", saved: true },
-            { id: 3, title: "Aero Strike Force", category: "console", type: "Console Cloud", img: "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=600&q=80", plays: "64K", saved: false },
+            { id: 3, title: "Aero Strike Force", category: "console", platform: "ps5", type: "Console Cloud", img: "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=600&q=80", plays: "64K", saved: false },
             { id: 4, title: "Cosmic Odyssey", category: "web", type: "Jogo Web", img: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80", plays: "82K", saved: false },
-            { id: 5, title: "Neo Rally Horizon", category: "console", type: "Console Cloud", img: "https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=600&q=80", plays: "115K", saved: true },
+            { id: 5, title: "Neo Rally Horizon", category: "console", platform: "xbox", type: "Console Cloud", img: "https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=600&q=80", plays: "115K", saved: true },
             { id: 6, title: "Shadow Dungeon", category: "web", type: "Jogo Web", img: "https://images.unsplash.com/photo-1579373903781-fd5c0c30c4cd?auto=format&fit=crop&w=600&q=80", plays: "45K", saved: false }
         ];
 
@@ -403,11 +430,13 @@
 
         let currentSlide = 0;
         let activeSection = 'jogos';
+        let activeCategoryFilter = 'todos';
+        let activeConsolePlatform = 'todos';
         let temporaryCoverUrl = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80';
 
         // INITIALIZATION
         document.addEventListener('DOMContentLoaded', () => {
-            renderGameGrid(gamesList);
+            filterCategory('todos');
             renderGameUpdatesFeed();
             updateBottomNavIndicator('jogos');
         });
@@ -498,24 +527,66 @@
             const game = gamesList.find(g => g.id === id);
             if (game) {
                 game.saved = !game.saved;
-                renderGameGrid(gamesList);
+                applyFilters();
                 triggerToast(game.saved ? 'Jogo adicionado aos Meus Games!' : 'Jogo removido dos salvos.');
             }
         }
 
-        // FILTER CATEGORIES
+        // FILTER CATEGories
         function filterCategory(cat) {
+            activeCategoryFilter = cat;
             document.querySelectorAll('.cat-pill').forEach(btn => {
                 btn.className = 'cat-pill px-4 py-2 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 transition-all';
             });
 
             event.target.className = 'cat-pill active px-4 py-2 rounded-full text-xs font-bold bg-violetAccent text-white shadow-sm transition-all';
 
-            if (cat === 'todos') {
-                renderGameGrid(gamesList);
+            const consoleBar = document.getElementById('tiktok-console-bar');
+            if (cat === 'console') {
+                consoleBar.classList.remove('hidden');
             } else {
-                renderGameGrid(gamesList.filter(g => g.category === cat));
+                consoleBar.classList.add('hidden');
+                activeConsolePlatform = 'todos';
             }
+
+            applyFilters();
+        }
+
+        // FILTER CONSOLE PLATFORM (TIKTOK STYLE TABS)
+        function filterConsolePlatform(platform) {
+            activeConsolePlatform = platform;
+            ['todos', 'ps5', 'xbox', 'switch', 'retro'].forEach(p => {
+                const btn = document.getElementById(`tk-console-${p}`);
+                if (btn) {
+                    if (p === platform) {
+                        btn.className = 'relative pb-2 transition-all tiktok-tab-active';
+                    } else {
+                        btn.className = 'relative pb-2 transition-all text-slate-500 font-semibold';
+                    }
+                }
+            });
+
+            applyFilters();
+        }
+
+        // COMBINED FILTER APPLIER
+        function applyFilters() {
+            const query = document.getElementById('game-search-input').value.toLowerCase();
+            let result = gamesList;
+
+            if (activeCategoryFilter !== 'todos') {
+                result = result.filter(g => g.category === activeCategoryFilter);
+            }
+
+            if (activeCategoryFilter === 'console' && activeConsolePlatform !== 'todos') {
+                result = result.filter(g => g.platform === activeConsolePlatform);
+            }
+
+            if (query.length > 0) {
+                result = result.filter(g => g.title.toLowerCase().includes(query) || g.type.toLowerCase().includes(query));
+            }
+
+            renderGameGrid(result);
         }
 
         // SEARCH FILTER & CLEAR BUTTON CONTROLLER
@@ -532,8 +603,7 @@
                 clearBtn.classList.add('hidden');
             }
 
-            const filtered = gamesList.filter(g => g.title.toLowerCase().includes(query) || g.type.toLowerCase().includes(query));
-            renderGameGrid(filtered);
+            applyFilters();
         }
 
         function clearSearchInput() {
@@ -687,6 +757,7 @@
                 id: Date.now(),
                 title: gameName,
                 category: category,
+                platform: 'ps5',
                 type: typeLabel,
                 img: temporaryCoverUrl,
                 plays: '0',
@@ -694,7 +765,7 @@
             };
 
             gamesList.unshift(newGame);
-            renderGameGrid(gamesList);
+            applyFilters();
 
             const newPostFeed = {
                 id: Date.now(),
