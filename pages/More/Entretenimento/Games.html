@@ -840,5 +840,68 @@
             }, 3000);
         }
     </script>
+
+    <!-- CREDENCIAIS DO USUÁRIO (mesma sessão da página de Educação / Social) -->
+    <script type="module">
+        import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+        import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+
+        window.currentUserData = {
+            pubkey: '',
+            privateKey: null,
+            nickname: 'Visitante',
+            avatarUrl: ''
+        };
+
+        function getSession() {
+            try {
+                return JSON.parse(localStorage.getItem('nostr_session') || '{}');
+            } catch {
+                return {};
+            }
+        }
+
+        function loadSessionKeys() {
+            const session = getSession();
+            if (!session.pubkey) return null;
+
+            let pubkey = session.pubkey;
+            try {
+                if (typeof pubkey === 'string' && pubkey.startsWith('npub')) {
+                    const decoded = NostrTools.nip19.decode(pubkey);
+                    if (decoded.type === 'npub') pubkey = decoded.data;
+                }
+            } catch {}
+
+            window.currentUserData.pubkey = pubkey;
+            window.currentUserData.nickname = (session.nickname || 'Usuario').replace(/^@/, '');
+            window.currentUserData.avatarUrl = session.avatarUrl || '';
+
+            if (session.privateKeyHex) {
+                try {
+                    window.currentUserData.privateKey = hexToBytes(session.privateKeyHex);
+                } catch {}
+            }
+
+            return pubkey;
+        }
+
+        window.getLoggedUserName = function () {
+            return (window.currentUserData && window.currentUserData.nickname)
+                ? window.currentUserData.nickname
+                : 'Visitante';
+        };
+
+        window.getLoggedAvatarHtml = function () {
+            const url = window.currentUserData && window.currentUserData.avatarUrl;
+            if (url) {
+                const safe = String(url).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                return `<img src="${safe}" alt="Avatar" class="w-full h-full object-cover rounded-full">`;
+            }
+            return `<i class="fa-solid fa-user text-sm"></i>`;
+        };
+
+        loadSessionKeys();
+    </script>
 </body>
 </html>
