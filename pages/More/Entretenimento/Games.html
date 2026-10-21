@@ -240,30 +240,48 @@
                         <i class="fa-solid fa-gamepad"></i>
                     </div>
                     <div>
-                        <h2 class="text-base font-bold text-slate-900">Postar Atualizações de Jogos</h2>
-                        <p class="text-xs text-slate-500">Compartilhe screenshots, novidades ou notas de atualização.</p>
+                        <h2 class="text-base font-bold text-slate-900">Publicar Novo Jogo</h2>
+                        <p class="text-xs text-slate-500">Envie o arquivo do seu jogo e escolha a categoria de plataforma.</p>
                     </div>
                 </div>
 
-                <!-- Post Composer -->
-                <div class="space-y-3 pt-2">
-                    <label class="block text-xs font-semibold text-slate-700">Selecione o Jogo</label>
-                    <select id="post-game-select" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:border-violetAccent">
-                        <option value="Pixel Runner Canvas">Pixel Runner Canvas</option>
-                        <option value="Aero Strike Force">Aero Strike Force</option>
-                        <option value="Cosmic Odyssey">Cosmic Odyssey</option>
-                    </select>
+                <!-- Post Composer Form -->
+                <div class="space-y-4 pt-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nome do Jogo</label>
+                        <input type="text" id="post-game-name" placeholder="Ex: Cyber Racing 2099" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-violetAccent">
+                    </div>
 
-                    <label class="block text-xs font-semibold text-slate-700">Detalhes & Atualizações</label>
-                    <textarea id="post-text-input" rows="4" placeholder="Escreva as novidades, dicas de gameplay ou notas de versão do jogo..." class="w-full p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-violetAccent resize-none"></textarea>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Categoria da Plataforma</label>
+                        <select id="post-game-type" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:border-violetAccent">
+                            <option value="console">Console Cloud</option>
+                            <option value="web">Web (HTML5)</option>
+                        </select>
+                    </div>
 
-                    <div class="flex items-center justify-between pt-2">
-                        <button type="button" onclick="triggerToast('Imagem do jogo anexada com sucesso!')" class="text-xs text-slate-500 hover:text-violetAccent flex items-center gap-2">
-                            <i class="fa-solid fa-image text-sm"></i>
-                            <span>Anexar Captura</span>
-                        </button>
-                        <button type="button" onclick="submitGamePost()" class="px-5 py-2 rounded-full bg-violetAccent text-white font-bold text-xs shadow-md shadow-violetAccent/20 hover:bg-violet-700 transition-all">
-                            Publicar no Game Hub
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Arquivo do Jogo (.zip, .html ou ROM)</label>
+                        <div class="border-2 border-dashed border-slate-200 hover:border-violetAccent rounded-2xl p-6 text-center bg-slate-50/50 transition-all cursor-pointer relative">
+                            <input type="file" id="post-game-file" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onchange="handleFileSelection(this)">
+                            <div class="space-y-2 pointer-events-none">
+                                <div class="w-10 h-10 rounded-full bg-violetSubtle text-violetAccent flex items-center justify-center mx-auto">
+                                    <i class="fa-solid fa-cloud-arrow-up text-base"></i>
+                                </div>
+                                <p id="file-upload-label" class="text-xs font-semibold text-slate-700">Clique para selecionar ou arraste o arquivo</p>
+                                <p class="text-[10px] text-slate-400">Suporta arquivos empacotados HTML5 ou imagens de console</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Capa / Imagem de Exibição (URL)</label>
+                        <input type="text" id="post-game-img" placeholder="https://images.unsplash.com/..." class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-violetAccent">
+                    </div>
+
+                    <div class="flex items-center justify-end pt-2">
+                        <button type="button" onclick="submitGamePost()" class="w-full py-3 rounded-full bg-violetAccent text-white font-bold text-xs shadow-md shadow-violetAccent/20 hover:bg-violet-700 transition-all text-center">
+                            Publicar Jogo no Catálogo
                         </button>
                     </div>
                 </div>
@@ -610,27 +628,66 @@
             }, 2000);
         }
 
-        // SUBMIT GAME UPDATES POST
-        function submitGamePost() {
-            const gameSelect = document.getElementById('post-game-select').value;
-            const postText = document.getElementById('post-text-input').value.trim();
+        // HANDLE FILE INPUT SELECTION FEEDBACK
+        function handleFileSelection(input) {
+            if (input.files && input.files[0]) {
+                const fileName = input.files[0].name;
+                document.getElementById('file-upload-label').innerText = `Arquivo selecionado: ${fileName}`;
+            }
+        }
 
-            if (!postText) {
-                triggerToast('Por favor, digite os detalhes do post.');
+        // SUBMIT GAME POST
+        function submitGamePost() {
+            const gameName = document.getElementById('post-game-name').value.trim();
+            const gameTypeSelect = document.getElementById('post-game-type').value;
+            const gameImg = document.getElementById('post-game-img').value.trim();
+            const fileInput = document.getElementById('post-game-file');
+
+            if (!gameName) {
+                triggerToast('Por favor, informe o nome do jogo.');
                 return;
             }
 
-            const newPost = {
+            if (!fileInput.files || fileInput.files.length === 0) {
+                triggerToast('Por favor, envie o arquivo do jogo.');
+                return;
+            }
+
+            const category = gameTypeSelect;
+            const typeLabel = category === 'web' ? 'Jogo Web' : 'Console Cloud';
+            const defaultImg = gameImg || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80';
+
+            const newGame = {
                 id: Date.now(),
-                game: gameSelect,
-                text: postText,
+                title: gameName,
+                category: category,
+                type: typeLabel,
+                img: defaultImg,
+                plays: '0',
+                saved: false
+            };
+
+            gamesList.unshift(newGame);
+            renderGameGrid(gamesList);
+
+            const newPostFeed = {
+                id: Date.now(),
+                game: gameName,
+                text: `Novo jogo publicado (${typeLabel}) disponível para jogar!`,
                 date: 'Agora mesmo'
             };
 
-            gameUpdatesPosts.unshift(newPost);
+            gameUpdatesPosts.unshift(newPostFeed);
             renderGameUpdatesFeed();
-            document.getElementById('post-text-input').value = '';
-            triggerToast('Atualização publicada com sucesso!');
+
+            // Reset Form
+            document.getElementById('post-game-name').value = '';
+            document.getElementById('post-game-img').value = '';
+            fileInput.value = '';
+            document.getElementById('file-upload-label').innerText = 'Clique para selecionar ou arraste o arquivo';
+
+            triggerToast('Jogo publicado com sucesso no catálogo!');
+            switchMainSection('jogos');
         }
 
         function renderGameUpdatesFeed() {
