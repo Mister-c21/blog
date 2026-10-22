@@ -330,15 +330,14 @@
             opacity: 1;
         }
 
-        /* Modal de seleção de motor de busca */
+        /* Modal de seleção de motor de busca adaptado para o mesmo comportamento do modal de recursos */
         .engine-drawer-menu {
             position: fixed;
             bottom: -100%;
             left: 0;
-            transform: none;
             width: 100%;
             max-width: 100%;
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-top: 1px solid var(--glass-border);
@@ -348,7 +347,6 @@
             z-index: 20001;
             box-sizing: border-box;
             transition: bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-            margin-bottom: 0;
             max-height: 80vh;
             overflow-y: auto;
         }
@@ -356,16 +354,23 @@
             bottom: 0;
         }
 
-        /* Alça de arraste para o modal de motores de busca */
+        /* Alça de arraste idêntica ao modal de recursos */
         .engine-drawer-drag-handle {
             width: 45px;
             height: 5px;
             background-color: var(--primary-color);
             border-radius: 3px;
-            margin: 0 auto 12px auto;
+            margin: 0 auto 15px auto;
             display: block;
             opacity: 0.8;
+            animation: handle-pulse 2s infinite ease-in-out;
             cursor: grab;
+        }
+
+        @keyframes handle-pulse {
+            0% { transform: scaleX(1); opacity: 0.6; }
+            50% { transform: scaleX(1.15); opacity: 1; box-shadow: 0 0 8px rgba(138, 43, 226, 0.6); }
+            100% { transform: scaleX(1); opacity: 0.6; }
         }
 
         .engine-menu-option {
@@ -746,12 +751,6 @@
             display: block;
             opacity: 0.8;
             animation: handle-pulse 2s infinite ease-in-out;
-        }
-
-        @keyframes handle-pulse {
-            0% { transform: scaleX(1); opacity: 0.6; }
-            50% { transform: scaleX(1.15); opacity: 1; box-shadow: 0 0 8px rgba(138, 43, 226, 0.6); }
-            100% { transform: scaleX(1); opacity: 0.6; }
         }
 
         .recursos-modal-header-content {
@@ -1239,22 +1238,20 @@
             }
         }
 
+        const engineDrawer = document.getElementById('engine-drawer-menu');
+
         function openEngineMenu() {
-            const drawer = document.getElementById('engine-drawer-menu');
-            drawer.style.transition = 'bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
-            drawer.style.transform = '';
-            drawer.style.bottom = '0';
+            engineDrawer.style.transition = 'bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+            engineDrawer.style.bottom = '0';
             document.getElementById('engine-menu-overlay').classList.add('active');
-            drawer.classList.add('active');
+            engineDrawer.classList.add('active');
         }
 
         function closeEngineMenu() {
             document.getElementById('engine-menu-overlay').classList.remove('active');
-            const drawer = document.getElementById('engine-drawer-menu');
-            drawer.style.transition = 'bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
-            drawer.style.transform = '';
-            drawer.style.bottom = '-100%';
-            drawer.classList.remove('active');
+            engineDrawer.style.transition = 'bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+            engineDrawer.style.bottom = '-100%';
+            engineDrawer.classList.remove('active');
         }
 
         function selectEngine(value, label) {
@@ -1553,42 +1550,38 @@
             touchMoveY = 0;
         });
 
-        /* Lógica para fechar o modal de motores de busca deslizando para baixo */
-        const engineDrawer = document.getElementById('engine-drawer-menu');
+        /* Lógica idêntica ao modal de recursos para arrastar e fechar o drawer de motores de busca */
         const engineDragHandle = document.getElementById('engine-drawer-drag-handle');
         let engineTouchStartY = 0;
         let engineTouchMoveY = 0;
         let engineIsDragging = false;
 
-        engineDrawer.addEventListener('touchstart', (e) => {
-            // Permite arrastar deslizando na alça ou no cabeçalho do drawer
-            if (e.target === engineDragHandle || e.target === engineDrawer) {
-                engineTouchStartY = e.touches[0].clientY;
-                engineTouchMoveY = engineTouchStartY;
-                engineIsDragging = true;
-                engineDrawer.style.transition = 'none';
-            }
+        engineDragHandle.addEventListener('touchstart', (e) => {
+            engineTouchStartY = e.touches[0].clientY;
+            engineIsDragging = true;
+            engineDrawer.style.transition = 'none';
         }, { passive: true });
 
-        engineDrawer.addEventListener('touchmove', (e) => {
+        engineDragHandle.addEventListener('touchmove', (e) => {
             if (!engineIsDragging) return;
             engineTouchMoveY = e.touches[0].clientY;
             const deltaY = engineTouchMoveY - engineTouchStartY;
             if (deltaY > 0) {
-                engineDrawer.style.transform = `translateY(${deltaY}px)`;
+                engineDrawer.style.bottom = `${-deltaY}px`;
             }
         }, { passive: true });
 
-        engineDrawer.addEventListener('touchend', () => {
+        engineDragHandle.addEventListener('touchend', () => {
             if (!engineIsDragging) return;
             engineIsDragging = false;
             const deltaY = engineTouchMoveY - engineTouchStartY;
+            const triggerThreshold = window.innerHeight * 0.15;
             
-            if (deltaY > 70) {
+            if (deltaY > triggerThreshold) {
                 closeEngineMenu();
             } else {
-                engineDrawer.style.transition = 'transform 0.3s ease-out';
-                engineDrawer.style.transform = 'translateY(0)';
+                engineDrawer.style.transition = 'bottom 0.3s ease-out';
+                engineDrawer.style.bottom = '0px';
             }
             engineTouchStartY = 0;
             engineTouchMoveY = 0;
