@@ -330,7 +330,7 @@
             opacity: 1;
         }
 
-        /* Modal de seleção de motor de busca com largura total e bordas superiores arredondadas */
+        /* Modal de seleção de motor de busca */
         .engine-drawer-menu {
             position: fixed;
             bottom: -100%;
@@ -1240,14 +1240,19 @@
         }
 
         function openEngineMenu() {
+            const drawer = document.getElementById('engine-drawer-menu');
+            drawer.style.transition = 'bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+            drawer.style.transform = '';
+            drawer.style.bottom = '0';
             document.getElementById('engine-menu-overlay').classList.add('active');
-            document.getElementById('engine-drawer-menu').classList.add('active');
+            drawer.classList.add('active');
         }
 
         function closeEngineMenu() {
             document.getElementById('engine-menu-overlay').classList.remove('active');
             const drawer = document.getElementById('engine-drawer-menu');
             drawer.style.transition = 'bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+            drawer.style.transform = '';
             drawer.style.bottom = '-100%';
             drawer.classList.remove('active');
         }
@@ -1555,13 +1560,17 @@
         let engineTouchMoveY = 0;
         let engineIsDragging = false;
 
-        engineDragHandle.addEventListener('touchstart', (e) => {
-            engineTouchStartY = e.touches[0].clientY;
-            engineIsDragging = true;
-            engineDrawer.style.transition = 'none';
+        engineDrawer.addEventListener('touchstart', (e) => {
+            // Permite arrastar deslizando na alça ou no cabeçalho do drawer
+            if (e.target === engineDragHandle || e.target === engineDrawer) {
+                engineTouchStartY = e.touches[0].clientY;
+                engineTouchMoveY = engineTouchStartY;
+                engineIsDragging = true;
+                engineDrawer.style.transition = 'none';
+            }
         }, { passive: true });
 
-        engineDragHandle.addEventListener('touchmove', (e) => {
+        engineDrawer.addEventListener('touchmove', (e) => {
             if (!engineIsDragging) return;
             engineTouchMoveY = e.touches[0].clientY;
             const deltaY = engineTouchMoveY - engineTouchStartY;
@@ -1570,16 +1579,16 @@
             }
         }, { passive: true });
 
-        engineDragHandle.addEventListener('touchend', () => {
+        engineDrawer.addEventListener('touchend', () => {
             if (!engineIsDragging) return;
             engineIsDragging = false;
             const deltaY = engineTouchMoveY - engineTouchStartY;
-            engineDrawer.style.transform = '';
             
-            if (deltaY > 80) {
+            if (deltaY > 70) {
                 closeEngineMenu();
             } else {
-                engineDrawer.style.transition = 'bottom 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+                engineDrawer.style.transition = 'transform 0.3s ease-out';
+                engineDrawer.style.transform = 'translateY(0)';
             }
             engineTouchStartY = 0;
             engineTouchMoveY = 0;
