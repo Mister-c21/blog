@@ -915,11 +915,10 @@
                 let coverUrl = existing?.img || temporaryCoverUrl;
 
                 if (fileInput.files && fileInput.files[0]) {
-                    triggerToast('Fazendo upload do arquivo...');
-                    fileUrl = await window.uploadFileToHost(fileInput.files[0]);
+                    fileUrl = await window.uploadFileToHost(fileInput.files[0], (msg) => triggerToast(msg));
                 }
                 if (temporaryCoverFile) {
-                    coverUrl = await window.uploadFileToHost(temporaryCoverFile);
+                    coverUrl = await window.uploadFileToHost(temporaryCoverFile, (msg) => triggerToast('Capa: ' + msg));
                 } else if (temporaryCoverUrl && temporaryCoverUrl.startsWith('data:')) {
                     coverUrl = temporaryCoverUrl;
                 }
@@ -1090,40 +1089,91 @@
             return window.currentUserData?.nickname || 'Visitante';
         };
 
-        window.uploadFileToHost = async function (file) {
-            try {
-                const fd = new FormData();
-                fd.append('file[]', file);
-                const res = await fetch('https://nostr.build/api/v2/upload/files', { method: 'POST', body: fd });
-                if (res.ok) {
-                    const data = await res.json();
-                    const item = Array.isArray(data) ? data[0] : (data?.data?.[0] || data);
-                    const url = item?.url || item?.data?.url || item?.nip94_event?.tags?.find(t => t[0] === 'url')?.[1];
-                    if (url) return url;
+        window.uploadFileToHost = async function (file, onProgress) {
+            const MAX_RETRIES = 3;
+            const hosts = [
+                {
+                    name: 'nostr.build',
+                    maxBytes: 100 * 1024 * 1024,
+                    upload: async (f) => {
+                        const fd = new FormData();
+                        fd.append('file[]', f, f.name || 'file');
+                        const res = await fetch('https://nostr.build/api/v2/upload/files', { method: 'POST', body: fd });
+                        if (!res.ok) throw new Error('nostr.build HTTP ' + res.status);
+                        const data = await res.json();
+                        const item = Array.isArray(data) ? data[0] : (data?.data?.[0] || data);
+                        const url = item?.url || item?.data?.url || item?.nip94_event?.tags?.find(t => t[0] === 'url')?.[1];
+                        if (!url) throw new Error('nostr.build sem URL');
+                        return url;
+                    }
+                },
+                {
+                    name: '0x0.st',
+                    maxBytes: 512 * 1024 * 1024,
+                    upload: async (f) => {
+                        const fd = new FormData();
+                        fd.append('file', f, f.name || 'file');
+                        const res = await fetch('https://0x0.st', { method: 'POST', body: fd });
+                        if (!res.ok) throw new Error('0x0.st HTTP ' + res.status);
+                        const url = (await res.text()).trim();
+                        if (!url.startsWith('http')) throw new Error('0x0.st resposta inválida');
+                        return url;
+                    }
+                },
+                {
+                    name: 'file.io',
+                    maxBytes: 2 * 1024 * 1024 * 1024,
+                    upload: async (f) => {
+                        const fd = new FormData();
+                        fd.append('file', f, f.name || 'file');
+                        const res = await fetch('https://file.io', { method: 'POST', body: fd });
+                        if (!res.ok) throw new Error('file.io HTTP ' + res.status);
+                        const data = await res.json();
+                        if (!data.success || !data.link) throw new Error('file.io sem link');
+                        return data.link;
+                    }
                 }
-            } catch (e) { console.warn('nostr.build', e); }
+            ];
 
-            try {
-                const fd = new FormData();
-                fd.append('file', file);
-                const res = await fetch('https://0x0.st', { method: 'POST', body: fd });
-                if (res.ok) {
-                    const url = (await res.text()).trim();
-                    if (url.startsWith('http')) return url;
+            const safeFile = file instanceof File
+                ? file
+                : new File([file], file.name || 'file', { type: file.type || 'application/octet-stream' });
+
+            const size = safeFile.size;
+            const report = (msg) => {
+                if (typeof onProgress === 'function') onProgress(msg);
+                else if (typeof triggerToast === 'function') triggerToast(msg);
+            };
+
+            report(`Upload: ${(size / (1024 * 1024)).toFixed(1)} MB...`);
+
+            let lastError = null;
+            for (const host of hosts) {
+                if (size > host.maxBytes) {
+                    console.warn(host.name + ' limite menor que o arquivo, pulando');
+                    continue;
                 }
-            } catch (e) { console.warn('0x0.st', e); }
-
-            try {
-                const fd = new FormData();
-                fd.append('file', file);
-                const res = await fetch('https://file.io', { method: 'POST', body: fd });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.success && data.link) return data.link;
+                for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                    try {
+                        report(`${host.name}: tentativa ${attempt}/${MAX_RETRIES}...`);
+                        const url = await host.upload(safeFile);
+                        report('Upload concluído.');
+                        return url;
+                    } catch (e) {
+                        lastError = e;
+                        console.warn(host.name, e);
+                        if (attempt < MAX_RETRIES) {
+                            await new Promise(r => setTimeout(r, 800 * attempt));
+                        }
+                    }
                 }
-            } catch (e) { console.warn('file.io', e); }
+            }
 
-            throw new Error('Falha no upload do arquivo. Tente outro host ou arquivo menor.');
+            throw new Error(
+                lastError?.message
+                    ? `Falha no upload: ${lastError.message}. Tente arquivo menor ou outra rede.`
+                    : 'Falha no upload do arquivo. Tente outro host ou arquivo menor.'
+            );
         };
 
         window.publishGameEvent = async function (payload) {
