@@ -368,6 +368,46 @@
             color: var(--text-secondary);
         }
 
+        /* --- SKELETON LOADING --- */
+        .skeleton-card {
+            pointer-events: none;
+            cursor: default;
+        }
+
+        .skeleton-card:hover {
+            box-shadow: none;
+        }
+
+        .skeleton-line {
+            height: 14px;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #eceff1 25%, #f5f7f8 50%, #eceff1 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.2s ease-in-out infinite;
+            margin-bottom: 0.5rem;
+        }
+
+        .skeleton-line.title {
+            height: 18px;
+            width: 90%;
+        }
+
+        .skeleton-line.title.short {
+            width: 65%;
+            margin-bottom: 0.8rem;
+        }
+
+        .skeleton-line.meta {
+            height: 12px;
+            width: 40%;
+            margin-bottom: 0;
+        }
+
+        @keyframes skeleton-shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
         /* --- RESPONSIVIDADE --- */
         @media (max-width: 960px) {
             aside { display: none; }
@@ -520,10 +560,9 @@
                 voiceBtn.classList.remove('recording');
             };
         } else {
-            voiceBtn.style.display = 'none'; // Oculta caso o navegador não suporte
+            voiceBtn.style.display = 'none';
         }
 
-        // Renderiza a lista de motores dinamicamente com base na aba (Brasil / Internacional)
         function renderEngineList(region) {
             engineList.innerHTML = '';
             const list = enginesData[region] || [];
@@ -545,7 +584,6 @@
                     selectedEngineUrl = engine.url;
                     selectedEngineName = engine.name;
 
-                    // Atualiza o texto do select para feedback
                     searchType.options[1].textContent = selectedEngineName;
                     enginesModal.classList.remove('active');
 
@@ -561,7 +599,6 @@
             });
         }
 
-        // Alternar abas do modal (Brasil vs Internacional) estilo TikTok
         modalTabItems.forEach(tab => {
             tab.addEventListener('click', () => {
                 modalTabItems.forEach(t => t.classList.remove('active'));
@@ -571,7 +608,6 @@
             });
         });
 
-        // Ao alterar o seletor para "Outros", abre o modal
         searchType.addEventListener('change', () => {
             if (searchType.value === 'outros') {
                 enginesModal.classList.add('active');
@@ -583,7 +619,6 @@
             }
         });
 
-        // Fechar o modal caso haja clique fora da barra de busca
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.search-bar')) {
                 enginesModal.classList.remove('active');
@@ -609,7 +644,6 @@
             }
         }
 
-        // Execução da busca pelo botão ou Enter
         function handleSearchTrigger() {
             if (searchType.value === 'outros') {
                 const query = searchInput.value.trim();
@@ -634,7 +668,6 @@
             }
         });
 
-        // Função unificada para atualizar a categoria ativa em ambos os menus (topo e sidebar)
         function changeTopic(topic) {
             if (topic.toLowerCase() === 'esportes') {
                 window.location.href = esportesUrl;
@@ -646,7 +679,6 @@
             enginesModal.classList.remove('active');
             toggleClearButton();
 
-            // Atualiza Topo
             topTabItems.forEach(tab => {
                 if (tab.getAttribute('data-topic') === topic) {
                     tab.classList.add('active');
@@ -655,7 +687,6 @@
                 }
             });
 
-            // Atualiza Sidebar
             sidebarItems.forEach(item => {
                 if (item.getAttribute('data-topic') === topic) {
                     item.classList.add('active');
@@ -667,7 +698,6 @@
             fetchNews(currentTopic);
         }
 
-        // Eventos de clique no Top Tabbar
         topTabItems.forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -675,7 +705,6 @@
             });
         });
 
-        // Eventos de clique na Sidebar
         sidebarItems.forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -683,7 +712,6 @@
             });
         });
 
-        // Função para calcular o tempo decorrido
         function timeAgo(dateString) {
             const date = new Date(dateString);
             const now = new Date();
@@ -703,16 +731,38 @@
             }
         }
 
-        // Função para buscar notícias usando o RSS público do Google News via rss2json
+        // Skeleton loading
+        function showSkeleton(count = 6) {
+            newsGrid.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+                const card = document.createElement('div');
+                card.className = 'news-card skeleton-card';
+                card.innerHTML = `
+                    <div class="card-content">
+                        <div class="skeleton-line title"></div>
+                        <div class="skeleton-line title short"></div>
+                        <div class="skeleton-line meta"></div>
+                    </div>
+                `;
+                newsGrid.appendChild(card);
+            }
+        }
+
+        // Busca com proxy CORS (AllOrigins) para evitar bloqueio do navegador
         async function fetchNews(query = 'Brasil') {
-            newsGrid.innerHTML = '<p style="padding: 1rem;">Carregando notícias...</p>';
+            showSkeleton();
 
             const googleNewsRss = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
-            const endpoint = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(googleNewsRss)}`;
+            const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(googleNewsRss)}`;
+            // Proxy CORS: AllOrigins devolve a resposta como JSON { contents: "..." }
+            const endpoint = `https://api.allorigins.win/get?url=${encodeURIComponent(rss2jsonUrl)}`;
 
             try {
                 const response = await fetch(endpoint);
-                const data = await response.json();
+                if (!response.ok) throw new Error('Falha na rede');
+
+                const proxyData = await response.json();
+                const data = JSON.parse(proxyData.contents);
 
                 if (data.status === 'ok' && data.items && data.items.length > 0) {
                     const articles = data.items.map(item => ({
@@ -730,7 +780,6 @@
             }
         }
 
-        // Renderização dos cards de notícia na grid
         function renderNews(articles) {
             newsGrid.innerHTML = '';
             
@@ -758,7 +807,6 @@
             });
         }
 
-        // Funcionalidade do botão de limpar e pesquisa por texto
         function toggleClearButton() {
             clearBtn.style.display = searchInput.value.trim().length > 0 ? 'flex' : 'none';
         }
