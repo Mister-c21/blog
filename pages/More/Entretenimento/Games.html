@@ -94,7 +94,7 @@
             background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
             background-size: 200% 100%;
             animation: skeleton-shimmer 1.4s ease-in-out infinite;
-            border-radius: 0.75rem;
+            border-radius:.75rem;
         }
     </style>
 </head>
@@ -232,7 +232,7 @@
                     </div>
                     <div>
                         <h2 class="text-base font-bold text-slate-900" id="post-form-title">Publicar Novo Jogo</h2>
-                        <p class="text-xs text-slate-500">Arquivo enviado à rede e listado no catálogo global.</p>
+                        <p class="text-xs text-slate-500">Arquivos grandes são fatiados e reconstruídos sem perda (Nostr + Blossom).</p>
                     </div>
                 </div>
                 <input type="hidden" id="edit-game-event-id" value="">
@@ -279,7 +279,7 @@
                                     <i class="fa-solid fa-cloud-arrow-up text-base"></i>
                                 </div>
                                 <p id="file-upload-label" class="text-xs font-semibold text-slate-700">Clique para selecionar ou arraste o arquivo</p>
-                                <p class="text-[10px] text-slate-400">HTML5 / ZIP para web · ROM para console</p>
+                                <p class="text-[10px] text-slate-400">HTML5 / ZIP para web · ROM para console · grandes fatiados automaticamente</p>
                             </div>
                         </div>
                         <p id="edit-keep-file-hint" class="hidden text-[10px] text-slate-400 mt-1">Deixe em branco para manter o arquivo atual na edição.</p>
@@ -338,7 +338,6 @@
         </button>
     </nav>
 
-    <!-- WEB GAME MODAL -->
     <div id="web-game-modal" class="fixed inset-0 bg-slate-950 z-[100] hidden w-screen h-screen flex flex-col">
         <div class="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
             <span id="web-game-title" class="pointer-events-none text-white text-xs font-bold bg-black/50 px-3 py-1.5 rounded-full backdrop-blur"></span>
@@ -350,7 +349,6 @@
         <canvas id="game-canvas" width="800" height="400" class="hidden w-full h-full object-contain bg-slate-950"></canvas>
     </div>
 
-    <!-- CONSOLE EMULATOR MODAL -->
     <div id="cloud-modal" class="fixed inset-0 bg-black z-[100] hidden w-screen h-screen flex flex-col">
         <div class="absolute top-3 left-3 right-3 z-30 flex items-center justify-between">
             <span id="console-game-title" class="text-white text-xs font-bold bg-black/50 px-3 py-1.5 rounded-full backdrop-blur"></span>
@@ -391,27 +389,15 @@
         let canvasInterval = null;
         let ejsScriptLoading = false;
         let isLoadingGames = true;
+        let activeBlobUrls = [];
 
         const consolePlatformsList = ['todos', 'gba', 'ps1', 'ps2', 'snes', 'nes', 'nds', '3ds', 'master-system', 'mega-drive', 'sega-saturn', 'dreamcast', 'game-gear', 'mame', 'neo-geo', 'cps1', 'cps2', 'cps3'];
 
         const EJS_CORE_MAP = {
-            'gba': 'gba',
-            'nes': 'nes',
-            'snes': 'snes',
-            'nds': 'nds',
-            '3ds': '3ds',
-            'ps1': 'psx',
-            'ps2': 'psx',
-            'master-system': 'segaMS',
-            'mega-drive': 'segaMD',
-            'sega-saturn': 'segaSaturn',
-            'dreamcast': 'dreamcast',
-            'game-gear': 'segaGG',
-            'mame': 'arcade',
-            'neo-geo': 'arcade',
-            'cps1': 'arcade',
-            'cps2': 'arcade',
-            'cps3': 'arcade'
+            'gba': 'gba', 'nes': 'nes', 'snes': 'snes', 'nds': 'nds', '3ds': '3ds',
+            'ps1': 'psx', 'ps2': 'psx', 'master-system': 'segaMS', 'mega-drive': 'segaMD',
+            'sega-saturn': 'segaSaturn', 'dreamcast': 'dreamcast', 'game-gear': 'segaGG',
+            'mame': 'arcade', 'neo-geo': 'arcade', 'cps1': 'arcade', 'cps2': 'arcade', 'cps3': 'arcade'
         };
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -436,11 +422,7 @@
             document.getElementById('section-postar').classList.toggle('hidden', section !== 'postar');
             document.getElementById('section-meus')?.classList.toggle('hidden', section !== 'meus');
 
-            const map = {
-                jogos: 'dt-nav-jogos',
-                postar: 'dt-nav-postar',
-                meus: 'dt-nav-meus'
-            };
+            const map = { jogos: 'dt-nav-jogos', postar: 'dt-nav-postar', meus: 'dt-nav-meus' };
             Object.entries(map).forEach(([key, id]) => {
                 const el = document.getElementById(id);
                 if (!el) return;
@@ -480,6 +462,10 @@
 
         function isSaved(game) {
             return savedGameIds.has(String(game.id)) || !!game.saved;
+        }
+
+        function isChunkedGame(game) {
+            return !!(game && game.chunked && Array.isArray(game.chunks) && game.chunks.length > 0);
         }
 
         function renderSkeletonGrid(targetId = 'game-grid', count = 8) {
@@ -530,7 +516,7 @@
                     </div>
                     <div class="space-y-2">
                         <h3 class="font-bold text-xs sm:text-sm text-slate-900 line-clamp-1">${escapeHtml(game.title)}</h3>
-                        <p class="text-[10px] text-slate-400 line-clamp-1">${escapeHtml(game.author || 'Rede')}${game.platform && game.category === 'console' ? ' · ' + escapeHtml(game.platform).toUpperCase() : ''}</p>
+                        <p class="text-[10px] text-slate-400 line-clamp-1">${escapeHtml(game.author || 'Rede')}${game.platform && game.category === 'console' ? ' · ' + escapeHtml(game.platform).toUpperCase() : ''}${isChunkedGame(game) ? ' · ' + game.chunks.length + ' partes' : ''}</p>
                         <div class="flex items-center justify-between pt-1 gap-1">
                             <span class="text-[10px] text-slate-400 font-medium">
                                 <i class="fa-solid fa-play text-[9px] mr-1"></i>${escapeHtml(game.plays || '0')}
@@ -551,14 +537,11 @@
             const sid = String(id);
             if (savedGameIds.has(sid)) savedGameIds.delete(sid);
             else savedGameIds.add(sid);
-
             const game = gamesList.find(g => String(g.id) === sid);
             if (game) game.saved = savedGameIds.has(sid);
-
             applyFilters();
             if (activeSection === 'meus') renderMeusGames();
             triggerToast(savedGameIds.has(sid) ? 'Jogo salvo na sua lista (rede)!' : 'Jogo removido dos salvos.');
-
             if (typeof window.publishSavedList === 'function') {
                 await window.publishSavedList([...savedGameIds]);
             }
@@ -656,12 +639,7 @@
         }
 
         function renderMeusGames() {
-            let list = [];
-            if (activeMeusTab === 'salvos') {
-                list = gamesList.filter(g => isSaved(g));
-            } else {
-                list = gamesList.filter(g => isMine(g));
-            }
+            let list = activeMeusTab === 'salvos' ? gamesList.filter(g => isSaved(g)) : gamesList.filter(g => isMine(g));
             const empty = document.getElementById('meus-empty');
             if (!list.length) {
                 document.getElementById('meus-game-grid').innerHTML = '';
@@ -676,6 +654,11 @@
             return gamesList.find(g => String(g.id) === String(id));
         }
 
+        function revokeActiveBlobs() {
+            activeBlobUrls.forEach(u => { try { URL.revokeObjectURL(u); } catch {} });
+            activeBlobUrls = [];
+        }
+
         function launchDemoCanvas() {
             document.getElementById('web-game-modal').classList.remove('hidden');
             document.getElementById('web-game-title').innerText = 'Pixel Runner Canvas';
@@ -684,7 +667,15 @@
             initCanvasRunner();
         }
 
-        function launchWebGameById(id) {
+        async function resolvePlayableUrl(game, statusCb) {
+            if (!game) return null;
+            if (typeof window.resolveGameFileUrl === 'function') {
+                return window.resolveGameFileUrl(game, statusCb);
+            }
+            return game.fileUrl || null;
+        }
+
+        async function launchWebGameById(id) {
             const game = findGame(id);
             if (!game) return;
             document.getElementById('web-game-modal').classList.remove('hidden');
@@ -692,16 +683,22 @@
             const frame = document.getElementById('web-game-frame');
             const canvas = document.getElementById('game-canvas');
 
-            if (game.fileUrl) {
-                canvas.classList.add('hidden');
-                if (canvasInterval) clearInterval(canvasInterval);
-                frame.classList.remove('hidden');
-                frame.src = game.fileUrl;
-            } else {
-                frame.classList.add('hidden');
-                frame.src = '';
-                canvas.classList.remove('hidden');
-                initCanvasRunner();
+            try {
+                const url = await resolvePlayableUrl(game, (m) => triggerToast(m));
+                if (url) {
+                    canvas.classList.add('hidden');
+                    if (canvasInterval) clearInterval(canvasInterval);
+                    frame.classList.remove('hidden');
+                    frame.src = url;
+                } else {
+                    frame.classList.add('hidden');
+                    frame.src = '';
+                    canvas.classList.remove('hidden');
+                    initCanvasRunner();
+                }
+            } catch (e) {
+                console.error(e);
+                triggerToast(e.message || 'Falha ao carregar arquivo do jogo.');
             }
         }
 
@@ -712,6 +709,7 @@
             frame.classList.add('hidden');
             if (canvasInterval) clearInterval(canvasInterval);
             document.getElementById('game-canvas').classList.add('hidden');
+            revokeActiveBlobs();
         }
 
         function initCanvasRunner() {
@@ -760,21 +758,24 @@
             player.innerHTML = '';
             document.getElementById('cloud-status-text').innerText = 'Preparando emulação...';
 
-            if (!game.fileUrl) {
-                document.getElementById('cloud-status-text').innerText = 'Este jogo não possui arquivo/ROM na rede.';
-                return;
-            }
-
-            const core = EJS_CORE_MAP[game.platform] || 'nes';
-            document.getElementById('cloud-status-text').innerText = `Carregando core ${core}...`;
-
             try {
-                await loadEmulatorJS(game.fileUrl, core, game.title);
+                const romUrl = await resolvePlayableUrl(game, (m) => {
+                    document.getElementById('cloud-status-text').innerText = m;
+                });
+                if (!romUrl) {
+                    document.getElementById('cloud-status-text').innerText = 'Este jogo não possui arquivo/ROM na rede.';
+                    return;
+                }
+
+                const core = EJS_CORE_MAP[game.platform] || 'nes';
+                document.getElementById('cloud-status-text').innerText = `Carregando core ${core}...`;
+
+                await loadEmulatorJS(romUrl, core, game.title);
                 status.classList.add('hidden');
                 player.classList.remove('hidden');
             } catch (e) {
                 console.error(e);
-                document.getElementById('cloud-status-text').innerText = 'Falha ao iniciar emulação. Verifique o arquivo/ROM e a plataforma.';
+                document.getElementById('cloud-status-text').innerText = e.message || 'Falha ao iniciar emulação. Verifique o arquivo/ROM e a plataforma.';
             }
         }
 
@@ -811,6 +812,7 @@
             player.innerHTML = '';
             player.classList.add('hidden');
             document.getElementById('cloud-status-container').classList.remove('hidden');
+            revokeActiveBlobs();
             try {
                 ['EJS_player','EJS_core','EJS_gameUrl','EJS_gameName','EJS_startOnLoaded'].forEach(k => { try { delete window[k]; } catch {} });
             } catch {}
@@ -825,7 +827,9 @@
 
         function handleFileSelection(input) {
             if (input.files && input.files[0]) {
-                document.getElementById('file-upload-label').innerText = `Arquivo selecionado: ${input.files[0].name}`;
+                const f = input.files[0];
+                const mb = (f.size / (1024 * 1024)).toFixed(1);
+                document.getElementById('file-upload-label').innerText = `Arquivo: ${f.name} (${mb} MB)`;
             }
         }
 
@@ -859,7 +863,7 @@
             document.getElementById('submit-game-btn').innerText = 'Salvar alterações na rede';
             document.getElementById('cancel-edit-btn').classList.remove('hidden');
             document.getElementById('edit-keep-file-hint').classList.remove('hidden');
-            document.getElementById('file-upload-label').innerText = game.fileUrl ? 'Manter arquivo atual (ou envie outro)' : 'Clique para selecionar ou arraste o arquivo';
+            document.getElementById('file-upload-label').innerText = (game.fileUrl || isChunkedGame(game)) ? 'Manter arquivo atual (ou envie outro)' : 'Clique para selecionar ou arraste o arquivo';
             document.getElementById('cover-upload-label').innerText = 'Manter capa atual (ou envie outra)';
             switchMainSection('postar');
         }
@@ -913,17 +917,38 @@
             try {
                 let fileUrl = existing?.fileUrl || null;
                 let coverUrl = existing?.img || temporaryCoverUrl;
+                let chunked = existing?.chunked || false;
+                let chunks = existing?.chunks || null;
+                let fileSize = existing?.fileSize || null;
+                let fileSha256 = existing?.fileSha256 || null;
+                let mime = existing?.mime || null;
 
                 if (fileInput.files && fileInput.files[0]) {
-                    fileUrl = await window.uploadFileToHost(fileInput.files[0], (msg) => triggerToast(msg));
+                    const uploadResult = await window.uploadFileToHost(fileInput.files[0], (msg) => triggerToast(msg));
+                    if (typeof uploadResult === 'string') {
+                        fileUrl = uploadResult;
+                        chunked = false;
+                        chunks = null;
+                        fileSize = fileInput.files[0].size;
+                        fileSha256 = null;
+                        mime = fileInput.files[0].type || 'application/octet-stream';
+                    } else {
+                        fileUrl = uploadResult.fileUrl;
+                        chunked = !!uploadResult.chunked;
+                        chunks = uploadResult.chunks || null;
+                        fileSize = uploadResult.fileSize;
+                        fileSha256 = uploadResult.fileSha256 || null;
+                        mime = uploadResult.mime || fileInput.files[0].type || 'application/octet-stream';
+                    }
                 }
                 if (temporaryCoverFile) {
-                    coverUrl = await window.uploadFileToHost(temporaryCoverFile, (msg) => triggerToast('Capa: ' + msg));
+                    const coverResult = await window.uploadFileToHost(temporaryCoverFile, (msg) => triggerToast('Capa: ' + msg));
+                    coverUrl = typeof coverResult === 'string' ? coverResult : coverResult.fileUrl;
                 } else if (temporaryCoverUrl && temporaryCoverUrl.startsWith('data:')) {
                     coverUrl = temporaryCoverUrl;
                 }
 
-                if (!fileUrl) throw new Error('Arquivo do jogo obrigatório.');
+                if (!fileUrl && !chunked) throw new Error('Arquivo do jogo obrigatório.');
 
                 const category = gameTypeSelect;
                 const typeLabel = category === 'web' ? 'Jogo Web' : 'Console Cloud';
@@ -936,9 +961,14 @@
                     platform: selectedPlatform,
                     typeLabel,
                     fileUrl,
-                    coverUrl: coverUrl.startsWith('data:') ? DEFAULT_COVER : coverUrl,
+                    coverUrl: (coverUrl && String(coverUrl).startsWith('data:')) ? DEFAULT_COVER : coverUrl,
                     author: window.getLoggedUserName?.() || window.currentUserData.nickname || 'Usuario',
-                    editOf: editId || null
+                    editOf: editId || null,
+                    chunked: !!chunked,
+                    chunks: chunked ? chunks : null,
+                    fileSize: fileSize || null,
+                    fileSha256: fileSha256 || null,
+                    mime: mime || null
                 };
 
                 const signed = await window.publishGameEvent(payload);
@@ -953,6 +983,11 @@
                     type: typeLabel,
                     img: payload.coverUrl,
                     fileUrl,
+                    chunked: !!chunked,
+                    chunks: chunked ? chunks : null,
+                    fileSize,
+                    fileSha256,
+                    mime,
                     plays: existing?.plays || '0',
                     saved: isSaved({ id: signed.id }) || (existing && isSaved(existing)),
                     author: payload.author,
@@ -1019,10 +1054,7 @@
             const byId = new Map();
             list.forEach(g => {
                 const id = String(g.id);
-                byId.set(id, {
-                    ...g,
-                    saved: savedGameIds.has(id)
-                });
+                byId.set(id, { ...g, saved: savedGameIds.has(id) });
             });
             gamesList = Array.from(byId.values());
             isLoadingGames = false;
@@ -1041,6 +1073,10 @@
             const el = document.getElementById('network-status');
             if (el) el.innerHTML = text;
         };
+
+        window.registerBlobUrl = function(url) {
+            if (url && String(url).startsWith('blob:')) activeBlobUrls.push(url);
+        };
     </script>
 
     <script type="module">
@@ -1056,6 +1092,17 @@
         const GAMES_TAG = 'loresocial-games';
         const SAVES_TAG = 'loresocial-games-saves';
         const pool = new NostrTools.SimplePool();
+
+        // Arquitetura de upload (Drive): limites e fatias
+        const UPLOAD_URL = 'https://nostr.build/api/v2/upload/files';
+        const MAX_FREE_BYTES = 20 * 1024 * 1024;
+        const CHUNK_SIZE = 8 * 1024 * 1024;
+        const BLOSSOM_SERVERS = [
+            'https://blossom.primal.net',
+            'https://cdn.satellite.earth',
+            'https://blossom.band',
+            'https://nostr.download'
+        ];
 
         window.currentUserData = { pubkey: '', privateKey: null, nickname: 'Visitante', avatarUrl: '' };
 
@@ -1089,91 +1136,282 @@
             return window.currentUserData?.nickname || 'Visitante';
         };
 
-        window.uploadFileToHost = async function (file, onProgress) {
-            const MAX_RETRIES = 3;
-            const hosts = [
-                {
-                    name: 'nostr.build',
-                    maxBytes: 100 * 1024 * 1024,
-                    upload: async (f) => {
-                        const fd = new FormData();
-                        fd.append('file[]', f, f.name || 'file');
-                        const res = await fetch('https://nostr.build/api/v2/upload/files', { method: 'POST', body: fd });
-                        if (!res.ok) throw new Error('nostr.build HTTP ' + res.status);
-                        const data = await res.json();
-                        const item = Array.isArray(data) ? data[0] : (data?.data?.[0] || data);
-                        const url = item?.url || item?.data?.url || item?.nip94_event?.tags?.find(t => t[0] === 'url')?.[1];
-                        if (!url) throw new Error('nostr.build sem URL');
+        async function sha256Hex(buffer) {
+            const hash = await crypto.subtle.digest('SHA-256', buffer);
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function splitBufferIntoChunks(arrayBuffer, chunkSize = CHUNK_SIZE) {
+            const bytes = new Uint8Array(arrayBuffer);
+            const chunks = [];
+            for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+                const end = Math.min(offset + chunkSize, bytes.length);
+                chunks.push(bytes.slice(offset, end).buffer);
+            }
+            return chunks;
+        }
+
+        function concatArrayBuffers(buffers) {
+            const total = buffers.reduce((sum, b) => sum + b.byteLength, 0);
+            const out = new Uint8Array(total);
+            let offset = 0;
+            for (const b of buffers) {
+                out.set(new Uint8Array(b), offset);
+                offset += b.byteLength;
+            }
+            return out.buffer;
+        }
+
+        async function createNip98AuthHeader(url, method, privateKeyBytes) {
+            const signed = NostrTools.finalizeEvent({
+                kind: 27235,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [['u', url], ['method', method.toUpperCase()]],
+                content: ''
+            }, privateKeyBytes);
+            return 'Nostr ' + btoa(unescape(encodeURIComponent(JSON.stringify(signed))));
+        }
+
+        async function createBlossomAuthHeader(fileSha256, privateKeyBytes) {
+            const now = Math.floor(Date.now() / 1000);
+            const signed = NostrTools.finalizeEvent({
+                kind: 24242,
+                created_at: now,
+                tags: [['t', 'upload'], ['x', fileSha256], ['expiration', String(now + 120)]],
+                content: ''
+            }, privateKeyBytes);
+            return 'Nostr ' + btoa(unescape(encodeURIComponent(JSON.stringify(signed))));
+        }
+
+        function extractUploadUrl(data) {
+            if (!data) return '';
+            if (data.status === 'success' && Array.isArray(data.data) && data.data[0]) {
+                return data.data[0].url || data.data[0].download_url || '';
+            }
+            if (data.url) return data.url;
+            if (data.nip94_event && Array.isArray(data.nip94_event.tags)) {
+                const urlTag = data.nip94_event.tags.find(t => t[0] === 'url');
+                if (urlTag && urlTag[1]) return urlTag[1];
+            }
+            if (Array.isArray(data.data) && data.data[0] && data.data[0].url) return data.data[0].url;
+            const item = Array.isArray(data) ? data[0] : data;
+            return item?.url || item?.data?.url || '';
+        }
+
+        async function uploadViaBlossom(arrayBuffer, privateKeyBytes) {
+            const hash = await sha256Hex(arrayBuffer);
+            const auth = privateKeyBytes ? await createBlossomAuthHeader(hash, privateKeyBytes) : null;
+            const errors = [];
+            for (const base of BLOSSOM_SERVERS) {
+                try {
+                    const endpoint = base.replace(/\/$/, '') + '/upload';
+                    const headers = { 'Content-Type': 'application/octet-stream' };
+                    if (auth) headers['Authorization'] = auth;
+                    const res = await fetch(endpoint, { method: 'PUT', headers, body: arrayBuffer });
+                    const text = await res.text();
+                    let data = null;
+                    try { data = JSON.parse(text); } catch (_) {}
+                    if (res.ok) {
+                        let url = (data && (data.url || '')) || '';
+                        if (!url && data?.nip94_event?.tags) {
+                            const t = data.nip94_event.tags.find(x => x[0] === 'url');
+                            if (t) url = t[1];
+                        }
+                        if (!url) url = base.replace(/\/$/, '') + '/' + hash;
                         return url;
                     }
-                },
-                {
-                    name: '0x0.st',
-                    maxBytes: 512 * 1024 * 1024,
-                    upload: async (f) => {
-                        const fd = new FormData();
-                        fd.append('file', f, f.name || 'file');
-                        const res = await fetch('https://0x0.st', { method: 'POST', body: fd });
-                        if (!res.ok) throw new Error('0x0.st HTTP ' + res.status);
-                        const url = (await res.text()).trim();
-                        if (!url.startsWith('http')) throw new Error('0x0.st resposta inválida');
-                        return url;
-                    }
-                },
-                {
-                    name: 'file.io',
-                    maxBytes: 2 * 1024 * 1024 * 1024,
-                    upload: async (f) => {
-                        const fd = new FormData();
-                        fd.append('file', f, f.name || 'file');
-                        const res = await fetch('https://file.io', { method: 'POST', body: fd });
-                        if (!res.ok) throw new Error('file.io HTTP ' + res.status);
-                        const data = await res.json();
-                        if (!data.success || !data.link) throw new Error('file.io sem link');
-                        return data.link;
-                    }
+                    errors.push(base + ': ' + ((data && data.message) || (res.status + ' ' + text.slice(0, 80))));
+                } catch (e) {
+                    errors.push(base + ': ' + (e.message || e));
                 }
-            ];
+            }
+            throw new Error('Blossom falhou: ' + errors.join(' | '));
+        }
 
-            const safeFile = file instanceof File
-                ? file
-                : new File([file], file.name || 'file', { type: file.type || 'application/octet-stream' });
+        async function uploadSingleBuffer(buf, baseName, privateKeyBytes) {
+            let fileUrl = '';
+            let backend = '';
 
-            const size = safeFile.size;
+            // 1) nostr.build (NIP-98 se logado)
+            try {
+                const file = new File(
+                    [buf],
+                    (baseName.replace(/\.[^.]+$/, '') || 'file') + (baseName.includes('.') ? baseName.slice(baseName.lastIndexOf('.')) : '.bin'),
+                    { type: 'application/octet-stream' }
+                );
+                const formData = new FormData();
+                formData.append('fileToUpload', file);
+                formData.append('file[]', file);
+                const headers = {};
+                if (privateKeyBytes) {
+                    headers['Authorization'] = await createNip98AuthHeader(UPLOAD_URL, 'POST', privateKeyBytes);
+                }
+                const response = await fetch(UPLOAD_URL, { method: 'POST', headers, body: formData });
+                const text = await response.text();
+                let data = null;
+                try { data = JSON.parse(text); } catch (_) {}
+                if (response.ok && data && data.status !== 'error') {
+                    fileUrl = extractUploadUrl(data);
+                    if (fileUrl) backend = 'nostr.build';
+                }
+            } catch (e) { console.warn('nostr.build', e); }
+
+            // 2) Blossom
+            if (!fileUrl) {
+                try {
+                    fileUrl = await uploadViaBlossom(buf, privateKeyBytes);
+                    backend = 'blossom';
+                } catch (e) { console.warn('Blossom', e); }
+            }
+
+            // 3) 0x0.st
+            if (!fileUrl) {
+                try {
+                    const fd = new FormData();
+                    fd.append('file', new Blob([buf]), baseName || 'file.bin');
+                    const res = await fetch('https://0x0.st', { method: 'POST', body: fd });
+                    if (res.ok) {
+                        const url = (await res.text()).trim();
+                        if (url.startsWith('http')) { fileUrl = url; backend = '0x0.st'; }
+                    }
+                } catch (e) { console.warn('0x0.st', e); }
+            }
+
+            // 4) file.io
+            if (!fileUrl) {
+                try {
+                    const fd = new FormData();
+                    fd.append('file', new Blob([buf]), baseName || 'file.bin');
+                    const res = await fetch('https://file.io', { method: 'POST', body: fd });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.success && data.link) { fileUrl = data.link; backend = 'file.io'; }
+                    }
+                } catch (e) { console.warn('file.io', e); }
+            }
+
+            if (!fileUrl) throw new Error('Falha no upload do arquivo. Tente outro host ou arquivo menor.');
+            return { url: fileUrl, backend };
+        }
+
+        /**
+         * Upload no estilo Drive:
+         * - arquivo pequeno: 1 upload
+         * - arquivo grande: fatias de 8MB + metadados de integridade
+         * Retorna string (URL) ou objeto { fileUrl, chunked, chunks, fileSize, fileSha256, mime, backend }
+         */
+        window.uploadFileToHost = async function (file, onProgress) {
             const report = (msg) => {
                 if (typeof onProgress === 'function') onProgress(msg);
                 else if (typeof triggerToast === 'function') triggerToast(msg);
             };
 
-            report(`Upload: ${(size / (1024 * 1024)).toFixed(1)} MB...`);
+            const safeFile = file instanceof File
+                ? file
+                : new File([file], file.name || 'file', { type: file.type || 'application/octet-stream' });
 
-            let lastError = null;
-            for (const host of hosts) {
-                if (size > host.maxBytes) {
-                    console.warn(host.name + ' limite menor que o arquivo, pulando');
-                    continue;
+            const buf = await safeFile.arrayBuffer();
+            const fileSha256 = await sha256Hex(buf);
+            const fileSize = buf.byteLength;
+            const mime = safeFile.type || 'application/octet-stream';
+            const pk = window.currentUserData?.privateKey || null;
+
+            report(`Preparando ${(fileSize / (1024 * 1024)).toFixed(1)} MB...`);
+
+            // Grande → fatiar (igual Drive)
+            if (fileSize > MAX_FREE_BYTES) {
+                const parts = splitBufferIntoChunks(buf, CHUNK_SIZE);
+                const totalParts = parts.length;
+                report(`Arquivo grande: enviando ${totalParts} fatia(s)...`);
+
+                const chunkMeta = [];
+                let backend = 'cloud';
+
+                for (let i = 0; i < totalParts; i++) {
+                    report(`Enviando fatia ${i + 1}/${totalParts}...`);
+                    const { url, backend: b } = await uploadSingleBuffer(
+                        parts[i],
+                        `${safeFile.name}.part${String(i).padStart(4, '0')}`,
+                        pk
+                    );
+                    backend = b || backend;
+                    chunkMeta.push({
+                        url,
+                        index: i,
+                        size: parts[i].byteLength
+                    });
                 }
-                for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-                    try {
-                        report(`${host.name}: tentativa ${attempt}/${MAX_RETRIES}...`);
-                        const url = await host.upload(safeFile);
-                        report('Upload concluído.');
-                        return url;
-                    } catch (e) {
-                        lastError = e;
-                        console.warn(host.name, e);
-                        if (attempt < MAX_RETRIES) {
-                            await new Promise(r => setTimeout(r, 800 * attempt));
-                        }
-                    }
-                }
+
+                report(`Upload concluído (${totalParts} partes).`);
+                return {
+                    fileUrl: chunkMeta[0] ? chunkMeta[0].url : '',
+                    chunked: true,
+                    chunks: chunkMeta,
+                    fileSize,
+                    fileSha256,
+                    mime,
+                    backend
+                };
             }
 
-            throw new Error(
-                lastError?.message
-                    ? `Falha no upload: ${lastError.message}. Tente arquivo menor ou outra rede.`
-                    : 'Falha no upload do arquivo. Tente outro host ou arquivo menor.'
-            );
+            // Pequeno → upload único
+            report('Enviando arquivo...');
+            const { url, backend } = await uploadSingleBuffer(buf, safeFile.name, pk);
+            report('Upload concluído.');
+            return {
+                fileUrl: url,
+                chunked: false,
+                chunks: null,
+                fileSize,
+                fileSha256,
+                mime,
+                backend
+            };
+        };
+
+        /**
+         * Reconstrói arquivo fatiado (integridade por tamanho e SHA-256) e devolve URL jogável (blob: ou http).
+         */
+        window.resolveGameFileUrl = async function (game, statusCb) {
+            const report = (m) => { if (typeof statusCb === 'function') statusCb(m); };
+
+            if (!game) return null;
+
+            const isChunked = !!(game.chunked && Array.isArray(game.chunks) && game.chunks.length > 0);
+            if (!isChunked) {
+                return game.fileUrl || null;
+            }
+
+            const sorted = [...game.chunks].sort((a, b) => (a.index || 0) - (b.index || 0));
+            const parts = [];
+            for (let i = 0; i < sorted.length; i++) {
+                const ch = sorted[i];
+                report(`Reconstruindo fatia ${i + 1}/${sorted.length}...`);
+                const res = await fetch(ch.url);
+                if (!res.ok) throw new Error('Falha ao baixar fatia ' + (ch.index ?? i));
+                const partBuf = await res.arrayBuffer();
+                if (ch.size != null && partBuf.byteLength !== ch.size) {
+                    throw new Error(`Integridade da fatia ${ch.index ?? i}: tamanho ${partBuf.byteLength} ≠ ${ch.size}`);
+                }
+                parts.push(partBuf);
+            }
+
+            const combined = concatArrayBuffers(parts);
+            if (game.fileSha256) {
+                const hash = await sha256Hex(combined);
+                if (hash !== game.fileSha256) {
+                    throw new Error('Integridade falhou: hash do arquivo fatiado não confere.');
+                }
+            }
+            if (game.fileSize != null && combined.byteLength !== game.fileSize) {
+                throw new Error(`Integridade falhou: tamanho total ${combined.byteLength} ≠ ${game.fileSize}`);
+            }
+
+            const blob = new Blob([combined], { type: game.mime || 'application/octet-stream' });
+            const objectUrl = URL.createObjectURL(blob);
+            if (typeof window.registerBlobUrl === 'function') window.registerBlobUrl(objectUrl);
+            report('Arquivo reconstruído.');
+            return objectUrl;
         };
 
         window.publishGameEvent = async function (payload) {
@@ -1186,6 +1424,7 @@
             if (payload.fileUrl) tags.push(['url', payload.fileUrl]);
             if (payload.coverUrl) tags.push(['image', payload.coverUrl]);
             if (payload.editOf) tags.push(['e', payload.editOf]);
+            if (payload.chunked) tags.push(['chunked', '1']);
 
             const eventTemplate = {
                 kind: 1,
@@ -1243,6 +1482,11 @@
                             type: data.typeLabel || (data.category === 'web' ? 'Jogo Web' : 'Console Cloud'),
                             img: data.coverUrl || DEFAULT_COVER,
                             fileUrl: data.fileUrl || null,
+                            chunked: !!data.chunked,
+                            chunks: Array.isArray(data.chunks) ? data.chunks : null,
+                            fileSize: data.fileSize || null,
+                            fileSha256: data.fileSha256 || null,
+                            mime: data.mime || null,
                             plays: '0',
                             saved: false,
                             author: data.author || 'Rede',
@@ -1287,4 +1531,4 @@
         window.fetchMySaves();
     </script>
 </body>
-</html>
+ </html>
