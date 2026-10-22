@@ -244,6 +244,57 @@
     }
 
     /* ==========================================================================
+       ESTILOS DO SKELETON LOADING (SHIMMER)
+       ========================================================================== */
+    .skeleton-item {
+      pointer-events: none;
+    }
+
+    .skeleton-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: #f3f4f6;
+    }
+
+    .skeleton-line {
+      height: 14px;
+      border-radius: 6px;
+      background: #f3f4f6;
+      margin-bottom: 8px;
+    }
+
+    .skeleton-title {
+      width: 40%;
+      height: 16px;
+    }
+
+    .skeleton-text {
+      width: 90%;
+    }
+
+    .skeleton-text.short {
+      width: 60%;
+      margin-bottom: 0;
+    }
+
+    .skeleton-animated {
+      background: linear-gradient(90deg, #f3f4f6 25%, #ede9fe 50%, #f3f4f6 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer 1.5s infinite;
+    }
+
+    @keyframes skeleton-shimmer {
+      0% {
+        background-position: 200% 0;
+      }
+      100% {
+        background-position: -200% 0;
+      }
+    }
+
+    /* ==========================================================================
        ESTILOS DO MODAL (ESTRUTURA DE TELA CHEIA E RESPONSIVIDADE)
        ========================================================================== */
     
@@ -716,7 +767,7 @@
 
   <main class="content-container">
     <ul id="contactList" class="contact-list"></ul>
-    <div id="loadingState" class="loading">Carregando artigos...</div>
+    <div id="loadingState" class="loading" style="display: none;">Carregando artigos...</div>
   </main>
 
   <div id="articleModal" class="modal-overlay" aria-hidden="true">
@@ -757,6 +808,24 @@
     let displayArticles = [];       // Artigos atualmente sendo exibidos
     let searchDebounceTimeout = null;
 
+    // Função para renderizar Skeleton Loaders na lista
+    function renderSkeleton(count = 6) {
+      contactList.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const li = document.createElement('li');
+        li.className = 'contact-item skeleton-item';
+        li.innerHTML = `
+          <div class="skeleton-avatar skeleton-animated"></div>
+          <div class="contact-info">
+            <div class="skeleton-line skeleton-title skeleton-animated"></div>
+            <div class="skeleton-line skeleton-text skeleton-animated"></div>
+            <div class="skeleton-line skeleton-text short skeleton-animated"></div>
+          </div>
+        `;
+        contactList.appendChild(li);
+      }
+    }
+
     // Redireciona qualquer clique em link interno do modal para a Wikipédia em outra aba
     modalBody.addEventListener('click', (e) => {
       const anchor = e.target.closest('a');
@@ -791,17 +860,14 @@
 
     // Função para buscar artigos na Wikipédia através da API REST pública
     async function fetchWikipediaArticles(searchTerm, isDirectSearch = false) {
-      contactList.innerHTML = '';
-      loadingState.style.display = 'block';
-      loadingState.textContent = isDirectSearch ? `Buscando "${searchTerm}" na Wikipédia...` : 'Carregando artigos da Wikipédia...';
+      renderSkeleton(6);
+      loadingState.style.display = 'none';
 
       const url = `https://pt.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(searchTerm)}&gsrlimit=48&prop=pageimages|extracts&piprop=thumbnail&pithumbsize=120&exintro=1&explaintext=1&exchars=140`;
 
       try {
         const response = await fetch(url);
         const data = await response.json();
-
-        loadingState.style.display = 'none';
 
         if (data.query && data.query.pages) {
           const results = Object.values(data.query.pages);
@@ -817,7 +883,7 @@
           contactList.innerHTML = '<div class="empty-msg">Nenhum artigo encontrado na Wikipédia.</div>';
         }
       } catch (error) {
-        loadingState.textContent = 'Erro ao carregar dados da Wikipédia.';
+        contactList.innerHTML = '<div class="empty-msg">Erro ao carregar dados da Wikipédia.</div>';
       }
     }
 
@@ -861,7 +927,7 @@
     // Integração com API REST v1 + API Action Parse da Wikipédia para Modal Enriquecido
     async function openArticleModal(pageId, title) {
       modalTitle.textContent = title;
-      modalBody.innerHTML = '<div class="loading">Carregando conteúdo e metadados da Wikipédia...</div>';
+      modalBody.innerHTML = '<div class="loading"><i class="fa-solid fa-spinner fa-spin"></i> Carregando conteúdo e metadados da Wikipédia...</div>';
       articleModal.style.transform = 'translateY(0)';
       articleModal.classList.add('open');
       document.body.style.overflow = 'hidden';
@@ -890,13 +956,13 @@
             <div class="wiki-facts-card">
               ${imageSrc ? `<img src="${imageSrc}" alt="${title}" class="wiki-facts-img">` : ''}
               <div class="wiki-facts-info">
-                <div class="wiki-facts-description">✨ ${description}</div>
+                <div class="wiki-facts-description"><i class="fa-solid fa-sparkles"></i> ${description}</div>
                 <div class="wiki-facts-extract">${extract}</div>
                 <div class="wiki-facts-meta">
                   <a href="${desktopUrl}" target="_blank" rel="noopener noreferrer" class="wiki-meta-pill">
-                    🌐 Ver na Wikipédia Oficial ↗
+                    <i class="fa-solid fa-globe"></i> Ver na Wikipédia Oficial <i class="fa-solid fa-arrow-up-right-from-square"></i>
                   </a>
-                  <span class="wiki-meta-pill">🆔 ID: ${pageId}</span>
+                  <span class="wiki-meta-pill"><i class="fa-solid fa-hashtag"></i> ID: ${pageId}</span>
                 </div>
               </div>
             </div>
