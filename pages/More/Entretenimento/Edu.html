@@ -185,7 +185,6 @@
      </h1>
      <p id="materiasSectionDesc" class="text-xs text-gray-500 mt-1.5">Arquivos da comunidade na rede Nostr — PDFs, e-books, mapas mentais e listas de questões.</p>
 
-     <!-- NOVO: toggle Matérias | Avaliações -->
      <div class="mt-4 flex p-1 bg-ghost rounded-xl border border-gray-200 w-fit gap-1">
        <button type="button" id="toggle-materias" onclick="switchMaterialsView('materias')" class="view-toggle-btn active px-4 py-2 rounded-lg text-xs font-semibold transition">
          <i class="fa-solid fa-book-open mr-1.5"></i> Matérias
@@ -541,7 +540,6 @@
      </div>
    </div>
 
-   <!-- NOVO: grid Avaliações (oculto por padrão) -->
    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 hidden" id="avaliacoesGrid">
      <div class="bg-white p-4 md:p-5 rounded-2xl border border-gray-200/80 shadow-sm space-y-3 hover:border-secondary hover:shadow-md transition cursor-pointer group flex flex-col justify-between" data-name="ENEM" onclick="alertOpenSubject('ENEM')">
        <div class="space-y-2.5">
@@ -646,7 +644,6 @@
   </button>
 </div>
 
-<!-- Modal pergunta (igual) -->
 <div id="questionModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end md:items-center md:justify-center opacity-0 pointer-events-none p-0 md:p-4 modal-backdrop">
  <div id="questionModalContent" class="bg-white w-full md:max-w-lg max-h-[85vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full modal-content">
    <div class="p-5 border-b flex items-center justify-between">
@@ -686,7 +683,6 @@
  </div>
 </div>
 
-<!-- Modal postar material — select inclui avaliações -->
 <div id="postModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end md:items-center md:justify-center opacity-0 pointer-events-none p-0 md:p-4 modal-backdrop">
  <div id="postModalContent" class="bg-white w-full md:max-w-lg max-h-[85vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full modal-content">
    <div class="p-5 border-b flex items-center justify-between">
@@ -840,7 +836,6 @@
   let filesListLoading = false;
   let materialsView = 'materias';
 
-  // FIX: respostas por pergunta (não compartilham mais)
   window.responsesByPost = window.responsesByPost || {};
 
   window.dbMaterials = {
@@ -972,7 +967,6 @@
     sortResponsesByScore();
   }
 
-  // NOVO: toggle matérias / avaliações
   window.switchMaterialsView = function (view) {
     materialsView = view;
     const gridM = document.getElementById('subjectsGrid');
@@ -1049,7 +1043,6 @@
     });
   };
 
-  // FIX: avatar do autor do post
   function buildQuestionCardHtml({ id, author, authorAvatarUrl, subject, content, timeLabel, isMine, imgHtml }) {
     const mineClass = isMine ? ' item-minhas-perguntas' : '';
     return `<div class="brainly-card feed-item item-sem-resposta item-tudo${mineClass}" id="card-${id}" data-category="${escapeHtmlLocal(subject)}">
@@ -1138,19 +1131,20 @@
     if (e.target.files[0]) document.getElementById('responseImageFileName').innerText = e.target.files[0].name;
   };
 
-  // FIX: grava resposta só no post ativo
   window.submitUserResponse = async function() {
     if (!activePostId) return;
     const author = getLoggedUserName();
     const av = getLoggedAvatarUrl();
     const store = ensureResponsesStore(activePostId);
     let cardHtml = '', targetKey = '';
+    let answerId = 'ans-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    let publishPayload = null;
 
     if (activeResponseType === 'texto') {
       const txt = document.getElementById('responseTextInput').value.trim();
       if (!txt) { alert('Digite a resposta.'); return; }
       targetKey = 'textos';
-      cardHtml = `<div class="response-card flex gap-3 py-3 px-3 rounded-2xl border border-gray-100" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
+      cardHtml = `<div class="response-card flex gap-3 py-3 px-3 rounded-2xl border border-gray-100" data-answer-id="${answerId}" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
         <div class="w-9 h-9 rounded-full bg-secondary/10 text-secondary flex items-center justify-center text-xs overflow-hidden flex-shrink-0">${avatarHtml(av)}</div>
         <div class="flex-1"><div class="flex justify-between"><span class="font-bold text-xs">${escapeHtmlLocal(author)}</span><span class="text-[10px] text-gray-400">Agora</span></div>
         <div class="response-media-content"><p class="text-xs text-gray-700 mt-1">${escapeHtmlLocal(txt)}</p></div>
@@ -1159,13 +1153,21 @@
           <button onclick="voteAnswer(this,'galho')" class="btn-vote-galho text-[10px] px-2 py-1 rounded-lg bg-amber-50 text-amber-700">Galho <span class="count">0</span></button>
           <button onclick="voteAnswer(this,'perda')" class="btn-vote-perda text-[10px] px-2 py-1 rounded-lg bg-rose-50 text-rose-700">Perda <span class="count">0</span></button>
         </div></div></div>`;
-      if (window.publishEduEvent) await window.publishEduEvent({ type: 'resposta', subject: 'Geral', content: txt, fileMeta: { replyTo: activePostId } });
+      publishPayload = {
+        type: 'resposta',
+        subject: 'Geral',
+        content: txt,
+        fileMeta: { replyTo: activePostId, answerId, responseType: 'texto' }
+      };
     } else if (activeResponseType === 'imagem') {
       const file = document.getElementById('responseImageFileInput').files[0];
       if (!file) { alert('Selecione uma imagem.'); return; }
-      const imageUrl = URL.createObjectURL(file);
+      let imageUrl = URL.createObjectURL(file);
+      try {
+        if (window.uploadFileToHost) imageUrl = await window.uploadFileToHost(file);
+      } catch (e) { console.warn('upload imagem resposta', e); }
       targetKey = 'imagens';
-      cardHtml = `<div class="response-card bg-ghost border p-3 rounded-2xl" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
+      cardHtml = `<div class="response-card bg-ghost border p-3 rounded-2xl" data-answer-id="${answerId}" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
         <div class="flex items-center gap-2 mb-2"><div class="w-7 h-7 rounded-full overflow-hidden bg-secondary/10 flex items-center justify-center">${avatarHtml(av)}</div><span class="font-bold text-xs">${escapeHtmlLocal(author)}</span></div>
         <div class="response-media-content"><img src="${imageUrl}" class="w-full max-h-60 object-cover rounded-xl" alt=""></div>
         <div class="pt-2 flex gap-1.5">
@@ -1173,13 +1175,19 @@
           <button onclick="voteAnswer(this,'galho')" class="btn-vote-galho text-[10px] px-2 py-1 rounded-lg bg-amber-50">Galho <span class="count">0</span></button>
           <button onclick="voteAnswer(this,'perda')" class="btn-vote-perda text-[10px] px-2 py-1 rounded-lg bg-rose-50">Perda <span class="count">0</span></button>
         </div></div>`;
+      publishPayload = {
+        type: 'resposta',
+        subject: 'Geral',
+        content: file.name || 'Imagem',
+        fileMeta: { replyTo: activePostId, answerId, responseType: 'imagem', url: imageUrl, mime: file.type || '', fileName: file.name || '' }
+      };
     } else {
       const url = document.getElementById('responseVideoUrlInput').value.trim();
       if (!url) { alert('Cole o link do YouTube.'); return; }
       const videoId = extractYouTubeId(url);
       if (!videoId) { alert('Link do YouTube inválido.'); return; }
       targetKey = 'videos';
-      cardHtml = `<div class="response-card bg-ghost border p-3 rounded-2xl" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
+      cardHtml = `<div class="response-card bg-ghost border p-3 rounded-2xl" data-answer-id="${answerId}" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
         <div class="flex items-center gap-2 mb-2"><div class="w-7 h-7 rounded-full overflow-hidden bg-secondary/10 flex items-center justify-center">${avatarHtml(av)}</div><span class="font-bold text-xs">${escapeHtmlLocal(author)}</span></div>
         <div class="response-media-content aspect-video"><iframe class="w-full h-full rounded-xl" src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe></div>
         <div class="pt-2 flex gap-1.5">
@@ -1187,6 +1195,22 @@
           <button onclick="voteAnswer(this,'galho')" class="btn-vote-galho text-[10px] px-2 py-1 rounded-lg bg-amber-50">Galho <span class="count">0</span></button>
           <button onclick="voteAnswer(this,'perda')" class="btn-vote-perda text-[10px] px-2 py-1 rounded-lg bg-rose-50">Perda <span class="count">0</span></button>
         </div></div>`;
+      publishPayload = {
+        type: 'resposta',
+        subject: 'Geral',
+        content: url,
+        fileMeta: { replyTo: activePostId, answerId, responseType: 'video', videoUrl: url, videoId }
+      };
+    }
+
+    if (window.publishEduEvent && publishPayload) {
+      try {
+        const signed = await window.publishEduEvent(publishPayload);
+        if (signed && signed.id) {
+          answerId = signed.id;
+          cardHtml = cardHtml.replace(/data-answer-id="[^"]*"/, `data-answer-id="${answerId}"`);
+        }
+      } catch (e) { console.warn('publish resposta', e); }
     }
 
     store[targetKey].push(cardHtml);
@@ -1199,7 +1223,6 @@
     switchResponseTab(targetKey);
   };
 
-  // FIX: carrega só respostas daquela pergunta
   window.openCommentsModal = function(postId) {
     activePostId = postId;
     const card = document.getElementById('card-' + postId);
@@ -1237,6 +1260,7 @@
       }
     });
   };
+
   window.voteAnswer = function(btn, voteType) {
     const card = btn.closest('.response-card');
     if (!card) return;
@@ -1244,11 +1268,14 @@
     let galho = +card.getAttribute('data-votes-galho') || 0;
     let perda = +card.getAttribute('data-votes-perda') || 0;
     let cur = card.getAttribute('data-user-vote') || 'none';
+    let finalVote = 'none';
+
     if (cur === voteType) {
       if (voteType === 'util') util = Math.max(0, util - 1);
       if (voteType === 'galho') galho = Math.max(0, galho - 1);
       if (voteType === 'perda') perda = Math.max(0, perda - 1);
       card.setAttribute('data-user-vote', 'none');
+      finalVote = 'none';
     } else {
       if (cur === 'util') util = Math.max(0, util - 1);
       if (cur === 'galho') galho = Math.max(0, galho - 1);
@@ -1257,6 +1284,7 @@
       if (voteType === 'galho') galho++;
       if (voteType === 'perda') perda++;
       card.setAttribute('data-user-vote', voteType);
+      finalVote = voteType;
     }
     card.setAttribute('data-votes-util', util);
     card.setAttribute('data-votes-galho', galho);
@@ -1265,7 +1293,23 @@
     card.querySelector('.btn-vote-galho .count').innerText = galho;
     card.querySelector('.btn-vote-perda .count').innerText = perda;
     sortResponsesByScore();
+
+    const answerId = card.getAttribute('data-answer-id') || '';
+    if (window.publishEduEvent && activePostId) {
+      window.publishEduEvent({
+        type: 'voto',
+        subject: 'Geral',
+        content: finalVote,
+        fileMeta: {
+          replyTo: activePostId,
+          answerId,
+          voteType: finalVote,
+          previousVote: cur
+        }
+      }).catch(() => {});
+    }
   };
+
   function sortResponsesByScore() {
     if (!activePostId) return;
     document.querySelectorAll('.response-pane').forEach(pane => {
@@ -1709,7 +1753,6 @@
     throw new Error('Blossom falhou: ' + errors.join(' | '));
   }
 
-  // Upload estilo Drive (público para materiais educacionais)
   window.uploadFileToHost = async function (file) {
     const buf = await file.arrayBuffer();
     const pk = window.currentUserData.privateKey;
@@ -1796,6 +1839,10 @@
     if (fileMeta?.fileType) tags.push(['filetype', fileMeta.fileType]);
     if (fileMeta?.mime) tags.push(['m', fileMeta.mime]);
     if (fileMeta?.replyTo) tags.push(['e', fileMeta.replyTo]);
+    if (fileMeta?.answerId) tags.push(['answer', String(fileMeta.answerId)]);
+    if (fileMeta?.responseType) tags.push(['rtype', String(fileMeta.responseType)]);
+    if (fileMeta?.voteType != null) tags.push(['vote', String(fileMeta.voteType)]);
+    if (fileMeta?.videoId) tags.push(['yt', String(fileMeta.videoId)]);
 
     const eventTemplate = {
       kind: 1,
@@ -1875,23 +1922,102 @@
         const profile = window.profileCache[r.pubkey] || {};
         const author = r.author || profile.name || 'Usuario';
         const av = r.avatarUrl || profile.picture || '';
-        const html = `<div class="response-card flex gap-3 py-3 px-3 rounded-2xl border border-gray-100" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
-          <div class="w-9 h-9 rounded-full bg-secondary/10 text-secondary flex items-center justify-center text-xs overflow-hidden flex-shrink-0">${avatarHtml(av)}</div>
-          <div class="flex-1"><div class="flex justify-between"><span class="font-bold text-xs">${escapeHtmlLocal(author)}</span><span class="text-[10px] text-gray-400">${new Date(r.created_at * 1000).toLocaleString('pt-BR')}</span></div>
-          <div class="response-media-content"><p class="text-xs text-gray-700 mt-1">${escapeHtmlLocal(r.content || '')}</p></div>
-          <div class="pt-1 flex gap-1.5 flex-wrap">
-            <button onclick="voteAnswer(this,'util')" class="btn-vote-util text-[10px] px-2 py-1 rounded-lg bg-green-50 text-green-700">Útil <span class="count">0</span></button>
-            <button onclick="voteAnswer(this,'galho')" class="btn-vote-galho text-[10px] px-2 py-1 rounded-lg bg-amber-50 text-amber-700">Galho <span class="count">0</span></button>
-            <button onclick="voteAnswer(this,'perda')" class="btn-vote-perda text-[10px] px-2 py-1 rounded-lg bg-rose-50 text-rose-700">Perda <span class="count">0</span></button>
-          </div></div></div>`;
-        if (!store.textos.some(h => h.includes(escapeHtmlLocal(r.content || '')))) {
-          store.textos.push(html);
+        const answerId = r.file.answerId || r.id;
+        const rtype = r.file.responseType || 'texto';
+        const timeLabel = new Date(r.created_at * 1000).toLocaleString('pt-BR');
+
+        let html = '';
+        let targetKey = 'textos';
+
+        if (rtype === 'imagem' && r.file.url) {
+          targetKey = 'imagens';
+          html = `<div class="response-card bg-ghost border p-3 rounded-2xl" data-answer-id="${escapeHtmlLocal(answerId)}" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
+            <div class="flex items-center gap-2 mb-2"><div class="w-7 h-7 rounded-full overflow-hidden bg-secondary/10 flex items-center justify-center">${avatarHtml(av)}</div><span class="font-bold text-xs">${escapeHtmlLocal(author)}</span></div>
+            <div class="response-media-content"><img src="${escapeHtmlLocal(r.file.url)}" class="w-full max-h-60 object-cover rounded-xl" alt=""></div>
+            <div class="pt-2 flex gap-1.5">
+              <button onclick="voteAnswer(this,'util')" class="btn-vote-util text-[10px] px-2 py-1 rounded-lg bg-green-50">Útil <span class="count">0</span></button>
+              <button onclick="voteAnswer(this,'galho')" class="btn-vote-galho text-[10px] px-2 py-1 rounded-lg bg-amber-50">Galho <span class="count">0</span></button>
+              <button onclick="voteAnswer(this,'perda')" class="btn-vote-perda text-[10px] px-2 py-1 rounded-lg bg-rose-50">Perda <span class="count">0</span></button>
+            </div></div>`;
+        } else if (rtype === 'video' && (r.file.videoId || r.file.videoUrl)) {
+          targetKey = 'videos';
+          const videoId = r.file.videoId || extractYouTubeId(r.file.videoUrl || r.content || '');
+          if (!videoId) return;
+          html = `<div class="response-card bg-ghost border p-3 rounded-2xl" data-answer-id="${escapeHtmlLocal(answerId)}" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
+            <div class="flex items-center gap-2 mb-2"><div class="w-7 h-7 rounded-full overflow-hidden bg-secondary/10 flex items-center justify-center">${avatarHtml(av)}</div><span class="font-bold text-xs">${escapeHtmlLocal(author)}</span></div>
+            <div class="response-media-content aspect-video"><iframe class="w-full h-full rounded-xl" src="https://www.youtube.com/embed/${escapeHtmlLocal(videoId)}" allowfullscreen></iframe></div>
+            <div class="pt-2 flex gap-1.5">
+              <button onclick="voteAnswer(this,'util')" class="btn-vote-util text-[10px] px-2 py-1 rounded-lg bg-green-50">Útil <span class="count">0</span></button>
+              <button onclick="voteAnswer(this,'galho')" class="btn-vote-galho text-[10px] px-2 py-1 rounded-lg bg-amber-50">Galho <span class="count">0</span></button>
+              <button onclick="voteAnswer(this,'perda')" class="btn-vote-perda text-[10px] px-2 py-1 rounded-lg bg-rose-50">Perda <span class="count">0</span></button>
+            </div></div>`;
+        } else {
+          targetKey = 'textos';
+          html = `<div class="response-card flex gap-3 py-3 px-3 rounded-2xl border border-gray-100" data-answer-id="${escapeHtmlLocal(answerId)}" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
+            <div class="w-9 h-9 rounded-full bg-secondary/10 text-secondary flex items-center justify-center text-xs overflow-hidden flex-shrink-0">${avatarHtml(av)}</div>
+            <div class="flex-1"><div class="flex justify-between"><span class="font-bold text-xs">${escapeHtmlLocal(author)}</span><span class="text-[10px] text-gray-400">${escapeHtmlLocal(timeLabel)}</span></div>
+            <div class="response-media-content"><p class="text-xs text-gray-700 mt-1">${escapeHtmlLocal(r.content || '')}</p></div>
+            <div class="pt-1 flex gap-1.5 flex-wrap">
+              <button onclick="voteAnswer(this,'util')" class="btn-vote-util text-[10px] px-2 py-1 rounded-lg bg-green-50 text-green-700">Útil <span class="count">0</span></button>
+              <button onclick="voteAnswer(this,'galho')" class="btn-vote-galho text-[10px] px-2 py-1 rounded-lg bg-amber-50 text-amber-700">Galho <span class="count">0</span></button>
+              <button onclick="voteAnswer(this,'perda')" class="btn-vote-perda text-[10px] px-2 py-1 rounded-lg bg-rose-50 text-rose-700">Perda <span class="count">0</span></button>
+            </div></div></div>`;
+        }
+
+        const already = (store[targetKey] || []).some(h =>
+          h.includes(`data-answer-id="${answerId}"`) ||
+          (rtype === 'texto' && r.content && h.includes(escapeHtmlLocal(r.content)))
+        );
+        if (!already) {
+          store[targetKey].push(html);
           const el = document.getElementById('comment-count-' + postId);
           if (el) {
             const total = store.textos.length + store.imagens.length + store.videos.length;
             el.innerText = String(total);
           }
         }
+      });
+
+      const voteMap = {};
+      list.filter(x => x.type === 'voto' && x.file).forEach(v => {
+        const aid = v.file.answerId || '';
+        if (!aid) return;
+        if (!voteMap[aid]) voteMap[aid] = { util: 0, galho: 0, perda: 0, byUser: {} };
+        const pk = v.pubkey || '';
+        const vt = v.file.voteType || v.content || 'none';
+        const prev = voteMap[aid].byUser[pk];
+        if (prev === 'util') voteMap[aid].util = Math.max(0, voteMap[aid].util - 1);
+        if (prev === 'galho') voteMap[aid].galho = Math.max(0, voteMap[aid].galho - 1);
+        if (prev === 'perda') voteMap[aid].perda = Math.max(0, voteMap[aid].perda - 1);
+        voteMap[aid].byUser[pk] = vt;
+        if (vt === 'util') voteMap[aid].util++;
+        if (vt === 'galho') voteMap[aid].galho++;
+        if (vt === 'perda') voteMap[aid].perda++;
+      });
+
+      Object.keys(window.responsesByPost || {}).forEach(postId => {
+        const store = window.responsesByPost[postId];
+        ['textos', 'imagens', 'videos'].forEach(key => {
+          store[key] = (store[key] || []).map(html => {
+            const m = html.match(/data-answer-id="([^"]+)"/);
+            if (!m) return html;
+            const counts = voteMap[m[1]];
+            if (!counts) return html;
+            let out = html
+              .replace(/data-votes-util="\d+"/, `data-votes-util="${counts.util}"`)
+              .replace(/data-votes-galho="\d+"/, `data-votes-galho="${counts.galho}"`)
+              .replace(/data-votes-perda="\d+"/, `data-votes-perda="${counts.perda}"`);
+            out = out.replace(/(btn-vote-util[^>]*>Útil <span class="count">)\d+(<\/span>)/, `$1${counts.util}$2`);
+            out = out.replace(/(btn-vote-galho[^>]*>Galho <span class="count">)\d+(<\/span>)/, `$1${counts.galho}$2`);
+            out = out.replace(/(btn-vote-perda[^>]*>Perda <span class="count">)\d+(<\/span>)/, `$1${counts.perda}$2`);
+            const myPk = (window.currentUserData.pubkey || '').toLowerCase();
+            const myVote = Object.entries(counts.byUser).find(([pk]) => pk.toLowerCase() === myPk)?.[1];
+            if (myVote && myVote !== 'none') {
+              out = out.replace(/data-user-vote="[^"]*"/, `data-user-vote="${myVote}"`);
+            }
+            return out;
+          });
+        });
       });
 
       list.filter(x => x.type === 'material' && x.file).forEach(m => {
