@@ -85,6 +85,23 @@
             border-radius: 9999px;
         }
         #ejs-player, #ejs-player > div { width: 100% !important; height: 100% !important; }
+        /* Mobile: toque vai para o jogo/controles, não para gestos do browser */
+        #ejs-player,
+        #ejs-player canvas,
+        #ejs-player video {
+            touch-action: none !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
+        }
+        /* Evita o menu interno abrir por toque acidental na barra */
+        #cloud-modal .ejs_menu_bar,
+        #ejs-player .ejs_menu_bar {
+            pointer-events: none !important;
+        }
+        #cloud-modal .ejs_menu_bar .ejs_menu_button,
+        #ejs-player .ejs_menu_bar .ejs_menu_button {
+            pointer-events: auto;
+        }
         #web-game-frame { border: 0; width: 100%; height: 100%; background: #0f172a; }
         @keyframes skeleton-shimmer {
             0% { background-position: -200% 0; }
@@ -789,7 +806,43 @@
                     window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';
                     window.EJS_startOnLoaded = true;
                     window.EJS_color = '#7C3AED';
-                    window.EJS_Buttons = { quit: false };
+
+                    // Esconde botões que no mobile abrem menu / atrapalham o toque
+                    window.EJS_Buttons = {
+                        quit: false,
+                        playPause: false,
+                        restart: false,
+                        mute: false,
+                        settings: false,
+                        fullscreen: false,
+                        saveState: false,
+                        loadState: false,
+                        screenRecord: false,
+                        gamepad: true,
+                        cheat: false,
+                        volume: false,
+                        quickSave: false,
+                        quickLoad: false,
+                        screenshot: false,
+                        cacheManager: false
+                    };
+
+                    // Não força fullscreen no mobile (quebra controles e toque)
+                    window.EJS_fullscreenOnLoaded = false;
+
+                    // Impede menu de contexto / long-press abrir UI do emulador
+                    window.EJS_onGameStart = function () {
+                        const root = document.getElementById('ejs-player');
+                        if (!root) return;
+                        const block = (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        };
+                        root.addEventListener('contextmenu', block, { passive: false });
+                        root.querySelectorAll('canvas, video').forEach((el) => {
+                            el.addEventListener('contextmenu', block, { passive: false });
+                        });
+                    };
 
                     const existing = document.getElementById('ejs-loader-script');
                     if (existing) existing.remove();
@@ -814,7 +867,7 @@
             document.getElementById('cloud-status-container').classList.remove('hidden');
             revokeActiveBlobs();
             try {
-                ['EJS_player','EJS_core','EJS_gameUrl','EJS_gameName','EJS_startOnLoaded'].forEach(k => { try { delete window[k]; } catch {} });
+                ['EJS_player','EJS_core','EJS_gameUrl','EJS_gameName','EJS_startOnLoaded','EJS_onGameStart','EJS_Buttons','EJS_fullscreenOnLoaded'].forEach(k => { try { delete window[k]; } catch {} });
             } catch {}
         }
 
@@ -1531,4 +1584,4 @@
         window.fetchMySaves();
     </script>
 </body>
- </html>
+</html>
