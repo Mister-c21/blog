@@ -84,82 +84,44 @@
             background-color: #7C3AED;
             border-radius: 9999px;
         }
-        #ejs-player, #ejs-player > div { width: 100% !important; height: 100% !important; }
 
-        /* ===== Fix mobile EmulatorJS ===== */
-        #ejs-player,
+        /* ===== EmulatorJS mobile fix =====
+           NÃO usar #ejs-player > div { width/height: 100% }
+           — isso estica zonas do gamepad e cria as faixas cinzas */
+        #ejs-player {
+            width: 100% !important;
+            height: 100% !important;
+            position: relative !important;
+            overflow: hidden !important;
+            background: #000 !important;
+        }
         #ejs-player canvas,
         #ejs-player video {
+            max-width: 100% !important;
+            max-height: 100% !important;
+            object-fit: contain !important;
             touch-action: none !important;
             -webkit-user-select: none !important;
             user-select: none !important;
         }
-
-        /* Layout: canvas em cima, virtual gamepad embaixo — sem overlays no meio */
-        #cloud-modal #ejs-player {
-            display: flex !important;
-            flex-direction: column !important;
-            min-height: 0 !important;
-            overflow: hidden !important;
-            position: relative !important;
+        #ejs-player,
+        #ejs-player * {
+            -webkit-tap-highlight-color: transparent;
         }
-        #cloud-modal #ejs-player .ejs_canvas_container,
-        #cloud-modal #ejs-player [class*="canvas"] {
-            flex: 1 1 auto !important;
-            min-height: 0 !important;
-            max-height: none !important;
-            position: relative !important;
-            z-index: 1 !important;
-        }
-        #cloud-modal #ejs-player canvas,
-        #cloud-modal #ejs-player video {
-            position: relative !important;
-            z-index: 1 !important;
-            max-width: 100% !important;
-            max-height: 100% !important;
-            object-fit: contain !important;
-        }
-        #cloud-modal #ejs-player .ejs_virtualGamepad_parent,
-        #cloud-modal #ejs-player [class*="virtualGamepad"],
-        #cloud-modal #ejs-player [class*="virtual_gamepad"],
-        #cloud-modal #ejs-player [class*="gamepad_parent"] {
-            flex: 0 0 auto !important;
-            position: relative !important;
-            bottom: auto !important;
-            left: 0 !important;
-            right: 0 !important;
-            top: auto !important;
-            z-index: 5 !important;
-            height: auto !important;
-            max-height: 45vh !important;
-        }
-
-        /* Esconde barra de menu / settings / overlays cinzas no meio da tela */
+        /* Só esconde menu/settings — não mexe no virtual gamepad */
         #cloud-modal .ejs_menu_bar,
         #ejs-player .ejs_menu_bar,
         #cloud-modal .ejs_settings_parent,
         #ejs-player .ejs_settings_parent,
-        #cloud-modal .ejs_popup_container,
-        #ejs-player .ejs_popup_container,
         #cloud-modal .ejs_context_menu,
         #ejs-player .ejs_context_menu,
-        #cloud-modal [class*="menu_bar"],
-        #ejs-player [class*="menu_bar"],
         #cloud-modal .ejs_ad,
         #ejs-player .ejs_ad {
             display: none !important;
             visibility: hidden !important;
             pointer-events: none !important;
             height: 0 !important;
-            max-height: 0 !important;
             opacity: 0 !important;
-            overflow: hidden !important;
-        }
-
-        /* Impede faixas cinzas “fantasma” sobre o canvas (zonas de toque mal posicionadas) */
-        #cloud-modal #ejs-player .ejs_canvas_container > div:not(canvas):not([class*="gamepad"]):not([class*="virtual"]),
-        #cloud-modal #ejs-player .ejs_canvas_container > span {
-            pointer-events: none !important;
         }
 
         #web-game-frame { border: 0; width: 100%; height: 100%; background: #0f172a; }
@@ -441,7 +403,7 @@
                 <p id="cloud-status-text" class="text-xs text-slate-300">Preparando emulação...</p>
             </div>
         </div>
-        <div id="ejs-player" class="hidden flex-1 w-full h-full bg-black min-h-0"></div>
+        <div id="ejs-player" class="hidden flex-1 w-full h-full bg-black"></div>
     </div>
 
     <div id="toast" class="fixed top-5 right-5 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl z-50 transition-all transform translate-y-[-100px] opacity-0 flex items-center gap-3 border border-slate-800">
@@ -856,33 +818,6 @@
             }
         }
 
-        function stripEjsOverlays() {
-            const root = document.getElementById('ejs-player');
-            if (!root) return;
-            root.querySelectorAll('.ejs_menu_bar, .ejs_settings_parent, .ejs_popup_container, .ejs_context_menu, .ejs_ad').forEach(el => {
-                el.style.display = 'none';
-                el.style.pointerEvents = 'none';
-                el.style.opacity = '0';
-                el.style.height = '0';
-            });
-            // Remove faixas cinzas soltas sobre o canvas (divs sem classe útil, largas e semi-transparentes)
-            root.querySelectorAll('div').forEach(el => {
-                if (el.closest('[class*="virtualGamepad"], [class*="virtual_gamepad"], [class*="gamepad"]')) return;
-                if (el.querySelector('canvas, video')) return;
-                if (el.tagName === 'CANVAS' || el.tagName === 'VIDEO') return;
-                const st = window.getComputedStyle(el);
-                const bg = st.backgroundColor || '';
-                const isGrayish = /rgba?\(\s*(1[0-9]{2}|2[0-2][0-9]|128|1[3-9]\d)\s*,\s*(1[0-9]{2}|2[0-2][0-9]|128|1[3-9]\d)\s*,\s*(1[0-9]{2}|2[0-2][0-9]|128|1[3-9]\d)/.test(bg)
-                    || bg.includes('128') || bg === 'rgb(128, 128, 128)' || bg === 'rgba(128, 128, 128, 0.5)';
-                const rect = el.getBoundingClientRect();
-                const wideBar = rect.width > window.innerWidth * 0.4 && rect.height > 24 && rect.height < 90;
-                if (isGrayish && wideBar && !el.querySelector('button, canvas, video, input')) {
-                    el.style.display = 'none';
-                    el.style.pointerEvents = 'none';
-                }
-            });
-        }
-
         function loadEmulatorJS(romUrl, core, name) {
             return new Promise((resolve, reject) => {
                 try {
@@ -917,17 +852,11 @@
                     window.EJS_onGameStart = function () {
                         const root = document.getElementById('ejs-player');
                         if (!root) return;
-                        const block = (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                        };
+                        const block = (e) => { e.preventDefault(); };
                         root.addEventListener('contextmenu', block, { passive: false });
                         root.querySelectorAll('canvas, video').forEach((el) => {
                             el.addEventListener('contextmenu', block, { passive: false });
                         });
-                        stripEjsOverlays();
-                        setTimeout(stripEjsOverlays, 300);
-                        setTimeout(stripEjsOverlays, 1000);
                     };
 
                     const existing = document.getElementById('ejs-loader-script');
@@ -936,11 +865,7 @@
                     const script = document.createElement('script');
                     script.id = 'ejs-loader-script';
                     script.src = 'https://cdn.emulatorjs.org/stable/data/loader.js';
-                    script.onload = () => {
-                        setTimeout(stripEjsOverlays, 500);
-                        setTimeout(stripEjsOverlays, 1500);
-                        resolve();
-                    };
+                    script.onload = () => resolve();
                     script.onerror = () => reject(new Error('loader'));
                     document.body.appendChild(script);
                 } catch (err) {
@@ -957,7 +882,9 @@
             document.getElementById('cloud-status-container').classList.remove('hidden');
             revokeActiveBlobs();
             try {
-                ['EJS_player','EJS_core','EJS_gameUrl','EJS_gameName','EJS_startOnLoaded','EJS_onGameStart','EJS_Buttons','EJS_fullscreenOnLoaded'].forEach(k => { try { delete window[k]; } catch {} });
+                ['EJS_player','EJS_core','EJS_gameUrl','EJS_gameName','EJS_startOnLoaded','EJS_onGameStart','EJS_Buttons','EJS_fullscreenOnLoaded'].forEach(k => {
+                    try { delete window[k]; } catch {}
+                });
             } catch {}
         }
 
