@@ -1,1 +1,444 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Publicar Série de Vídeo · LoreSpace</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --wt-green:#8b5cf6; --wt-green-dark:#7c3aed; --wt-green-soft:#f3e8ff; --bg:#f5f5f5; --card:#fff; --text:#1a1a1a; --muted:#888; --border:#e5e5e5; --danger:#ff3b30; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Noto Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+        header { background:var(--card); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; }
+        .header-inner { max-width:960px; margin:0 auto; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; }
+        .btn-back { width:40px; height:40px; border-radius:50%; border:none; background:transparent; color:var(--text); font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; text-decoration:none; }
+        .btn-back:hover { background:var(--bg); }
+        .logo { font-size:1.15rem; font-weight:800; color:var(--wt-green); display:flex; align-items:center; gap:8px; }
+        .logo span { color:var(--text); font-weight:700; }
+        main { flex:1; max-width:960px; width:100%; margin:0 auto; padding:24px 16px 48px; display:grid; grid-template-columns:220px 1fr; gap:28px; align-items:start; }
+        @media (max-width:720px) { main { grid-template-columns:1fr; padding:16px 12px 40px; } }
+        .cover-panel { background:var(--card); border-radius:12px; border:1px solid var(--border); padding:16px; position:sticky; top:72px; }
+        @media (max-width:720px) { .cover-panel { position:static; } }
+        .cover-label { font-size:.8rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:12px; }
+        .cover-drop { aspect-ratio:16/9; border-radius:8px; border:2px dashed var(--border); background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; cursor:pointer; overflow:hidden; position:relative; }
+        .cover-drop:hover, .cover-drop.dragover { border-color:var(--wt-green); background:var(--wt-green-soft); }
+        .cover-drop i { font-size:1.8rem; color:var(--muted); }
+        .cover-drop p { font-size:.8rem; color:var(--muted); text-align:center; padding:0 12px; }
+        .cover-drop img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none; }
+        .cover-drop.has-image img { display:block; }
+        .cover-drop.has-image .cover-placeholder { display:none; }
+        #capaArquivo { display:none; }
+        .cover-hint { margin-top:10px; font-size:.75rem; color:var(--muted); text-align:center; line-height:1.4; }
+        .form-panel { background:var(--card); border-radius:12px; border:1px solid var(--border); padding:28px 28px 32px; }
+        @media (max-width:600px) { .form-panel { padding:20px 16px 24px; } }
+        .section-title { font-size:1.35rem; font-weight:800; margin-bottom:6px; }
+        .section-sub { font-size:.9rem; color:var(--muted); margin-bottom:24px; }
+        .form-group { margin-bottom:20px; display:flex; flex-direction:column; gap:8px; }
+        label { font-weight:600; font-size:.9rem; }
+        label .req { color:var(--wt-green); }
+        input[type="text"], input[type="number"], input[type="url"], textarea {
+            padding:12px 14px; border:1px solid var(--border); border-radius:8px; font-size:.95rem; font-family:inherit; outline:none; background:#fff; width:100%;
+        }
+        input:focus, textarea:focus { border-color:var(--wt-green); box-shadow:0 0 0 3px rgba(139,92,246,.15); }
+        textarea { resize:vertical; min-height:90px; line-height:1.5; }
+        .char-count { font-size:.75rem; color:var(--muted); text-align:right; }
+        .genre-chips { display:flex; flex-wrap:nowrap; gap:8px; overflow-x:auto; padding-bottom:8px; }
+        .genre-chip { flex-shrink:0; border:1px solid var(--border); background:#fff; border-radius:20px; padding:7px 14px; font-size:.82rem; font-weight:600; color:var(--muted); cursor:pointer; font-family:inherit; }
+        .genre-chip:hover { border-color:var(--wt-green); color:var(--text); }
+        .genre-chip.selected { background:var(--wt-green-soft); border-color:var(--wt-green); color:var(--wt-green-dark); }
+        .block-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:28px 0 14px; padding-top:8px; border-top:1px solid var(--border); flex-wrap:wrap; }
+        .block-header h2 { font-size:1.1rem; font-weight:800; }
+        .count-wrap { display:flex; align-items:center; gap:10px; }
+        .count-wrap label { font-size:.85rem; color:var(--muted); font-weight:500; }
+        .count-wrap input { width:64px; padding:8px 10px; text-align:center; }
+        .tabs { display:flex; gap:6px; overflow-x:auto; padding-bottom:12px; margin-bottom:12px; }
+        .tab { flex-shrink:0; border:1px solid var(--border); background:#fff; border-radius:20px; padding:8px 16px; font-size:.85rem; font-weight:600; color:var(--muted); cursor:pointer; }
+        .tab:hover { border-color:var(--wt-green); color:var(--text); }
+        .tab.active { background:var(--wt-green); border-color:var(--wt-green); color:#fff; }
+        .panel { background:var(--bg); border-radius:10px; padding:18px; border:1px solid var(--border); }
+        .hint { font-size:.8rem; color:var(--muted); margin-top:4px; }
+        .form-actions { margin-top:28px; display:flex; justify-content:center; }
+        .btn-publish { background:var(--wt-green); color:#fff; border:none; padding:16px 48px; border-radius:50px; font-weight:700; font-size:1.05rem; cursor:pointer; width:100%; max-width:360px; font-family:inherit; box-shadow:0 4px 14px rgba(139,92,246,.35); }
+        .btn-publish:hover { background:var(--wt-green-dark); }
+        .btn-publish:disabled { opacity:.65; cursor:not-allowed; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-inner">
+            <a href="Index.html" class="btn-back" title="Voltar"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="logo"><i class="fa-solid fa-film"></i> VÍDEO <span>· Criar série</span></div>
+            <div style="width:40px;"></div>
+        </div>
+    </header>
+    <main>
+        <aside class="cover-panel">
+            <div class="cover-label">Capa da série</div>
+            <div class="cover-drop" id="coverDrop" onclick="document.getElementById('capaArquivo').click()">
+                <img id="previewImg" alt="Capa">
+                <div class="cover-placeholder"><i class="fa-regular fa-image"></i><p>Clique ou arraste a capa<br>(16:9)</p></div>
+            </div>
+            <input type="file" id="capaArquivo" accept="image/*">
+            <p class="cover-hint">JPG/PNG · Upload via Nostr</p>
+        </aside>
+        <section class="form-panel">
+            <h1 class="section-title">Nova série de vídeo</h1>
+            <p class="section-sub">Defina a série, as temporadas e os episódios (URL do vídeo ou arquivo).</p>
+            <form id="formPostagem">
+                <div class="form-group">
+                    <label for="titulo">Título da série <span class="req">*</span></label>
+                    <input type="text" id="titulo" placeholder="Ex: Crônicas do Portal" maxlength="80" required>
+                    <div class="char-count"><span id="tituloCount">0</span>/80</div>
+                </div>
+                <div class="form-group">
+                    <label for="sinopse">Sinopse</label>
+                    <textarea id="sinopse" placeholder="Descrição da série..." maxlength="500"></textarea>
+                    <div class="char-count"><span id="sinopseCount">0</span>/500</div>
+                </div>
+                <div class="form-group">
+                    <label>Gênero</label>
+                    <div class="genre-chips" id="genreChips">
+                        <button type="button" class="genre-chip" data-g="Ação">Ação</button>
+                        <button type="button" class="genre-chip" data-g="Romance">Romance</button>
+                        <button type="button" class="genre-chip" data-g="Fantasia">Fantasia</button>
+                        <button type="button" class="genre-chip" data-g="Drama">Drama</button>
+                        <button type="button" class="genre-chip" data-g="Comédia">Comédia</button>
+                        <button type="button" class="genre-chip" data-g="Terror">Terror</button>
+                        <button type="button" class="genre-chip" data-g="Sci-Fi">Sci-Fi</button>
+                        <button type="button" class="genre-chip" data-g="Slice of Life">Slice of Life</button>
+                    </div>
+                </div>
 
+                <div class="block-header">
+                    <h2>Temporadas</h2>
+                    <div class="count-wrap">
+                        <label for="qtdTemps">Qtd.</label>
+                        <input type="number" id="qtdTemps" min="1" max="20" value="1" required>
+                    </div>
+                </div>
+                <div class="tabs" id="tempTabs"></div>
+
+                <div class="panel">
+                    <div class="form-group">
+                        <label id="labelTituloTemp" for="tituloTempAtivo">Título da Temporada 1</label>
+                        <input type="text" id="tituloTempAtivo" placeholder="Ex: Temporada 1">
+                    </div>
+                    <div class="block-header" style="margin-top:8px;border-top:none;padding-top:0;">
+                        <h2 style="font-size:1rem;">Episódios desta temporada</h2>
+                        <div class="count-wrap">
+                            <label for="qtdEps">Qtd.</label>
+                            <input type="number" id="qtdEps" min="1" max="50" value="1">
+                        </div>
+                    </div>
+                    <div class="tabs" id="epTabs"></div>
+                    <div class="form-group">
+                        <label id="labelTituloEp" for="tituloEpAtivo">Título do Episódio 1</label>
+                        <input type="text" id="tituloEpAtivo" placeholder="Ex: O Despertar">
+                    </div>
+                    <div class="form-group">
+                        <label id="labelVideo" for="videoUrlAtivo">URL do vídeo</label>
+                        <input type="url" id="videoUrlAtivo" placeholder="https://... (MP4, YouTube, Vimeo...)">
+                        <p class="hint">Ou envie um arquivo de vídeo (se o host aceitar):</p>
+                        <input type="file" id="videoArquivo" accept="video/*" style="margin-top:6px;">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-publish" id="btnPublish">
+                        <i class="fa-solid fa-paper-plane" style="margin-right:8px;"></i>Publicar série
+                    </button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script type="module">
+        import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+        import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+
+        const LS_SALT = 'LS-369-7423-v1';
+        const LS_MARKER = 'ls369';
+        const LS_TAG = ['t', 'v7k4m3'];
+        const UPLOAD_URL = 'https://nostr.build/api/v2/upload/files';
+        const BLOSSOM_SERVERS = ['https://blossom.primal.net','https://cdn.satellite.earth','https://blossom.band','https://nostr.download'];
+        const RELAYS = ['wss://relay.damus.io','wss://nos.lol','wss://relay.nostr.band','wss://nostr.wine','wss://relay.snort.social'];
+
+        async function deriveLsKey() {
+            const enc = new TextEncoder();
+            const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(LS_SALT), 'PBKDF2', false, ['deriveKey']);
+            return crypto.subtle.deriveKey(
+                { name:'PBKDF2', salt:enc.encode('369'), iterations:84000, hash:'SHA-256' },
+                keyMaterial, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
+            );
+        }
+        async function encryptFanfic(obj) {
+            const key = await deriveLsKey();
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const plain = new TextEncoder().encode(JSON.stringify({ m:LS_MARKER, ...obj }));
+            const cipher = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, plain);
+            const packed = new Uint8Array(iv.length + cipher.byteLength);
+            packed.set(iv,0); packed.set(new Uint8Array(cipher), iv.length);
+            let binary='';
+            for (let i=0;i<packed.length;i+=0x8000) binary += String.fromCharCode.apply(null, packed.subarray(i,i+0x8000));
+            return btoa(binary);
+        }
+
+        let currentUserData = { pubkey:'', privateKey:null, nickname:'' };
+        function loadSessionFromNostr() {
+            try {
+                const s = JSON.parse(localStorage.getItem('nostr_session')||'{}');
+                if (!s.privateKeyHex||!s.pubkey) return;
+                currentUserData.privateKey = hexToBytes(s.privateKeyHex);
+                currentUserData.pubkey = s.pubkey;
+                currentUserData.nickname = (s.nickname||'').replace(/^@/,'');
+            } catch(_){}
+        }
+        function isUserLoggedIn() { return !!(currentUserData.privateKey && currentUserData.pubkey); }
+        loadSessionFromNostr();
+
+        async function createNip98AuthHeader(url, method, sk) {
+            const signed = NostrTools.finalizeEvent({
+                kind:27235, created_at:Math.floor(Date.now()/1000),
+                tags:[['u',url],['method',method.toUpperCase()]], content:''
+            }, sk);
+            return 'Nostr '+btoa(unescape(encodeURIComponent(JSON.stringify(signed))));
+        }
+        async function sha256Hex(buf) {
+            const h = await crypto.subtle.digest('SHA-256', buf);
+            return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');
+        }
+        async function createBlossomAuthHeader(hash, sk) {
+            const now = Math.floor(Date.now()/1000);
+            const signed = NostrTools.finalizeEvent({
+                kind:24242, created_at:now,
+                tags:[['t','upload'],['x',hash],['expiration',String(now+120)]], content:''
+            }, sk);
+            return 'Nostr '+btoa(unescape(encodeURIComponent(JSON.stringify(signed))));
+        }
+        function extractUploadUrl(data) {
+            if (!data) return '';
+            if (data.status==='success' && data.data?.[0]) return data.data[0].url||data.data[0].download_url||'';
+            if (data.url) return data.url;
+            if (data.nip94_event?.tags) { const t=data.nip94_event.tags.find(x=>x[0]==='url'); if(t) return t[1]; }
+            return data.data?.[0]?.url||'';
+        }
+        async function uploadViaBlossom(buf, sk) {
+            const hash = await sha256Hex(buf);
+            const auth = await createBlossomAuthHeader(hash, sk);
+            for (const base of BLOSSOM_SERVERS) {
+                try {
+                    const res = await fetch(base.replace(/\/$/,'')+'/upload', {
+                        method:'PUT', headers:{ Authorization:auth, 'Content-Type':'application/octet-stream' }, body:buf
+                    });
+                    const text = await res.text(); let data=null; try{ data=JSON.parse(text);}catch(_){}
+                    if (res.ok) {
+                        let url = data?.url||'';
+                        if (!url && data?.nip94_event?.tags) { const t=data.nip94_event.tags.find(x=>x[0]==='url'); if(t) url=t[1]; }
+                        if (!url) url = base.replace(/\/$/,'')+'/'+hash;
+                        return url;
+                    }
+                } catch(_){}
+            }
+            throw new Error('Falha no upload (Nostr/Blossom)');
+        }
+        async function uploadFile(file) {
+            if (!isUserLoggedIn()) throw new Error('Faça login primeiro');
+            const buf = await file.arrayBuffer();
+            try {
+                const fd = new FormData(); fd.append('fileToUpload', file);
+                const auth = await createNip98AuthHeader(UPLOAD_URL, 'POST', currentUserData.privateKey);
+                const res = await fetch(UPLOAD_URL, { method:'POST', headers:{ Authorization:auth }, body:fd });
+                const text = await res.text(); let data=null; try{ data=JSON.parse(text);}catch(_){}
+                if (res.ok && data?.status!=='error') { const url=extractUploadUrl(data); if(url) return url; }
+            } catch(_){}
+            return uploadViaBlossom(buf, currentUserData.privateKey);
+        }
+
+        // Estado: temporadas[].episodios[]
+        // cada ep: { titulo, videoUrl, file }
+        let dadosTemps = [{ titulo:'', episodios:[{ titulo:'', videoUrl:'', file:null }] }];
+        let tempAtiva = 0, epAtivo = 0;
+        let generosSelecionados = [];
+
+        function salvarAtual() {
+            const t = dadosTemps[tempAtiva];
+            if (!t) return;
+            t.titulo = document.getElementById('tituloTempAtivo').value;
+            const ep = t.episodios[epAtivo];
+            if (!ep) return;
+            ep.titulo = document.getElementById('tituloEpAtivo').value;
+            ep.videoUrl = document.getElementById('videoUrlAtivo').value.trim();
+        }
+        function renderTempTabs() {
+            const c = document.getElementById('tempTabs'); c.innerHTML='';
+            dadosTemps.forEach((_,i)=>{
+                const b=document.createElement('button'); b.type='button';
+                b.className='tab'+(i===tempAtiva?' active':'');
+                b.textContent='T'+(i+1); b.onclick=()=>mudarTemp(i); c.appendChild(b);
+            });
+        }
+        function renderEpTabs() {
+            const c = document.getElementById('epTabs'); c.innerHTML='';
+            const eps = dadosTemps[tempAtiva]?.episodios||[];
+            eps.forEach((_,i)=>{
+                const b=document.createElement('button'); b.type='button';
+                b.className='tab'+(i===epAtivo?' active':'');
+                b.textContent='Ep. '+(i+1); b.onclick=()=>mudarEp(i); c.appendChild(b);
+            });
+        }
+        function carregarNaTela() {
+            const t = dadosTemps[tempAtiva];
+            document.getElementById('labelTituloTemp').textContent = 'Título da Temporada '+(tempAtiva+1);
+            document.getElementById('tituloTempAtivo').value = t?.titulo||'';
+            document.getElementById('qtdEps').value = t?.episodios?.length||1;
+            const ep = t?.episodios[epAtivo];
+            document.getElementById('labelTituloEp').textContent = 'Título do Episódio '+(epAtivo+1);
+            document.getElementById('labelVideo').textContent = 'URL do vídeo (Ep. '+(epAtivo+1)+')';
+            document.getElementById('tituloEpAtivo').value = ep?.titulo||'';
+            document.getElementById('videoUrlAtivo').value = ep?.videoUrl||'';
+            document.getElementById('videoArquivo').value = '';
+        }
+        function mudarTemp(i) {
+            salvarAtual(); tempAtiva=i; epAtivo=0;
+            renderTempTabs(); renderEpTabs(); carregarNaTela();
+        }
+        function mudarEp(i) {
+            salvarAtual(); epAtivo=i;
+            renderEpTabs(); carregarNaTela();
+        }
+        function gerarTemps() {
+            const qtd = Math.max(1, Math.min(20, parseInt(document.getElementById('qtdTemps').value)||1));
+            while (dadosTemps.length < qtd) dadosTemps.push({ titulo:'', episodios:[{ titulo:'', videoUrl:'', file:null }] });
+            if (dadosTemps.length > qtd) dadosTemps = dadosTemps.slice(0,qtd);
+            if (tempAtiva >= qtd) tempAtiva = qtd-1;
+            if (epAtivo >= (dadosTemps[tempAtiva].episodios.length)) epAtivo = 0;
+            renderTempTabs(); renderEpTabs(); carregarNaTela();
+        }
+        function gerarEps() {
+            salvarAtual();
+            const qtd = Math.max(1, Math.min(50, parseInt(document.getElementById('qtdEps').value)||1));
+            const t = dadosTemps[tempAtiva];
+            while (t.episodios.length < qtd) t.episodios.push({ titulo:'', videoUrl:'', file:null });
+            if (t.episodios.length > qtd) t.episodios = t.episodios.slice(0,qtd);
+            if (epAtivo >= qtd) epAtivo = qtd-1;
+            renderEpTabs(); carregarNaTela();
+        }
+
+        // Capa
+        const coverDrop = document.getElementById('coverDrop');
+        const capaInput = document.getElementById('capaArquivo');
+        capaInput.addEventListener('change', ()=>{
+            const f=capaInput.files?.[0]; if(!f) return;
+            const r=new FileReader();
+            r.onload=ev=>{ document.getElementById('previewImg').src=ev.target.result; coverDrop.classList.add('has-image'); };
+            r.readAsDataURL(f);
+        });
+        ['dragenter','dragover'].forEach(ev=>coverDrop.addEventListener(ev,e=>{ e.preventDefault(); coverDrop.classList.add('dragover'); }));
+        ['dragleave','drop'].forEach(ev=>coverDrop.addEventListener(ev,e=>{ e.preventDefault(); coverDrop.classList.remove('dragover'); }));
+        coverDrop.addEventListener('drop', e=>{
+            const f=e.dataTransfer.files?.[0];
+            if (f&&f.type.startsWith('image/')) { const dt=new DataTransfer(); dt.items.add(f); capaInput.files=dt.files; capaInput.dispatchEvent(new Event('change')); }
+        });
+
+        document.getElementById('videoArquivo').addEventListener('change', ()=>{
+            salvarAtual();
+            const f = document.getElementById('videoArquivo').files?.[0];
+            if (f) dadosTemps[tempAtiva].episodios[epAtivo].file = f;
+        });
+        document.getElementById('genreChips').addEventListener('click', e=>{
+            const btn=e.target.closest('.genre-chip'); if(!btn) return;
+            const g=btn.dataset.g;
+            if (generosSelecionados.includes(g)) { generosSelecionados=generosSelecionados.filter(x=>x!==g); btn.classList.remove('selected'); }
+            else { if (generosSelecionados.length>=3) return; generosSelecionados.push(g); btn.classList.add('selected'); }
+        });
+        document.getElementById('qtdTemps').addEventListener('input', gerarTemps);
+        document.getElementById('qtdEps').addEventListener('input', gerarEps);
+        document.getElementById('titulo').addEventListener('input', ()=>{ document.getElementById('tituloCount').textContent=(document.getElementById('titulo').value||'').length; });
+        document.getElementById('sinopse').addEventListener('input', ()=>{ document.getElementById('sinopseCount').textContent=(document.getElementById('sinopse').value||'').length; });
+        document.getElementById('tituloTempAtivo').addEventListener('input', salvarAtual);
+        document.getElementById('tituloEpAtivo').addEventListener('input', salvarAtual);
+        document.getElementById('videoUrlAtivo').addEventListener('input', salvarAtual);
+
+        function publicarEmRelay(url, event) {
+            return new Promise((resolve,reject)=>{
+                const ws=new WebSocket(url);
+                const t=setTimeout(()=>{ ws.close(); reject(); },8000);
+                ws.onopen=()=>ws.send(JSON.stringify(['EVENT',event]));
+                ws.onmessage=msg=>{
+                    try {
+                        const d=JSON.parse(msg.data);
+                        if (d[0]==='OK'&&d[1]===event.id) { clearTimeout(t); ws.close(); d[2]===true?resolve():reject(); }
+                    } catch(_){}
+                };
+                ws.onerror=()=>{ clearTimeout(t); reject(); };
+            });
+        }
+
+        document.getElementById('formPostagem').addEventListener('submit', async e=>{
+            e.preventDefault(); salvarAtual();
+            const btn=document.getElementById('btnPublish'); const orig=btn.innerHTML;
+            btn.disabled=true;
+            try {
+                if (!isUserLoggedIn()) throw new Error('Faça login com sua chave Nostr');
+                const titulo=document.getElementById('titulo').value.trim();
+                if (!titulo) throw new Error('Informe o título da série');
+
+                let capaUrl='';
+                const capaFile=capaInput.files?.[0];
+                if (capaFile) { btn.innerHTML='<i class="fa-solid fa-spinner fa-spin" style="margin-right:8px;"></i>Enviando capa...'; capaUrl=await uploadFile(capaFile); }
+
+                const temporadas=[];
+                for (let ti=0; ti<dadosTemps.length; ti++) {
+                    const t=dadosTemps[ti];
+                    const episodios=[];
+                    for (let ei=0; ei<t.episodios.length; ei++) {
+                        const ep=t.episodios[ei];
+                        let videoUrl = (ep.videoUrl||'').trim();
+                        if (ep.file) {
+                            btn.innerHTML=`<i class="fa-solid fa-spinner fa-spin" style="margin-right:8px;"></i>T${ti+1} Ep.${ei+1} · upload vídeo...`;
+                            videoUrl = await uploadFile(ep.file);
+                        }
+                        episodios.push({
+                            numero: ei+1,
+                            titulo: ep.titulo || `Episódio ${ei+1}`,
+                            videoUrl
+                        });
+                    }
+                    temporadas.push({
+                        numero: ti+1,
+                        titulo: t.titulo || `Temporada ${ti+1}`,
+                        episodios
+                    });
+                }
+
+                const serie = {
+                    titulo, autor: currentUserData.nickname||'Anônimo', capa:capaUrl,
+                    sinopse: document.getElementById('sinopse').value.trim(),
+                    generos: generosSelecionados.slice(), tipo:'video',
+                    temporadas, data: new Date().toLocaleDateString('pt-BR')
+                };
+
+                btn.innerHTML='<i class="fa-solid fa-lock" style="margin-right:8px;"></i>Criptografando...';
+                const encrypted = await encryptFanfic(serie);
+                const eventTemplate = { kind:1, created_at:Math.floor(Date.now()/1000), tags:[LS_TAG,['client','ls369']], content:encrypted };
+                const signed = NostrTools.finalizeEvent(eventTemplate, currentUserData.privateKey);
+                btn.innerHTML='<i class="fa-solid fa-spinner fa-spin" style="margin-right:8px;"></i>Publicando no Nostr...';
+                const results = await Promise.allSettled(RELAYS.map(u=>publicarEmRelay(u,signed)));
+                const ok = results.filter(r=>r.status==='fulfilled').length;
+                if (!ok) throw new Error('Nenhum relay aceitou o evento');
+                alert('Série publicada!\nRelays: '+ok+'/'+RELAYS.length);
+                location.href = 'Index.html';
+            } catch(err) {
+                console.error(err); alert('Erro: '+err.message);
+            } finally {
+                btn.disabled=false; btn.innerHTML=orig;
+            }
+        });
+
+        gerarTemps();
+        document.getElementById('tituloCount').textContent='0';
+        document.getElementById('sinopseCount').textContent='0';
+    </script>
+</body>
+</html>
