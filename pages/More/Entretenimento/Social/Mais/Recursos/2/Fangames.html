@@ -145,7 +145,7 @@
         }
         .modal-close:hover { background: var(--border-color); color: var(--text-main); }
         .modal-carousel {
-            position: relative; width: 100%; height: 180px; background: linear-gradient(135deg, var(--violet-light), #e0c3fc);
+            position: relative; width: 100%; height: 220px; background: linear-gradient(135deg, var(--violet-light), #e0c3fc);
             border-radius: 12px; overflow: hidden; margin-bottom: 16px; display: flex; align-items: center; justify-content: center;
         }
         .carousel-track { display: flex; width: 100%; height: 100%; transition: transform 0.3s ease-in-out; }
@@ -154,6 +154,9 @@
             color: var(--violet-main); font-size: 45px; gap: 8px; background: rgba(255, 255, 255, 0.4);
         }
         .carousel-slide img { width: 100%; height: 100%; object-fit: cover; }
+        .carousel-slide video {
+            width: 100%; height: 100%; object-fit: contain; background: #000; display: block;
+        }
         .carousel-slide span { font-size: 13px; font-weight: 700; color: var(--violet-main); background: rgba(255, 255, 255, 0.8); padding: 4px 12px; border-radius: 12px; }
         .carousel-btn {
             position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0, 0, 0, 0.3); color: white; border: none;
@@ -235,7 +238,6 @@
             100% { transform: translate(calc(-50% + var(--ex)), calc(-50% + var(--ey))) scale(1.15) rotate(var(--er)); opacity: 0; }
         }
 
-        /* Slot de parceiro no modal */
         .lp-slot {
             margin: 0 0 16px 0;
             padding: 10px 12px;
@@ -343,6 +345,7 @@
                 transform: translateY(100%); max-height: 85vh;
             }
             .modal-overlay.active .modal-content { transform: translateY(0); }
+            .modal-carousel { height: 200px; }
             .mobile-bottom-nav {
                 display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background-color: var(--bg-white);
                 border-top: 1px solid var(--border-color); justify-content: space-around; padding: 10px 0; z-index: 100;
@@ -371,14 +374,14 @@
         <div class="top-bar">
             <div class="search-container">
                 <span class="search-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="text" id="searchInput" placeholder="Pesquisar fangames">
+                <input type="text" id="searchInput" placeholder="Pesquisar apps, e-books, mods, mapas, vídeos…">
                 <button type="button" id="clearSearchBtn" class="clear-search-btn" title="Limpar busca">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             <div class="top-bar-actions">
                 <img id="user-avatar" class="user-avatar-img" src="https://api.dicebear.com/7.x/bottts/svg?seed=FangameStore" alt="Perfil" title="Minha Conta">
-                <div id="openPostModalBtn" class="user-profile" title="Postar Fangame">
+                <div id="openPostModalBtn" class="user-profile" title="Postar conteúdo">
                     <i class="fa-solid fa-plus"></i>
                 </div>
             </div>
@@ -400,7 +403,7 @@
 
         <div id="noResults" class="no-results">
             <i class="fa-solid fa-face-sad-tear" style="font-size: 32px; margin-bottom: 10px;"></i>
-            <p>Nenhum fangame encontrado para esta busca.</p>
+            <p>Nenhum item encontrado para esta busca.</p>
         </div>
     </main>
 
@@ -411,9 +414,9 @@
             </button>
             <div id="modalCarouselContainer" class="modal-carousel">
                 <div id="carouselTrack" class="carousel-track">
-                    <div class="carousel-slide"><i class="fa-solid fa-image"></i><span>Gameplay 1</span></div>
-                    <div class="carousel-slide"><i class="fa-solid fa-image"></i><span>Gameplay 2</span></div>
-                    <div class="carousel-slide"><i class="fa-solid fa-image"></i><span>Gameplay 3</span></div>
+                    <div class="carousel-slide"><i class="fa-solid fa-image"></i><span>Mídia 1</span></div>
+                    <div class="carousel-slide"><i class="fa-solid fa-image"></i><span>Mídia 2</span></div>
+                    <div class="carousel-slide"><i class="fa-solid fa-image"></i><span>Mídia 3</span></div>
                 </div>
                 <button type="button" id="carouselPrev" class="carousel-btn carousel-prev"><i class="fa-solid fa-chevron-left"></i></button>
                 <button type="button" id="carouselNext" class="carousel-btn carousel-next"><i class="fa-solid fa-chevron-right"></i></button>
@@ -426,7 +429,7 @@
             <div class="modal-header-info">
                 <div id="modalIcon" class="modal-icon"><i class="fa-solid fa-gamepad"></i></div>
                 <div>
-                    <div id="modalTitle" class="modal-title">Nome do Jogo</div>
+                    <div id="modalTitle" class="modal-title">Nome</div>
                     <div class="modal-author-container">
                         <div id="modalAuthorAvatar" class="modal-author-avatar">U</div>
                         <span id="modalAuthorName" class="modal-author-name">Nome do Usuário</span>
@@ -436,8 +439,7 @@
             <div id="modalRatingBadge" class="modal-rating-badge">
                 <span id="modalRating">4.8</span> <span class="star">★</span>
             </div>
-            <p id="modalDesc" class="modal-description">Descrição detalhada do fangame selecionado aparecerá aqui.</p>
-            <!-- Anúncio de parceiro no modal -->
+            <p id="modalDesc" class="modal-description">Descrição detalhada aparecerá aqui.</p>
             <div id="modalPartnerSlot" class="lp-slot" data-lp-slot style="display:none;"></div>
             <div id="modalExtraContent"></div>
             <p id="uploadProgress" class="upload-progress"></p>
@@ -478,7 +480,6 @@
         let networkGames = [];
         let currentDownloadManifest = null;
 
-        // Parceiros (MarketAds)
         let partnerCampaigns = [];
         let partnerCursor = 0;
         const LEVEL_ORDER = { diamante: 4, ouro: 3, plata: 2, bronze: 1 };
@@ -522,7 +523,6 @@
             if (grid) grid.innerHTML = skeletonGridHtml(8);
         }
 
-        /* ===== Parceiros ===== */
         function parseCampaignFromEvent(ev) {
             try {
                 const data = JSON.parse(ev.content || '{}');
@@ -646,9 +646,7 @@
                 partnerCampaigns = await fetchNetworkCampaigns(20);
             }, 3 * 60 * 1000);
         }
-        /* ===== Fim parceiros ===== */
 
-        /* ===== UI de download animado ===== */
         function setDownloadButtonIdle(label) {
             const btn = document.getElementById('modalActionBtn');
             if (!btn) return;
@@ -708,7 +706,6 @@
             document.body.appendChild(layer);
             setTimeout(() => layer.remove(), 1300);
         }
-        /* ===== Fim UI download ===== */
 
         async function derivePageKey(privateKeyHex) {
             const enc = new TextEncoder();
@@ -957,11 +954,22 @@
                 .replace(/'/g, '&#39;')
                 .replace(/"/g, '&quot;');
         }
+        function isVideoUrl(url) {
+            const u = String(url || '').toLowerCase().split('?')[0];
+            return /\.(mp4|webm|mov|m4v|ogv|avi|mkv)$/i.test(u) ||
+                   u.includes('/video/');
+        }
         function coverHtml(coverUrl, fallbackIconClass) {
             if (coverUrl) {
                 return '<img src="' + escapeHtml(coverUrl) + '" alt="" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'<i class=\\\'fa-solid ' + fallbackIconClass + '\\\'></i>\'">';
             }
             return '<i class="fa-solid ' + fallbackIconClass + '"></i>';
+        }
+        function pauseCarouselVideos() {
+            if (!carouselTrack) return;
+            carouselTrack.querySelectorAll('video').forEach(function (v) {
+                try { v.pause(); } catch (_) {}
+            });
         }
         function renderNetworkCatalog() {
             const stories = document.getElementById('storiesContainer');
@@ -969,14 +977,14 @@
             if (!stories || !grid) return;
 
             if (!networkGames.length) {
-                stories.innerHTML = '<p style="font-size:13px;color:var(--text-secondary);padding:12px;">Nenhum fangame disponível ainda. Seja o primeiro a publicar.</p>';
+                stories.innerHTML = '<p style="font-size:13px;color:var(--text-secondary);padding:12px;">Nenhum conteúdo disponível ainda. Seja o primeiro a publicar.</p>';
                 grid.innerHTML = '';
                 return;
             }
 
             const newest = networkGames.slice(0, 12);
             stories.innerHTML = newest.map(g => {
-                const cover = g.coverUrl || (g.imageUrls && g.imageUrls[0]) || '';
+                const cover = g.coverUrl || (g.imageUrls && g.imageUrls[0] && !isVideoUrl(g.imageUrls[0]) ? g.imageUrls[0] : '') || '';
                 const coverStyle = cover ? ' style="background-image:url(\'' + escapeHtml(cover) + '\')"' : '';
                 const coverClass = cover ? ' has-cover' : '';
                 return `
@@ -1000,7 +1008,7 @@
             }).join('');
 
             grid.innerHTML = networkGames.map(g => {
-                const cover = g.coverUrl || (g.imageUrls && g.imageUrls[0]) || '';
+                const cover = g.coverUrl || (g.imageUrls && g.imageUrls[0] && !isVideoUrl(g.imageUrls[0]) ? g.imageUrls[0] : '') || '';
                 return `
                 <div class="app-card"
                     data-name="${escapeHtml(g.name)}"
@@ -1195,9 +1203,11 @@
             const urls = [];
             const files = Array.from(fileList || []);
             for (let i = 0; i < files.length; i++) {
-                if (onProgress) onProgress('Enviando imagem ' + (i + 1) + '/' + files.length + '…');
-                const buf = await files[i].arrayBuffer();
-                const up = await uploadBlob(buf, files[i].name || ('img-' + i + '.jpg'), onProgress);
+                const f = files[i];
+                const isVid = (f.type || '').startsWith('video/') || isVideoUrl(f.name);
+                if (onProgress) onProgress((isVid ? 'Enviando vídeo ' : 'Enviando imagem ') + (i + 1) + '/' + files.length + '…');
+                const buf = await f.arrayBuffer();
+                const up = await uploadBlob(buf, f.name || ((isVid ? 'vid-' : 'img-') + i + (isVid ? '.mp4' : '.jpg')), onProgress);
                 urls.push(up.url);
             }
             return urls;
@@ -1252,7 +1262,7 @@
             if (onProgress) onProgress('Pronto', 100);
             return {
                 blob: new Blob([finalBuf]),
-                fileName: manifest.originalName || 'fangame.bin',
+                fileName: manifest.originalName || 'download.bin',
                 sha256: finalHash
             };
         }
@@ -1380,6 +1390,7 @@
             document.querySelectorAll('.carousel-dot').forEach(function (dot, index) {
                 dot.classList.toggle('active', index === currentSlide);
             });
+            pauseCarouselVideos();
         }
         if (carouselNext) {
             carouselNext.addEventListener('click', function () {
@@ -1444,7 +1455,13 @@
                     if (imageUrls.length) {
                         totalSlides = imageUrls.length;
                         carouselTrack.innerHTML = imageUrls.map(function (u) {
-                            return '<div class="carousel-slide"><img src="' + u + '" alt=""></div>';
+                            const safe = escapeHtml(u);
+                            if (isVideoUrl(u)) {
+                                return '<div class="carousel-slide">' +
+                                    '<video src="' + safe + '" controls playsinline preload="metadata"></video>' +
+                                    '</div>';
+                            }
+                            return '<div class="carousel-slide"><img src="' + safe + '" alt=""></div>';
                         }).join('');
                         const dots = document.getElementById('carouselDots');
                         dots.innerHTML = imageUrls.map(function (_, i) {
@@ -1459,9 +1476,9 @@
                     } else {
                         totalSlides = 3;
                         carouselTrack.innerHTML =
-                            '<div class="carousel-slide"><i class="fa-solid fa-image"></i><span>Gameplay 1</span></div>' +
-                            '<div class="carousel-slide"><i class="fa-solid fa-image"></i><span>Gameplay 2</span></div>' +
-                            '<div class="carousel-slide"><i class="fa-solid fa-image"></i><span>Gameplay 3</span></div>';
+                            '<div class="carousel-slide"><i class="fa-solid fa-image"></i><span>Mídia 1</span></div>' +
+                            '<div class="carousel-slide"><i class="fa-solid fa-image"></i><span>Mídia 2</span></div>' +
+                            '<div class="carousel-slide"><i class="fa-solid fa-image"></i><span>Mídia 3</span></div>';
                     }
 
                     if (cover) {
@@ -1478,7 +1495,6 @@
                     currentSlide = 0;
                     updateCarousel();
 
-                    // Anúncio no modal
                     paintModalPartnerSlot();
 
                     if (manifestAttr) {
@@ -1509,7 +1525,6 @@
                 const result = await downloadAndReconstruct(manifest, function (msg, pct) {
                     setProgress(msg, typeof pct === 'number' ? pct : undefined);
                     if (typeof pct !== 'number' && msg) {
-                        // progresso estimado quando só há mensagem
                         setDownloadButtonProgress(50, msg);
                     }
                 });
@@ -1533,11 +1548,11 @@
 
         function refreshMyGamesListHtml() {
             if (!myPostedGames.length) {
-                return '<p style="font-size:13px;color:var(--text-secondary);">Nenhum fangame publicado ainda.</p>';
+                return '<p style="font-size:13px;color:var(--text-secondary);">Nenhum conteúdo publicado ainda.</p>';
             }
             return '<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">' +
                 myPostedGames.map(function (g, idx) {
-                    const thumb = g.coverUrl || (g.imageUrls && g.imageUrls[0]) || '';
+                    const thumb = g.coverUrl || (g.imageUrls && g.imageUrls[0] && !isVideoUrl(g.imageUrls[0]) ? g.imageUrls[0] : '') || '';
                     const thumbHtml = thumb
                         ? '<img src="' + escapeHtml(thumb) + '" alt="" style="width:36px;height:36px;border-radius:8px;object-fit:cover;flex-shrink:0;">'
                         : '<i class="fa-solid fa-gamepad" style="color:var(--violet-main);width:36px;text-align:center;"></i>';
@@ -1563,9 +1578,9 @@
             const partnerSlot = document.getElementById('modalPartnerSlot');
             if (partnerSlot) { partnerSlot.style.display = 'none'; partnerSlot.innerHTML = ''; }
             modalIcon.innerHTML = '<i class="fa-solid fa-user"></i>';
-            modalTitle.textContent = 'Meus Fangames Postados';
+            modalTitle.textContent = 'Meus conteúdos publicados';
             setModalAuthorAsMe();
-            modalDesc.textContent = 'Aqui estão os fangames que você publicou:';
+            modalDesc.textContent = 'Aqui estão os itens que você publicou:';
             modalExtraContent.innerHTML = refreshMyGamesListHtml();
             gameModal.classList.add('active');
         }
@@ -1610,7 +1625,7 @@
                 filterGames();
                 modalExtraContent.innerHTML = refreshMyGamesListHtml();
                 setProgress('Removido com sucesso.');
-                alert('Fangame removido da rede e da sua lista.');
+                alert('Conteúdo removido da rede e da sua lista.');
             } catch (err) {
                 console.error(err);
                 alert('Erro ao deletar: ' + (err.message || err));
@@ -1628,9 +1643,9 @@
                 : '<img id="coverPreviewImg" class="cover-preview" alt="Capa">';
             return (
                 '<div style="display:flex;flex-direction:column;gap:12px;margin-top:10px;margin-bottom:20px;">' +
-                '<input id="postGameName" type="text" placeholder="Nome do Fangame" value="' + escapeHtml(g.name || '') + '" style="width:100%;padding:12px 16px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:14px;outline:none;">' +
-                '<input id="postGameCat" type="text" placeholder="Categoria (Ex: Ação • Plataforma)" value="' + escapeHtml(g.category || '') + '" style="width:100%;padding:12px 16px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:14px;outline:none;">' +
-                '<textarea id="postGameDesc" placeholder="Descrição detalhada do jogo..." rows="3" style="width:100%;padding:12px 16px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:14px;outline:none;resize:none;">' + escapeHtml(g.desc || '') + '</textarea>' +
+                '<input id="postGameName" type="text" placeholder="Nome do conteúdo" value="' + escapeHtml(g.name || '') + '" style="width:100%;padding:12px 16px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:14px;outline:none;">' +
+                '<input id="postGameCat" type="text" placeholder="Categoria (Ex: App Windows • Minecraft Mod • E-book • Vídeo • Imagem)" value="' + escapeHtml(g.category || '') + '" style="width:100%;padding:12px 16px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:14px;outline:none;">' +
+                '<textarea id="postGameDesc" placeholder="Descrição detalhada..." rows="3" style="width:100%;padding:12px 16px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:14px;outline:none;resize:none;">' + escapeHtml(g.desc || '') + '</textarea>' +
                 '<div style="display:flex;flex-direction:column;gap:6px;">' +
                 '<label style="font-size:13px;font-weight:500;color:var(--text-secondary);">Imagem de capa (ícone / card):</label>' +
                 '<div style="display:flex;align-items:center;gap:12px;">' +
@@ -1640,15 +1655,17 @@
                 (g.coverUrl ? '<label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><input type="checkbox" id="postKeepCover" checked> Manter capa atual se não enviar nova</label>' : '') +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:6px;">' +
-                '<label style="font-size:13px;font-weight:500;color:var(--text-secondary);">Imagens para o Carrossel (Gameplay):</label>' +
-                '<input id="postGameImages" type="file" multiple accept="image/*" style="width:100%;padding:10px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:13px;cursor:pointer;">' +
+                '<label style="font-size:13px;font-weight:500;color:var(--text-secondary);">Mídia do carrossel (imagens e vídeos):</label>' +
+                '<p style="font-size:11px;color:var(--text-secondary);margin:0;line-height:1.4;">JPG, PNG, WebP, GIF, MP4, WebM, MOV. Vários arquivos de uma vez.</p>' +
+                '<input id="postGameImages" type="file" multiple accept="image/*,video/*,.mp4,.webm,.mov,.m4v,.jpg,.jpeg,.png,.webp,.gif" style="width:100%;padding:10px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:13px;cursor:pointer;">' +
                 (g.imageUrls && g.imageUrls.length
-                    ? '<label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><input type="checkbox" id="postKeepImages" checked> Manter imagens atuais se não enviar novas</label>'
+                    ? '<label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><input type="checkbox" id="postKeepImages" checked> Manter mídias atuais se não enviar novas</label>'
                     : '') +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:6px;">' +
-                '<label style="font-size:13px;font-weight:500;color:var(--text-secondary);">Arquivo do Fangame para Download (.zip, .rar, .exe):</label>' +
-                '<input id="postGameFile" type="file" accept=".zip,.rar,.exe,.7z,*/*" style="width:100%;padding:10px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:13px;cursor:pointer;">' +
+                '<label style="font-size:13px;font-weight:500;color:var(--text-secondary);">Arquivo para download (opcional):</label>' +
+                '<p style="font-size:11px;color:var(--text-secondary);margin:0;line-height:1.4;">Apps (Android, iOS, Windows, Mac, ChromeOS, Linux), e-books, audiobooks, mods/add-ons, mapas e shaders Minecraft, imagens e vídeos. Aceita .apk, .aab, .ipa, .exe, .msi, .dmg, .pkg, .appimage, .deb, .rpm, .zip, .rar, .7z, .epub, .pdf, .mobi, .mp3, .m4b, .jar, .mcaddon, .mcpack, .mcworld, .mp4, .webm e outros.</p>' +
+                '<input id="postGameFile" type="file" accept="image/*,video/*,.apk,.aab,.ipa,.exe,.msi,.dmg,.pkg,.appimage,.deb,.rpm,.zip,.rar,.7z,.epub,.pdf,.mobi,.azw3,.mp3,.m4a,.m4b,.ogg,.jar,.mcaddon,.mcpack,.mcworld,.mp4,.webm,.mov,*/*" style="width:100%;padding:10px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:13px;cursor:pointer;">' +
                 (g.fileManifest
                     ? '<label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><input type="checkbox" id="postKeepFile" checked> Manter arquivo atual se não enviar novo</label>'
                     : '') +
@@ -1687,7 +1704,7 @@
             modalIcon.innerHTML = g.coverUrl
                 ? '<img src="' + escapeHtml(g.coverUrl) + '" alt="">'
                 : '<i class="fa-solid fa-pen"></i>';
-            modalTitle.textContent = 'Editar Fangame';
+            modalTitle.textContent = 'Editar conteúdo';
             modalDesc.textContent = 'Atualize as informações. O mesmo ID é republicado na rede (evento substituível).';
             modalExtraContent.innerHTML = buildPostFormHtml(g);
             wireCoverPreview();
@@ -1695,10 +1712,10 @@
             modalActionBtn.onclick = async function () {
                 const name = ((document.getElementById('postGameName') || {}).value || '').trim();
                 if (!name) {
-                    alert('Informe o nome do fangame.');
+                    alert('Informe o nome.');
                     return;
                 }
-                const cat = ((document.getElementById('postGameCat') || {}).value || '').trim() || 'Fangame';
+                const cat = ((document.getElementById('postGameCat') || {}).value || '').trim() || 'Geral';
                 const desc = ((document.getElementById('postGameDesc') || {}).value || '').trim();
                 const coverInput = document.getElementById('postGameCover');
                 const imgInput = document.getElementById('postGameImages');
@@ -1750,7 +1767,7 @@
                     renderNetworkCatalog();
                     filterGames();
                     setProgress('Salvo!');
-                    alert('Fangame atualizado!');
+                    alert('Conteúdo atualizado!');
                     openMyGamesModal({ preventDefault: function () {} });
                 } catch (err) {
                     console.error(err);
@@ -1772,26 +1789,26 @@
             modalActionBtn.style.display = 'block';
             const partnerSlot = document.getElementById('modalPartnerSlot');
             if (partnerSlot) { partnerSlot.style.display = 'none'; partnerSlot.innerHTML = ''; }
-            setDownloadButtonIdle('Publicar Fangame');
+            setDownloadButtonIdle('Publicar');
             setProgress('');
             setModalAuthorAsMe();
             modalIcon.innerHTML = '<i class="fa-solid fa-plus"></i>';
-            modalTitle.textContent = 'Postar Novo Fangame';
-            modalDesc.textContent = 'Preencha os dados e envie os arquivos para publicar seu fangame:';
+            modalTitle.textContent = 'Postar novo conteúdo';
+            modalDesc.textContent = 'Apps, e-books, mods Minecraft, imagens, vídeos e mais. Preencha os dados e envie os arquivos:';
             modalExtraContent.innerHTML = buildPostFormHtml(null);
             wireCoverPreview();
 
             modalActionBtn.onclick = async function () {
                 const name = ((document.getElementById('postGameName') || {}).value || '').trim();
                 if (!name) {
-                    alert('Informe o nome do fangame.');
+                    alert('Informe o nome.');
                     return;
                 }
                 if (!isLoggedIn()) {
                     alert('Login necessário para publicar.');
                     return;
                 }
-                const cat = ((document.getElementById('postGameCat') || {}).value || '').trim() || 'Fangame';
+                const cat = ((document.getElementById('postGameCat') || {}).value || '').trim() || 'Geral';
                 const desc = ((document.getElementById('postGameDesc') || {}).value || '').trim();
                 const coverInput = document.getElementById('postGameCover');
                 const imgInput = document.getElementById('postGameImages');
@@ -1808,7 +1825,10 @@
                     if (imgInput && imgInput.files && imgInput.files.length) {
                         imageUrls = await uploadImages(imgInput.files, setProgress);
                     }
-                    if (!coverUrl && imageUrls.length) coverUrl = imageUrls[0];
+                    if (!coverUrl && imageUrls.length) {
+                        const firstImg = imageUrls.find(u => !isVideoUrl(u));
+                        coverUrl = firstImg || '';
+                    }
                     let fileManifest = null;
                     if (gameFile) {
                         fileManifest = await uploadGameFile(gameFile, setProgress);
@@ -1834,7 +1854,7 @@
                     renderNetworkCatalog();
                     filterGames();
                     setProgress('Publicado com sucesso!');
-                    alert('Fangame publicado!');
+                    alert('Conteúdo publicado!');
                     gameModal.classList.remove('active');
                 } catch (err) {
                     console.error(err);
@@ -1856,12 +1876,16 @@
 
         if (modalCloseBtn) {
             modalCloseBtn.addEventListener('click', function () {
+                pauseCarouselVideos();
                 gameModal.classList.remove('active');
             });
         }
         if (gameModal) {
             gameModal.addEventListener('click', function (e) {
-                if (e.target === gameModal) gameModal.classList.remove('active');
+                if (e.target === gameModal) {
+                    pauseCarouselVideos();
+                    gameModal.classList.remove('active');
+                }
             });
         }
 
