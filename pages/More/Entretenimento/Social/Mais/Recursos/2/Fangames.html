@@ -45,7 +45,7 @@
             background-color: var(--bg-white);
             overflow-x: hidden;
         }
-        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; width: 100%; max-width: 100%; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 15px; width: 100%; max-width: 100%; }
         .search-container { flex: 1; max-width: 600px; position: relative; min-width: 0; }
         .search-container input {
             width: 100%; padding: 14px 44px 14px 48px; background-color: var(--bg-main); border: 1px solid transparent;
@@ -68,6 +68,66 @@
             width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--violet-main);
             background: var(--violet-light); flex-shrink: 0;
         }
+
+        /* ===== Top tabs estilo TikTok ===== */
+        .top-tabs-wrap {
+            width: 100%;
+            max-width: 100%;
+            margin: 0 0 22px 0;
+            position: relative;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .top-tabs {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: stretch;
+            gap: 4px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding: 0 2px 0 0;
+        }
+        .top-tabs::-webkit-scrollbar { display: none; }
+        .top-tab {
+            flex: 0 0 auto;
+            position: relative;
+            background: transparent;
+            border: none;
+            padding: 12px 16px 14px;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: color 0.2s ease;
+            user-select: none;
+        }
+        .top-tab:hover { color: var(--text-main); }
+        .top-tab.active {
+            color: var(--text-main);
+            font-weight: 700;
+        }
+        .top-tab.active::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            transform: translateX(-50%);
+            width: 28px;
+            height: 3px;
+            border-radius: 3px 3px 0 0;
+            background: var(--violet-main);
+        }
+        .top-tabs-fade {
+            pointer-events: none;
+            position: absolute;
+            top: 0; right: 0; bottom: 1px;
+            width: 36px;
+            background: linear-gradient(to right, transparent, var(--bg-white));
+        }
+
         .section { margin-bottom: 40px; width: 100%; max-width: 100%; }
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
         .section-title { font-size: 22px; font-weight: 700; color: var(--text-main); }
@@ -328,7 +388,8 @@
                 padding: 15px 15px 85px 15px;
                 overflow-x: hidden;
             }
-            .top-bar { margin-bottom: 20px; }
+            .top-bar { margin-bottom: 8px; }
+            .top-tab { padding: 10px 14px 12px; font-size: 14px; }
             .story-card { flex: 0 0 115px; height: 180px; padding: 10px; }
             .story-icon-wrapper { width: 36px; height: 36px; font-size: 15px; }
             .app-grid {
@@ -385,6 +446,21 @@
                     <i class="fa-solid fa-plus"></i>
                 </div>
             </div>
+        </div>
+
+        <!-- Top tabs estilo TikTok -->
+        <div class="top-tabs-wrap">
+            <div class="top-tabs" id="topTabs" role="tablist" aria-label="Categorias">
+                <button type="button" class="top-tab active" data-filter="all" role="tab" aria-selected="true">Todos</button>
+                <button type="button" class="top-tab" data-filter="fangame" role="tab" aria-selected="false">Fangames</button>
+                <button type="button" class="top-tab" data-filter="app" role="tab" aria-selected="false">Apps</button>
+                <button type="button" class="top-tab" data-filter="ebook" role="tab" aria-selected="false">E-books</button>
+                <button type="button" class="top-tab" data-filter="audiobook" role="tab" aria-selected="false">Audiobooks</button>
+                <button type="button" class="top-tab" data-filter="minecraft" role="tab" aria-selected="false">Minecraft</button>
+                <button type="button" class="top-tab" data-filter="imagem" role="tab" aria-selected="false">Imagens</button>
+                <button type="button" class="top-tab" data-filter="video" role="tab" aria-selected="false">Vídeos</button>
+            </div>
+            <div class="top-tabs-fade" aria-hidden="true"></div>
         </div>
 
         <div class="section game-section">
@@ -479,10 +555,62 @@
         let myPostedGames = [];
         let networkGames = [];
         let currentDownloadManifest = null;
+        let activeTabFilter = 'all';
 
         let partnerCampaigns = [];
         let partnerCursor = 0;
         const LEVEL_ORDER = { diamante: 4, ouro: 3, plata: 2, bronze: 1 };
+
+        /* ===== Filtro por aba (TikTok-style) ===== */
+        const TAB_KEYWORDS = {
+            all: null,
+            fangame: ['fangame', 'fan game', 'jogo', 'game', 'plataforma', 'ação', 'aventura'],
+            app: ['app', 'aplicativo', 'android', 'ios', 'windows', 'mac', 'linux', 'chromeos', 'apk', 'desktop', 'mobile'],
+            ebook: ['ebook', 'e-book', 'livro', 'pdf', 'epub', 'leitura'],
+            audiobook: ['audiobook', 'áudio', 'audio', 'audiolivro', 'mp3', 'm4b'],
+            minecraft: ['minecraft', 'mod', 'addon', 'add-on', 'add on', 'shader', 'mapa', 'map', 'mcpack', 'mcaddon', 'mcworld'],
+            imagem: ['imagem', 'image', 'foto', 'photo', 'png', 'jpg', 'wallpaper', 'arte'],
+            video: ['vídeo', 'video', 'filme', 'clip', 'mp4', 'webm']
+        };
+
+        function matchesTabFilter(item, filterKey) {
+            if (!filterKey || filterKey === 'all') return true;
+            const keys = TAB_KEYWORDS[filterKey];
+            if (!keys) return true;
+            const hay = (
+                String(item.category || '') + ' ' +
+                String(item.name || '') + ' ' +
+                String(item.desc || '')
+            ).toLowerCase();
+            return keys.some(k => hay.includes(k));
+        }
+
+        function getFilteredNetworkGames() {
+            return (networkGames || []).filter(g => matchesTabFilter(g, activeTabFilter));
+        }
+
+        function wireTopTabs() {
+            const tabs = document.getElementById('topTabs');
+            if (!tabs) return;
+            tabs.querySelectorAll('.top-tab').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const filter = this.getAttribute('data-filter') || 'all';
+                    activeTabFilter = filter;
+                    tabs.querySelectorAll('.top-tab').forEach(t => {
+                        const on = t === this;
+                        t.classList.toggle('active', on);
+                        t.setAttribute('aria-selected', on ? 'true' : 'false');
+                    });
+                    // centraliza a aba ativa no scroll horizontal
+                    try {
+                        this.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    } catch (_) {}
+                    renderNetworkCatalog();
+                    filterGames();
+                });
+            });
+        }
+        /* ===== Fim abas ===== */
 
         function skeletonStoriesHtml(count = 6) {
             let html = '';
@@ -976,13 +1104,18 @@
             const grid = document.getElementById('appGrid');
             if (!stories || !grid) return;
 
-            if (!networkGames.length) {
-                stories.innerHTML = '<p style="font-size:13px;color:var(--text-secondary);padding:12px;">Nenhum conteúdo disponível ainda. Seja o primeiro a publicar.</p>';
+            const list = getFilteredNetworkGames();
+
+            if (!list.length) {
+                const emptyMsg = activeTabFilter === 'all'
+                    ? 'Nenhum conteúdo disponível ainda. Seja o primeiro a publicar.'
+                    : 'Nada nesta categoria ainda.';
+                stories.innerHTML = '<p style="font-size:13px;color:var(--text-secondary);padding:12px;">' + emptyMsg + '</p>';
                 grid.innerHTML = '';
                 return;
             }
 
-            const newest = networkGames.slice(0, 12);
+            const newest = list.slice(0, 12);
             stories.innerHTML = newest.map(g => {
                 const cover = g.coverUrl || (g.imageUrls && g.imageUrls[0] && !isVideoUrl(g.imageUrls[0]) ? g.imageUrls[0] : '') || '';
                 const coverStyle = cover ? ' style="background-image:url(\'' + escapeHtml(cover) + '\')"' : '';
@@ -1007,7 +1140,7 @@
             `;
             }).join('');
 
-            grid.innerHTML = networkGames.map(g => {
+            grid.innerHTML = list.map(g => {
                 const cover = g.coverUrl || (g.imageUrls && g.imageUrls[0] && !isVideoUrl(g.imageUrls[0]) ? g.imageUrls[0] : '') || '';
                 return `
                 <div class="app-card"
@@ -1664,7 +1797,7 @@
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;gap:6px;">' +
                 '<label style="font-size:13px;font-weight:500;color:var(--text-secondary);">Arquivo para download (opcional):</label>' +
-                '<p style="font-size:11px;color:var(--text-secondary);margin:0;line-height:1.4;">Apps (Android, iOS, Windows, Mac, ChromeOS, Linux), e-books, audiobooks, mods/add-ons, mapas e shaders Minecraft, imagens e vídeos. Aceita .apk, .aab, .ipa, .exe, .msi, .dmg, .pkg, .appimage, .deb, .rpm, .zip, .rar, .7z, .epub, .pdf, .mobi, .mp3, .m4b, .jar, .mcaddon, .mcpack, .mcworld, .mp4, .webm e outros.</p>' +
+                '<p style="font-size:11px;color:var(--text-secondary);margin:0;line-height:1.4;">Apps, e-books, audiobooks, mods Minecraft, imagens e vídeos.</p>' +
                 '<input id="postGameFile" type="file" accept="image/*,video/*,.apk,.aab,.ipa,.exe,.msi,.dmg,.pkg,.appimage,.deb,.rpm,.zip,.rar,.7z,.epub,.pdf,.mobi,.azw3,.mp3,.m4a,.m4b,.ogg,.jar,.mcaddon,.mcpack,.mcworld,.mp4,.webm,.mov,*/*" style="width:100%;padding:10px;background-color:var(--bg-main);border:1px solid var(--border-color);border-radius:12px;font-size:13px;cursor:pointer;">' +
                 (g.fileManifest
                     ? '<label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><input type="checkbox" id="postKeepFile" checked> Manter arquivo atual se não enviar novo</label>'
@@ -1923,6 +2056,7 @@
 
         (async function init() {
             showSkeletons();
+            wireTopTabs();
             loadSessionFromNostr();
             updateProfileUI();
             bootPartnerCampaigns();
