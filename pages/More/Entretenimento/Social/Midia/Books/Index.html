@@ -9,6 +9,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>tailwind.config={theme:{extend:{colors:{primary:'#ffffff',secondary:'#7c3aed'}}}}</script>
+    <!-- epub.js + JSZip (dependência) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
     <style>
         .no-scrollbar::-webkit-scrollbar{display:none}
         .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
@@ -49,8 +52,20 @@
         @media (min-width:640px){#historyModal,#savedModal{align-items:center;padding:1rem}#historyModal>div,#savedModal>div{max-width:28rem;border-radius:1rem;max-height:90vh}}
         #detailModal{position:fixed;inset:0;z-index:50;background:#0a0a0c}
         #detailShell{width:100%;height:100%;min-height:100dvh;display:flex;flex-direction:column;background:#0a0a0c;color:#fff;overflow:hidden}
-        #readerStage{position:relative;flex:1 1 auto;min-height:42vh;background:#111;display:flex;align-items:center;justify-content:center;padding:1.5rem}
-        #readerCover{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+        #readerStage{position:relative;flex:1 1 auto;min-height:42vh;background:#111;display:flex;align-items:center;justify-content:center;padding:0;overflow:hidden}
+        #readerCover{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.5);padding:1.5rem}
+        #epubViewer{width:100%;height:100%;background:#fafafa;display:none}
+        #epubViewer.active{display:block}
+        #pdfViewer{width:100%;height:100%;border:0;background:#111;display:none}
+        #pdfViewer.active{display:block}
+        #readerCover.hidden-cover{display:none}
+        .epub-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:25;width:2.75rem;height:2.75rem;border-radius:9999px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);color:#fff;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);cursor:pointer}
+        .epub-nav.visible{display:flex}
+        .epub-nav:hover{background:rgba(124,58,237,.85)}
+        .epub-nav.prev{left:.75rem}
+        .epub-nav.next{right:.75rem}
+        #epubProgress{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.1);z-index:20}
+        #epubProgressBar{height:100%;width:0;background:#7c3aed;transition:width .2s}
         #detailPanel{flex:0 0 auto;max-height:48vh;overflow-y:auto;background:#121214;border-top:1px solid rgba(255,255,255,.08)}
         .scroll-rail{position:relative}
         .scroll-btn{display:none;position:absolute;top:50%;transform:translateY(-50%);z-index:20;width:2.25rem;height:2.25rem;border-radius:9999px;align-items:center;justify-content:center;background:#fff;border:1px solid #e5e7eb;color:#7c3aed;box-shadow:0 4px 12px rgba(0,0,0,.08);cursor:pointer;transition:.15s}
@@ -280,13 +295,18 @@
     <div id="detailShell" onclick="event.stopPropagation()">
         <div id="readerStage">
             <img id="readerCover" src="" alt="Capa">
-            <div id="mediaLoadingOverlay" class="hidden absolute inset-0 bg-black/70 z-20 flex flex-col items-center justify-center gap-2">
+            <div id="epubViewer"></div>
+            <iframe id="pdfViewer" title="Leitor PDF"></iframe>
+            <div id="epubProgress"><div id="epubProgressBar"></div></div>
+            <button type="button" class="epub-nav prev" id="epubPrevBtn" onclick="epubPrev()" aria-label="Página anterior"><i class="fa-solid fa-chevron-left"></i></button>
+            <button type="button" class="epub-nav next" id="epubNextBtn" onclick="epubNext()" aria-label="Próxima página"><i class="fa-solid fa-chevron-right"></i></button>
+            <div id="mediaLoadingOverlay" class="hidden absolute inset-0 bg-black/70 z-30 flex flex-col items-center justify-center gap-2">
                 <i class="fa-solid fa-spinner fa-spin text-secondary text-2xl"></i>
                 <span class="text-xs text-gray-300" id="mediaLoadingText">Carregando...</span>
             </div>
-            <button type="button" onclick="closeModal('detailModal')" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 z-30 text-white border border-white/10"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <button type="button" onclick="closeModal('detailModal')" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 z-40 text-white border border-white/10"><i class="fa-solid fa-xmark text-xl"></i></button>
             <div class="absolute top-4 left-4 z-10 text-xs"><span class="bg-black/40 px-3 py-1.5 rounded-full border border-white/10" id="typeBadge">[Livro]</span></div>
-            <div class="absolute bottom-4 left-4 z-10 max-w-[70%]"><h2 id="detailModalTitle" class="text-lg sm:text-2xl lg:text-3xl font-black text-white drop-shadow-lg">Título</h2></div>
+            <div class="absolute bottom-4 left-4 z-10 max-w-[70%] pointer-events-none" id="detailTitleOverlay"><h2 id="detailModalTitle" class="text-lg sm:text-2xl lg:text-3xl font-black text-white drop-shadow-lg">Título</h2></div>
         </div>
         <div id="detailPanel" class="p-4 sm:p-6 space-y-5 no-scrollbar">
             <div class="flex flex-wrap items-center justify-between gap-2">
@@ -299,8 +319,8 @@
                 <button type="button" id="downloadMediaBtn" onclick="downloadCurrentMedia()" class="bg-white/10 hover:bg-white/15 p-3 rounded-2xl flex flex-col items-center gap-1.5 transition">
                     <i class="fa-solid fa-download" id="downloadMediaIcon"></i><div class="text-[11px] mt-1" id="downloadMediaText">Baixar</div>
                 </button>
-                <button type="button" id="openExternalBtn" onclick="openExternalLink()" class="bg-white/10 hover:bg-white/15 p-3 rounded-2xl flex flex-col items-center gap-1.5">
-                    <i class="fa-solid fa-book-open"></i><div class="text-[11px] mt-1">Abrir</div>
+                <button type="button" id="openExternalBtn" onclick="openCurrentFile()" class="bg-white/10 hover:bg-white/15 p-3 rounded-2xl flex flex-col items-center gap-1.5">
+                    <i class="fa-solid fa-book-open"></i><div class="text-[11px] mt-1">Ler</div>
                 </button>
                 <button type="button" id="favoriteBtn" onclick="toggleFavorite()" class="bg-white/10 p-3 rounded-2xl flex flex-col items-center gap-1.5">
                     <i id="favoriteIcon" class="fa-regular fa-star"></i><div class="text-[11px] mt-1" id="favoriteText">Favorito</div>
@@ -363,6 +383,9 @@ let currentProvider='kindle',currentMediaType='books',searchQuery='',currentObje
 let isEditMode=false,editingBasePayload=null,catalogLoading=true;
 let slides=[...SRC_FALLBACK_SLIDES],currentSlide=0,slideInterval=null;
 window.__lpMediaIndex=window.__lpMediaIndex||Object.create(null);
+
+/* ——— EPUB reader state ——— */
+let epubBook=null,epubRendition=null,epubCurrentUrl=null;
 
 const providerData={
     kindle:{name:'Kindle',url:'https://www.amazon.com.br/kindle-dbs/hz/bookshelf',books:[],mangas:[],lightnovels:[]},
@@ -484,6 +507,121 @@ async function resolveMediaSrc(ref,{showLoading=true}={}){
     }
     return '';
 }
+
+/* ——— Reader: capa / PDF / EPUB ——— */
+function showCoverOnly(){
+    destroyEpub();
+    const cover=document.getElementById('readerCover');
+    const epubEl=document.getElementById('epubViewer');
+    const pdfEl=document.getElementById('pdfViewer');
+    const titleOv=document.getElementById('detailTitleOverlay');
+    if(cover){cover.classList.remove('hidden-cover');cover.style.display='';}
+    if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
+    if(pdfEl){pdfEl.classList.remove('active');pdfEl.src='about:blank'}
+    if(titleOv)titleOv.classList.remove('hidden');
+    document.getElementById('epubPrevBtn')?.classList.remove('visible');
+    document.getElementById('epubNextBtn')?.classList.remove('visible');
+    const bar=document.getElementById('epubProgressBar');if(bar)bar.style.width='0';
+}
+function destroyEpub(){
+    try{if(epubRendition){epubRendition.destroy();epubRendition=null}}catch(_){}
+    try{if(epubBook){epubBook.destroy();epubBook=null}}catch(_){}
+    epubCurrentUrl=null;
+}
+function guessFileKind(url,ref){
+    const mime=(ref&&ref.mime)||'';
+    const u=String(url||'').toLowerCase();
+    if(mime.includes('epub')||u.includes('.epub')||u.endsWith('epub'))return 'epub';
+    if(mime.includes('pdf')||u.includes('.pdf')||u.endsWith('pdf'))return 'pdf';
+    if(mime.includes('zip')||u.includes('.zip')||u.includes('.cbz'))return 'zip';
+    return 'unknown';
+}
+async function openInReader(src,ref){
+    const kind=guessFileKind(src,ref);
+    const cover=document.getElementById('readerCover');
+    const epubEl=document.getElementById('epubViewer');
+    const pdfEl=document.getElementById('pdfViewer');
+    const titleOv=document.getElementById('detailTitleOverlay');
+
+    destroyEpub();
+    if(pdfEl){pdfEl.classList.remove('active');pdfEl.src='about:blank'}
+    if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
+
+    if(kind==='epub'&&window.ePub){
+        if(cover)cover.classList.add('hidden-cover');
+        if(titleOv)titleOv.classList.add('hidden');
+        if(epubEl)epubEl.classList.add('active');
+        setMediaLoading(true,'Carregando EPUB...');
+        try{
+            epubBook=ePub(src);
+            epubRendition=epubBook.renderTo('epubViewer',{
+                width:'100%',
+                height:'100%',
+                spread:'none',
+                flow:'paginated',
+                allowScriptedContent:true
+            });
+            await epubRendition.display();
+            epubCurrentUrl=src;
+            document.getElementById('epubPrevBtn')?.classList.add('visible');
+            document.getElementById('epubNextBtn')?.classList.add('visible');
+            epubRendition.on('relocated',(loc)=>{
+                try{
+                    const p=epubBook.locations&&epubBook.locations.percentageFromCfi?epubBook.locations.percentageFromCfi(loc.start.cfi):0;
+                    const bar=document.getElementById('epubProgressBar');
+                    if(bar)bar.style.width=((p||0)*100)+'%';
+                }catch(_){}
+            });
+            // gera locations em background para progresso
+            epubBook.ready.then(()=>epubBook.locations.generate(1024).catch(()=>{}));
+        }catch(err){
+            console.error(err);
+            alert('Não foi possível abrir o EPUB. Tentando baixar...');
+            window.open(src,'_blank','noopener,noreferrer');
+            showCoverOnly();
+            if(cover){cover.classList.remove('hidden-cover');cover.src=currentDetailImg||''}
+        }finally{setMediaLoading(false)}
+        return;
+    }
+
+    if(kind==='pdf'){
+        if(cover)cover.classList.add('hidden-cover');
+        if(titleOv)titleOv.classList.add('hidden');
+        if(pdfEl){
+            pdfEl.classList.add('active');
+            // visualização embutida; se o host bloquear iframe, o user ainda pode baixar
+            pdfEl.src=src;
+        }
+        document.getElementById('epubPrevBtn')?.classList.remove('visible');
+        document.getElementById('epubNextBtn')?.classList.remove('visible');
+        return;
+    }
+
+    // ZIP / CBZ / desconhecido → nova aba
+    window.open(src,'_blank','noopener,noreferrer');
+}
+function epubPrev(){if(epubRendition)epubRendition.prev()}
+function epubNext(){if(epubRendition)epubRendition.next()}
+
+async function openCurrentFile(){
+    const ref=getActiveMediaRef();
+    if(!ref){
+        const data=providerData[currentItemFullData?.provider||currentProvider];
+        if(data?.url)window.open(data.url,'_blank','noopener,noreferrer');
+        else alert('Nenhum arquivo disponível para leitura.');
+        return;
+    }
+    setMediaLoading(true,'Preparando leitura...');
+    try{
+        const src=await resolveMediaSrc(ref,{showLoading:false});
+        if(!src){alert('Não foi possível abrir o arquivo.');return}
+        await openInReader(src,typeof ref==='object'?ref:null);
+    }catch(err){
+        console.error(err);
+        alert('Falha ao abrir: '+(err.message||err));
+    }finally{setMediaLoading(false)}
+}
+
 async function downloadCurrentMedia(){
     const btnText=document.getElementById('downloadMediaText');
     const btnIcon=document.getElementById('downloadMediaIcon');
@@ -504,16 +642,15 @@ async function downloadCurrentMedia(){
         }
         let filename=(currentDetailTitle||'loreplay-book').replace(/[^\w\s.-]/g,'').trim().replace(/\s+/g,'_')||'loreplay-book';
         if(activeChapterKey)filename+=`_V${activeVolume}C${activeChapterKey}`;
-        if(!/\.(pdf|epub|zip|cbz|cbr)$/i.test(filename))filename+='.pdf';
+        const kind=guessFileKind(src,typeof ref==='object'?ref:null);
+        if(kind==='epub'&&!/\.epub$/i.test(filename))filename+='.epub';
+        else if(kind==='pdf'&&!/\.pdf$/i.test(filename))filename+='.pdf';
+        else if(!/\.(pdf|epub|zip|cbz|cbr)$/i.test(filename))filename+='.pdf';
         const a=document.createElement('a');a.href=blobUrl;a.download=filename;a.rel='noopener';
         document.body.appendChild(a);a.click();a.remove();
         setUi(false,'Baixado');setTimeout(()=>setUi(false,'Baixar'),2000);
         if(revoke)setTimeout(()=>{try{URL.revokeObjectURL(blobUrl)}catch(_){}},60000);
     }catch(err){console.error(err);alert('Não foi possível baixar: '+(err.message||err));setUi(false,'Baixar')}
-}
-function openExternalLink(){
-    const data=providerData[currentItemFullData?.provider||currentProvider];
-    if(data?.url)window.open(data.url,'_blank','noopener,noreferrer');
 }
 
 function renderSkeletonGrid(count=8){const g=document.getElementById('contentGrid');if(!g)return;g.innerHTML=Array.from({length:count}).map(()=>`<div class="content-card skeleton-card pointer-events-none"><div class="content-thumb skeleton"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>`).join('')}
@@ -551,7 +688,7 @@ function renderPostVolumeChaptersInputs(){
     let h=`<div class="p-3 bg-gray-50 border rounded-xl space-y-3 mt-2"><div class="flex justify-between"><span class="text-xs font-bold text-secondary uppercase">Vol. ${activePostVolume}</span><input type="number" min="1" value="${n}" onchange="updatePostVolumeChCount(${activePostVolume},this.value)" class="w-16 bg-white border rounded-lg px-2 py-1 text-xs text-center"></div><div class="space-y-2 max-h-44 overflow-y-auto no-scrollbar">`;
     for(let i=1;i<=n;i++){
         const hasExisting=isEditMode&&editingBasePayload?.volumes?.[activePostVolume]?.[i];
-        h+=`<div class="flex gap-2 items-center"><span class="text-[10px] w-10">Cap ${i}</span><input type="file" accept=".pdf,.epub,.zip,image/*,application/pdf" onchange="updatePostChFile(${activePostVolume},${i},this)" class="w-full text-xs file:mr-2 file:px-2 file:py-0.5 file:rounded file:border-0 file:bg-gray-200">${hasExisting?'<span class="text-[10px] text-green-600 shrink-0">ok</span>':''}</div>`;
+        h+=`<div class="flex gap-2 items-center"><span class="text-[10px] w-10">Cap ${i}</span><input type="file" accept=".pdf,.epub,.zip,image/*,application/pdf,application/epub+zip" onchange="updatePostChFile(${activePostVolume},${i},this)" class="w-full text-xs file:mr-2 file:px-2 file:py-0.5 file:rounded file:border-0 file:bg-gray-200">${hasExisting?'<span class="text-[10px] text-green-600 shrink-0">ok</span>':''}</div>`;
     }
     w.innerHTML=h+'</div></div>';
 }
@@ -618,7 +755,14 @@ async function handleContentPost(ev){
     finally{if(btn){btn.disabled=false;btn.textContent=isEditMode?'Salvar alterações':'Publicar Título'}}
 }
 function openModal(id){if(id==='creationModal'&&!canPostContent()){alert('Sem permissão.');return}if(id==='creationModal'&&!isEditMode)resetCreationForm();document.getElementById(id)?.classList.remove('hidden');if(id==='savedModal')renderSavedModalList();if(id==='historyModal')renderHistoryModalList();if(id==='detailModal')document.body.style.overflow='hidden'}
-function closeModal(id){document.getElementById(id)?.classList.add('hidden');if(id==='detailModal'){document.body.style.overflow=''}if(id==='creationModal')resetCreationForm()}
+function closeModal(id){
+    document.getElementById(id)?.classList.add('hidden');
+    if(id==='detailModal'){
+        document.body.style.overflow='';
+        showCoverOnly();
+    }
+    if(id==='creationModal')resetCreationForm();
+}
 function closeModalOnBackdrop(e,id){if(e.target.id===id)closeModal(id)}
 function collectSuggestions(current){
     const list=[];const seen=new Set([current?.name||currentDetailTitle]);
@@ -636,6 +780,7 @@ function renderSuggestions(){
     c.innerHTML=items.map(item=>{const j=JSON.stringify(item).replace(/'/g,'&#39;');return `<div class="suggest-card" onclick='openDetailModal(${JSON.stringify(item.name)},${JSON.stringify(item.img||"")},${JSON.stringify(item.status||"")},${j})'><div class="thumb"><img src="${item.img||''}" alt="" loading="lazy"></div><p>${item.name}</p></div>`}).join('');
 }
 async function openDetailModal(title,img,desc,item=null){
+    showCoverOnly();
     currentDetailTitle=title;currentDetailImg=img;
     let full=getFullEntry(item);
     if((!full||(!full.volumes&&!full.fileUrl))&&item?._dTag&&window.__lpStreamNet?.fetchPostByDTag){
@@ -650,7 +795,8 @@ async function openDetailModal(title,img,desc,item=null){
     activeVolume=Object.keys(currentVolumesData)[0]||1;
     renderVolumesTabBar();renderDetailChaptersUI();renderSuggestions();
     document.getElementById('detailModalTitle').textContent=title;
-    const cover=document.getElementById('readerCover');if(cover)cover.src=img||'';
+    const cover=document.getElementById('readerCover');
+    if(cover){cover.src=img||'';cover.classList.remove('hidden-cover')}
     const badge=document.getElementById('typeBadge');
     if(badge)badge.textContent='['+(TYPE_LABELS[currentItemFullData?.type]||TYPE_LABELS[currentMediaType]||'Livro')+']';
     updateFavoriteUI();
@@ -675,6 +821,8 @@ async function selectChapter(ch,btn){
     activeChapterKey=ch;
     document.querySelectorAll('#chaptersContainer .ep-btn').forEach(b=>b.className='ep-btn w-12 h-12 rounded-xl bg-white/10 text-white font-bold text-sm shrink-0');
     if(btn)btn.className='ep-btn w-12 h-12 rounded-xl bg-white text-gray-900 font-bold text-sm shrink-0 shadow-md';
+    // Abre automaticamente o arquivo do capítulo para leitura
+    await openCurrentFile();
 }
 async function changeVolume(v){activeVolume=v;activeChapterKey=null;renderVolumesTabBar();renderDetailChaptersUI()}
 function isTitleSaved(t){return savedTitles.some(i=>i.name===t)}
@@ -737,6 +885,7 @@ const AUTHOR_PUBKEY=(()=>{try{return NostrTools.getPublicKey(hexToBytes(ALLOWED_
 const pool=new NostrTools.SimplePool();
 const LEVEL_ORDER={diamante:4,ouro:3,plata:2,bronze:1};
 const SLOT_SELECTOR='[data-lp-slot]',EMPTY_LABEL='Espaço disponível';
+const TYPE_LABELS={books:'Livro',mangas:'Mangá',lightnovels:'Light Novel'};
 function normalizeHexKey(raw){if(!raw)return null;let s=String(raw).trim();if(s.startsWith('nsec1')){try{const d=NostrTools.nip19.decode(s);if(d.type==='nsec'&&d.data instanceof Uint8Array)return Array.from(d.data).map(b=>b.toString(16).padStart(2,'0')).join('')}catch{return null}}return s.toLowerCase().replace(/^0x/,'')}
 function getSession(){try{const p=JSON.parse(localStorage.getItem('nostr_session')||'null');if(!p)return null;const hex=normalizeHexKey(p.privateKeyHex||p.nsec||p.privateKey);if(!hex||!p.pubkey)return null;return{privateKeyHex:hex,privateKey:hexToBytes(hex),pubkey:p.pubkey}}catch{return null}}
 function currentEpoch(ts=Date.now()){return Math.floor(ts/CRYPTO_EPOCH_MS)}
@@ -777,14 +926,14 @@ async function uploadMediaDriveStyle(file,privateKeyBytes,onStatus){
         if(onStatus)onStatus(`Backup fatia ${i+1}/${parts.length}...`);
         try{const{url,backend:b}=await uploadSingleBuffer(parts[i],`${file.name}.part${String(i).padStart(4,'0')}`,privateKeyBytes);if(b==='local')backend='local';else if(backend!=='local')backend=b||backend;chunkMeta.push({url,index:i,size:parts[i].byteLength})}catch(_){}
       }
-      return{chunked:chunkMeta.length>1,chunks:chunkMeta.length?chunkMeta:[{url:fullUrl,index:0,size}],mime:file.type||'application/pdf',size,encSize:size,encSha256:fileSha,backend,url:fullUrl,publicUrl:fullUrl,playbackUrl:fullUrl};
+      return{chunked:chunkMeta.length>1,chunks:chunkMeta.length?chunkMeta:[{url:fullUrl,index:0,size}],mime:file.type||'application/octet-stream',size,encSize:size,encSha256:fileSha,backend,url:fullUrl,publicUrl:fullUrl,playbackUrl:fullUrl};
     }
     return fullUrl;
   }
   if(size>MAX_FREE_BYTES){
     const parts=splitBufferIntoChunks(buf,CHUNK_SIZE);const chunkMeta=[];let backend='cloud';
     for(let i=0;i<parts.length;i++){if(onStatus)onStatus(`Fatia ${i+1}/${parts.length}...`);const{url,backend:b}=await uploadSingleBuffer(parts[i],`${file.name}.part${String(i).padStart(4,'0')}`,privateKeyBytes);if(b==='local')backend='local';else if(backend!=='local')backend=b||backend;chunkMeta.push({url,index:i,size:parts[i].byteLength})}
-    return{chunked:true,chunks:chunkMeta,mime:file.type||'application/pdf',size,encSize:size,encSha256:fileSha,backend,url:chunkMeta[0]?.url||''};
+    return{chunked:true,chunks:chunkMeta,mime:file.type||'application/octet-stream',size,encSize:size,encSha256:fileSha,backend,url:chunkMeta[0]?.url||''};
   }
   if(onStatus)onStatus('Enviando...');
   const{url}=await uploadSingleBuffer(buf,file.name,privateKeyBytes);
