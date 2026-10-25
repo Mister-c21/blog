@@ -66,6 +66,8 @@
         #epubProgress{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.1);z-index:20}
         #epubProgressBar{height:100%;width:0;background:#7c3aed;transition:width .2s}
         #detailTitleOverlay.hidden{display:none!important}
+        #exitReadingBtn{display:none;position:absolute;top:4rem;right:1rem;z-index:40;width:2.5rem;height:2.5rem;border-radius:9999px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);color:#fff;align-items:center;justify-content:center;cursor:pointer}
+        #exitReadingBtn:hover{background:rgba(124,58,237,.85)}
         #detailPanel{flex:0 0 auto;max-height:48vh;overflow-y:auto;background:#121214;border-top:1px solid rgba(255,255,255,.08)}
         .scroll-rail{position:relative}
         .scroll-btn{display:none;position:absolute;top:50%;transform:translateY(-50%);z-index:20;width:2.25rem;height:2.25rem;border-radius:9999px;align-items:center;justify-content:center;background:#fff;border:1px solid #e5e7eb;color:#7c3aed;box-shadow:0 4px 12px rgba(0,0,0,.08);cursor:pointer;transition:.15s}
@@ -85,7 +87,19 @@
         .suggest-card .thumb{aspect-ratio:2/3;border-radius:10px;overflow:hidden;background:#1f2937;border:1px solid rgba(255,255,255,.08)}
         .suggest-card img{width:100%;height:100%;object-fit:cover}
         .suggest-card p{font-size:10px;margin-top:6px;color:#e5e7eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+        /* Leitor tela cheia no mobile */
+        @media (max-width:1023px){
+            #detailModal.reading-mode #detailShell{flex-direction:column;height:100dvh;max-height:100dvh}
+            #detailModal.reading-mode #readerStage{flex:1 1 0;min-height:0;height:100%;max-height:none;padding:0}
+            #detailModal.reading-mode #detailPanel{display:none}
+            #detailModal.reading-mode #epubViewer,
+            #detailModal.reading-mode #pdfViewer{width:100%;height:100%;min-height:100%}
+            #detailModal.reading-mode .epub-nav{width:2.5rem;height:2.5rem}
+            #detailModal.reading-mode #exitReadingBtn{display:flex}
+        }
         @media (min-width:1024px){
+            #exitReadingBtn{display:none!important}
             #detailShell{flex-direction:row;height:100dvh}
             #readerStage{flex:1 1 0;min-height:100%;min-width:0;height:100%}
             #detailPanel{flex:0 0 360px;max-height:100%;height:100%;border-top:none;border-left:1px solid rgba(255,255,255,.08)}
@@ -119,9 +133,9 @@
             .hero-banner{max-height:480px}
         }
         @media (max-width:1023px) and (orientation:landscape){
-            #detailModal:not(.hidden) #detailShell{flex-direction:row}
-            #detailModal:not(.hidden) #readerStage{min-height:100%;flex:1 1 65%}
-            #detailModal:not(.hidden) #detailPanel{max-height:100%;flex:0 0 35%;border-top:none;border-left:1px solid rgba(255,255,255,.08)}
+            #detailModal:not(.hidden):not(.reading-mode) #detailShell{flex-direction:row}
+            #detailModal:not(.hidden):not(.reading-mode) #readerStage{min-height:100%;flex:1 1 65%}
+            #detailModal:not(.hidden):not(.reading-mode) #detailPanel{max-height:100%;flex:0 0 35%;border-top:none;border-left:1px solid rgba(255,255,255,.08)}
         }
     </style>
 </head>
@@ -305,6 +319,7 @@
                 <span class="text-xs text-gray-300" id="mediaLoadingText">Carregando...</span>
             </div>
             <button type="button" onclick="closeModal('detailModal')" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 z-40 text-white border border-white/10"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <button type="button" id="exitReadingBtn" onclick="exitReadingMode()" title="Voltar ao painel"><i class="fa-solid fa-chevron-down"></i></button>
             <div class="absolute top-4 left-4 z-10 text-xs"><span class="bg-black/40 px-3 py-1.5 rounded-full border border-white/10" id="typeBadge">[Livro]</span></div>
             <div class="absolute bottom-4 left-4 z-10 max-w-[70%] pointer-events-none" id="detailTitleOverlay"><h2 id="detailModalTitle" class="text-lg sm:text-2xl lg:text-3xl font-black text-white drop-shadow-lg">Título</h2></div>
         </div>
@@ -383,7 +398,6 @@ let currentProvider='kindle',currentMediaType='books',searchQuery='',currentObje
 let isEditMode=false,editingBasePayload=null,catalogLoading=true;
 let slides=[...SRC_FALLBACK_SLIDES],currentSlide=0,slideInterval=null;
 window.__lpMediaIndex=window.__lpMediaIndex||Object.create(null);
-
 let epubBook=null,epubRendition=null,epubCurrentUrl=null;
 
 const providerData={
@@ -438,16 +452,6 @@ function openSearchEngine(engine){
 }
 function isChunkedRef(r){return !!(r&&r.chunked&&Array.isArray(r.chunks)&&r.chunks.length)}
 function hasMediaRef(r){if(!r)return false;if(typeof r==='string')return!!r;if(r.publicUrl||r.playbackUrl||r.url)return true;return isChunkedRef(r)}
-function mediaRefKey(ref){
-    if(!ref)return null;
-    if(typeof ref==='string')return 's:'+ref;
-    if(ref.encSha256)return 'h:'+ref.encSha256;
-    if(ref.publicUrl)return 'p:'+ref.publicUrl;
-    if(ref.playbackUrl)return 'p:'+ref.playbackUrl;
-    if(ref.url&&!ref.chunked)return 'u:'+ref.url;
-    if(isChunkedRef(ref))return 'c:'+ref.chunks.map(c=>c.url+'|'+(c.index||0)).join(';');
-    return null;
-}
 function getPublicMediaUrl(ref){
     if(!ref)return '';
     if(typeof ref==='string'){if(/^https?:\/\//i.test(ref)||ref.startsWith('blob:'))return ref;return ''}
@@ -501,9 +505,16 @@ async function resolveMediaSrc(ref,{showLoading=true}={}){
     return '';
 }
 
-/* ===== LEITOR (sem download automático) ===== */
+function enterReadingMode(){
+    const modal=document.getElementById('detailModal');
+    if(modal&&window.matchMedia('(max-width:1023px)').matches)modal.classList.add('reading-mode');
+}
+function exitReadingMode(){
+    document.getElementById('detailModal')?.classList.remove('reading-mode');
+}
 function showCoverOnly(){
     destroyEpub();
+    exitReadingMode();
     const cover=document.getElementById('readerCover');
     const epubEl=document.getElementById('epubViewer');
     const pdfEl=document.getElementById('pdfViewer');
@@ -566,9 +577,8 @@ async function openInReader(src,ref){
     const kind=guessFileKind(src,ref,mime);
     const head=new Uint8Array(buffer.slice(0,4));
     const isZipLike=head[0]===0x50&&head[1]===0x4B;
-    const isPdfMagic=head[0]===0x25&&head[1]===0x50&&head[2]===0x44&&head[3]===0x46; // %PDF
+    const isPdfMagic=head[0]===0x25&&head[1]===0x50&&head[2]===0x44&&head[3]===0x46;
 
-    // EPUB → leitor embutido (ArrayBuffer, sem download)
     if(kind==='epub'||(kind==='unknown'&&isZipLike&&window.ePub)){
         if(!window.ePub){setMediaLoading(false);alert('epub.js não carregou. Recarregue a página.');return}
         if(cover)cover.classList.add('hidden-cover');
@@ -581,6 +591,7 @@ async function openInReader(src,ref){
             epubCurrentUrl='buffer';
             document.getElementById('epubPrevBtn')?.classList.add('visible');
             document.getElementById('epubNextBtn')?.classList.add('visible');
+            enterReadingMode();
             epubRendition.on('relocated',(loc)=>{
                 try{
                     if(!epubBook.locations||typeof epubBook.locations.percentageFromCfi!=='function')return;
@@ -599,7 +610,6 @@ async function openInReader(src,ref){
         return;
     }
 
-    // PDF → blob no iframe
     if(kind==='pdf'||isPdfMagic||(mime&&mime.includes('pdf'))){
         if(cover)cover.classList.add('hidden-cover');
         if(titleOv)titleOv.classList.add('hidden');
@@ -608,11 +618,11 @@ async function openInReader(src,ref){
         if(pdfEl){pdfEl.classList.add('active');pdfEl.src=currentObjectUrl}
         document.getElementById('epubPrevBtn')?.classList.remove('visible');
         document.getElementById('epubNextBtn')?.classList.remove('visible');
+        enterReadingMode();
         setMediaLoading(false);
         return;
     }
 
-    // Outros: blob em nova aba (sem forçar download attribute)
     setMediaLoading(false);
     const blob=new Blob([buffer],{type:mime||'application/octet-stream'});
     currentObjectUrl=URL.createObjectURL(blob);
