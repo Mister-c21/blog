@@ -559,13 +559,16 @@
             ]
         };
 
-        // Relays públicos da rede Nostr
         const NOSTR_RELAYS = [
             'wss://relay.damus.io',
             'wss://nos.lol',
             'wss://relay.primal.net',
-            'wss://relay.nostr.band'
+            'wss://relay.nostr.band',
+            'wss://nostr.wine',
+            'wss://relay.snort.social'
         ];
+
+        const TOPIC_KEYS = ['brasil', 'mundo', 'negócios', 'negocios', 'tecnologia', 'entretenimento'];
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
@@ -796,7 +799,7 @@
             const published = getTag(ev.tags, 'published_at');
             const publishedAt = published
                 ? new Date(Number(published) * 1000).toISOString()
-                : new Date(ev.created_at * 1000).toISOString();
+                : new Date((ev.created_at || 0) * 1000).toISOString();
 
             return {
                 title,
@@ -807,16 +810,19 @@
             };
         }
 
-        function queryMatches(article, query) {
+        function isMenuTopic(query) {
             if (!query) return true;
-            const q = query.toLowerCase();
-            return (
-                (article.title || '').toLowerCase().includes(q) ||
-                (article.description || '').toLowerCase().includes(q)
-            );
+            return TOPIC_KEYS.includes(query.trim().toLowerCase());
         }
 
-        function fetchFromNostrRelays(query, limit = 40) {
+        function queryMatches(article, query) {
+            if (!query || isMenuTopic(query)) return true;
+            const q = query.toLowerCase();
+            const hay = `${article.title || ''} ${article.description || ''}`.toLowerCase();
+            return hay.includes(q);
+        }
+
+        function fetchFromNostrRelays(query, limit = 50) {
             return new Promise((resolve) => {
                 const byId = new Map();
                 let remaining = NOSTR_RELAYS.length;
@@ -825,17 +831,30 @@
                 const finish = () => {
                     if (settled) return;
                     settled = true;
-                    const list = Array.from(byId.values())
+
+                    let list = Array.from(byId.values())
                         .map(eventToArticle)
-                        .filter(a => queryMatches(a, query))
                         .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+
+                    if (query && !isMenuTopic(query)) {
+                        const filtered = list.filter(a => queryMatches(a, query));
+                        if (filtered.length > 0) list = filtered;
+                    }
+
                     resolve(list);
                 };
 
                 const timeout = setTimeout(() => {
                     remaining = 0;
                     finish();
-                }, 8000);
+                }, 12000);
+
+                const maybeEarlyFinish = () => {
+                    if (byId.size >= 15 && remaining <= NOSTR_RELAYS.length - 2) {
+                        clearTimeout(timeout);
+                        finish();
+                    }
+                };
 
                 NOSTR_RELAYS.forEach((relayUrl) => {
                     let ws;
@@ -861,6 +880,8 @@
                         if (remaining <= 0) {
                             clearTimeout(timeout);
                             finish();
+                        } else {
+                            maybeEarlyFinish();
                         }
                     };
 
@@ -869,9 +890,6 @@
                             kinds: [30023],
                             limit: limit
                         };
-                        if (query && query.trim().length > 0) {
-                            filter.search = query.trim();
-                        }
                         ws.send(JSON.stringify(['REQ', subId, filter]));
                     };
 
@@ -882,8 +900,9 @@
 
                             if (data[0] === 'EVENT' && data[1] === subId && data[2]) {
                                 const ev = data[2];
-                                if (ev && ev.id && ev.kind === 30023) {
+                                if (ev && ev.id && Number(ev.kind) === 30023) {
                                     byId.set(ev.id, ev);
+                                    maybeEarlyFinish();
                                 }
                             }
                             if (data[0] === 'EOSE' && data[1] === subId) {
@@ -918,15 +937,15 @@
         async function fetchNews(query = 'Brasil') {
             showSkeleton();
             try {
-                const articles = await fetchFromNostrRelays(query, 40);
+                const articles = await fetchFromNostrRelays(query, 50);
                 if (articles.length > 0) {
                     renderNews(articles);
                 } else {
-                    newsGrid.innerHTML = '<p style="padding: 1rem;">Nenhuma notícia encontrada na rede Nostr. Tente outro termo.</p>';
+                    newsGrid.innerHTML = '<p style="padding: 1rem;">Nenhum artigo encontrado nos relays Nostr no momento. Aguarde alguns segundos e atualize (F5).</p>';
                 }
             } catch (error) {
                 console.error('Erro Nostr:', error);
-                newsGrid.innerHTML = '<p style="padding: 1rem; color: #d93025;">Não foi possível conectar aos relays Nostr. Tente novamente.</p>';
+                newsGrid.innerHTML = '<p style="padding: 1rem; color: #d93025;">Não foi possível conectar aos relays Nostr. Verifique a conexão e tente de novo.</p>';
             }
         }
 
@@ -941,19 +960,21 @@
                 card.rel = 'noopener noreferrer';
 
                 const timeStr = article.publishedAt ? timeAgo(article.publishedAt) : 'recente';
-                const descHtml = article.description
-                    ? `<p class="card-description">${article.description}${article.description.length >= 180 ? '…' : ''}</p>`
+                const safeTitle = (article.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const safeDesc = (article.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const descHtml = safeDesc
+                    ? `<p class="card-description">${safeDesc}${safeDesc.length >= 180 ? '…' : ''}</p>`
                     : '';
 
                 const imgHtml = article.image
-                    ? `<img class="card-image" src="${article.image}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\\'card-image placeholder\\'><i class=\\'fas fa-newspaper\\'></i></div>'">`
+                    ? `<img class="card-image" src="${article.image}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=\\'card-image placeholder\\'><i class=\\'fas fa-newspaper\\'></i></div>'">`
                     : `<div class="card-image placeholder"><i class="fas fa-newspaper"></i></div>`;
 
                 card.innerHTML = `
                     ${imgHtml}
                     <div class="card-content">
                         <div>
-                            <h2 class="card-title">${article.title}</h2>
+                            <h2 class="card-title">${safeTitle}</h2>
                             ${descHtml}
                         </div>
                         <div class="card-meta">nostr · ${timeStr}</div>
