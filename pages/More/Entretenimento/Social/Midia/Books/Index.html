@@ -9,7 +9,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>tailwind.config={theme:{extend:{colors:{primary:'#ffffff',secondary:'#7c3aed'}}}}</script>
-    <!-- epub.js + JSZip (dependência) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
     <style>
@@ -54,11 +53,11 @@
         #detailShell{width:100%;height:100%;min-height:100dvh;display:flex;flex-direction:column;background:#0a0a0c;color:#fff;overflow:hidden}
         #readerStage{position:relative;flex:1 1 auto;min-height:42vh;background:#111;display:flex;align-items:center;justify-content:center;padding:0;overflow:hidden}
         #readerCover{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.5);padding:1.5rem}
+        #readerCover.hidden-cover{display:none!important}
         #epubViewer{width:100%;height:100%;background:#fafafa;display:none}
         #epubViewer.active{display:block}
         #pdfViewer{width:100%;height:100%;border:0;background:#111;display:none}
         #pdfViewer.active{display:block}
-        #readerCover.hidden-cover{display:none}
         .epub-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:25;width:2.75rem;height:2.75rem;border-radius:9999px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);color:#fff;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);cursor:pointer}
         .epub-nav.visible{display:flex}
         .epub-nav:hover{background:rgba(124,58,237,.85)}
@@ -66,6 +65,7 @@
         .epub-nav.next{right:.75rem}
         #epubProgress{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.1);z-index:20}
         #epubProgressBar{height:100%;width:0;background:#7c3aed;transition:width .2s}
+        #detailTitleOverlay.hidden{display:none!important}
         #detailPanel{flex:0 0 auto;max-height:48vh;overflow-y:auto;background:#121214;border-top:1px solid rgba(255,255,255,.08)}
         .scroll-rail{position:relative}
         .scroll-btn{display:none;position:absolute;top:50%;transform:translateY(-50%);z-index:20;width:2.25rem;height:2.25rem;border-radius:9999px;align-items:center;justify-content:center;background:#fff;border:1px solid #e5e7eb;color:#7c3aed;box-shadow:0 4px 12px rgba(0,0,0,.08);cursor:pointer;transition:.15s}
@@ -384,7 +384,6 @@ let isEditMode=false,editingBasePayload=null,catalogLoading=true;
 let slides=[...SRC_FALLBACK_SLIDES],currentSlide=0,slideInterval=null;
 window.__lpMediaIndex=window.__lpMediaIndex||Object.create(null);
 
-/* ——— EPUB reader state ——— */
 let epubBook=null,epubRendition=null,epubCurrentUrl=null;
 
 const providerData={
@@ -398,7 +397,6 @@ const providerData={
     jnovel:{name:'J-Novel Club',url:'https://j-novel.club',books:[],mangas:[],lightnovels:[]},
     yenpress:{name:'Yen Press',url:'https://yenpress.com',books:[],mangas:[],lightnovels:[]}
 };
-
 const TYPE_LABELS={books:'Livro',mangas:'Mangá',lightnovels:'Light Novel'};
 const TYPE_PLURAL={books:'Livros',mangas:'Mangás',lightnovels:'Light Novels'};
 
@@ -417,7 +415,6 @@ function getFullEntry(item){
   const key=item._dTag||(item.provider+'|'+item.name);
   return window.__lpMediaIndex[key]||window.__lpMediaIndex['name:'+(item.provider||currentProvider)+'|'+item.name]||item;
 }
-
 function scrollRail(id,dir){
     const el=document.getElementById(id);if(!el)return;
     const step=Math.max(220,Math.floor(el.clientWidth*0.72));
@@ -425,14 +422,11 @@ function scrollRail(id,dir){
 }
 function buildSmartSearchQuery(){
     const data=providerData[currentProvider]||providerData.kindle;
-    const name=data.name||currentProvider;
-    const tipo=TYPE_PLURAL[currentMediaType]||'livros';
-    return `${name} ${tipo} lançamentos catálogo`;
+    return `${data.name||currentProvider} ${TYPE_PLURAL[currentMediaType]||'livros'} lançamentos catálogo`;
 }
 function updateSearchEnginesHint(){
     const data=providerData[currentProvider]||providerData.kindle;
-    const tipo=TYPE_PLURAL[currentMediaType]||'Livros';
-    const label=`${data.name} · ${tipo}`;
+    const label=`${data.name} · ${TYPE_PLURAL[currentMediaType]||'Livros'}`;
     const d=document.getElementById('searchEnginesHintDesktop');
     const m=document.getElementById('searchEnginesHintMobile');
     if(d)d.textContent=label;if(m)m.textContent=label;
@@ -442,7 +436,6 @@ function openSearchEngine(engine){
     const map={google:`https://www.google.com/search?q=${q}`,duckduckgo:`https://duckduckgo.com/?q=${q}`,bing:`https://www.bing.com/search?q=${q}`,youtube:`https://www.youtube.com/results?search_query=${q}`,startpage:`https://www.startpage.com/sp/search?query=${q}`,brave:`https://search.brave.com/search?q=${q}`};
     if(map[engine])window.open(map[engine],'_blank','noopener,noreferrer');
 }
-
 function isChunkedRef(r){return !!(r&&r.chunked&&Array.isArray(r.chunks)&&r.chunks.length)}
 function hasMediaRef(r){if(!r)return false;if(typeof r==='string')return!!r;if(r.publicUrl||r.playbackUrl||r.url)return true;return isChunkedRef(r)}
 function mediaRefKey(ref){
@@ -457,7 +450,7 @@ function mediaRefKey(ref){
 }
 function getPublicMediaUrl(ref){
     if(!ref)return '';
-    if(typeof ref==='string'){if(/^https?:\/\//i.test(ref))return ref;if(ref.startsWith('blob:'))return ref;return ''}
+    if(typeof ref==='string'){if(/^https?:\/\//i.test(ref)||ref.startsWith('blob:'))return ref;return ''}
     if(ref.publicUrl&&/^https?:\/\//i.test(ref.publicUrl))return ref.publicUrl;
     if(ref.playbackUrl&&/^https?:\/\//i.test(ref.playbackUrl))return ref.playbackUrl;
     if(ref.url&&/^https?:\/\//i.test(ref.url)&&!ref.chunked)return ref.url;
@@ -508,97 +501,123 @@ async function resolveMediaSrc(ref,{showLoading=true}={}){
     return '';
 }
 
-/* ——— Reader: capa / PDF / EPUB ——— */
+/* ===== LEITOR (sem download automático) ===== */
 function showCoverOnly(){
     destroyEpub();
     const cover=document.getElementById('readerCover');
     const epubEl=document.getElementById('epubViewer');
     const pdfEl=document.getElementById('pdfViewer');
     const titleOv=document.getElementById('detailTitleOverlay');
-    if(cover){cover.classList.remove('hidden-cover');cover.style.display='';}
+    if(cover){cover.classList.remove('hidden-cover');cover.style.display=''}
     if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
-    if(pdfEl){pdfEl.classList.remove('active');pdfEl.src='about:blank'}
+    if(pdfEl){pdfEl.classList.remove('active');pdfEl.removeAttribute('src')}
     if(titleOv)titleOv.classList.remove('hidden');
     document.getElementById('epubPrevBtn')?.classList.remove('visible');
     document.getElementById('epubNextBtn')?.classList.remove('visible');
     const bar=document.getElementById('epubProgressBar');if(bar)bar.style.width='0';
+    if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
 }
 function destroyEpub(){
     try{if(epubRendition){epubRendition.destroy();epubRendition=null}}catch(_){}
     try{if(epubBook){epubBook.destroy();epubBook=null}}catch(_){}
     epubCurrentUrl=null;
 }
-function guessFileKind(url,ref){
-    const mime=(ref&&ref.mime)||'';
+function guessFileKind(url,ref,mimeFromResponse){
+    const mime=((ref&&ref.mime)||mimeFromResponse||'').toLowerCase();
     const u=String(url||'').toLowerCase();
     if(mime.includes('epub')||u.includes('.epub')||u.endsWith('epub'))return 'epub';
     if(mime.includes('pdf')||u.includes('.pdf')||u.endsWith('pdf'))return 'pdf';
-    if(mime.includes('zip')||u.includes('.zip')||u.includes('.cbz'))return 'zip';
+    if(mime.includes('zip')||u.includes('.zip')||u.includes('.cbz')||u.includes('.cbr'))return 'zip';
     return 'unknown';
 }
+async function fetchFileBuffer(src){
+    if(src.startsWith('blob:')){
+        const res=await fetch(src);
+        if(!res.ok)throw new Error('Falha ao ler blob');
+        return{buffer:await res.arrayBuffer(),mime:res.headers.get('content-type')||''};
+    }
+    const res=await fetch(src,{method:'GET',mode:'cors',credentials:'omit',cache:'force-cache'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    return{buffer:await res.arrayBuffer(),mime:res.headers.get('content-type')||''};
+}
 async function openInReader(src,ref){
-    const kind=guessFileKind(src,ref);
     const cover=document.getElementById('readerCover');
     const epubEl=document.getElementById('epubViewer');
     const pdfEl=document.getElementById('pdfViewer');
     const titleOv=document.getElementById('detailTitleOverlay');
-
     destroyEpub();
-    if(pdfEl){pdfEl.classList.remove('active');pdfEl.src='about:blank'}
+    if(pdfEl){pdfEl.classList.remove('active');pdfEl.removeAttribute('src')}
     if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
+    if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
 
-    if(kind==='epub'&&window.ePub){
+    setMediaLoading(true,'Carregando arquivo...');
+    let buffer,mime='';
+    try{
+        const fetched=await fetchFileBuffer(src);
+        buffer=fetched.buffer;
+        mime=fetched.mime;
+    }catch(err){
+        console.error(err);
+        setMediaLoading(false);
+        alert('Não foi possível carregar o arquivo para leitura (CORS ou rede). Use Baixar.');
+        return;
+    }
+
+    const kind=guessFileKind(src,ref,mime);
+    const head=new Uint8Array(buffer.slice(0,4));
+    const isZipLike=head[0]===0x50&&head[1]===0x4B;
+    const isPdfMagic=head[0]===0x25&&head[1]===0x50&&head[2]===0x44&&head[3]===0x46; // %PDF
+
+    // EPUB → leitor embutido (ArrayBuffer, sem download)
+    if(kind==='epub'||(kind==='unknown'&&isZipLike&&window.ePub)){
+        if(!window.ePub){setMediaLoading(false);alert('epub.js não carregou. Recarregue a página.');return}
         if(cover)cover.classList.add('hidden-cover');
         if(titleOv)titleOv.classList.add('hidden');
         if(epubEl)epubEl.classList.add('active');
-        setMediaLoading(true,'Carregando EPUB...');
         try{
-            epubBook=ePub(src);
-            epubRendition=epubBook.renderTo('epubViewer',{
-                width:'100%',
-                height:'100%',
-                spread:'none',
-                flow:'paginated',
-                allowScriptedContent:true
-            });
+            epubBook=ePub(buffer);
+            epubRendition=epubBook.renderTo('epubViewer',{width:'100%',height:'100%',spread:'none',flow:'paginated',allowScriptedContent:true});
             await epubRendition.display();
-            epubCurrentUrl=src;
+            epubCurrentUrl='buffer';
             document.getElementById('epubPrevBtn')?.classList.add('visible');
             document.getElementById('epubNextBtn')?.classList.add('visible');
             epubRendition.on('relocated',(loc)=>{
                 try{
-                    const p=epubBook.locations&&epubBook.locations.percentageFromCfi?epubBook.locations.percentageFromCfi(loc.start.cfi):0;
+                    if(!epubBook.locations||typeof epubBook.locations.percentageFromCfi!=='function')return;
+                    const p=epubBook.locations.percentageFromCfi(loc.start.cfi);
                     const bar=document.getElementById('epubProgressBar');
                     if(bar)bar.style.width=((p||0)*100)+'%';
                 }catch(_){}
             });
-            // gera locations em background para progresso
-            epubBook.ready.then(()=>epubBook.locations.generate(1024).catch(()=>{}));
+            epubBook.ready.then(()=>{try{epubBook.locations.generate(1024)}catch(_){}}).catch(()=>{});
         }catch(err){
             console.error(err);
-            alert('Não foi possível abrir o EPUB. Tentando baixar...');
-            window.open(src,'_blank','noopener,noreferrer');
+            alert('EPUB inválido ou corrompido.');
             showCoverOnly();
             if(cover){cover.classList.remove('hidden-cover');cover.src=currentDetailImg||''}
         }finally{setMediaLoading(false)}
         return;
     }
 
-    if(kind==='pdf'){
+    // PDF → blob no iframe
+    if(kind==='pdf'||isPdfMagic||(mime&&mime.includes('pdf'))){
         if(cover)cover.classList.add('hidden-cover');
         if(titleOv)titleOv.classList.add('hidden');
-        if(pdfEl){
-            pdfEl.classList.add('active');
-            // visualização embutida; se o host bloquear iframe, o user ainda pode baixar
-            pdfEl.src=src;
-        }
+        const blob=new Blob([buffer],{type:'application/pdf'});
+        currentObjectUrl=URL.createObjectURL(blob);
+        if(pdfEl){pdfEl.classList.add('active');pdfEl.src=currentObjectUrl}
         document.getElementById('epubPrevBtn')?.classList.remove('visible');
         document.getElementById('epubNextBtn')?.classList.remove('visible');
+        setMediaLoading(false);
         return;
     }
 
-    // ZIP / CBZ / desconhecido → nova aba
-    window.open(src,'_blank','noopener,noreferrer');
+    // Outros: blob em nova aba (sem forçar download attribute)
+    setMediaLoading(false);
+    const blob=new Blob([buffer],{type:mime||'application/octet-stream'});
+    currentObjectUrl=URL.createObjectURL(blob);
+    const w=window.open(currentObjectUrl,'_blank','noopener,noreferrer');
+    if(!w)alert('Não foi possível abrir este formato no leitor. Use o botão Baixar.');
 }
 function epubPrev(){if(epubRendition)epubRendition.prev()}
 function epubNext(){if(epubRendition)epubRendition.next()}
@@ -614,7 +633,7 @@ async function openCurrentFile(){
     setMediaLoading(true,'Preparando leitura...');
     try{
         const src=await resolveMediaSrc(ref,{showLoading:false});
-        if(!src){alert('Não foi possível abrir o arquivo.');return}
+        if(!src){alert('Não foi possível obter o arquivo.');return}
         await openInReader(src,typeof ref==='object'?ref:null);
     }catch(err){
         console.error(err);
@@ -633,23 +652,22 @@ async function downloadCurrentMedia(){
         setUi(true,'Baixando...');
         const src=await resolveMediaSrc(ref);
         if(!src)throw new Error('Mídia indisponível.');
-        let blobUrl=src,revoke=false;
-        if(!src.startsWith('blob:')){
-            const res=await fetch(src);
-            if(!res.ok)throw new Error('Falha ('+res.status+').');
-            const blob=await res.blob();
-            blobUrl=URL.createObjectURL(blob);revoke=true;
-        }
+        const{buffer,mime}=await fetchFileBuffer(src);
+        const kind=guessFileKind(src,typeof ref==='object'?ref:null,mime);
+        let blobType=mime||'application/octet-stream';
+        if(kind==='epub')blobType='application/epub+zip';
+        if(kind==='pdf')blobType='application/pdf';
+        const blob=new Blob([buffer],{type:blobType});
+        const blobUrl=URL.createObjectURL(blob);
         let filename=(currentDetailTitle||'loreplay-book').replace(/[^\w\s.-]/g,'').trim().replace(/\s+/g,'_')||'loreplay-book';
         if(activeChapterKey)filename+=`_V${activeVolume}C${activeChapterKey}`;
-        const kind=guessFileKind(src,typeof ref==='object'?ref:null);
         if(kind==='epub'&&!/\.epub$/i.test(filename))filename+='.epub';
         else if(kind==='pdf'&&!/\.pdf$/i.test(filename))filename+='.pdf';
-        else if(!/\.(pdf|epub|zip|cbz|cbr)$/i.test(filename))filename+='.pdf';
+        else if(!/\.(pdf|epub|zip|cbz|cbr)$/i.test(filename))filename+='.bin';
         const a=document.createElement('a');a.href=blobUrl;a.download=filename;a.rel='noopener';
         document.body.appendChild(a);a.click();a.remove();
         setUi(false,'Baixado');setTimeout(()=>setUi(false,'Baixar'),2000);
-        if(revoke)setTimeout(()=>{try{URL.revokeObjectURL(blobUrl)}catch(_){}},60000);
+        setTimeout(()=>{try{URL.revokeObjectURL(blobUrl)}catch(_){}},60000);
     }catch(err){console.error(err);alert('Não foi possível baixar: '+(err.message||err));setUi(false,'Baixar')}
 }
 
@@ -757,10 +775,7 @@ async function handleContentPost(ev){
 function openModal(id){if(id==='creationModal'&&!canPostContent()){alert('Sem permissão.');return}if(id==='creationModal'&&!isEditMode)resetCreationForm();document.getElementById(id)?.classList.remove('hidden');if(id==='savedModal')renderSavedModalList();if(id==='historyModal')renderHistoryModalList();if(id==='detailModal')document.body.style.overflow='hidden'}
 function closeModal(id){
     document.getElementById(id)?.classList.add('hidden');
-    if(id==='detailModal'){
-        document.body.style.overflow='';
-        showCoverOnly();
-    }
+    if(id==='detailModal'){document.body.style.overflow='';showCoverOnly()}
     if(id==='creationModal')resetCreationForm();
 }
 function closeModalOnBackdrop(e,id){if(e.target.id===id)closeModal(id)}
@@ -821,7 +836,6 @@ async function selectChapter(ch,btn){
     activeChapterKey=ch;
     document.querySelectorAll('#chaptersContainer .ep-btn').forEach(b=>b.className='ep-btn w-12 h-12 rounded-xl bg-white/10 text-white font-bold text-sm shrink-0');
     if(btn)btn.className='ep-btn w-12 h-12 rounded-xl bg-white text-gray-900 font-bold text-sm shrink-0 shadow-md';
-    // Abre automaticamente o arquivo do capítulo para leitura
     await openCurrentFile();
 }
 async function changeVolume(v){activeVolume=v;activeChapterKey=null;renderVolumesTabBar();renderDetailChaptersUI()}
@@ -905,7 +919,7 @@ async function uploadViaBlossom(arrayBuffer,privateKeyBytes){const hash=await sh
 function openIdb(){return new Promise((resolve,reject)=>{const req=indexedDB.open('loreplay_books_blobs',2);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('blobs'))db.createObjectStore('blobs');if(!db.objectStoreNames.contains('media_cache'))db.createObjectStore('media_cache')};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function saveEncryptedLocally(buf){const db=await openIdb();const id='local_'+Date.now()+'_'+Math.random().toString(36).slice(2);return new Promise((resolve,reject)=>{const tx=db.transaction('blobs','readwrite');tx.objectStore('blobs').put(buf,id);tx.oncomplete=()=>resolve('idb://'+id);tx.onerror=()=>reject(tx.error)})}
 async function loadEncryptedLocally(idbUrl){const id=idbUrl.replace(/^idb:\/\//,'');const db=await openIdb();return new Promise((resolve,reject)=>{const tx=db.transaction('blobs','readonly');const g=tx.objectStore('blobs').get(id);g.onsuccess=()=>resolve(g.result);g.onerror=()=>reject(g.error)})}
-async function saveReconstructedMedia(sha,arrayBuffer,mime){if(!sha)return;try{const db=await openIdb();await new Promise((resolve,reject)=>{const tx=db.transaction('media_cache','readwrite');tx.objectStore('media_cache').put({buf:arrayBuffer,mime:mime||'application/pdf',ts:Date.now()},sha);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}catch(e){console.warn('cache media',e)}}
+async function saveReconstructedMedia(sha,arrayBuffer,mime){if(!sha)return;try{const db=await openIdb();await new Promise((resolve,reject)=>{const tx=db.transaction('media_cache','readwrite');tx.objectStore('media_cache').put({buf:arrayBuffer,mime:mime||'application/pdf',ts:Date.now()},sha);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}catch(e){console.warn(e)}}
 async function loadReconstructedMedia(sha){if(!sha)return null;try{const db=await openIdb();return await new Promise((resolve,reject)=>{const tx=db.transaction('media_cache','readonly');const g=tx.objectStore('media_cache').get(sha);g.onsuccess=()=>resolve(g.result||null);g.onerror=()=>reject(g.error)})}catch{return null}}
 async function uploadSingleBuffer(buf,baseName,privateKeyBytes){let fileUrl='',backend='';try{const file=new File([buf],(baseName.replace(/\.[^.]+$/,'')||'file')+'.bin',{type:'application/octet-stream'});const formData=new FormData();formData.append('fileToUpload',file);const authHeader=await createNip98AuthHeader(UPLOAD_URL,'POST',privateKeyBytes);const response=await fetch(UPLOAD_URL,{method:'POST',headers:{'Authorization':authHeader},body:formData});const text=await response.text();let data=null;try{data=JSON.parse(text)}catch(_){}if(response.ok&&data&&data.status!=='error'){fileUrl=extractUploadUrl(data);if(fileUrl)backend='nostr.build'}}catch(e){console.warn(e)}if(!fileUrl){try{fileUrl=await uploadViaBlossom(buf,privateKeyBytes);backend='blossom'}catch(e){console.warn(e)}}if(!fileUrl){fileUrl=await saveEncryptedLocally(buf);backend='local'}return{url:fileUrl,backend}}
 function splitBufferIntoChunks(arrayBuffer,chunkSize=CHUNK_SIZE){const bytes=new Uint8Array(arrayBuffer);const chunks=[];for(let o=0;o<bytes.length;o+=chunkSize)chunks.push(bytes.slice(o,Math.min(o+chunkSize,bytes.length)).buffer);return chunks}
