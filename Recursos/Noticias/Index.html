@@ -6,7 +6,6 @@
     <title>Portal de Notícias</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* --- ESTILOS GERAIS & VARIÁVEIS --- */
         :root {
             --primary-color: #8a2be2;
             --background-color: #f8f9fa;
@@ -30,7 +29,6 @@
             line-height: 1.5;
         }
 
-        /* --- CABEÇALHO (HEADER) --- */
         header {
             background-color: var(--card-background);
             border-bottom: 1px solid var(--border-color);
@@ -343,7 +341,6 @@
             box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
         }
 
-        /* Imagem de capa */
         .card-image {
             width: 140px;
             min-width: 140px;
@@ -495,8 +492,7 @@
                     <button type="button" class="modal-tab-item" data-region="internacional">Internacional</button>
                 </nav>
 
-                <ul class="engine-list" id="engine-list">
-                    </ul>
+                <ul class="engine-list" id="engine-list"></ul>
             </div>
         </div>
     </header>
@@ -510,7 +506,6 @@
     </nav>
 
     <div class="container">
-        
         <aside>
             <ul class="sidebar-menu">
                 <li class="sidebar-item active" data-topic="Brasil"><a href="#"><i class="fas fa-globe-americas"></i> Brasil</a></li>
@@ -522,10 +517,8 @@
         </aside>
 
         <main>
-            <div class="news-grid" id="news-grid">
-            </div>
+            <div class="news-grid" id="news-grid"></div>
         </main>
-
     </div>
 
     <script>
@@ -565,6 +558,14 @@
                 { name: "Bing News INT", icon: "fab fa-microsoft", url: "https://www.bing.com/news/search?q={query}&cc=us" }
             ]
         };
+
+        // Relays públicos da rede Nostr
+        const NOSTR_RELAYS = [
+            'wss://relay.damus.io',
+            'wss://nos.lol',
+            'wss://relay.primal.net',
+            'wss://relay.nostr.band'
+        ];
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
@@ -772,6 +773,131 @@
             }
         }
 
+        function getTag(tags, name) {
+            if (!Array.isArray(tags)) return null;
+            const t = tags.find(x => Array.isArray(x) && x[0] === name);
+            return t && t[1] ? t[1] : null;
+        }
+
+        function stripMd(text) {
+            if (!text) return '';
+            return text
+                .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
+                .replace(/\[[^\]]*\]\([^)]+\)/g, '')
+                .replace(/[#>*_`~]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function eventToArticle(ev) {
+            const title = getTag(ev.tags, 'title') || stripMd(ev.content).slice(0, 120) || 'Artigo Nostr';
+            const summary = getTag(ev.tags, 'summary') || stripMd(ev.content).slice(0, 180);
+            const image = getTag(ev.tags, 'image') || null;
+            const published = getTag(ev.tags, 'published_at');
+            const publishedAt = published
+                ? new Date(Number(published) * 1000).toISOString()
+                : new Date(ev.created_at * 1000).toISOString();
+
+            return {
+                title,
+                url: `https://njump.me/${ev.id}`,
+                publishedAt,
+                description: summary,
+                image
+            };
+        }
+
+        function queryMatches(article, query) {
+            if (!query) return true;
+            const q = query.toLowerCase();
+            return (
+                (article.title || '').toLowerCase().includes(q) ||
+                (article.description || '').toLowerCase().includes(q)
+            );
+        }
+
+        function fetchFromNostrRelays(query, limit = 40) {
+            return new Promise((resolve) => {
+                const byId = new Map();
+                let remaining = NOSTR_RELAYS.length;
+                let settled = false;
+
+                const finish = () => {
+                    if (settled) return;
+                    settled = true;
+                    const list = Array.from(byId.values())
+                        .map(eventToArticle)
+                        .filter(a => queryMatches(a, query))
+                        .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+                    resolve(list);
+                };
+
+                const timeout = setTimeout(() => {
+                    remaining = 0;
+                    finish();
+                }, 8000);
+
+                NOSTR_RELAYS.forEach((relayUrl) => {
+                    let ws;
+                    try {
+                        ws = new WebSocket(relayUrl);
+                    } catch (e) {
+                        remaining--;
+                        if (remaining <= 0) {
+                            clearTimeout(timeout);
+                            finish();
+                        }
+                        return;
+                    }
+
+                    const subId = 'news-' + Math.random().toString(36).slice(2, 10);
+                    let closed = false;
+
+                    const doneRelay = () => {
+                        if (closed) return;
+                        closed = true;
+                        try { ws.close(); } catch (_) {}
+                        remaining--;
+                        if (remaining <= 0) {
+                            clearTimeout(timeout);
+                            finish();
+                        }
+                    };
+
+                    ws.onopen = () => {
+                        const filter = {
+                            kinds: [30023],
+                            limit: limit
+                        };
+                        if (query && query.trim().length > 0) {
+                            filter.search = query.trim();
+                        }
+                        ws.send(JSON.stringify(['REQ', subId, filter]));
+                    };
+
+                    ws.onmessage = (msg) => {
+                        try {
+                            const data = JSON.parse(msg.data);
+                            if (!Array.isArray(data)) return;
+
+                            if (data[0] === 'EVENT' && data[1] === subId && data[2]) {
+                                const ev = data[2];
+                                if (ev && ev.id && ev.kind === 30023) {
+                                    byId.set(ev.id, ev);
+                                }
+                            }
+                            if (data[0] === 'EOSE' && data[1] === subId) {
+                                doneRelay();
+                            }
+                        } catch (_) {}
+                    };
+
+                    ws.onerror = () => doneRelay();
+                    ws.onclose = () => doneRelay();
+                });
+            });
+        }
+
         function showSkeleton(count = 6) {
             newsGrid.innerHTML = '';
             for (let i = 0; i < count; i++) {
@@ -789,78 +915,30 @@
             }
         }
 
-        function stripHtml(html) {
-            if (!html) return '';
-            const tmp = document.createElement('div');
-            tmp.innerHTML = html;
-            return (tmp.textContent || tmp.innerText || '').trim();
-        }
-
-        function extractImageFromHtml(html) {
-            if (!html) return null;
-            const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-            return match ? match[1] : null;
-        }
-
-        // Puxa notícias da rede (RSS via proxy) com imagem, título e descrição
         async function fetchNews(query = 'Brasil') {
             showSkeleton();
-
-            const googleNewsRss = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
-            const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(googleNewsRss)}`;
-            const endpoint = `https://api.allorigins.win/get?url=${encodeURIComponent(rss2jsonUrl)}`;
-
             try {
-                const response = await fetch(endpoint);
-                if (!response.ok) throw new Error('Falha na rede');
-
-                const proxyData = await response.json();
-                const data = JSON.parse(proxyData.contents);
-
-                if (data.status === 'ok' && data.items && data.items.length > 0) {
-                    const articles = data.items.map(item => {
-                        let image = item.thumbnail || null;
-                        if (!image && item.enclosure && item.enclosure.link) {
-                            image = item.enclosure.link;
-                        }
-                        if (!image && item.description) {
-                            image = extractImageFromHtml(item.description);
-                        }
-
-                        const description = stripHtml(item.description || item.content || '').slice(0, 180);
-
-                        return {
-                            title: item.title,
-                            url: item.link,
-                            publishedAt: item.pubDate,
-                            description: description || '',
-                            image: image
-                        };
-                    });
+                const articles = await fetchFromNostrRelays(query, 40);
+                if (articles.length > 0) {
                     renderNews(articles);
                 } else {
-                    newsGrid.innerHTML = '<p style="padding: 1rem;">Nenhuma notícia encontrada.</p>';
+                    newsGrid.innerHTML = '<p style="padding: 1rem;">Nenhuma notícia encontrada na rede Nostr. Tente outro termo.</p>';
                 }
             } catch (error) {
-                console.error('Erro ao buscar notícias:', error);
-                newsGrid.innerHTML = '<p style="padding: 1rem; color: #d93025;">Não foi possível carregar as notícias. Tente novamente mais tarde.</p>';
+                console.error('Erro Nostr:', error);
+                newsGrid.innerHTML = '<p style="padding: 1rem; color: #d93025;">Não foi possível conectar aos relays Nostr. Tente novamente.</p>';
             }
         }
 
         function renderNews(articles) {
             newsGrid.innerHTML = '';
-            
+
             articles.forEach(article => {
                 const card = document.createElement('a');
                 card.className = 'news-card';
                 card.href = article.url;
                 card.target = '_blank';
                 card.rel = 'noopener noreferrer';
-
-                let domain = 'noticias';
-                try {
-                    domain = new URL(article.url).hostname.replace('www.', '');
-                } catch(e) {}
 
                 const timeStr = article.publishedAt ? timeAgo(article.publishedAt) : 'recente';
                 const descHtml = article.description
@@ -878,7 +956,7 @@
                             <h2 class="card-title">${article.title}</h2>
                             ${descHtml}
                         </div>
-                        <div class="card-meta">${domain} · ${timeStr}</div>
+                        <div class="card-meta">nostr · ${timeStr}</div>
                     </div>
                 `;
 
