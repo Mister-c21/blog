@@ -61,7 +61,6 @@
             border: 1px solid var(--border-color);
         }
 
-        /* Seletor de Tipo de Busca (Local / Outros) */
         .search-type-select {
             background: transparent;
             border: none;
@@ -135,7 +134,6 @@
             transition: background-color 0.1s;
         }
 
-        /* --- MODAL FLUTUANTE DE MOTORES DE BUSCA DE NOTÍCIAS --- */
         .search-engines-modal {
             display: none;
             position: absolute;
@@ -154,7 +152,6 @@
             display: block;
         }
 
-        /* Top Tabbar Estilo TikTok dentro do Modal */
         .modal-tiktok-tabbar {
             display: flex;
             justify-content: center;
@@ -226,7 +223,6 @@
             color: var(--primary-color);
         }
 
-        /* --- TOP TABBAR PRINCIPAL DA PÁGINA --- */
         .top-tabbar {
             display: none;
             background-color: var(--card-background);
@@ -274,7 +270,6 @@
             border-radius: 10px;
         }
 
-        /* --- LAYOUT PRINCIPAL --- */
         .container {
             display: flex;
             max-width: 1280px;
@@ -283,7 +278,6 @@
             gap: 2rem;
         }
 
-        /* --- MENU LATERAL (SIDEBAR) --- */
         aside {
             width: 250px;
             flex-shrink: 0;
@@ -322,7 +316,6 @@
             background-color: #f3eafb;
         }
 
-        /* --- CONTEÚDO DE NOTÍCIAS --- */
         main {
             flex-grow: 1;
         }
@@ -343,10 +336,30 @@
             gap: 1rem;
             transition: box-shadow 0.2s;
             text-decoration: none;
+            color: inherit;
         }
 
         .news-card:hover {
             box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+        }
+
+        /* Imagem de capa */
+        .card-image {
+            width: 140px;
+            min-width: 140px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 12px;
+            background-color: #e8eaed;
+            flex-shrink: 0;
+        }
+
+        .card-image.placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
         }
 
         .card-content {
@@ -354,13 +367,29 @@
             flex-direction: column;
             justify-content: space-between;
             flex-grow: 1;
+            min-width: 0;
         }
 
         .card-title {
             font-size: 1.05rem;
             font-weight: 600;
             color: var(--text-color);
+            margin-bottom: 0.35rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-description {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
             margin-bottom: 0.4rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.4;
         }
 
         .card-meta {
@@ -368,7 +397,6 @@
             color: var(--text-secondary);
         }
 
-        /* --- SKELETON LOADING --- */
         .skeleton-card {
             pointer-events: none;
             cursor: default;
@@ -403,12 +431,22 @@
             margin-bottom: 0;
         }
 
+        .skeleton-image {
+            width: 140px;
+            min-width: 140px;
+            height: 100px;
+            border-radius: 12px;
+            background: linear-gradient(90deg, #eceff1 25%, #f5f7f8 50%, #eceff1 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.2s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+
         @keyframes skeleton-shimmer {
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
         }
 
-        /* --- RESPONSIVIDADE --- */
         @media (max-width: 960px) {
             aside { display: none; }
             .top-tabbar { display: flex; }
@@ -420,6 +458,11 @@
             .top-tabbar { justify-content: flex-start; }
             .news-card { padding: 0.8rem; gap: 0.8rem; }
             .card-title { font-size: 0.95rem; }
+            .card-image, .skeleton-image {
+                width: 100px;
+                min-width: 100px;
+                height: 80px;
+            }
         }
     </style>
 </head>
@@ -504,7 +547,6 @@
         let selectedEngineName = null;
         const esportesUrl = 'esportes.html';
 
-        // Base de dados dos motores de busca por região
         const enginesData = {
             brasil: [
                 { name: "Google News BR", icon: "fab fa-google", url: "https://news.google.com/search?q={query}&hl=pt-BR&gl=BR&ceid=BR:pt-419" },
@@ -524,7 +566,6 @@
             ]
         };
 
-        // PESQUISA POR VOZ (Web Speech API)
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
@@ -731,13 +772,13 @@
             }
         }
 
-        // Skeleton loading
         function showSkeleton(count = 6) {
             newsGrid.innerHTML = '';
             for (let i = 0; i < count; i++) {
                 const card = document.createElement('div');
                 card.className = 'news-card skeleton-card';
                 card.innerHTML = `
+                    <div class="skeleton-image"></div>
                     <div class="card-content">
                         <div class="skeleton-line title"></div>
                         <div class="skeleton-line title short"></div>
@@ -748,13 +789,25 @@
             }
         }
 
-        // Busca com proxy CORS (AllOrigins) para evitar bloqueio do navegador
+        function stripHtml(html) {
+            if (!html) return '';
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            return (tmp.textContent || tmp.innerText || '').trim();
+        }
+
+        function extractImageFromHtml(html) {
+            if (!html) return null;
+            const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+            return match ? match[1] : null;
+        }
+
+        // Puxa notícias da rede (RSS via proxy) com imagem, título e descrição
         async function fetchNews(query = 'Brasil') {
             showSkeleton();
 
             const googleNewsRss = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
             const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(googleNewsRss)}`;
-            // Proxy CORS: AllOrigins devolve a resposta como JSON { contents: "..." }
             const endpoint = `https://api.allorigins.win/get?url=${encodeURIComponent(rss2jsonUrl)}`;
 
             try {
@@ -765,11 +818,25 @@
                 const data = JSON.parse(proxyData.contents);
 
                 if (data.status === 'ok' && data.items && data.items.length > 0) {
-                    const articles = data.items.map(item => ({
-                        title: item.title,
-                        url: item.link,
-                        publishedAt: item.pubDate
-                    }));
+                    const articles = data.items.map(item => {
+                        let image = item.thumbnail || null;
+                        if (!image && item.enclosure && item.enclosure.link) {
+                            image = item.enclosure.link;
+                        }
+                        if (!image && item.description) {
+                            image = extractImageFromHtml(item.description);
+                        }
+
+                        const description = stripHtml(item.description || item.content || '').slice(0, 180);
+
+                        return {
+                            title: item.title,
+                            url: item.link,
+                            publishedAt: item.pubDate,
+                            description: description || '',
+                            image: image
+                        };
+                    });
                     renderNews(articles);
                 } else {
                     newsGrid.innerHTML = '<p style="padding: 1rem;">Nenhuma notícia encontrada.</p>';
@@ -788,6 +855,7 @@
                 card.className = 'news-card';
                 card.href = article.url;
                 card.target = '_blank';
+                card.rel = 'noopener noreferrer';
 
                 let domain = 'noticias';
                 try {
@@ -795,10 +863,21 @@
                 } catch(e) {}
 
                 const timeStr = article.publishedAt ? timeAgo(article.publishedAt) : 'recente';
+                const descHtml = article.description
+                    ? `<p class="card-description">${article.description}${article.description.length >= 180 ? '…' : ''}</p>`
+                    : '';
+
+                const imgHtml = article.image
+                    ? `<img class="card-image" src="${article.image}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\\'card-image placeholder\\'><i class=\\'fas fa-newspaper\\'></i></div>'">`
+                    : `<div class="card-image placeholder"><i class="fas fa-newspaper"></i></div>`;
 
                 card.innerHTML = `
+                    ${imgHtml}
                     <div class="card-content">
-                        <h2 class="card-title">${article.title}</h2>
+                        <div>
+                            <h2 class="card-title">${article.title}</h2>
+                            ${descHtml}
+                        </div>
                         <div class="card-meta">${domain} · ${timeStr}</div>
                     </div>
                 `;
@@ -833,7 +912,6 @@
             searchInput.focus();
         });
 
-        // Inicialização
         renderEngineList(currentRegion);
         fetchNews(currentTopic);
     </script>
