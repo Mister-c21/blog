@@ -88,15 +88,13 @@
      font-weight: 700;
    }
 
-   /* ===== Vídeos: sem vazamento no mobile ===== */
+   /* Seção vídeos – mobile sem vazamento */
    #section-videos {
      max-width: 100%;
      overflow-x: hidden;
      box-sizing: border-box;
    }
-   #section-videos * {
-     box-sizing: border-box;
-   }
+   #section-videos * { box-sizing: border-box; }
    #section-videos .brainly-card.video-item {
      max-width: 100%;
      overflow: hidden;
@@ -117,7 +115,37 @@
      aspect-ratio: 16 / 9;
    }
    #section-videos .video-player-wrap iframe,
-   #section-videos .video-player-wrap video {
+   #section-videos .video-player-wrap video,
+   #section-videos .video-player-wrap img {
+     position: absolute;
+     inset: 0;
+     width: 100%;
+     height: 100%;
+     max-width: 100%;
+     border: 0;
+     display: block;
+     object-fit: cover;
+   }
+   #section-videos header { max-width: 100%; overflow: hidden; }
+   #section-videos #videos-container { max-width: 100%; overflow-x: hidden; }
+   #videoPostModalContent { max-width: 100vw; overflow-x: hidden; }
+   #videoPostModalContent input,
+   #videoPostModalContent textarea,
+   #videoPostModalContent select { max-width: 100%; }
+
+   /* Modal de play */
+   #videoPlayModalContent { max-width: 100vw; overflow-x: hidden; }
+   #videoPlayModal .video-play-player {
+     width: 100%;
+     max-width: 100%;
+     position: relative;
+     overflow: hidden;
+     border-radius: 0.75rem;
+     background: #000;
+     aspect-ratio: 16 / 9;
+   }
+   #videoPlayModal .video-play-player iframe,
+   #videoPlayModal .video-play-player video {
      position: absolute;
      inset: 0;
      width: 100%;
@@ -127,22 +155,23 @@
      display: block;
      object-fit: contain;
    }
-   #section-videos header {
-     max-width: 100%;
+   #videoPlaySuggestions { max-width: 100%; overflow-x: hidden; }
+   #videoPlaySuggestions .video-suggest-item { max-width: 100%; overflow: hidden; }
+   #videoPlaySuggestions .video-suggest-thumb {
+     width: 112px;
+     min-width: 112px;
+     height: 64px;
+     border-radius: 0.5rem;
      overflow: hidden;
+     background: #111;
+     position: relative;
+     flex-shrink: 0;
    }
-   #section-videos #videos-container {
-     max-width: 100%;
-     overflow-x: hidden;
-   }
-   #videoPostModalContent {
-     max-width: 100vw;
-     overflow-x: hidden;
-   }
-   #videoPostModalContent input,
-   #videoPostModalContent textarea,
-   #videoPostModalContent select {
-     max-width: 100%;
+   #videoPlaySuggestions .video-suggest-thumb img,
+   #videoPlaySuggestions .video-suggest-thumb .thumb-placeholder {
+     width: 100%;
+     height: 100%;
+     object-fit: cover;
    }
  </style>
 </head>
@@ -228,17 +257,6 @@
          <div class="skeleton" style="height:10px;width:100%;margin-bottom:6px;"></div>
          <div class="skeleton" style="height:72px;width:100%;border-radius:12px;"></div>
        </div>
-       <div class="brainly-card">
-         <div class="flex items-center gap-2.5 mb-3">
-           <div class="skeleton skeleton-circle" style="width:42px;height:42px;"></div>
-           <div class="flex-1 space-y-2">
-             <div class="skeleton" style="height:12px;width:100px;"></div>
-             <div class="skeleton" style="height:10px;width:140px;"></div>
-           </div>
-         </div>
-         <div class="skeleton" style="height:14px;width:75%;margin-bottom:10px;"></div>
-         <div class="skeleton" style="height:72px;width:100%;border-radius:12px;"></div>
-       </div>
      </div>
    </div>
  </section>
@@ -252,7 +270,6 @@
        <span id="materiasSectionTitle">Matérias de Apoio</span>
      </h1>
      <p id="materiasSectionDesc" class="text-xs text-gray-500 mt-1.5">Arquivos da comunidade na rede Nostr — PDFs, e-books, mapas mentais e listas de questões.</p>
-
      <div class="mt-4 flex p-1 bg-ghost rounded-xl border border-gray-200 w-fit gap-1">
        <button type="button" id="toggle-materias" onclick="switchMaterialsView('materias')" class="view-toggle-btn active px-4 py-2 rounded-lg text-xs font-semibold transition">
          <i class="fa-solid fa-book-open mr-1.5"></i> Matérias
@@ -261,7 +278,6 @@
          <i class="fa-solid fa-clipboard-list mr-1.5"></i> Avaliações
        </button>
      </div>
-
      <div class="mt-4 flex gap-2.5">
        <div class="relative flex-1 min-w-0">
          <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
@@ -270,11 +286,9 @@
        <button type="button" onclick="filterSubjects()" class="px-5 py-3.5 bg-secondary text-white text-xs font-semibold rounded-xl hover:bg-purple-700 transition shadow-sm shadow-secondary/30 flex-shrink-0">Filtrar</button>
      </div>
    </header>
-
    <div id="subjects-loading" class="text-center py-4 text-xs text-gray-400 hidden">
      <i class="fa-solid fa-spinner fa-spin mr-1"></i> Sincronizando arquivos da rede...
    </div>
-
    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4" id="subjectsGrid">
      <div class="bg-white p-4 md:p-5 rounded-2xl border border-gray-200/80 shadow-sm space-y-3 hover:border-secondary hover:shadow-md transition cursor-pointer group flex flex-col justify-between" data-name="Geral" onclick="alertOpenSubject('Geral')">
        <div class="space-y-2.5">
@@ -607,7 +621,6 @@
        </div>
      </div>
    </div>
-
    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 hidden" id="avaliacoesGrid">
      <div class="bg-white p-4 md:p-5 rounded-2xl border border-gray-200/80 shadow-sm space-y-3 hover:border-secondary hover:shadow-md transition cursor-pointer group flex flex-col justify-between" data-name="ENEM" onclick="alertOpenSubject('ENEM')">
        <div class="space-y-2.5">
@@ -711,7 +724,6 @@
        <span class="truncate">Vídeos Educacionais</span>
      </h1>
      <p class="text-xs text-gray-500 mt-1.5">Documentários e vídeos de explicação — YouTube, links diretos ou mídia do dispositivo.</p>
-
      <div class="mt-4 flex p-1 bg-ghost rounded-xl border border-gray-200 max-w-full gap-1 overflow-x-auto no-scrollbar">
        <button type="button" id="video-tab-todos" onclick="switchVideoCategory('todos')" class="video-category-tab active px-3 sm:px-4 py-2 rounded-lg text-xs font-semibold transition whitespace-nowrap flex-shrink-0">
          <i class="fa-solid fa-layer-group mr-1.5"></i> Todos
@@ -723,7 +735,6 @@
          <i class="fa-solid fa-chalkboard-user mr-1.5"></i> Explicações
        </button>
      </div>
-
      <div class="mt-4 flex gap-2.5 max-w-full">
        <div class="relative flex-1 min-w-0">
          <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
@@ -731,11 +742,9 @@
        </div>
      </div>
    </header>
-
    <div id="videos-loading" class="text-center py-4 text-xs text-gray-400 hidden">
      <i class="fa-solid fa-spinner fa-spin mr-1"></i> Carregando vídeos da rede...
    </div>
-
    <div id="videos-container" class="space-y-4 max-w-full overflow-x-hidden">
      <div class="text-center py-12 text-gray-400 text-xs">
        <i class="fa-solid fa-video text-4xl mb-3 opacity-40"></i>
@@ -757,6 +766,8 @@
     <i class="fa-solid fa-video"></i>
   </button>
 </div>
+
+<!-- Demais modais (pergunta, material, resposta, comentários, arquivos) iguais ao seu app; abaixo: vídeo post + vídeo play -->
 
 <div id="questionModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end md:items-center md:justify-center opacity-0 pointer-events-none p-0 md:p-4 modal-backdrop">
  <div id="questionModalContent" class="bg-white w-full md:max-w-lg max-h-[85vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full modal-content">
@@ -860,28 +871,7 @@
      <div>
        <label class="text-xs font-semibold text-gray-700">Matéria (opcional)</label>
        <select id="modalVideoSubjectSelect" class="w-full max-w-full text-xs px-4 py-3.5 bg-ghost border border-gray-200 rounded-xl outline-none focus:border-secondary mt-1">
-         <option value="Geral">Geral</option>
-         <option value="Matemática">Matemática</option>
-         <option value="Física">Física</option>
-         <option value="Química">Química</option>
-         <option value="Biologia">Biologia</option>
-         <option value="História">História</option>
-         <option value="Geografia">Geografia</option>
-         <option value="Língua Portuguesa">Língua Portuguesa</option>
-         <option value="Literatura">Literatura</option>
-         <option value="Redação">Redação</option>
-         <option value="Filosofia">Filosofia</option>
-         <option value="Sociologia">Sociologia</option>
-         <option value="Inglês">Inglês</option>
-         <option value="Espanhol">Espanhol</option>
-         <option value="Artes">Artes</option>
-         <option value="Educação Física">Educação Física</option>
-         <option value="Informática">Informática</option>
-         <option value="Atualidades">Atualidades</option>
-         <option value="Astronomia">Astronomia</option>
-         <option value="Estatística">Estatística</option>
-         <option value="Psicologia">Psicologia</option>
-         <option value="Economia">Economia</option>
+         <option value="Geral">Geral</option><option value="Matemática">Matemática</option><option value="Física">Física</option><option value="Química">Química</option><option value="Biologia">Biologia</option><option value="História">História</option><option value="Geografia">Geografia</option><option value="Língua Portuguesa">Língua Portuguesa</option><option value="Literatura">Literatura</option><option value="Redação">Redação</option><option value="Filosofia">Filosofia</option><option value="Sociologia">Sociologia</option><option value="Inglês">Inglês</option><option value="Espanhol">Espanhol</option><option value="Artes">Artes</option><option value="Educação Física">Educação Física</option><option value="Informática">Informática</option><option value="Atualidades">Atualidades</option><option value="Astronomia">Astronomia</option><option value="Estatística">Estatística</option><option value="Psicologia">Psicologia</option><option value="Economia">Economia</option>
        </select>
      </div>
      <div>
@@ -925,6 +915,47 @@
      </button>
    </div>
  </div>
+</div>
+
+<!-- Modal assistir vídeo + sugestões -->
+<div id="videoPlayModal" class="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-end md:items-center md:justify-center opacity-0 pointer-events-none p-0 md:p-4 modal-backdrop">
+  <div id="videoPlayModalContent" class="bg-white w-full md:max-w-2xl max-h-[92vh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col shadow-2xl transform translate-y-full md:translate-y-0 md:scale-95 modal-content">
+    <div class="p-4 border-b flex items-center justify-between gap-2 flex-shrink-0">
+      <h3 class="font-bold text-sm text-gray-900 flex items-center gap-2 min-w-0">
+        <i class="fa-solid fa-play text-secondary flex-shrink-0"></i>
+        <span class="truncate">Assistindo</span>
+      </h3>
+      <button type="button" onclick="closeVideoPlayModal()" class="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 flex-shrink-0">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="overflow-y-auto overflow-x-hidden flex-1 min-h-0">
+      <div class="p-4 pb-2">
+        <div id="videoPlayPlayer" class="video-play-player"></div>
+      </div>
+      <div class="px-4 pb-3 border-b border-gray-100">
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+          <span id="videoPlayCategoryBadge" class="bg-purple-50 text-secondary text-[11px] font-bold px-2.5 py-1 rounded-full border border-purple-100"></span>
+          <span id="videoPlaySubject" class="text-[11px] text-gray-400"></span>
+        </div>
+        <h2 id="videoPlayTitle" class="font-bold text-base text-gray-900 break-words"></h2>
+        <p id="videoPlayDescription" class="text-xs text-gray-500 mt-1.5 break-words whitespace-pre-wrap"></p>
+        <div class="flex items-center gap-2 mt-2.5 text-[11px] text-gray-400 min-w-0">
+          <div class="brainly-avatar flex-shrink-0" style="width:28px;height:28px;" id="videoPlayAuthorAvatar"></div>
+          <span id="videoPlayAuthor" class="font-semibold text-gray-600 truncate"></span>
+          <span class="flex-shrink-0">•</span>
+          <span id="videoPlayDate" class="flex-shrink-0"></span>
+        </div>
+      </div>
+      <div class="px-4 py-3">
+        <h4 class="text-xs font-bold text-gray-800 mb-3 flex items-center gap-1.5">
+          <i class="fa-solid fa-list text-secondary"></i>
+          Sugestões semelhantes
+        </h4>
+        <div id="videoPlaySuggestions" class="flex flex-col gap-2.5 pb-4"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="submitResponseModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end md:items-center md:justify-center opacity-0 pointer-events-none p-0 md:p-4 modal-backdrop">
@@ -996,21 +1027,11 @@
    </div>
    <div class="px-4 pt-3 pb-2 bg-white border-b border-gray-100">
      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-       <button type="button" onclick="switchFileTypeFilter('all')" data-ftype="all" class="file-type-tab active px-3.5 py-2 rounded-xl text-[11px] font-medium text-gray-500 hover:bg-gray-50 transition whitespace-nowrap flex items-center gap-1.5">
-         <i class="fa-solid fa-layer-group text-[10px]"></i> Todos
-       </button>
-       <button type="button" onclick="switchFileTypeFilter('pdf')" data-ftype="pdf" class="file-type-tab px-3.5 py-2 rounded-xl text-[11px] font-medium text-gray-500 hover:bg-gray-50 transition whitespace-nowrap flex items-center gap-1.5">
-         <i class="fa-solid fa-file-pdf text-[10px] text-red-500"></i> PDFs
-       </button>
-       <button type="button" onclick="switchFileTypeFilter('ebook')" data-ftype="ebook" class="file-type-tab px-3.5 py-2 rounded-xl text-[11px] font-medium text-gray-500 hover:bg-gray-50 transition whitespace-nowrap flex items-center gap-1.5">
-         <i class="fa-solid fa-book text-[10px] text-indigo-500"></i> E-books
-       </button>
-       <button type="button" onclick="switchFileTypeFilter('mindmap')" data-ftype="mindmap" class="file-type-tab px-3.5 py-2 rounded-xl text-[11px] font-medium text-gray-500 hover:bg-gray-50 transition whitespace-nowrap flex items-center gap-1.5">
-         <i class="fa-solid fa-diagram-project text-[10px] text-emerald-500"></i> Mapas mentais
-       </button>
-       <button type="button" onclick="switchFileTypeFilter('questions')" data-ftype="questions" class="file-type-tab px-3.5 py-2 rounded-xl text-[11px] font-medium text-gray-500 hover:bg-gray-50 transition whitespace-nowrap flex items-center gap-1.5">
-         <i class="fa-solid fa-list-check text-[10px] text-amber-500"></i> Listas de questões
-       </button>
+       <button type="button" onclick="switchFileTypeFilter('all')" data-ftype="all" class="file-type-tab active px-3.5 py-2 rounded-xl text-[11px] font-medium text-gray-500 hover:bg-gray-50 transition whitespace-nowrap flex items-center gap-1.5"><i class="fa-solid fa-layer-group text-[10px]"></i> Todos</button>
+       <button type="button" onclick="switchFileTypeFilter('pdf')" data-ftype="pdf" class="file-type-tab px-3.5 py-2 rounded-xl text-[11px] font-medium text-gray-500 hover:bg-gray-50 transition whitespace-nowrap flex items-center gap-1.5"><i class="fa-solid fa-file-pdf text-[10px] text-red-500"></i> PDFs</button>
+       <button type="button" onclick="switchFileTypeFilter('ebook')" data-ftype="ebook" class="file-type-tab px-3.5 py-2 rounded-xl text-[11px] font-medium text-gray-500 hover:bg-gray-50 transition whitespace-nowrap flex items-center gap-1.5"><i class="fa-solid fa-book text-[10px] text-indigo-500"></i> E-books</button>
+       <button type="button" onclick="switchFileTypeFilter('mindmap')" data-ftype="mindmap" class="file-type-tab px-3.5 py-2 rounded-xl text-[11px] font-medium text-gray-500 hover:bg-gray-50 transition whitespace-nowrap flex items-center gap-1.5"><i class="fa-solid fa-diagram-project text-[10px] text-emerald-500"></i> Mapas mentais</button>
+       <button type="button" onclick="switchFileTypeFilter('questions')" data-ftype="questions" class="file-type-tab px-3.5 py-2 rounded-xl text-[11px] font-medium text-gray-500 hover:bg-gray-50 transition whitespace-nowrap flex items-center gap-1.5"><i class="fa-solid fa-list-check text-[10px] text-amber-500"></i> Listas de questões</button>
      </div>
    </div>
    <div class="p-4 bg-white border-b border-gray-100">
@@ -1035,10 +1056,10 @@
   let materialsView = 'materias';
   let activeVideoCategory = 'todos';
   let activeVideoSource = 'youtube';
+  let activePlayingVideoId = null;
 
   window.responsesByPost = window.responsesByPost || {};
   window.dbVideos = window.dbVideos || [];
-
   window.dbMaterials = {
     "Geral": [], "Matemática": [], "Física": [], "Química": [], "Biologia": [], "História": [], "Geografia": [],
     "Língua Portuguesa": [], "Literatura": [], "Redação": [], "Filosofia": [], "Sociologia": [], "Inglês": [],
@@ -1058,41 +1079,25 @@
 
   const MATERIAL_ACCEPT = {
     pdf: {
-      accept: 'application/pdf,.pdf',
-      label: 'PDF',
-      hint: 'Apenas arquivos .pdf',
-      attachLabel: 'Anexar arquivo (PDF)',
-      test: (file) => {
-        const n = (file.name || '').toLowerCase();
-        return file.type === 'application/pdf' || n.endsWith('.pdf');
-      }
+      accept: 'application/pdf,.pdf', label: 'PDF', hint: 'Apenas arquivos .pdf', attachLabel: 'Anexar arquivo (PDF)',
+      test: (file) => { const n = (file.name || '').toLowerCase(); return file.type === 'application/pdf' || n.endsWith('.pdf'); }
     },
     ebook: {
-      accept: '.epub,.mobi,.azw,.azw3,.fb2,.ibooks,.lit,.pdb,.cbr,.cbz',
-      label: 'e-book',
-      hint: 'Apenas .epub, .mobi, .azw, .azw3, .fb2, .ibooks, .lit, .pdb, .cbr, .cbz',
-      attachLabel: 'Anexar e-book',
-      test: (file) => {
-        const n = (file.name || '').toLowerCase();
-        return /\.(epub|mobi|azw|azw3|fb2|ibooks|lit|pdb|cbr|cbz)$/i.test(n);
-      }
+      accept: '.epub,.mobi,.azw,.azw3,.fb2,.ibooks,.lit,.pdb,.cbr,.cbz', label: 'e-book',
+      hint: 'Apenas .epub, .mobi, .azw, .azw3, .fb2, .ibooks, .lit, .pdb, .cbr, .cbz', attachLabel: 'Anexar e-book',
+      test: (file) => /\.(epub|mobi|azw|azw3|fb2|ibooks|lit|pdb|cbr|cbz)$/i.test((file.name || '').toLowerCase())
     },
     mindmap: {
-      accept: 'image/*,.png,.jpg,.jpeg,.gif,.webp,.bmp,.svg,.heic,.avif,.tif,.tiff',
-      label: 'imagem (mapa mental)',
-      hint: 'Apenas imagens (png, jpg, gif, webp, svg, etc.)',
-      attachLabel: 'Anexar imagem do mapa mental',
+      accept: 'image/*,.png,.jpg,.jpeg,.gif,.webp,.bmp,.svg,.heic,.avif,.tif,.tiff', label: 'imagem (mapa mental)',
+      hint: 'Apenas imagens (png, jpg, gif, webp, svg, etc.)', attachLabel: 'Anexar imagem do mapa mental',
       test: (file) => {
         if (file.type && file.type.startsWith('image/')) return true;
-        const n = (file.name || '').toLowerCase();
-        return /\.(png|jpe?g|gif|webp|bmp|svg|heic|avif|tiff?)$/i.test(n);
+        return /\.(png|jpe?g|gif|webp|bmp|svg|heic|avif|tiff?)$/i.test((file.name || '').toLowerCase());
       }
     },
     questions: {
       accept: 'application/pdf,.pdf,application/msword,.doc,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.odt,.rtf,.txt',
-      label: 'documento (PDF, Word, etc.)',
-      hint: 'Apenas .pdf, .doc, .docx, .odt, .rtf, .txt',
-      attachLabel: 'Anexar lista de questões',
+      label: 'documento (PDF, Word, etc.)', hint: 'Apenas .pdf, .doc, .docx, .odt, .rtf, .txt', attachLabel: 'Anexar lista de questões',
       test: (file) => {
         const n = (file.name || '').toLowerCase();
         const t = file.type || '';
@@ -1107,10 +1112,7 @@
     const type = document.getElementById('modalPostFileTypeSelect')?.value || 'pdf';
     const input = document.getElementById('modalMaterialFileInput');
     const cfg = MATERIAL_ACCEPT[type] || MATERIAL_ACCEPT.pdf;
-    if (input) {
-      input.accept = cfg.accept;
-      input.value = '';
-    }
+    if (input) { input.accept = cfg.accept; input.value = ''; }
     const nameEl = document.getElementById('modalSelectedFileName');
     if (nameEl) nameEl.innerText = '';
     const hint = document.getElementById('materialAcceptHint');
@@ -1143,6 +1145,10 @@
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
     const match = (url || '').match(regExp);
     return (match && match[2].length === 11) ? match[2] : null;
+  }
+  function youtubeThumb(videoId) {
+    if (!videoId) return '';
+    return `https://i.ytimg.com/vi/${escapeHtmlLocal(videoId)}/hqdefault.jpg`;
   }
 
   function ensureResponsesStore(postId) {
@@ -1256,8 +1262,7 @@
     activeVideoSource = source;
     ['youtube', 'link', 'device'].forEach(s => {
       const btn = document.getElementById('video-source-' + s);
-      const panelId = 'videoSource' + s.charAt(0).toUpperCase() + s.slice(1);
-      const panel = document.getElementById(panelId);
+      const panel = document.getElementById('videoSource' + s.charAt(0).toUpperCase() + s.slice(1));
       if (btn) {
         if (s === source) {
           btn.classList.add('text-secondary', 'bg-secondary/10', 'font-bold');
@@ -1295,26 +1300,131 @@
     if (nameEl) nameEl.innerText = file ? file.name : '';
   };
 
+  function buildVideoPlayerHtml(v) {
+    if (v.source === 'youtube' && v.videoId) {
+      return `<iframe src="https://www.youtube.com/embed/${escapeHtmlLocal(v.videoId)}?autoplay=1"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen loading="lazy" title="${escapeHtmlLocal(v.title || 'Vídeo')}"></iframe>`;
+    }
+    if (v.url) {
+      return `<video controls autoplay playsinline preload="metadata" src="${escapeHtmlLocal(v.url)}"></video>`;
+    }
+    return `<div class="flex items-center justify-center h-full text-gray-400 text-xs" style="position:relative;z-index:1;">Vídeo indisponível</div>`;
+  }
+
+  function buildSuggestItemHtml(v) {
+    const catLabel = v.category === 'documentario' ? 'Documentário' : 'Explicação';
+    let thumb = '';
+    if (v.videoId) {
+      thumb = `<img src="${youtubeThumb(v.videoId)}" alt="" loading="lazy">`;
+    } else {
+      thumb = `<div class="thumb-placeholder flex items-center justify-center text-white/70"><i class="fa-solid fa-play text-sm"></i></div>`;
+    }
+    const idAttr = escapeHtmlLocal(String(v.id || ''));
+    return `<button type="button" onclick="openVideoPlayModalById('${idAttr}')" class="video-suggest-item w-full flex gap-3 p-2.5 rounded-xl border border-gray-100 bg-ghost/80 hover:border-secondary/40 hover:bg-secondary/5 transition text-left min-w-0">
+      <div class="video-suggest-thumb">${thumb}</div>
+      <div class="min-w-0 flex-1">
+        <p class="text-xs font-bold text-gray-900 line-clamp-2">${escapeHtmlLocal(v.title || 'Vídeo')}</p>
+        <p class="text-[10px] text-gray-400 mt-0.5 truncate">${escapeHtmlLocal(catLabel)} · ${escapeHtmlLocal(v.subject || 'Geral')}</p>
+        <p class="text-[10px] text-gray-400 truncate">${escapeHtmlLocal(v.author || '')}</p>
+      </div>
+    </button>`;
+  }
+
+  function getSimilarVideos(current) {
+    const all = (window.dbVideos || []).filter(v => String(v.id) !== String(current.id));
+    const sameCat = all.filter(v => v.category === current.category);
+    const sameSub = all.filter(v => v.subject === current.subject && v.category !== current.category);
+    const rest = all.filter(v => v.category !== current.category && v.subject !== current.subject);
+    const merged = [...sameCat, ...sameSub, ...rest];
+    const seen = new Set();
+    return merged.filter(v => {
+      const k = String(v.id);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }).slice(0, 12);
+  }
+
+  window.openVideoPlayModal = function(v) {
+    if (!v) return;
+    activePlayingVideoId = v.id;
+
+    const player = document.getElementById('videoPlayPlayer');
+    if (player) player.innerHTML = buildVideoPlayerHtml(v);
+
+    const catLabel = v.category === 'documentario' ? 'Documentário' : 'Explicação';
+    const badge = document.getElementById('videoPlayCategoryBadge');
+    if (badge) badge.textContent = catLabel;
+    const sub = document.getElementById('videoPlaySubject');
+    if (sub) sub.textContent = v.subject || 'Geral';
+    const title = document.getElementById('videoPlayTitle');
+    if (title) title.textContent = v.title || 'Vídeo';
+    const desc = document.getElementById('videoPlayDescription');
+    if (desc) {
+      desc.textContent = v.description || '';
+      desc.classList.toggle('hidden', !(v.description && String(v.description).trim()));
+    }
+    const authorEl = document.getElementById('videoPlayAuthor');
+    if (authorEl) authorEl.textContent = v.author || 'Usuário';
+    const dateEl = document.getElementById('videoPlayDate');
+    if (dateEl) dateEl.textContent = v.date || '';
+    const avWrap = document.getElementById('videoPlayAuthorAvatar');
+    if (avWrap) avWrap.innerHTML = avatarHtml(v.avatarUrl || '');
+
+    const suggestions = getSimilarVideos(v);
+    const box = document.getElementById('videoPlaySuggestions');
+    if (box) {
+      if (!suggestions.length) {
+        box.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">Nenhuma sugestão semelhante no momento.</p>`;
+      } else {
+        box.innerHTML = suggestions.map(buildSuggestItemHtml).join('');
+      }
+    }
+
+    const modal = document.getElementById('videoPlayModal');
+    const content = document.getElementById('videoPlayModalContent');
+    modal.classList.remove('pointer-events-none', 'opacity-0');
+    modal.classList.add('opacity-100');
+    content.classList.remove('translate-y-full', 'md:scale-95');
+    content.classList.add('md:scale-100');
+  };
+
+  window.openVideoPlayModalById = function(id) {
+    const v = (window.dbVideos || []).find(x => String(x.id) === String(id));
+    if (v) openVideoPlayModal(v);
+  };
+
+  window.closeVideoPlayModal = function() {
+    const player = document.getElementById('videoPlayPlayer');
+    if (player) player.innerHTML = '';
+    activePlayingVideoId = null;
+    const modal = document.getElementById('videoPlayModal');
+    const content = document.getElementById('videoPlayModalContent');
+    modal.classList.remove('opacity-100');
+    modal.classList.add('opacity-0', 'pointer-events-none');
+    content.classList.add('translate-y-full', 'md:scale-95');
+    content.classList.remove('md:scale-100');
+  };
+
   function buildVideoCardHtml(v) {
     const catLabel = v.category === 'documentario' ? 'Documentário' : 'Explicação';
     const catIcon = v.category === 'documentario' ? 'fa-film' : 'fa-chalkboard-user';
-    let player = '';
-    if (v.source === 'youtube' && v.videoId) {
-      player = `<div class="video-player-wrap mt-1">
-        <iframe src="https://www.youtube.com/embed/${escapeHtmlLocal(v.videoId)}"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen loading="lazy" title="${escapeHtmlLocal(v.title || 'Vídeo')}"></iframe>
-      </div>`;
-    } else if (v.url) {
-      player = `<div class="video-player-wrap mt-1">
-        <video controls preload="metadata" playsinline src="${escapeHtmlLocal(v.url)}"></video>
+    const idAttr = escapeHtmlLocal(String(v.id || ''));
+    let preview = '';
+    if (v.videoId) {
+      preview = `<div class="video-player-wrap mt-1 relative pointer-events-none">
+        <img src="${youtubeThumb(v.videoId)}" alt="" loading="lazy">
+        <div class="absolute inset-0 flex items-center justify-center bg-black/25">
+          <span class="w-12 h-12 rounded-full bg-white/90 text-secondary flex items-center justify-center shadow-lg"><i class="fa-solid fa-play"></i></span>
+        </div>
       </div>`;
     } else {
-      player = `<div class="video-player-wrap mt-1 flex items-center justify-center text-gray-400 text-xs">
-        <span style="position:relative;z-index:1;">Vídeo indisponível</span>
+      preview = `<div class="video-player-wrap mt-1 flex items-center justify-center bg-gray-900 relative">
+        <span class="w-12 h-12 rounded-full bg-white/90 text-secondary flex items-center justify-center shadow-lg relative z-10"><i class="fa-solid fa-play"></i></span>
       </div>`;
     }
-    return `<div class="brainly-card video-item" data-category="${escapeHtmlLocal(v.category || '')}" data-subject="${escapeHtmlLocal(v.subject || '')}">
+    return `<div class="brainly-card video-item cursor-pointer" data-category="${escapeHtmlLocal(v.category || '')}" data-subject="${escapeHtmlLocal(v.subject || '')}" onclick="openVideoPlayModalById('${idAttr}')">
       <div class="flex items-center justify-between gap-2 mb-3 min-w-0">
         <div class="flex items-center gap-2.5 min-w-0 flex-1">
           <div class="brainly-avatar flex-shrink-0">${avatarHtml(v.avatarUrl || '')}</div>
@@ -1330,7 +1440,7 @@
       </div>
       <h3 class="font-bold text-sm text-gray-900 mb-1">${escapeHtmlLocal(v.title || 'Vídeo')}</h3>
       ${v.description ? `<p class="text-xs text-gray-500 mb-2 line-clamp-2">${escapeHtmlLocal(v.description)}</p>` : ''}
-      ${player}
+      ${preview}
     </div>`;
   }
 
@@ -1339,10 +1449,7 @@
     if (!container) return;
     const q = (document.getElementById('videoSearchInput')?.value || '').toLowerCase().trim();
     let list = (window.dbVideos || []).slice();
-
-    if (activeVideoCategory !== 'todos') {
-      list = list.filter(v => v.category === activeVideoCategory);
-    }
+    if (activeVideoCategory !== 'todos') list = list.filter(v => v.category === activeVideoCategory);
     if (q) {
       list = list.filter(v =>
         (v.title || '').toLowerCase().includes(q) ||
@@ -1351,7 +1458,6 @@
         (v.author || '').toLowerCase().includes(q)
       );
     }
-
     if (!list.length) {
       container.innerHTML = `<div class="text-center py-12 text-gray-400 text-xs">
         <i class="fa-solid fa-video text-4xl mb-3 opacity-40"></i>
@@ -1411,49 +1517,26 @@
         if (!file) { alert('Selecione um vídeo do dispositivo.'); return; }
         fileName = file.name || '';
         mime = file.type || '';
-        if (window.uploadFileToHost) {
-          url = await window.uploadFileToHost(file);
-        } else {
-          url = URL.createObjectURL(file);
-        }
+        if (window.uploadFileToHost) url = await window.uploadFileToHost(file);
+        else url = URL.createObjectURL(file);
       }
 
       const entry = {
         id: 'vid-' + Date.now(),
-        title,
-        description,
-        category,
-        subject,
-        source,
-        url,
-        videoId,
-        fileName,
-        mime,
+        title, description, category, subject, source, url, videoId, fileName, mime,
         author: getLoggedUserName(),
         avatarUrl: getLoggedAvatarUrl(),
         date: 'Agora mesmo',
         created_at: Math.floor(Date.now() / 1000)
       };
-
       window.dbVideos.unshift(entry);
       renderVideosList();
 
       if (window.publishEduEvent) {
         try {
           await window.publishEduEvent({
-            type: 'video',
-            subject,
-            content: title,
-            fileMeta: {
-              title,
-              description,
-              category,
-              source,
-              url,
-              videoId,
-              fileName,
-              mime
-            }
+            type: 'video', subject, content: title,
+            fileMeta: { title, description, category, source, url, videoId, fileName, mime }
           });
         } catch (e) { console.warn('publish video', e); }
       }
@@ -1587,19 +1670,12 @@
           <button onclick="voteAnswer(this,'galho')" class="btn-vote-galho text-[10px] px-2 py-1 rounded-lg bg-amber-50 text-amber-700">Galho <span class="count">0</span></button>
           <button onclick="voteAnswer(this,'perda')" class="btn-vote-perda text-[10px] px-2 py-1 rounded-lg bg-rose-50 text-rose-700">Perda <span class="count">0</span></button>
         </div></div></div>`;
-      publishPayload = {
-        type: 'resposta',
-        subject: 'Geral',
-        content: txt,
-        fileMeta: { replyTo: activePostId, answerId, responseType: 'texto' }
-      };
+      publishPayload = { type: 'resposta', subject: 'Geral', content: txt, fileMeta: { replyTo: activePostId, answerId, responseType: 'texto' } };
     } else if (activeResponseType === 'imagem') {
       const file = document.getElementById('responseImageFileInput').files[0];
       if (!file) { alert('Selecione uma imagem.'); return; }
       let imageUrl = URL.createObjectURL(file);
-      try {
-        if (window.uploadFileToHost) imageUrl = await window.uploadFileToHost(file);
-      } catch (e) { console.warn('upload imagem resposta', e); }
+      try { if (window.uploadFileToHost) imageUrl = await window.uploadFileToHost(file); } catch (e) { console.warn(e); }
       targetKey = 'imagens';
       cardHtml = `<div class="response-card bg-ghost border p-3 rounded-2xl" data-answer-id="${answerId}" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
         <div class="flex items-center gap-2 mb-2"><div class="w-7 h-7 rounded-full overflow-hidden bg-secondary/10 flex items-center justify-center">${avatarHtml(av)}</div><span class="font-bold text-xs">${escapeHtmlLocal(author)}</span></div>
@@ -1609,12 +1685,7 @@
           <button onclick="voteAnswer(this,'galho')" class="btn-vote-galho text-[10px] px-2 py-1 rounded-lg bg-amber-50">Galho <span class="count">0</span></button>
           <button onclick="voteAnswer(this,'perda')" class="btn-vote-perda text-[10px] px-2 py-1 rounded-lg bg-rose-50">Perda <span class="count">0</span></button>
         </div></div>`;
-      publishPayload = {
-        type: 'resposta',
-        subject: 'Geral',
-        content: file.name || 'Imagem',
-        fileMeta: { replyTo: activePostId, answerId, responseType: 'imagem', url: imageUrl, mime: file.type || '', fileName: file.name || '' }
-      };
+      publishPayload = { type: 'resposta', subject: 'Geral', content: file.name || 'Imagem', fileMeta: { replyTo: activePostId, answerId, responseType: 'imagem', url: imageUrl, mime: file.type || '', fileName: file.name || '' } };
     } else {
       const url = document.getElementById('responseVideoUrlInput').value.trim();
       if (!url) { alert('Cole o link do YouTube.'); return; }
@@ -1629,12 +1700,7 @@
           <button onclick="voteAnswer(this,'galho')" class="btn-vote-galho text-[10px] px-2 py-1 rounded-lg bg-amber-50">Galho <span class="count">0</span></button>
           <button onclick="voteAnswer(this,'perda')" class="btn-vote-perda text-[10px] px-2 py-1 rounded-lg bg-rose-50">Perda <span class="count">0</span></button>
         </div></div>`;
-      publishPayload = {
-        type: 'resposta',
-        subject: 'Geral',
-        content: url,
-        fileMeta: { replyTo: activePostId, answerId, responseType: 'video', videoUrl: url, videoId }
-      };
+      publishPayload = { type: 'resposta', subject: 'Geral', content: url, fileMeta: { replyTo: activePostId, answerId, responseType: 'video', videoUrl: url, videoId } };
     }
 
     if (window.publishEduEvent && publishPayload) {
@@ -1703,7 +1769,6 @@
     let perda = +card.getAttribute('data-votes-perda') || 0;
     let cur = card.getAttribute('data-user-vote') || 'none';
     let finalVote = 'none';
-
     if (cur === voteType) {
       if (voteType === 'util') util = Math.max(0, util - 1);
       if (voteType === 'galho') galho = Math.max(0, galho - 1);
@@ -1727,19 +1792,11 @@
     card.querySelector('.btn-vote-galho .count').innerText = galho;
     card.querySelector('.btn-vote-perda .count').innerText = perda;
     sortResponsesByScore();
-
     const answerId = card.getAttribute('data-answer-id') || '';
     if (window.publishEduEvent && activePostId) {
       window.publishEduEvent({
-        type: 'voto',
-        subject: 'Geral',
-        content: finalVote,
-        fileMeta: {
-          replyTo: activePostId,
-          answerId,
-          voteType: finalVote,
-          previousVote: cur
-        }
+        type: 'voto', subject: 'Geral', content: finalVote,
+        fileMeta: { replyTo: activePostId, answerId, voteType: finalVote, previousVote: cur }
       }).catch(() => {});
     }
   };
@@ -1822,14 +1879,10 @@
     m.classList.add('opacity-0', 'pointer-events-none');
     c.classList.add('translate-y-full');
   };
-
   window.handleModalFileSelected = function(event) {
     const file = event.target.files[0];
     const nameEl = document.getElementById('modalSelectedFileName');
-    if (!file) {
-      if (nameEl) nameEl.innerText = '';
-      return;
-    }
+    if (!file) { if (nameEl) nameEl.innerText = ''; return; }
     const type = document.getElementById('modalPostFileTypeSelect')?.value || 'pdf';
     const cfg = MATERIAL_ACCEPT[type] || MATERIAL_ACCEPT.pdf;
     if (!cfg.test(file)) {
@@ -1849,62 +1902,32 @@
     const file = fileInput.files[0];
     if (!content) { alert('Digite o título/descrição.'); return; }
     if (!file) { alert('Anexe um arquivo para publicar na rede.'); return; }
-
     const cfg = MATERIAL_ACCEPT[fileType] || MATERIAL_ACCEPT.pdf;
-    if (!cfg.test(file)) {
-      alert(`Arquivo inválido para este tipo.\n${cfg.hint}`);
-      return;
-    }
+    if (!cfg.test(file)) { alert(`Arquivo inválido para este tipo.\n${cfg.hint}`); return; }
 
     const btn = document.getElementById('btnPublishMaterial');
     const prev = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
-
     try {
       const fileUrl = await window.uploadFileToHost(file);
       const typeMeta = FILE_TYPE_META[fileType] || FILE_TYPE_META.pdf;
       const meta = {
-        title: content,
-        uploader: getLoggedUserName(),
-        size: formatBytes(file.size),
-        date: 'Agora mesmo',
-        icon: typeMeta.icon,
-        colorClass: typeMeta.colorClass,
-        fileType,
-        url: fileUrl,
-        fileName: file.name,
-        mime: file.type || ''
+        title: content, uploader: getLoggedUserName(), size: formatBytes(file.size), date: 'Agora mesmo',
+        icon: typeMeta.icon, colorClass: typeMeta.colorClass, fileType, url: fileUrl, fileName: file.name, mime: file.type || ''
       };
       if (!dbMaterials[subject]) dbMaterials[subject] = [];
       dbMaterials[subject].unshift(meta);
       updateSubjectCounter(subject);
-
       if (window.publishEduEvent) {
         const ok = await window.publishEduEvent({
-          type: 'material',
-          subject,
-          content,
-          fileMeta: {
-            title: content,
-            size: meta.size,
-            icon: meta.icon,
-            colorClass: meta.colorClass,
-            fileType,
-            url: fileUrl,
-            fileName: file.name,
-            mime: meta.mime
-          }
+          type: 'material', subject, content,
+          fileMeta: { title: content, size: meta.size, icon: meta.icon, colorClass: meta.colorClass, fileType, url: fileUrl, fileName: file.name, mime: meta.mime }
         });
         if (!ok && !window.currentUserData?.privateKey) {
           alert('Arquivo enviado, mas sem chave Nostr a publicação na rede pode não propagar. Faça login no Social.');
-        } else {
-          alert('Material publicado na rede!');
-        }
-      } else {
-        alert('Material enviado e link disponível localmente.');
-      }
-
+        } else alert('Material publicado na rede!');
+      } else alert('Material enviado e link disponível localmente.');
       document.getElementById('modalPostContentInput').value = '';
       document.getElementById('modalSelectedFileName').innerText = '';
       fileInput.value = '';
@@ -1958,18 +1981,10 @@
   window.renderSubjectFilesList = function() {
     const container = document.getElementById('subjectFilesListContainer');
     if (!container || !activeSubjectName) return;
-
-    if (filesListLoading) {
-      container.innerHTML = filesSkeletonHtml();
-      return;
-    }
-
+    if (filesListLoading) { container.innerHTML = filesSkeletonHtml(); return; }
     const q = (document.getElementById('subjectFileSearch')?.value || '').toLowerCase().trim();
     let files = (dbMaterials[activeSubjectName] || []).slice();
-
-    if (activeFileTypeFilter !== 'all') {
-      files = files.filter(f => (f.fileType || 'pdf') === activeFileTypeFilter);
-    }
+    if (activeFileTypeFilter !== 'all') files = files.filter(f => (f.fileType || 'pdf') === activeFileTypeFilter);
     if (q) {
       files = files.filter(f =>
         (f.title || '').toLowerCase().includes(q) ||
@@ -1977,7 +1992,6 @@
         (f.uploader || '').toLowerCase().includes(q)
       );
     }
-
     if (!files.length) {
       const labels = { all: 'arquivos', pdf: 'PDFs', ebook: 'e-books', mindmap: 'mapas mentais', questions: 'listas de questões' };
       container.innerHTML = `<div class="text-center py-10 text-gray-400 text-xs">
@@ -1987,13 +2001,11 @@
       </div>`;
       return;
     }
-
     container.innerHTML = files.map(file => {
       const typeMeta = FILE_TYPE_META[file.fileType] || FILE_TYPE_META.pdf;
       const icon = file.icon || typeMeta.icon;
       const colorClass = file.colorClass || typeMeta.colorClass;
       const url = file.url || '';
-      const canDownload = !!url;
       return `
         <div class="bg-white p-4 rounded-xl border border-gray-200/80 shadow-xs flex items-center justify-between gap-3 hover:border-secondary transition">
           <div class="flex items-center gap-3 min-w-0">
@@ -2003,12 +2015,9 @@
               <span class="text-[10px] text-gray-400">${escapeHtmlLocal(typeMeta.label)} · ${escapeHtmlLocal(file.uploader)} · ${escapeHtmlLocal(file.size)} · ${escapeHtmlLocal(file.date)}</span>
             </div>
           </div>
-          ${canDownload
-            ? `<a href="${escapeHtmlLocal(url)}" target="_blank" rel="noopener noreferrer" download class="px-3.5 py-2 bg-secondary/10 hover:bg-secondary text-secondary hover:text-white rounded-xl text-xs font-bold transition whitespace-nowrap flex-shrink-0">
-                 <i class="fa-solid fa-download mr-1"></i> Baixar
-               </a>`
-            : `<span class="px-3.5 py-2 bg-gray-100 text-gray-400 rounded-xl text-xs font-bold whitespace-nowrap">Indisponível</span>`
-          }
+          ${url
+            ? `<a href="${escapeHtmlLocal(url)}" target="_blank" rel="noopener noreferrer" download class="px-3.5 py-2 bg-secondary/10 hover:bg-secondary text-secondary hover:text-white rounded-xl text-xs font-bold transition whitespace-nowrap flex-shrink-0"><i class="fa-solid fa-download mr-1"></i> Baixar</a>`
+            : `<span class="px-3.5 py-2 bg-gray-100 text-gray-400 rounded-xl text-xs font-bold whitespace-nowrap">Indisponível</span>`}
         </div>`;
     }).join('');
   };
@@ -2019,21 +2028,15 @@
     document.getElementById('subjectFilesModalTitle').innerText = subjectName;
     document.getElementById('subjectFileSearch').value = '';
     switchFileTypeFilter('all');
-
     filesListLoading = true;
     renderSubjectFilesList();
-
     const modal = document.getElementById('subjectFilesModal');
     const content = document.getElementById('subjectFilesModalContent');
     modal.classList.remove('pointer-events-none', 'opacity-0');
     modal.classList.add('opacity-100');
     content.classList.remove('scale-95');
     content.classList.add('scale-100');
-
-    setTimeout(() => {
-      filesListLoading = false;
-      renderSubjectFilesList();
-    }, 350);
+    setTimeout(() => { filesListLoading = false; renderSubjectFilesList(); }, 350);
   };
 
   window.closeSubjectFilesModal = function() {
@@ -2073,20 +2076,10 @@
   import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
   import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
 
-  const RELAYS = [
-    'wss://relay.damus.io',
-    'wss://nos.lol',
-    'wss://relay.nostr.band',
-    'wss://relay.primal.net'
-  ];
+  const RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band', 'wss://relay.primal.net'];
   const EDU_TAG = 'loresocial-edu';
   const UPLOAD_URL = 'https://nostr.build/api/v2/upload/files';
-  const BLOSSOM_SERVERS = [
-    'https://blossom.primal.net',
-    'https://cdn.satellite.earth',
-    'https://blossom.band',
-    'https://nostr.download'
-  ];
+  const BLOSSOM_SERVERS = ['https://blossom.primal.net', 'https://cdn.satellite.earth', 'https://blossom.band', 'https://nostr.download'];
   const pool = new NostrTools.SimplePool();
 
   window.currentUserData = { pubkey: '', privateKey: null, nickname: 'Visitante', avatarUrl: '' };
@@ -2117,10 +2110,8 @@
 
   async function createNip98AuthHeader(url, method, privateKeyBytes) {
     const signed = NostrTools.finalizeEvent({
-      kind: 27235,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: [['u', url], ['method', method.toUpperCase()]],
-      content: ''
+      kind: 27235, created_at: Math.floor(Date.now() / 1000),
+      tags: [['u', url], ['method', method.toUpperCase()]], content: ''
     }, privateKeyBytes);
     return 'Nostr ' + btoa(unescape(encodeURIComponent(JSON.stringify(signed))));
   }
@@ -2133,19 +2124,15 @@
   async function createBlossomAuthHeader(fileSha256, privateKeyBytes) {
     const now = Math.floor(Date.now() / 1000);
     const signed = NostrTools.finalizeEvent({
-      kind: 24242,
-      created_at: now,
-      tags: [['t', 'upload'], ['x', fileSha256], ['expiration', String(now + 120)]],
-      content: ''
+      kind: 24242, created_at: now,
+      tags: [['t', 'upload'], ['x', fileSha256], ['expiration', String(now + 120)]], content: ''
     }, privateKeyBytes);
     return 'Nostr ' + btoa(unescape(encodeURIComponent(JSON.stringify(signed))));
   }
 
   function extractUploadUrl(data) {
     if (!data) return '';
-    if (data.status === 'success' && Array.isArray(data.data) && data.data[0]) {
-      return data.data[0].url || data.data[0].download_url || '';
-    }
+    if (data.status === 'success' && Array.isArray(data.data) && data.data[0]) return data.data[0].url || data.data[0].download_url || '';
     if (data.url) return data.url;
     if (data.nip94_event && Array.isArray(data.nip94_event.tags)) {
       const urlTag = data.nip94_event.tags.find(t => t[0] === 'url');
@@ -2190,17 +2177,12 @@
   window.uploadFileToHost = async function (file) {
     const buf = await file.arrayBuffer();
     const pk = window.currentUserData.privateKey;
-
     if (pk) {
       try {
         const formData = new FormData();
         formData.append('fileToUpload', file);
         const authHeader = await createNip98AuthHeader(UPLOAD_URL, 'POST', pk);
-        const response = await fetch(UPLOAD_URL, {
-          method: 'POST',
-          headers: { 'Authorization': authHeader },
-          body: formData
-        });
+        const response = await fetch(UPLOAD_URL, { method: 'POST', headers: { 'Authorization': authHeader }, body: formData });
         const text = await response.text();
         let data = null;
         try { data = JSON.parse(text); } catch (_) {}
@@ -2222,12 +2204,10 @@
         }
       } catch (e) { console.warn('nostr.build anon', e); }
     }
-
     if (pk) {
       try { return await uploadViaBlossom(buf, pk); }
       catch (e) { console.warn('Blossom', e); }
     }
-
     try {
       const fd = new FormData();
       fd.append('file', file);
@@ -2237,7 +2217,6 @@
         if (url.startsWith('http')) return url;
       }
     } catch (e) { console.warn('0x0.st', e); }
-
     try {
       const fd = new FormData();
       fd.append('file', file);
@@ -2247,7 +2226,6 @@
         if (data.success && data.link) return data.link;
       }
     } catch (e) { console.warn('file.io', e); }
-
     throw new Error('Falha no upload do arquivo. Tente outro host ou arquivo menor.');
   };
 
@@ -2257,16 +2235,12 @@
       return null;
     }
     const payload = {
-      type,
-      subject: subject || 'Geral',
-      content: content || '',
-      file: fileMeta || null,
-      author: window.currentUserData.nickname,
+      type, subject: subject || 'Geral', content: content || '',
+      file: fileMeta || null, author: window.currentUserData.nickname,
       avatarUrl: window.currentUserData.avatarUrl || ''
     };
     const tags = [
-      ['t', EDU_TAG],
-      ['t', type],
+      ['t', EDU_TAG], ['t', type],
       ['t', String(subject || 'Geral').toLowerCase().replace(/\s+/g, '-')]
     ];
     if (fileMeta?.url) tags.push(['url', fileMeta.url]);
@@ -2281,10 +2255,7 @@
     if (fileMeta?.source) tags.push(['vsource', String(fileMeta.source)]);
 
     const eventTemplate = {
-      kind: 1,
-      created_at: Math.floor(Date.now() / 1000),
-      tags,
-      content: JSON.stringify(payload)
+      kind: 1, created_at: Math.floor(Date.now() / 1000), tags, content: JSON.stringify(payload)
     };
     try {
       const signed = NostrTools.finalizeEvent(eventTemplate, window.currentUserData.privateKey);
@@ -2337,7 +2308,6 @@
       }).filter(Boolean).sort((a, b) => b.created_at - a.created_at);
 
       await fetchProfiles(list.map(x => x.pubkey));
-
       if (skeleton) skeleton.remove();
 
       const feed = document.getElementById('feed-container');
@@ -2367,10 +2337,7 @@
         const answerId = r.file.answerId || r.id;
         const rtype = r.file.responseType || 'texto';
         const timeLabel = new Date(r.created_at * 1000).toLocaleString('pt-BR');
-
-        let html = '';
-        let targetKey = 'textos';
-
+        let html = '', targetKey = 'textos';
         if (rtype === 'imagem' && r.file.url) {
           targetKey = 'imagens';
           html = `<div class="response-card bg-ghost border p-3 rounded-2xl" data-answer-id="${escapeHtmlLocal(answerId)}" data-votes-util="0" data-votes-galho="0" data-votes-perda="0" data-user-vote="none">
@@ -2405,7 +2372,6 @@
               <button onclick="voteAnswer(this,'perda')" class="btn-vote-perda text-[10px] px-2 py-1 rounded-lg bg-rose-50 text-rose-700">Perda <span class="count">0</span></button>
             </div></div></div>`;
         }
-
         const already = (store[targetKey] || []).some(h =>
           h.includes(`data-answer-id="${answerId}"`) ||
           (rtype === 'texto' && r.content && h.includes(escapeHtmlLocal(r.content)))
@@ -2413,10 +2379,7 @@
         if (!already) {
           store[targetKey].push(html);
           const el = document.getElementById('comment-count-' + postId);
-          if (el) {
-            const total = store.textos.length + store.imagens.length + store.videos.length;
-            el.innerText = String(total);
-          }
+          if (el) el.innerText = String(store.textos.length + store.imagens.length + store.videos.length);
         }
       });
 
@@ -2454,9 +2417,7 @@
             out = out.replace(/(btn-vote-perda[^>]*>Perda <span class="count">)\d+(<\/span>)/, `$1${counts.perda}$2`);
             const myPk = (window.currentUserData.pubkey || '').toLowerCase();
             const myVote = Object.entries(counts.byUser).find(([pk]) => pk.toLowerCase() === myPk)?.[1];
-            if (myVote && myVote !== 'none') {
-              out = out.replace(/data-user-vote="[^"]*"/, `data-user-vote="${myVote}"`);
-            }
+            if (myVote && myVote !== 'none') out = out.replace(/data-user-vote="[^"]*"/, `data-user-vote="${myVote}"`);
             return out;
           });
         });
@@ -2477,16 +2438,10 @@
             questions: { icon: 'fa-list-check', colorClass: 'bg-amber-50 text-amber-600' }
           }[ft] || { icon: 'fa-file', colorClass: 'bg-secondary/10 text-secondary' };
           window.dbMaterials[sub].unshift({
-            title,
-            uploader: m.author || 'Rede',
-            size: m.file.size || '—',
+            title, uploader: m.author || 'Rede', size: m.file.size || '—',
             date: new Date(m.created_at * 1000).toLocaleDateString('pt-BR'),
-            icon: m.file.icon || typeMeta.icon,
-            colorClass: m.file.colorClass || typeMeta.colorClass,
-            fileType: ft,
-            url,
-            fileName: m.file.fileName || '',
-            mime: m.file.mime || ''
+            icon: m.file.icon || typeMeta.icon, colorClass: m.file.colorClass || typeMeta.colorClass,
+            fileType: ft, url, fileName: m.file.fileName || '', mime: m.file.mime || ''
           });
         }
       });
@@ -2503,14 +2458,12 @@
         if (!exists) {
           window.dbVideos = window.dbVideos || [];
           window.dbVideos.push({
-            id: v.id,
-            title,
+            id: v.id, title,
             description: v.file?.description || '',
             category: v.file?.category || 'explicacao',
             subject: v.subject || 'Geral',
             source: v.file?.source || (videoId ? 'youtube' : 'link'),
-            url,
-            videoId,
+            url, videoId,
             fileName: v.file?.fileName || '',
             mime: v.file?.mime || '',
             author: v.author || 'Rede',
