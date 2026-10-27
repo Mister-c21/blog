@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Glassmorphism Card - LoreSpace</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ghost: '#F8F9FA',
+                        blueviolet: {
+                            DEFAULT: '#8A2BE2',
+                            deep: '#7C3AED',
+                            glow: 'rgba(138, 43, 226, 0.25)'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Courier New', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F9FA;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        /* 3D Scene Perspective */
+        .perspective-container {
+            perspective: 1400px;
+            transform-style: preserve-3d;
+        }
+
+        /* Card 3D Wrapper */
+        .card-3d-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            -webkit-transform-style: preserve-3d;
+            transform-origin: 50% 50%;
+            transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+            will-change: transform;
+        }
+
+        /* Card Face */
+        .card-face {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 1.1rem;
+            overflow: hidden;
+        }
+
+        /* Pure Glassmorphism Effect with solid clean white base */
+        .glass-card {
+            background: linear-gradient(
+                145deg,
+                rgba(255, 255, 255, 0.92) 0%,
+                rgba(255, 255, 255, 0.82) 100%
+            );
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow:
+                0 4px 6px -1px rgba(124, 58, 237, 0.06),
+                0 20px 40px -12px rgba(124, 58, 237, 0.18),
+                0 30px 60px -20px rgba(0, 0, 0, 0.08),
+                inset 0 1px 1px rgba(255, 255, 255, 0.95),
+                inset 0 -1px 1px rgba(138, 43, 226, 0.05);
+        }
+
+        /* Toggle dentro do card */
+        .glass-toggle {
+            background: rgba(248, 249, 250, 0.85);
+            backdrop-filter: blur(16px) saturate(160%);
+            -webkit-backdrop-filter: blur(16px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow:
+                0 2px 8px -2px rgba(124, 58, 237, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        }
+
+        /* Dynamic Holographic Glare Overlay */
+        .glare-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 1.1rem;
+            pointer-events: none;
+            mix-blend-mode: soft-light;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+            background: radial-gradient(
+                circle at var(--glare-x, 50%) var(--glare-y, 50%),
+                rgba(255, 255, 255, 0.95) 0%,
+                rgba(255, 255, 255, 0.4) 18%,
+                rgba(167, 139, 250, 0.35) 35%,
+                rgba(124, 58, 237, 0.15) 55%,
+                transparent 72%
+            );
+        }
+
+        /* Mode View Transitions */
+        .mode-content {
+            transition: opacity 0.28s ease, transform 0.28s ease;
+        }
+        .mode-content.hidden-mode {
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+            inset: 0;
+            transform: scale(0.98);
+        }
+        .mode-content.active-mode {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+        }
+
+        .card-chip {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.9),
+                0 1px 3px rgba(0,0,0,0.08);
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col items-center justify-center m-0 p-4 select-none bg-ghost">
+
+    <!-- Outer Centering Wrapper -->
+    <div class="flex flex-col items-center justify-center w-full max-w-[400px]">
+
+        <!-- 3D Card Viewport -->
+        <div class="perspective-container w-full aspect-[1.65/1] cursor-pointer drop-shadow-xl">
+            
+            <div id="card" class="card-3d-wrapper">
+                
+                <!-- FRONT FACE (único lado) -->
+                <div class="card-face glass-card p-4 flex flex-col justify-between relative">
+
+                    <div class="glare-overlay"></div>
+
+                    <!-- Toggle dentro do cartão -->
+                    <div class="relative z-20 flex justify-center">
+                        <div class="glass-toggle p-1 rounded-full flex items-center space-x-1">
+                            <button id="btn-id" class="px-3.5 py-1.5 rounded-full text-[10px] font-semibold tracking-wide transition-all duration-300 flex items-center space-x-1.5 bg-blueviolet text-white shadow-md shadow-blueviolet/30">
+                                <i class="fa-solid fa-id-card text-[9px]"></i>
+                                <span>Card ID</span>
+                            </button>
+                            <button id="btn-info" class="px-3.5 py-1.5 rounded-full text-[10px] font-semibold tracking-wide transition-all duration-300 flex items-center space-x-1.5 text-slate-500 hover:text-blueviolet">
+                                <i class="fa-solid fa-circle-info text-[9px]"></i>
+                                <span>Informações</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- CARD ID FRONT -->
+                    <div id="content-id-front" class="mode-content active-mode w-full flex-1 flex flex-col justify-end relative z-10 pt-2">
+                        <div class="flex justify-between items-end">
+                            <div>
+                                <div class="font-bold text-[16px] tracking-[0.08em] text-slate-800 uppercase leading-none">ORION</div>
+                                <div class="text-[11px] font-medium tracking-tight text-blueviolet/90 mt-1">LoreSpace.com.br</div>
+                            </div>
+
+                            <div class="w-10 h-10 rounded-lg card-chip p-1.5 border border-white/60 flex items-center justify-center shrink-0">
+                                <svg class="w-full h-full text-slate-700 fill-current" viewBox="0 0 24 24">
+                                    <path d="M2,2H10V10H2V2M4,4V8H8V4H4M11,2H13V4H11V2M14,2H22V10H14V2M16,4V8H20V4H16M2,14H10V22H2V14M4,16V20H8V16H4M19,19H22V22H19V19M11,6H13V8H11V6M11,10H13V12H11V10M11,14H13V16H11V14M11,18H13V22H11V18M14,11H16V13H14V11M17,11H19V13H17V11M20,11H22V13H20V11M14,14H16V16H14V14M14,17H16V20H14V17M17,14H19V17H17V14M19,17H22V19H19V17Z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CARD INFORMAÇÕES FRONT -->
+                    <div id="content-info-front" class="mode-content hidden-mode w-full flex-1 flex flex-col justify-between relative z-10 pt-2">
+                        <div class="space-y-2">
+                            <!-- Nível e Barra de Progresso -->
+                            <div class="space-y-1">
+                                <div class="flex justify-between items-center text-[10px] font-semibold text-slate-700">
+                                    <span>Nível 42</span>
+                                    <span class="text-blueviolet font-mono">78%</span>
+                                </div>
+                                <div class="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden p-0.5 shadow-inner">
+                                    <div class="h-full bg-gradient-to-r from-blueviolet-deep to-blueviolet rounded-full w-[78%]"></div>
+                                </div>
+                            </div>
+
+                            <!-- Conexão Descentralizada e Botão de Navegação -->
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-1.5 bg-white/70 backdrop-blur-md px-2 py-1 rounded-lg border border-white/60 shadow-sm inline-flex">
+                                    <i class="fa-solid fa-network-wired text-[9px] text-blueviolet"></i>
+                                    <span class="font-mono font-medium text-[9px] text-slate-700">P2P Descentralizado</span>
+                                </div>
+
+                                <!-- Botão de Navegação para outra página -->
+                                <a href="outrapagina.html" id="nav-button" class="px-3 py-1 rounded-lg text-[9px] font-semibold tracking-wide transition-all duration-300 flex items-center space-x-1 bg-blueviolet text-white shadow-sm hover:bg-blueviolet-deep">
+                                    <span>Abrir Painel</span>
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[8px]"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-end">
+                            <div>
+                                <div class="font-bold text-[16px] tracking-[0.08em] text-slate-800 uppercase leading-none">ORION</div>
+                                <div class="text-[11px] font-medium tracking-tight text-blueviolet/90 mt-1">LoreSpace.com.br</div>
+                            </div>
+
+                            <!-- Espaço para Foto de Perfil do User -->
+                            <div class="w-10 h-10 rounded-xl bg-slate-200/90 border-2 border-white/80 shadow-md flex items-center justify-center overflow-hidden shrink-0 relative group">
+                                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=250&auto=format&fit=crop" alt="Avatar" class="w-full h-full object-cover" onerror="this.style.display='none'"/>
+                                <i class="fa-solid fa-user text-xs text-slate-400 absolute"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Interactive Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const card = document.getElementById('card');
+            const container = card.parentElement;
+            const glares = document.querySelectorAll('.glare-overlay');
+
+            const btnId = document.getElementById('btn-id');
+            const btnInfo = document.getElementById('btn-info');
+            const navButton = document.getElementById('nav-button');
+
+            const contentIdFront = document.getElementById('content-id-front');
+            const contentInfoFront = document.getElementById('content-info-front');
+
+            const maxTilt = 18;
+
+            function setMode(mode) {
+                if (mode === 'id') {
+                    btnId.className = "px-3.5 py-1.5 rounded-full text-[10px] font-semibold tracking-wide transition-all duration-300 flex items-center space-x-1.5 bg-blueviolet text-white shadow-md shadow-blueviolet/30";
+                    btnInfo.className = "px-3.5 py-1.5 rounded-full text-[10px] font-semibold tracking-wide transition-all duration-300 flex items-center space-x-1.5 text-slate-500 hover:text-blueviolet";
+                    
+                    contentIdFront.classList.remove('hidden-mode');
+                    contentIdFront.classList.add('active-mode');
+                    contentInfoFront.classList.remove('active-mode');
+                    contentInfoFront.classList.add('hidden-mode');
+                } else {
+                    btnInfo.className = "px-3.5 py-1.5 rounded-full text-[10px] font-semibold tracking-wide transition-all duration-300 flex items-center space-x-1.5 bg-blueviolet text-white shadow-md shadow-blueviolet/30";
+                    btnId.className = "px-3.5 py-1.5 rounded-full text-[10px] font-semibold tracking-wide transition-all duration-300 flex items-center space-x-1.5 text-slate-500 hover:text-blueviolet";
+
+                    contentInfoFront.classList.remove('hidden-mode');
+                    contentInfoFront.classList.add('active-mode');
+                    contentIdFront.classList.remove('active-mode');
+                    contentIdFront.classList.add('hidden-mode');
+                }
+            }
+
+            btnId.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setMode('id');
+            });
+
+            btnInfo.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setMode('info');
+            });
+
+            // Evitar que o clique no link de navegação dispare eventos indesejados no card 3D
+            navButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            // Mouse Tilt & Glare Tracking
+            container.addEventListener('mousemove', (e) => {
+                const rect = container.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                
+                const rotateX = ((y - centerY) / centerY) * -maxTilt;
+                const rotateY = ((x - centerX) / centerX) * maxTilt;
+
+                const glareX = (x / rect.width) * 100;
+                const glareY = (y / rect.height) * 100;
+
+                glares.forEach(glare => {
+                    glare.style.opacity = '1';
+                    glare.style.setProperty('--glare-x', `${glareX}%`);
+                    glare.style.setProperty('--glare-y', `${glareY}%`);
+                });
+
+                card.style.transform = `rotateY(${rotateY}deg) rotateX(${rotateX}deg)`;
+            });
+
+            container.addEventListener('mouseleave', () => {
+                glares.forEach(glare => glare.style.opacity = '0');
+                card.style.transform = 'rotateY(0deg) rotateX(0deg)';
+            });
+
+            // Touch Support
+            container.addEventListener('touchmove', (e) => {
+                if (!e.touches.length) return;
+                const rect = container.getBoundingClientRect();
+                const touchX = e.touches[0].clientX - rect.left;
+                const touchY = e.touches[0].clientY - rect.top;
+
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+
+                const rotateX = ((touchY - centerY) / centerY) * -maxTilt;
+                const rotateY = ((touchX - centerX) / centerX) * maxTilt;
+
+                const glareX = (touchX / rect.width) * 100;
+                const glareY = (touchY / rect.height) * 100;
+
+                glares.forEach(glare => {
+                    glare.style.opacity = '1';
+                    glare.style.setProperty('--glare-x', `${glareX}%`);
+                    glare.style.setProperty('--glare-y', `${glareY}%`);
+                });
+
+                card.style.transform = `rotateY(${rotateY}deg) rotateX(${rotateX}deg)`;
+            }, { passive: true });
+
+            container.addEventListener('touchend', () => {
+                glares.forEach(glare => glare.style.opacity = '0');
+                card.style.transform = 'rotateY(0deg) rotateX(0deg)';
+            });
+        });
+    </script>
+</body>
+</html>
