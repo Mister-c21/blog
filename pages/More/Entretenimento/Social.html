@@ -88,6 +88,106 @@
 .fb-post-follow-btn.following{background:#f0f2f5;color:#65676b;border-color:transparent}
 .fb-post-follow-btn:hover{background:#f5f3ff}
 .fb-post-follow-btn.following:hover{background:#e4e6eb}
+/* Sugestões de perfil estilo stories (Facebook) */
+.suggest-stories-wrap{
+  background:#fff;
+  border:1px solid #e4e6eb;
+  border-radius:.5rem;
+  margin-bottom:.75rem;
+  overflow:hidden;
+  box-shadow:0 1px 2px rgba(0,0,0,.04);
+}
+.suggest-stories-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 14px 4px;
+}
+.suggest-stories-header h3{
+  font-size:13px;
+  font-weight:700;
+  color:#050505;
+  margin:0;
+}
+.suggest-stories-header span{
+  font-size:11px;
+  color:#65676b;
+}
+.suggest-stories-row{
+  display:flex;
+  gap:12px;
+  overflow-x:auto;
+  padding:8px 14px 14px;
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;
+}
+.suggest-stories-row::-webkit-scrollbar{display:none}
+.suggest-stories-row{-ms-overflow-style:none;scrollbar-width:none}
+.suggest-story-item{
+  flex:0 0 auto;
+  width:76px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  scroll-snap-align:start;
+  cursor:pointer;
+  text-align:center;
+  border:none;
+  background:transparent;
+  padding:0;
+}
+.suggest-story-ring{
+  width:64px;
+  height:64px;
+  border-radius:50%;
+  padding:3px;
+  background:linear-gradient(135deg,#7c3aed 0%,#a78bfa 50%,#c4b5fd 100%);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+}
+.suggest-story-ring.following{
+  background:#e4e6eb;
+}
+.suggest-story-avatar{
+  width:100%;
+  height:100%;
+  border-radius:50%;
+  background:#fff;
+  padding:2px;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#7c3aed;
+}
+.suggest-story-avatar img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  border-radius:50%;
+}
+.suggest-story-name{
+  font-size:11px;
+  font-weight:600;
+  color:#050505;
+  max-width:76px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  line-height:1.2;
+}
+.suggest-story-follow{
+  font-size:10px;
+  font-weight:700;
+  color:#7c3aed;
+  line-height:1;
+}
+.suggest-story-item.following .suggest-story-follow{
+  color:#65676b;
+}
 @media (max-width:768px){
 .fb-media-wrap,.fb-media-wrap img,.fb-media-wrap video,.media-carousel,.media-carousel-track,.media-carousel-slide,.safe-video-blocked{max-height:min(65vh,520px)}
 }
@@ -121,6 +221,16 @@
 </label>
 <span id="nsfwModelStatus" class="text-[11px] text-gray-400"></span>
 </div>
+
+<!-- Sugestões de perfil estilo stories -->
+<div id="suggestProfilesWrap" class="suggest-stories-wrap hidden">
+  <div class="suggest-stories-header">
+    <h3>Sugestões para seguir</h3>
+    <span id="suggestProfilesCount"></span>
+  </div>
+  <div id="suggestProfilesRow" class="suggest-stories-row" role="list"></div>
+</div>
+
 <div id="feed-para-voce" class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
 <div class="p-4 animate-pulse"><div class="flex items-start gap-3"><div class="skeleton skeleton-avatar"></div><div class="flex-1 min-w-0 space-y-2"><div class="skeleton skeleton-line w-24"></div><div class="skeleton skeleton-line w-full"></div><div class="skeleton skeleton-media w-full"></div></div></div></div>
 </div>
@@ -1959,6 +2069,64 @@ window.toggleReadMore = function(btn) {
   if (shortText.classList.contains('hidden')) { shortText.classList.remove('hidden'); fullText.classList.add('hidden'); btn.innerText = 'Ver mais'; }
   else { shortText.classList.add('hidden'); fullText.classList.remove('hidden'); btn.innerText = 'Ver menos'; }
 };
+
+function getSuggestedProfiles(limit = 16) {
+  const counts = new Map();
+  (cachedEvents || []).forEach(ev => {
+    if (!ev?.pubkey || dismissCreators.has(ev.pubkey)) return;
+    if (currentUserData.pubkey && ev.pubkey === currentUserData.pubkey) return;
+    if (followingList.has(ev.pubkey)) return;
+    counts.set(ev.pubkey, (counts.get(ev.pubkey) || 0) + 1);
+  });
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([pubkey, postCount]) => ({ pubkey, postCount }));
+}
+
+function renderSuggestedProfiles() {
+  const wrap = document.getElementById('suggestProfilesWrap');
+  const row = document.getElementById('suggestProfilesRow');
+  const countEl = document.getElementById('suggestProfilesCount');
+  if (!wrap || !row) return;
+
+  const suggestions = getSuggestedProfiles(16);
+  if (!suggestions.length) {
+    wrap.classList.add('hidden');
+    row.innerHTML = '';
+    return;
+  }
+
+  const needProfiles = suggestions.map(s => s.pubkey).filter(pk => !profileCache.has(pk));
+  if (needProfiles.length) {
+    fetchProfiles(needProfiles).then(() => renderSuggestedProfiles());
+  }
+
+  let html = '';
+  suggestions.forEach(({ pubkey }) => {
+    const p = profileCache.get(pubkey) || {};
+    const name = (p.name || pubkey.substring(0, 10) + '...').replace(/^@/, '');
+    const pic = p.picture || '';
+    const isFollowing = followingList.has(pubkey);
+    const avatar = pic
+      ? `<img src="${escapeHtml(pic)}" alt="" loading="lazy" onerror="this.remove()">`
+      : `<i class="fa-solid fa-user text-lg"></i>`;
+    html += `
+      <button type="button" class="suggest-story-item${isFollowing ? ' following' : ''}" role="listitem"
+        onclick="openUserProfileModal('${pubkey}')" title="@${escapeHtml(name)}">
+        <div class="suggest-story-ring${isFollowing ? ' following' : ''}">
+          <div class="suggest-story-avatar">${avatar}</div>
+        </div>
+        <span class="suggest-story-name">@${escapeHtml(name)}</span>
+        <span class="suggest-story-follow" onclick="event.stopPropagation();toggleFollowUser('${pubkey}')">${isFollowing ? 'Seguindo' : 'Seguir'}</span>
+      </button>`;
+  });
+
+  row.innerHTML = html;
+  if (countEl) countEl.textContent = `${suggestions.length} perfil${suggestions.length === 1 ? '' : 's'}`;
+  wrap.classList.remove('hidden');
+}
+
 function renderFeeds() {
   if (!cachedEvents.length) return;
   const pubkeys = [...new Set(cachedEvents.map(e => e.pubkey))];
@@ -1973,6 +2141,14 @@ function _renderFeedsInternal() {
     if (bPrio !== aPrio) return bPrio - aPrio;
     const aFollow = followingList.has(a.pubkey) ? 1 : 0, bFollow = followingList.has(b.pubkey) ? 1 : 0;
     if (bFollow !== aFollow) return bFollow - aFollow;
+
+    // Modo "Todos": prioriza posts com mídia sobre só texto
+    if (mediaFilter === 'all') {
+      const aHasMedia = extractMediaAndCleanText(a).mediaHtml ? 1 : 0;
+      const bHasMedia = extractMediaAndCleanText(b).mediaHtml ? 1 : 0;
+      if (bHasMedia !== aHasMedia) return bHasMedia - aHasMedia;
+    }
+
     const engDiff = getPostEngagement(b) - getPostEngagement(a);
     if (engDiff !== 0) return engDiff;
     return feedSort === 'oldest' ? a.created_at - b.created_at : b.created_at - a.created_at;
@@ -1996,6 +2172,7 @@ function _renderFeedsInternal() {
   });
   feed.innerHTML = html || `<div class="p-6 text-center text-xs text-gray-500">Nenhum post encontrado.</div>`;
   bindPartnerSlotClicks(feed);
+  renderSuggestedProfiles();
   if (safeMode) setTimeout(() => scanAndClassifyImages(), 500);
 }
 function applyUserDataToInterface() {
