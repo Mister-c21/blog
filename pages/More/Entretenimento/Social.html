@@ -77,7 +77,7 @@
  .fb-avatar img { width: 100%; height: 100%; object-fit: cover; }
  .fb-author { font-weight: 600; font-size: 15px; color: #050505; cursor: pointer; line-height: 1.2; }
  .fb-author:hover { text-decoration: underline; }
- .fb-meta { font-size: 13px; color: #65676b; display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+ .fb-meta { font-size: 13px; color: #65676b; display: flex; align-items: center; gap: 4px; margin-top: 2px; flex-wrap: wrap; }
  .fb-text {
    font-size: 15px; line-height: 1.3333; color: #050505;
    white-space: pre-wrap; word-break: break-word; margin-bottom: 8px;
@@ -106,6 +106,38 @@
  .fb-action-btn.liked { color: #e41e3f; }
  .fb-action-btn i { font-size: 18px; }
  #feed-para-voce { border-radius: 0.5rem; }
+ .fb-post-menu { position: relative; flex-shrink: 0; margin-left: auto; }
+ .fb-post-menu-btn {
+   width: 32px; height: 32px; border-radius: 9999px; border: none;
+   background: transparent; color: #65676b; cursor: pointer;
+   display: flex; align-items: center; justify-content: center;
+ }
+ .fb-post-menu-btn:hover { background: #f0f2f5; }
+ .fb-post-menu-dropdown {
+   display: none; position: absolute; right: 0; top: 100%;
+   min-width: 210px; background: #fff; border: 1px solid #e4e6eb;
+   border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+   z-index: 40; padding: 6px; overflow: hidden;
+ }
+ .fb-post-menu-dropdown.open { display: block; }
+ .fb-post-menu-item {
+   width: 100%; text-align: left; padding: 10px 12px; border: none;
+   background: transparent; border-radius: 8px; font-size: 13px;
+   font-weight: 500; color: #050505; cursor: pointer;
+   display: flex; align-items: center; gap: 10px;
+ }
+ .fb-post-menu-item:hover { background: #f0f2f5; }
+ .fb-post-menu-item.danger { color: #e41e3f; }
+ .fb-post-follow-btn {
+   font-size: 12px; font-weight: 600; padding: 4px 10px;
+   border-radius: 9999px; border: 1px solid #e4e6eb;
+   background: #fff; color: #7c3aed; cursor: pointer; white-space: nowrap;
+ }
+ .fb-post-follow-btn.following {
+   background: #f0f2f5; color: #65676b; border-color: transparent;
+ }
+ .fb-post-follow-btn:hover { background: #f5f3ff; }
+ .fb-post-follow-btn.following:hover { background: #e4e6eb; }
  </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col md:flex-row">
@@ -536,6 +568,9 @@ let currentAuthMode = 'login';
 let currentLoginMethod = 'nsec';
 let currentUserData = { pubkey: '', privateKey: null, nickname: '@anonimo', avatarUrl: '' };
 let followingList = new Set();
+const CREATOR_PREFS_D_TAG = 'loreplay-creator-prefs';
+let prioritizeCreators = new Set();
+let dismissCreators = new Set();
 let cachedEvents = [];
 let oldestTimestamp = Math.floor(Date.now() / 1000);
 let isLoadingMore = false;
@@ -1024,6 +1059,7 @@ async function completeQrLogin(data) {
         closeAuthModal();
         fetchNostrFeed();
         loadUserContactList();
+        loadCreatorPrefsFromNetwork().then(() => renderFeeds());
         loadFeedPreferencesFromNetwork().then(() => renderFeeds());
         loadAvatarHistoryFromNetwork().catch(() => {});
         fetchProfiles([pubKey]).then(() => {
@@ -1175,6 +1211,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (icon) { icon.classList.toggle('fa-eye', !isPass); icon.classList.toggle('fa-eye-slash', isPass); }
         });
     }
+    document.addEventListener('click', () => closeAllPostMenus());
     let lastScrollY = window.scrollY;
     window.addEventListener('scroll', () => {
         const currentScrollY = window.scrollY;
@@ -1943,22 +1980,57 @@ function buildFbPostHtml(ev, p, options = {}) {
     const likeIcon = isLikedByMe ? 'fa-solid fa-thumbs-up' : 'fa-regular fa-thumbs-up';
     const likeLabel = isLikedByMe ? 'Curtido' : 'Curtir';
     const avSize = compact ? 'w-9 h-9' : '';
-    const followingBadge = followingList.has(ev.pubkey)
+    const isMe = currentUserData.pubkey && ev.pubkey === currentUserData.pubkey;
+    const isFollowing = followingList.has(ev.pubkey);
+    const isPrioritized = prioritizeCreators.has(ev.pubkey);
+    const isDismissed = dismissCreators.has(ev.pubkey);
+    const followBtn = isMe ? '' : `<button type="button" data-follow-btn="${ev.pubkey}"
+      onclick="toggleFollowFromPost('${ev.pubkey}', event)"
+      class="fb-post-follow-btn ${isFollowing ? 'following' : ''}">${isFollowing ? 'Seguindo' : 'Seguir'}</button>`;
+    const menuHtml = isMe ? '' : `
+      <div class="fb-post-menu" onclick="event.stopPropagation()">
+        <button type="button" class="fb-post-menu-btn" onclick="togglePostMenu('${ev.id}', event)" title="Opções">
+          <i class="fa-solid fa-ellipsis-vertical"></i>
+        </button>
+        <div id="post-menu-${ev.id}" class="fb-post-menu-dropdown">
+          <button type="button" class="fb-post-menu-item" onclick="toggleFollowFromPost('${ev.pubkey}', event)">
+            <i class="fa-solid ${isFollowing ? 'fa-user-check' : 'fa-user-plus'}"></i>
+            ${isFollowing ? 'Deixar de seguir' : 'Seguir'}
+          </button>
+          <button type="button" class="fb-post-menu-item" onclick="prioritizeCreator('${ev.pubkey}', event)">
+            <i class="fa-solid fa-arrow-up"></i>
+            ${isPrioritized ? 'Remover prioridade' : 'Priorizar criador'}
+          </button>
+          <button type="button" class="fb-post-menu-item ${isDismissed ? '' : 'danger'}" onclick="dismissCreator('${ev.pubkey}', event)">
+            <i class="fa-solid fa-eye-slash"></i>
+            ${isDismissed ? 'Parar de desprezar' : 'Desprezar criador'}
+          </button>
+        </div>
+      </div>`;
+    const followingBadge = isFollowing
         ? '<span>·</span><span class="text-secondary font-medium text-[12px]">Seguindo</span>'
+        : '';
+    const prioBadge = isPrioritized
+        ? '<span>·</span><span class="text-amber-600 font-medium text-[12px]">Priorizado</span>'
         : '';
     return `<div class="fb-post">
   <div class="fb-post-inner">
     <div class="fb-post-header">
       <div class="fb-avatar ${avSize}" onclick="openUserProfileModal('${ev.pubkey}')">${avatar}</div>
       <div class="min-w-0 flex-1">
-        <div class="fb-author" onclick="openUserProfileModal('${ev.pubkey}')">${escapeHtml(displayName)}</div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <div class="fb-author" onclick="openUserProfileModal('${ev.pubkey}')">${escapeHtml(displayName)}</div>
+          ${followBtn}
+        </div>
         <div class="fb-meta">
           <span>${timeAgo}</span>
           ${followingBadge}
+          ${prioBadge}
           <span>·</span>
           <button type="button" onclick="translatePostText('${ev.id}','${esc}')" class="text-[12px] text-secondary font-medium hover:underline">Traduzir</button>
         </div>
       </div>
+      ${menuHtml}
     </div>
     ${warning}
     ${textHtml}
@@ -1985,6 +2057,113 @@ function buildFbPostHtml(ev, p, options = {}) {
     </button>
   </div>
 </div>`;
+}
+
+window.closeAllPostMenus = function() {
+    document.querySelectorAll('.fb-post-menu-dropdown.open').forEach(el => el.classList.remove('open'));
+};
+
+window.togglePostMenu = function(postId, event) {
+    if (event) { event.stopPropagation(); event.preventDefault(); }
+    const menu = document.getElementById(`post-menu-${postId}`);
+    const wasOpen = menu?.classList.contains('open');
+    closeAllPostMenus();
+    if (menu && !wasOpen) menu.classList.add('open');
+};
+
+window.toggleFollowFromPost = async function(pubkey, event) {
+    if (event) event.stopPropagation();
+    await toggleFollowUser(pubkey);
+};
+
+window.prioritizeCreator = async function(pubkey, event) {
+    if (event) event.stopPropagation();
+    if (!currentUserData.privateKey) { alert('Faça login primeiro.'); openAuthModal(); return; }
+    if (!pubkey || pubkey === currentUserData.pubkey) return;
+    dismissCreators.delete(pubkey);
+    if (prioritizeCreators.has(pubkey)) {
+        prioritizeCreators.delete(pubkey);
+    } else {
+        prioritizeCreators.add(pubkey);
+    }
+    closeAllPostMenus();
+    try {
+        await publishCreatorPrefsToNetwork();
+        renderFeeds();
+    } catch {
+        alert('Não foi possível salvar na rede. Preferência mantida localmente.');
+        renderFeeds();
+    }
+};
+
+window.dismissCreator = async function(pubkey, event) {
+    if (event) event.stopPropagation();
+    if (!currentUserData.privateKey) { alert('Faça login primeiro.'); openAuthModal(); return; }
+    if (!pubkey || pubkey === currentUserData.pubkey) return;
+    prioritizeCreators.delete(pubkey);
+    if (dismissCreators.has(pubkey)) {
+        dismissCreators.delete(pubkey);
+    } else {
+        dismissCreators.add(pubkey);
+    }
+    closeAllPostMenus();
+    try {
+        await publishCreatorPrefsToNetwork();
+        renderFeeds();
+    } catch {
+        alert('Não foi possível salvar na rede. Preferência mantida localmente.');
+        renderFeeds();
+    }
+};
+
+async function publishCreatorPrefsToNetwork() {
+    localStorage.setItem('creatorPrioritize', JSON.stringify([...prioritizeCreators]));
+    localStorage.setItem('creatorDismiss', JSON.stringify([...dismissCreators]));
+    if (!currentUserData.privateKey || !pool) return;
+    const content = JSON.stringify({
+        app: 'LorePlay',
+        type: 'creator-prefs',
+        prioritize: [...prioritizeCreators],
+        dismiss: [...dismissCreators],
+        updatedAt: Math.floor(Date.now() / 1000)
+    });
+    try {
+        const signedEvent = NostrTools.finalizeEvent({
+            kind: 30078,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [['d', CREATOR_PREFS_D_TAG], ['client', 'LorePlay']],
+            content
+        }, currentUserData.privateKey);
+        await Promise.any(pool.publish(RELAYS, signedEvent));
+    } catch (e) {
+        console.error('Falha ao publicar preferências de criadores', e);
+        throw e;
+    }
+}
+
+async function loadCreatorPrefsFromNetwork() {
+    try {
+        const p = JSON.parse(localStorage.getItem('creatorPrioritize') || '[]');
+        const d = JSON.parse(localStorage.getItem('creatorDismiss') || '[]');
+        if (Array.isArray(p)) prioritizeCreators = new Set(p);
+        if (Array.isArray(d)) dismissCreators = new Set(d);
+    } catch {}
+    if (!currentUserData.pubkey || !pool) return;
+    try {
+        const events = await pool.querySync(RELAYS, {
+            kinds: [30078],
+            authors: [currentUserData.pubkey],
+            '#d': [CREATOR_PREFS_D_TAG],
+            limit: 5
+        });
+        if (!events?.length) return;
+        events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+        const data = JSON.parse(events[0].content || '{}');
+        if (Array.isArray(data.prioritize)) prioritizeCreators = new Set(data.prioritize);
+        if (Array.isArray(data.dismiss)) dismissCreators = new Set(data.dismiss);
+        localStorage.setItem('creatorPrioritize', JSON.stringify([...prioritizeCreators]));
+        localStorage.setItem('creatorDismiss', JSON.stringify([...dismissCreators]));
+    } catch (e) { console.error(e); }
 }
 
 window.openUserProfileModal = async function(pubkey) {
@@ -2349,6 +2528,7 @@ window.handleAuthSubmit = async function(event) {
         closeAuthModal();
         fetchNostrFeed();
         loadUserContactList();
+        loadCreatorPrefsFromNetwork().then(() => renderFeeds());
         loadFeedPreferencesFromNetwork().then(() => renderFeeds());
         loadAvatarHistoryFromNetwork().catch(() => {});
 
@@ -2380,6 +2560,7 @@ function loadSessionFromNostr() {
         applyUserDataToInterface();
         fetchNostrFeed();
         loadUserContactList();
+        loadCreatorPrefsFromNetwork().then(() => renderFeeds());
         loadFeedPreferencesFromNetwork().then(() => renderFeeds());
         loadAvatarHistoryFromNetwork().catch(() => {});
         if (currentUserData.pubkey) {
@@ -2420,6 +2601,8 @@ window.logoutAccount = function() {
     }
     currentUserData = { pubkey: '', privateKey: null, nickname: '@anonimo', avatarUrl: '' };
     followingList.clear();
+    prioritizeCreators.clear();
+    dismissCreators.clear();
     updateProfileAboutDisplay('');
     alert('Sessão encerrada.');
     openAuthModal();
@@ -2862,17 +3045,19 @@ function renderFeeds() {
 function _renderFeedsInternal() {
     const feed = document.getElementById('feed-para-voce');
     let eventsToRender = [...cachedEvents];
+    eventsToRender = eventsToRender.filter(ev => !dismissCreators.has(ev.pubkey));
     eventsToRender.sort((a, b) => {
-        // 1) Prioridade: autores que você segue
+        const aPrio = prioritizeCreators.has(a.pubkey) ? 1 : 0;
+        const bPrio = prioritizeCreators.has(b.pubkey) ? 1 : 0;
+        if (bPrio !== aPrio) return bPrio - aPrio;
+
         const aFollow = followingList.has(a.pubkey) ? 1 : 0;
         const bFollow = followingList.has(b.pubkey) ? 1 : 0;
         if (bFollow !== aFollow) return bFollow - aFollow;
 
-        // 2) Engajamento
         const engDiff = getPostEngagement(b) - getPostEngagement(a);
         if (engDiff !== 0) return engDiff;
 
-        // 3) Data
         return feedSort === 'oldest' ? a.created_at - b.created_at : b.created_at - a.created_at;
     });
     let html = '';
