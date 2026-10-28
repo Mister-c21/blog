@@ -60,7 +60,6 @@
  .lp-slot .lp-slot-tag { font-size: 10px; font-weight: 700; color: #7c3aed; background: #f5f3ff; padding: 1px 8px; border-radius: 9999px; width: fit-content; }
  .lp-slot .lp-slot-heading { font-size: 13px; font-weight: 600; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
  .lp-slot .lp-slot-text { font-size: 12px; color: #6b7280; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; }
- /* Feed estilo Facebook moderno */
  .fb-post {
    background: #fff;
    border-bottom: 1px solid #e4e6eb;
@@ -1944,6 +1943,9 @@ function buildFbPostHtml(ev, p, options = {}) {
     const likeIcon = isLikedByMe ? 'fa-solid fa-thumbs-up' : 'fa-regular fa-thumbs-up';
     const likeLabel = isLikedByMe ? 'Curtido' : 'Curtir';
     const avSize = compact ? 'w-9 h-9' : '';
+    const followingBadge = followingList.has(ev.pubkey)
+        ? '<span>·</span><span class="text-secondary font-medium text-[12px]">Seguindo</span>'
+        : '';
     return `<div class="fb-post">
   <div class="fb-post-inner">
     <div class="fb-post-header">
@@ -1952,6 +1954,7 @@ function buildFbPostHtml(ev, p, options = {}) {
         <div class="fb-author" onclick="openUserProfileModal('${ev.pubkey}')">${escapeHtml(displayName)}</div>
         <div class="fb-meta">
           <span>${timeAgo}</span>
+          ${followingBadge}
           <span>·</span>
           <button type="button" onclick="translatePostText('${ev.id}','${esc}')" class="text-[12px] text-secondary font-medium hover:underline">Traduzir</button>
         </div>
@@ -2003,7 +2006,24 @@ window.openUserProfileModal = async function(pubkey) {
     const avatarHtml = pic
         ? `<img src="${escapeHtml(pic)}" class="w-full h-full object-cover" onerror="this.style.display='none'"><i class="fa-solid fa-user hidden"></i>`
         : `<i class="fa-solid fa-user text-2xl"></i>`;
-    header.innerHTML = `<div class="flex flex-col items-center text-center space-y-3"><div class="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-secondary overflow-hidden relative border-2 border-white shadow">${avatarHtml}</div><div><h2 class="font-bold text-base font-mono">${escapeHtml(displayName)}</h2>${p.about ? `<p class="text-xs text-gray-500 mt-1 max-w-xs">${escapeHtml(p.about)}</p>` : ''}</div></div>`;
+    const isMe = currentUserData.pubkey && pubkey === currentUserData.pubkey;
+    const isFollowing = followingList.has(pubkey);
+    const followBtnHtml = isMe ? '' : `
+      <button type="button" id="followBtn-${pubkey}" onclick="toggleFollowUser('${pubkey}')"
+        class="mt-3 px-5 py-2 rounded-xl text-xs font-semibold transition ${isFollowing
+          ? 'bg-gray-100 text-gray-700 border border-gray-200'
+          : 'bg-secondary text-white'}">
+        <i class="fa-solid ${isFollowing ? 'fa-user-check' : 'fa-user-plus'} mr-1"></i>
+        ${isFollowing ? 'Seguindo' : 'Seguir'}
+      </button>`;
+    header.innerHTML = `<div class="flex flex-col items-center text-center space-y-3">
+      <div class="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-secondary overflow-hidden relative border-2 border-white shadow">${avatarHtml}</div>
+      <div>
+        <h2 class="font-bold text-base font-mono">${escapeHtml(displayName)}</h2>
+        ${p.about ? `<p class="text-xs text-gray-500 mt-1 max-w-xs">${escapeHtml(p.about)}</p>` : ''}
+      </div>
+      ${followBtnHtml}
+    </div>`;
     let userPosts = (cachedEvents || []).filter(ev => ev.pubkey === pubkey);
     try {
         const fromRelays = await pool.querySync(RELAYS, { kinds: [1], authors: [pubkey], limit: 40 });
@@ -2413,8 +2433,69 @@ async function loadUserContactList() {
             followingList.clear();
             contactEvent.tags.forEach(tag => { if (tag[0] === 'p' && tag[1]) followingList.add(tag[1]); });
         }
+        renderFeeds();
     } catch {}
 }
+
+async function publishContactList() {
+    if (!currentUserData.privateKey || !pool) return;
+    const tags = Array.from(followingList).map(pk => ['p', pk]);
+    tags.push(['client', 'LorePlay']);
+    try {
+        const signedEvent = NostrTools.finalizeEvent({
+            kind: 3,
+            created_at: Math.floor(Date.now() / 1000),
+            tags,
+            content: ''
+        }, currentUserData.privateKey);
+        await Promise.any(pool.publish(RELAYS, signedEvent));
+    } catch (e) {
+        console.error('Falha ao publicar lista de contatos', e);
+        throw e;
+    }
+}
+
+window.toggleFollowUser = async function(pubkey) {
+    if (!pubkey) return;
+    if (!currentUserData.privateKey) {
+        alert('Faça login para seguir usuários.');
+        openAuthModal();
+        return;
+    }
+    if (pubkey === currentUserData.pubkey) return;
+
+    const wasFollowing = followingList.has(pubkey);
+    if (wasFollowing) {
+        followingList.delete(pubkey);
+    } else {
+        followingList.add(pubkey);
+    }
+
+    const btn = document.getElementById(`followBtn-${pubkey}`);
+    if (btn) {
+        const nowFollowing = followingList.has(pubkey);
+        btn.className = `mt-3 px-5 py-2 rounded-xl text-xs font-semibold transition ${nowFollowing
+            ? 'bg-gray-100 text-gray-700 border border-gray-200'
+            : 'bg-secondary text-white'}`;
+        btn.innerHTML = `<i class="fa-solid ${nowFollowing ? 'fa-user-check' : 'fa-user-plus'} mr-1"></i>${nowFollowing ? 'Seguindo' : 'Seguir'}`;
+    }
+
+    try {
+        await publishContactList();
+        renderFeeds();
+    } catch {
+        if (wasFollowing) followingList.add(pubkey);
+        else followingList.delete(pubkey);
+        if (btn) {
+            const nowFollowing = followingList.has(pubkey);
+            btn.className = `mt-3 px-5 py-2 rounded-xl text-xs font-semibold transition ${nowFollowing
+                ? 'bg-gray-100 text-gray-700 border border-gray-200'
+                : 'bg-secondary text-white'}`;
+            btn.innerHTML = `<i class="fa-solid ${nowFollowing ? 'fa-user-check' : 'fa-user-plus'} mr-1"></i>${nowFollowing ? 'Seguindo' : 'Seguir'}`;
+        }
+        alert('Não foi possível atualizar a lista de seguidos nos relays.');
+    }
+};
 
 window.publishNostrNote = async function() {
     if (!currentUserData.privateKey) { alert('Faça login primeiro.'); openAuthModal(); return; }
@@ -2782,8 +2863,16 @@ function _renderFeedsInternal() {
     const feed = document.getElementById('feed-para-voce');
     let eventsToRender = [...cachedEvents];
     eventsToRender.sort((a, b) => {
+        // 1) Prioridade: autores que você segue
+        const aFollow = followingList.has(a.pubkey) ? 1 : 0;
+        const bFollow = followingList.has(b.pubkey) ? 1 : 0;
+        if (bFollow !== aFollow) return bFollow - aFollow;
+
+        // 2) Engajamento
         const engDiff = getPostEngagement(b) - getPostEngagement(a);
         if (engDiff !== 0) return engDiff;
+
+        // 3) Data
         return feedSort === 'oldest' ? a.created_at - b.created_at : b.created_at - a.created_at;
     });
     let html = '';
