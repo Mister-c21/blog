@@ -923,52 +923,21 @@
         }
     </script>
 
-    <!-- ========== CÉREBRO OTIMIZADO – Carregamento extremamente rápido ========== -->
-    <script type="module">
-        import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
-
-        const MODEL_ID = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
-        let engine = null;
-        let modelReady = false;
-        let isLoadingModel = false;
-
+    <!-- ========== CÉREBRO – 0 PARÂMETROS (limite de 20M respeitado) ========== -->
+    <script>
         const conversationHistory = [];
-        const MAX_HISTORY = 10;
+        const MAX_HISTORY = 8;
 
-        async function initBrain() {
-            if (modelReady || isLoadingModel) return;
-            isLoadingModel = true;
-
-            try {
-                engine = await CreateMLCEngine(MODEL_ID, {
-                    initProgressCallback: () => {},
-                    logLevel: "ERROR"
-                });
-                modelReady = true;
-                console.log("[LoreSpace Brain] Modelo carregado com pesos otimizados");
-            } catch (err) {
-                console.warn("[LoreSpace Brain] Erro no carregamento:", err);
-            } finally {
-                isLoadingModel = false;
-            }
-        }
-
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", initBrain);
-        } else {
-            initBrain();
-        }
-
-        async function fetchWikipedia(query, lang = "zh") {
+        async function fetchWikipedia(query, lang = "pt") {
             try {
                 const base = `https://${lang}.wikipedia.org/w/api.php`;
-                const searchUrl = `${base}?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=4`;
+                const searchUrl = `${base}?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=5`;
                 const searchRes = await fetch(searchUrl);
                 const searchData = await searchRes.json();
                 const results = searchData?.query?.search || [];
                 if (!results.length) return [];
 
-                const extracts = await Promise.all(results.slice(0, 2).map(async (item) => {
+                const extracts = await Promise.all(results.slice(0, 3).map(async (item) => {
                     try {
                         const extractUrl = `${base}?action=query&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(item.title)}&format=json&origin=*`;
                         const extractRes = await fetch(extractUrl);
@@ -978,7 +947,8 @@
                             return {
                                 source: "Wikipedia",
                                 title: item.title,
-                                content: page.extract.slice(0, 600)
+                                content: page.extract.slice(0, 700),
+                                score: 0.85
                             };
                         }
                     } catch {}
@@ -997,7 +967,7 @@
 
             const connect = (url) => new Promise((resolve) => {
                 let ws, collected = [], finished = false;
-                const subId = "fast-" + Math.random().toString(36).slice(2, 7);
+                const subId = "zero-" + Math.random().toString(36).slice(2, 7);
                 const finish = () => {
                     if (finished) return;
                     finished = true;
@@ -1017,7 +987,8 @@
                             collected.push({
                                 source: "Nostr",
                                 title: "Note",
-                                content: data[2].content.slice(0, 350)
+                                content: data[2].content.slice(0, 400),
+                                score: 0.55
                             });
                         } else if (data[0] === "EOSE") {
                             clearTimeout(timer);
@@ -1044,7 +1015,8 @@
                     return [{
                         source: "DuckDuckGo",
                         title: data.Heading || query,
-                        content: data.AbstractText.slice(0, 450)
+                        content: data.AbstractText.slice(0, 500),
+                        score: 0.75
                     }];
                 }
                 return [];
@@ -1062,6 +1034,83 @@
             if (/[áéíóúñ¿¡]/.test(t)) return "es";
             if (/[àâäéèêëïîôùûüÿç]/.test(t)) return "fr";
             return "en";
+        }
+
+        function splitSentences(text) {
+            return text
+                .replace(/([.!?])\s+/g, "$1|")
+                .split("|")
+                .map(s => s.trim())
+                .filter(s => s.length > 40 && s.length < 300);
+        }
+
+        function rankAndStructure(knowledge, query, lang) {
+            if (!knowledge.length) {
+                const fallbacks = {
+                    pt: "Desculpe, não encontrei informações suficientes sobre isso no momento.",
+                    en: "Sorry, I couldn't find enough information about that at the moment.",
+                    zh: "抱歉，我暂时没有找到足够的相关信息。",
+                    es: "Lo siento, no encontré suficiente información sobre eso.",
+                    ja: "申し訳ありませんが、関連情報が見つかりませんでした。",
+                    ko: "죄송합니다. 관련 정보를 찾지 못했습니다."
+                };
+                return fallbacks[lang] || fallbacks.en;
+            }
+
+            const qWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+            
+            const ranked = knowledge
+                .map(item => {
+                    let score = item.score || 0.5;
+                    const contentLower = (item.title + " " + item.content).toLowerCase();
+                    qWords.forEach(w => {
+                        if (contentLower.includes(w)) score += 0.12;
+                    });
+                    return { ...item, finalScore: score };
+                })
+                .sort((a, b) => b.finalScore - a.finalScore);
+
+            const bestSentences = [];
+            ranked.slice(0, 4).forEach(item => {
+                const sentences = splitSentences(item.content);
+                if (sentences.length > 0) {
+                    bestSentences.push(sentences[0]);
+                    if (sentences[1] && bestSentences.length < 4) {
+                        bestSentences.push(sentences[1]);
+                    }
+                }
+            });
+
+            if (bestSentences.length === 0) {
+                return ranked[0].content.slice(0, 450);
+            }
+
+            let answer = bestSentences[0];
+            
+            if (bestSentences[1]) {
+                answer += " " + bestSentences[1];
+            }
+            
+            if (bestSentences[2] && answer.length < 380) {
+                const connectors = {
+                    pt: " Além disso, ",
+                    en: " Additionally, ",
+                    zh: " 此外，",
+                    es: " Además, ",
+                    ja: " また、",
+                    ko: " 또한 "
+                };
+                const connector = connectors[lang] || connectors.en;
+                answer += connector + bestSentences[2].charAt(0).toLowerCase() + bestSentences[2].slice(1);
+            }
+
+            answer = answer.replace(/\s+/g, " ").replace(/\s+([.!?])/g, "$1").trim();
+            
+            if (answer.length > 600) {
+                answer = answer.slice(0, 580).replace(/\s+\S*$/, "") + "…";
+            }
+
+            return answer;
         }
 
         async function coordinateAIResponse(userMessage) {
@@ -1083,55 +1132,12 @@
                 knowledge = [...wikiEn, ...knowledge];
             }
 
-            let knowledgeText = "";
-            if (knowledge.length > 0) {
-                knowledgeText = knowledge
-                    .slice(0, 4)
-                    .map(k => `[${k.source}] ${k.title}: ${k.content}`)
-                    .join("\n\n");
-            }
+            const answer = rankAndStructure(knowledge, userMessage, lang);
 
-            const systemPrompt = `You are LoreSpace AI, a highly intelligent, polite and helpful assistant.
-Always answer in the same language the user is using.
-Be clear, natural and maintain conversation context.
-Use the provided knowledge when available.`;
+            conversationHistory.push({ role: "assistant", content: answer });
+            if (conversationHistory.length > MAX_HISTORY) conversationHistory.shift();
 
-            const messages = [
-                { role: "system", content: systemPrompt }
-            ];
-
-            conversationHistory.slice(-6).forEach(msg => {
-                messages.push({ role: msg.role, content: msg.content });
-            });
-
-            if (knowledgeText) {
-                messages[messages.length - 1].content += `\n\n[Knowledge]\n${knowledgeText}`;
-            }
-
-            if (modelReady && engine) {
-                try {
-                    const reply = await engine.chat.completions.create({
-                        messages,
-                        temperature: 0.7,
-                        max_tokens: 400,
-                        top_p: 0.9
-                    });
-
-                    const answer = reply.choices[0]?.message?.content?.trim() || 
-                        (lang === "zh" ? "抱歉，我暂时无法回答。" : "Desculpe, não consegui gerar uma resposta.");
-
-                    conversationHistory.push({ role: "assistant", content: answer });
-                    if (conversationHistory.length > MAX_HISTORY) conversationHistory.shift();
-
-                    return answer;
-                } catch (err) {
-                    console.error("Erro na geração:", err);
-                }
-            }
-
-            return lang === "zh" 
-                ? "模型正在快速加载中，请稍等…" 
-                : "O modelo está carregando rapidamente. Aguarde um instante...";
+            return answer;
         }
 
         window.sendAiChatMessage = async function () {
