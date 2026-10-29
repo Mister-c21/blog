@@ -187,6 +187,7 @@
             background-size: 200% 100%;
             animation: skeleton-loading 1.4s infinite ease-in-out;
         }
+        .skeleton-line.short { width:  mixed; }
         .skeleton-line.short { width: 60%; }
         @keyframes skeleton-loading {
             0% { background-position: 200% 0; }
@@ -783,7 +784,7 @@
 
             sidebar.classList.toggle('open');
             overlay.classList.toggle('active');
-            btn.classList.toggle('open');          // ← ativa a animação do ícone
+            btn.classList.toggle('open');
         }
 
         function closeSidebar() {
@@ -792,7 +793,7 @@
             document.getElementById('mobile-menu-btn').classList.remove('open');
         }
 
-        // Resto do código (busca, chat, modal, etc.)
+        // Busca / Chat
         const searchInput = document.getElementById('main-search');
         const clearBtn = document.getElementById('clear-search-btn');
 
@@ -861,48 +862,70 @@
             document.getElementById(viewId).classList.add('active');
         }
 
-        // Modal de Recursos
+        // ========== MODAL DE RECURSOS (COM CORREÇÃO DO BUG) ==========
         const recursosModal = document.getElementById('recursos-modal');
         const modalHeader = document.getElementById('recursos-modal-header');
         const recursosIframe = document.getElementById('recursos-iframe');
         let touchStartY = 0, touchMoveY = 0, isDragging = false;
 
         function openRecursoModal(nome) {
-            document.getElementById('recursos-modal-title').innerText = nome;
+            const title = document.getElementById('recursos-modal-title');
+            title.innerText = nome;
+
             const paginas = {
                 'studio': './Recursos/Studio/Index.html',
                 'ferramentas': './Recursos/Ferramentas/Index.html'
             };
+
+            // === CORREÇÃO DO BUG ===
+            // Remove qualquer estilo inline de top que tenha sido aplicado no close
+            recursosModal.style.top = '';
+            recursosModal.style.transition = 'top 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+
             recursosIframe.src = paginas[nome.toLowerCase()] || 'about:blank';
             recursosModal.classList.add('active');
             document.body.style.overflow = 'hidden';
         }
+
         function closeRecursoModal() {
+            recursosModal.style.transition = 'top 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
             recursosModal.style.top = '100%';
             recursosModal.classList.remove('active');
-            setTimeout(() => { recursosIframe.src = 'about:blank'; }, 400);
+            document.body.style.overflow = '';
+
+            setTimeout(() => {
+                recursosIframe.src = 'about:blank';
+                // Limpa o estilo inline após a animação
+                recursosModal.style.top = '';
+            }, 400);
         }
 
+        // Touch handlers para arrastar e fechar
         modalHeader.addEventListener('touchstart', (e) => {
             if (window.innerWidth >= 992) return;
             touchStartY = e.touches[0].clientY;
             isDragging = true;
             recursosModal.style.transition = 'none';
-        }, {passive:true});
+        }, {passive: true});
+
         modalHeader.addEventListener('touchmove', (e) => {
             if (!isDragging || window.innerWidth >= 992) return;
             touchMoveY = e.touches[0].clientY;
             const delta = touchMoveY - touchStartY;
             if (delta > 0) recursosModal.style.top = delta + 'px';
-        }, {passive:true});
+        }, {passive: true});
+
         modalHeader.addEventListener('touchend', () => {
             if (!isDragging || window.innerWidth >= 992) return;
             isDragging = false;
-            if (touchMoveY - touchStartY > window.innerHeight * 0.2) closeRecursoModal();
-            else {
+            if (touchMoveY - touchStartY > window.innerHeight * 0.2) {
+                closeRecursoModal();
+            } else {
                 recursosModal.style.transition = 'top 0.3s ease-out';
                 recursosModal.style.top = '0';
             }
+            touchStartY = 0;
+            touchMoveY = 0;
         });
 
         function sendAiChatMessageFromMain(text) {
