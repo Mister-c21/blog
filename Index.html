@@ -54,7 +54,6 @@
             display: flex;
         }
 
-        /* ========== MODO IA (único modo) ========== */
         body.ai-mode {
             padding-bottom: 140px;
             overflow: hidden;
@@ -187,7 +186,6 @@
             background-size: 200% 100%;
             animation: skeleton-loading 1.4s infinite ease-in-out;
         }
-        .skeleton-line.short { width:  mixed; }
         .skeleton-line.short { width: 60%; }
         @keyframes skeleton-loading {
             0% { background-position: 200% 0; }
@@ -423,7 +421,6 @@
             justify-content: center;
         }
 
-        /* ========== SIDEBAR + BOTÃO ANIMADO ========== */
         .desktop-sidebar { display: none; }
 
         .mobile-menu-btn {
@@ -447,7 +444,6 @@
             transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
-        /* Animação do ícone hambúrguer ↔ X */
         .mobile-menu-btn i {
             transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.25s ease;
         }
@@ -558,7 +554,6 @@
             }
             .desktop-sidebar.open { left: 0; }
 
-            /* Título da sidebar NÃO aparece no mobile */
             .sidebar-brand {
                 display: none !important;
             }
@@ -651,7 +646,6 @@
 </head>
 <body class="ai-mode">
 
-    <!-- Botão de menu com ícones sobrepostos para animação -->
     <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleSidebar()">
         <i class="fas fa-bars"></i>
         <i class="fas fa-xmark"></i>
@@ -747,7 +741,6 @@
     </nav>
 
     <script>
-        // PWA
         (function setupPWA() {
             const manifest = {
                 name: "LoreSpace",
@@ -776,12 +769,10 @@
             }
         })();
 
-        // ========== SIDEBAR + ANIMAÇÃO DO BOTÃO ==========
         function toggleSidebar() {
             const sidebar = document.getElementById('main-sidebar');
             const overlay = document.getElementById('sidebar-overlay');
             const btn = document.getElementById('mobile-menu-btn');
-
             sidebar.classList.toggle('open');
             overlay.classList.toggle('active');
             btn.classList.toggle('open');
@@ -793,7 +784,6 @@
             document.getElementById('mobile-menu-btn').classList.remove('open');
         }
 
-        // Busca / Chat
         const searchInput = document.getElementById('main-search');
         const clearBtn = document.getElementById('clear-search-btn');
 
@@ -862,23 +852,19 @@
             document.getElementById(viewId).classList.add('active');
         }
 
-        // ========== MODAL DE RECURSOS (COM CORREÇÃO DO BUG) ==========
+        // Modal de Recursos (com correção do bug)
         const recursosModal = document.getElementById('recursos-modal');
         const modalHeader = document.getElementById('recursos-modal-header');
         const recursosIframe = document.getElementById('recursos-iframe');
         let touchStartY = 0, touchMoveY = 0, isDragging = false;
 
         function openRecursoModal(nome) {
-            const title = document.getElementById('recursos-modal-title');
-            title.innerText = nome;
-
+            document.getElementById('recursos-modal-title').innerText = nome;
             const paginas = {
                 'studio': './Recursos/Studio/Index.html',
                 'ferramentas': './Recursos/Ferramentas/Index.html'
             };
 
-            // === CORREÇÃO DO BUG ===
-            // Remove qualquer estilo inline de top que tenha sido aplicado no close
             recursosModal.style.top = '';
             recursosModal.style.transition = 'top 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
 
@@ -895,12 +881,10 @@
 
             setTimeout(() => {
                 recursosIframe.src = 'about:blank';
-                // Limpa o estilo inline após a animação
                 recursosModal.style.top = '';
             }, 400);
         }
 
-        // Touch handlers para arrastar e fechar
         modalHeader.addEventListener('touchstart', (e) => {
             if (window.innerWidth >= 992) return;
             touchStartY = e.touches[0].clientY;
@@ -939,266 +923,256 @@
         }
     </script>
 
-    <!-- ========== ALGORITMO REAL DE IA ========== -->
-    <script>
-        async function fetchWikipedia(query) {
+    <!-- ========== CÉREBRO CONVERSACIONAL REAL – Qwen2.5 (padrão mercado chinês/asiático) ========== -->
+    <script type="module">
+        import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
+
+        const MODEL_ID = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
+        let engine = null;
+        let modelReady = false;
+        let isLoadingModel = false;
+
+        const conversationHistory = [];
+        const MAX_HISTORY = 12;
+
+        async function initBrain() {
+            if (modelReady || isLoadingModel) return;
+            isLoadingModel = true;
+
             try {
-                const searchUrl = `https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=6`;
+                engine = await CreateMLCEngine(MODEL_ID, {
+                    initProgressCallback: () => {}
+                });
+                modelReady = true;
+                console.log("[LoreSpace Brain] Modelo Qwen2.5 carregado com sucesso");
+            } catch (err) {
+                console.warn("[LoreSpace Brain] Falha ao carregar modelo:", err);
+            } finally {
+                isLoadingModel = false;
+            }
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", initBrain);
+        } else {
+            initBrain();
+        }
+
+        async function fetchWikipedia(query, lang = "zh") {
+            try {
+                const base = `https://${lang}.wikipedia.org/w/api.php`;
+                const searchUrl = `${base}?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=5`;
                 const searchRes = await fetch(searchUrl);
                 const searchData = await searchRes.json();
                 const results = searchData?.query?.search || [];
                 if (!results.length) return [];
 
-                const extracts = await Promise.all(results.slice(0, 4).map(async (item) => {
+                const extracts = await Promise.all(results.slice(0, 3).map(async (item) => {
                     try {
-                        const extractUrl = `https://pt.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(item.title)}&format=json&origin=*`;
+                        const extractUrl = `${base}?action=query&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(item.title)}&format=json&origin=*`;
                         const extractRes = await fetch(extractUrl);
                         const extractData = await extractRes.json();
                         const page = Object.values(extractData?.query?.pages || {})[0];
                         if (page?.extract) {
                             return {
-                                source: 'Wikipedia',
+                                source: "Wikipedia",
                                 title: item.title,
-                                content: page.extract.slice(0, 900),
-                                relevanceBase: 0.78
+                                content: page.extract.slice(0, 700)
                             };
                         }
-                    } catch(e){}
+                    } catch {}
                     return null;
                 }));
                 return extracts.filter(Boolean);
-            } catch(e){ return []; }
+            } catch {
+                return [];
+            }
         }
 
         async function fetchNostr(query) {
             const relays = [
-                'wss://relay.damus.io',
-                'wss://nos.lol',
-                'wss://relay.nostr.band',
-                'wss://nostr.wine',
-                'wss://relay.snort.social',
-                'wss://eden.nostr.land'
+                "wss://relay.damus.io",
+                "wss://nos.lol",
+                "wss://relay.nostr.band",
+                "wss://nostr.wine"
             ];
-            const TIMEOUT = 4200;
             const allEvents = [];
+            const TIMEOUT = 3500;
 
-            const connectRelay = (url) => new Promise(resolve => {
+            const connect = (url) => new Promise((resolve) => {
                 let ws, collected = [], finished = false;
-                const subId = 'ls-' + Math.random().toString(36).slice(2,9);
+                const subId = "qwen-" + Math.random().toString(36).slice(2, 8);
                 const finish = () => {
                     if (finished) return;
                     finished = true;
-                    try{ws?.close()}catch{}
+                    try { ws?.close(); } catch {}
                     resolve(collected);
                 };
                 const timer = setTimeout(finish, TIMEOUT);
                 try { ws = new WebSocket(url); } catch { clearTimeout(timer); resolve([]); return; }
 
                 ws.onopen = () => {
-                    ws.send(JSON.stringify(['REQ', subId, {kinds:[1], search:query, limit:15}]));
-                    setTimeout(() => {
-                        if (!finished && collected.length < 4) {
-                            ws.send(JSON.stringify(['REQ', subId+'-fb', {kinds:[1], limit:30}]));
-                        }
-                    }, 1600);
+                    ws.send(JSON.stringify(["REQ", subId, { kinds: [1], search: query, limit: 10 }]));
                 };
                 ws.onmessage = (msg) => {
                     try {
                         const data = JSON.parse(msg.data);
-                        if (data[0] === 'EVENT') {
-                            const ev = data[2];
-                            if (ev?.content) {
-                                const qWords = query.toLowerCase().split(/\s+/).filter(w=>w.length>2);
-                                const hasMatch = qWords.some(w => ev.content.toLowerCase().includes(w));
-                                if (hasMatch || collected.length < 5) {
-                                    collected.push({
-                                        source: 'Nostr Network',
-                                        title: (ev.pubkey||'').slice(0,10)+'…',
-                                        content: ev.content.slice(0,480),
-                                        relevanceBase: hasMatch ? 0.65 : 0.40,
-                                        created_at: ev.created_at||0
-                                    });
-                                }
-                            }
-                        } else if (data[0] === 'EOSE') {
+                        if (data[0] === "EVENT" && data[2]?.content) {
+                            collected.push({
+                                source: "Nostr",
+                                title: "Note",
+                                content: data[2].content.slice(0, 400)
+                            });
+                        } else if (data[0] === "EOSE") {
                             clearTimeout(timer);
                             finish();
                         }
-                    } catch(e){}
+                    } catch {}
                 };
                 ws.onerror = ws.onclose = () => { clearTimeout(timer); finish(); };
             });
 
             try {
-                const results = await Promise.allSettled(relays.map(connectRelay));
-                results.forEach(r => { if (r.status==='fulfilled') allEvents.push(...r.value); });
-            } catch(e){}
-
-            const seen = new Set();
-            const unique = [];
-            for (const ev of allEvents) {
-                const key = ev.content.slice(0,90);
-                if (!seen.has(key)) { seen.add(key); unique.push(ev); }
-            }
-            unique.sort((a,b) => (b.relevanceBase + (b.created_at||0)/1e12) - (a.relevanceBase + (a.created_at||0)/1e12));
-            return unique.slice(0,10);
+                const results = await Promise.allSettled(relays.map(connect));
+                results.forEach(r => { if (r.status === "fulfilled") allEvents.push(...r.value); });
+            } catch {}
+            return allEvents.slice(0, 6);
         }
 
-        async function fetchPublicAPIs(query) {
+        async function fetchDuckDuckGo(query) {
             try {
-                const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=0&no_html=1&skip_disambig=1`;
-                const res = await fetch(url);
+                const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=0&no_html=1`);
                 if (!res.ok) return [];
                 const data = await res.json();
                 const items = [];
                 if (data.AbstractText) {
-                    items.push({
-                        source: 'DuckDuckGo',
-                        title: data.Heading || query,
-                        content: data.AbstractText.slice(0,600),
-                        relevanceBase: 0.80
-                    });
-                }
-                if (Array.isArray(data.RelatedTopics)) {
-                    data.RelatedTopics.slice(0,3).forEach(t => {
-                        if (t.Text) {
-                            items.push({
-                                source: 'DuckDuckGo',
-                                title: 'Relacionado',
-                                content: t.Text.slice(0,350),
-                                relevanceBase: 0.58
-                            });
-                        }
-                    });
+                    items.push({ source: "DuckDuckGo", title: data.Heading || query, content: data.AbstractText.slice(0, 500) });
                 }
                 return items;
-            } catch(e){ return []; }
-        }
-
-        function splitSentences(text) {
-            return text.replace(/([.!?])\s+/g, '$1|').split('|')
-                       .map(s => s.trim())
-                       .filter(s => s.length > 35 && s.length < 320);
-        }
-
-        function rankSentences(sources, query) {
-            const qWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-            const all = [];
-
-            sources.forEach(src => {
-                splitSentences(src.content).forEach((sent, idx) => {
-                    let score = src.relevanceBase || 0.4;
-                    const lower = sent.toLowerCase();
-                    qWords.forEach(w => { if (lower.includes(w)) score += 0.18; });
-                    if (idx === 0) score += 0.12;
-                    if (idx === 1) score += 0.06;
-                    if (src.source === 'Wikipedia') score += 0.15;
-                    if (src.source === 'DuckDuckGo') score += 0.10;
-                    if (src.source === 'Nostr Network') score += 0.07;
-                    if (sent.length > 60 && sent.length < 220) score += 0.10;
-
-                    all.push({ text: sent, score: Math.min(1, score), source: src.source, title: src.title });
-                });
-            });
-
-            all.sort((a,b) => b.score - a.score);
-            const seen = new Set();
-            const unique = [];
-            for (const s of all) {
-                const key = s.text.slice(0,55).toLowerCase();
-                if (!seen.has(key)) { seen.add(key); unique.push(s); }
+            } catch {
+                return [];
             }
-            return unique.slice(0,12);
         }
 
-        function synthesizeAnswer(ranked, query, style = 'natural') {
-            if (!ranked.length) {
-                return `Não encontrei informações suficientes sobre "${query}" nas fontes públicas disponíveis no momento.`;
-            }
-            const top = ranked.slice(0,5);
-            let answer = '';
-
-            if (style === 'natural') {
-                answer = top[0].text;
-                if (top[1]) answer += ' ' + top[1].text;
-                if (top[2] && answer.length < 380) answer += ' Além disso, ' + top[2].text.charAt(0).toLowerCase() + top[2].text.slice(1);
-                if (top[3] && answer.length < 480) answer += ' ' + top[3].text;
-            } else if (style === 'structured') {
-                answer = `Sobre "${query}":\n\n`;
-                top.slice(0,3).forEach((s,i) => { answer += `${i+1}. ${s.text}\n\n`; });
-            } else {
-                answer = top[0].text;
-                if (top[1]) answer += ' ' + top[1].text;
-                answer += `\n\nFonte principal: ${top[0].source}${top[0].title ? ' — ' + top[0].title : ''}.`;
-            }
-
-            answer = answer.replace(/\s+/g,' ').replace(/\s+([.!?])/g,'$1').trim();
-            if (answer.length > 620) answer = answer.slice(0,600).replace(/\s+\S*$/,'') + '…';
-            return answer;
+        function detectLanguage(text) {
+            const t = text.toLowerCase();
+            if (/[\u4e00-\u9fff]/.test(t)) return "zh";
+            if (/[\u3040-\u30ff]/.test(t)) return "ja";
+            if (/[\uac00-\ud7af]/.test(t)) return "ko";
+            if (/[áàâãéêíóôõúç]/.test(t)) return "pt";
+            if (/[áéíóúñ¿¡]/.test(t)) return "es";
+            if (/[àâäéèêëïîôùûüÿç]/.test(t)) return "fr";
+            return "en";
         }
 
-        function generateCandidates(ranked, query) {
-            return [
-                synthesizeAnswer(ranked, query, 'natural'),
-                synthesizeAnswer(ranked, query, 'structured'),
-                synthesizeAnswer(ranked, query, 'direct')
-            ];
-        }
+        async function coordinateAIResponse(userMessage) {
+            const lang = detectLanguage(userMessage);
 
-        function selectBestResponse(candidates, query) {
-            const qWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-            const scored = candidates.map((text, idx) => {
-                let score = 0.5;
-                const lower = text.toLowerCase();
-                qWords.forEach(w => { if (lower.includes(w)) score += 0.12; });
-                if (text.length > 140 && text.length < 550) score += 0.22;
-                if (idx === 0) score += 0.08;
-                if (text.includes('é') || text.includes('são') || text.includes('foi')) score += 0.06;
-                return { text, score: Math.min(1, score) };
-            });
-            scored.sort((a,b) => b.score - a.score);
-            return scored[0].text;
-        }
+            conversationHistory.push({ role: "user", content: userMessage });
+            if (conversationHistory.length > MAX_HISTORY) conversationHistory.shift();
 
-        async function coordinateAIResponse(query) {
-            const [wiki, nostr, publicApis] = await Promise.all([
-                fetchWikipedia(query),
-                fetchNostr(query),
-                fetchPublicAPIs(query)
+            const [wiki, nostr, ddg] = await Promise.all([
+                fetchWikipedia(userMessage, lang === "zh" ? "zh" : lang === "ja" ? "ja" : lang === "ko" ? "ko" : lang),
+                fetchNostr(userMessage),
+                fetchDuckDuckGo(userMessage)
             ]);
-            const allSources = [...wiki, ...nostr, ...publicApis];
-            const ranked = rankSentences(allSources, query);
-            const candidates = generateCandidates(ranked, query);
-            return selectBestResponse(candidates, query);
+
+            let knowledge = [...wiki, ...nostr, ...ddg];
+            if (knowledge.length < 2 && lang !== "zh") {
+                const wikiZh = await fetchWikipedia(userMessage, "zh");
+                knowledge = [...wikiZh, ...knowledge];
+            }
+            if (knowledge.length < 2 && lang !== "en") {
+                const wikiEn = await fetchWikipedia(userMessage, "en");
+                knowledge = [...wikiEn, ...knowledge];
+            }
+
+            let knowledgeText = "";
+            if (knowledge.length > 0) {
+                knowledgeText = knowledge
+                    .slice(0, 5)
+                    .map(k => `[${k.source}] ${k.title}: ${k.content}`)
+                    .join("\n\n");
+            }
+
+            const systemPrompt = `You are LoreSpace AI, a highly intelligent, polite and helpful assistant.
+Always answer in the same language the user is using.
+Be clear, natural, concise and maintain conversation context.
+When knowledge is provided, use it accurately.
+If you don't know something, say so honestly.`;
+
+            const messages = [
+                { role: "system", content: systemPrompt }
+            ];
+
+            conversationHistory.slice(-8).forEach(msg => {
+                messages.push({ role: msg.role, content: msg.content });
+            });
+
+            if (knowledgeText) {
+                messages[messages.length - 1].content += `\n\n[Relevant Knowledge]\n${knowledgeText}`;
+            }
+
+            if (modelReady && engine) {
+                try {
+                    const reply = await engine.chat.completions.create({
+                        messages,
+                        temperature: 0.7,
+                        max_tokens: 512,
+                        top_p: 0.9
+                    });
+
+                    const answer = reply.choices[0]?.message?.content?.trim() || "Desculpe, não consegui gerar uma resposta no momento.";
+
+                    conversationHistory.push({ role: "assistant", content: answer });
+                    if (conversationHistory.length > MAX_HISTORY) conversationHistory.shift();
+
+                    return answer;
+                } catch (err) {
+                    console.error("Erro no modelo:", err);
+                }
+            }
+
+            return lang === "zh" 
+                ? "模型正在加载中，请稍等几秒钟后再试…" 
+                : "O modelo ainda está carregando. Aguarde alguns segundos e tente novamente.";
         }
 
-        window.sendAiChatMessage = async function() {
+        window.sendAiChatMessage = async function () {
             const text = window._pendingAiText;
             window._pendingAiText = null;
             if (!text || window._aiIsSending) return;
             window._aiIsSending = true;
 
-            const chatBody = document.getElementById('page-ai-chat-body');
-            if (!chatBody) { window._aiIsSending = false; return; }
+            const chatBody = document.getElementById("page-ai-chat-body");
+            if (!chatBody) {
+                window._aiIsSending = false;
+                return;
+            }
 
-            const userMsg = document.createElement('div');
-            userMsg.className = 'page-ai-message user';
+            const userMsg = document.createElement("div");
+            userMsg.className = "page-ai-message user";
             userMsg.innerText = text;
             chatBody.appendChild(userMsg);
 
-            const aiMsg = document.createElement('div');
-            aiMsg.className = 'page-ai-message ai ai-skeleton';
-            aiMsg.innerHTML = `<div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div>`;
+            const aiMsg = document.createElement("div");
+            aiMsg.className = "page-ai-message ai ai-skeleton";
+            aiMsg.innerHTML = `
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line short"></div>
+            `;
             chatBody.appendChild(aiMsg);
             chatBody.scrollTop = chatBody.scrollHeight;
 
             try {
                 const reply = await coordinateAIResponse(text);
-                aiMsg.classList.remove('ai-skeleton');
+                aiMsg.classList.remove("ai-skeleton");
                 aiMsg.innerText = reply;
             } catch (err) {
-                aiMsg.classList.remove('ai-skeleton');
-                aiMsg.innerText = 'Desculpe, ocorreu um erro ao processar a resposta. Tente novamente.';
+                console.error(err);
+                aiMsg.classList.remove("ai-skeleton");
+                aiMsg.innerText = "Desculpe, ocorreu um erro ao processar a resposta.";
             }
 
             chatBody.scrollTop = chatBody.scrollHeight;
