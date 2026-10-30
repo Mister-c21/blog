@@ -356,6 +356,69 @@
  height: 44px;
  }
  }
+
+ /* Sidebar fixa no desktop */
+ #sidebar {
+ position: fixed;
+ top: 3.5rem;
+ left: 0;
+ z-index: 40;
+ height: calc(100vh - 3.5rem);
+ }
+ @media (min-width: 768px) {
+ #sidebar {
+ transform: translateX(0) !important;
+ }
+ #mainContent {
+ margin-left: 15rem; /* w-60 */
+ }
+ }
+
+ /* Toggle Imagens / Desenhos */
+ .mode-toggle {
+ display: inline-flex;
+ background: #f3f4f6;
+ border-radius: 9999px;
+ padding: 3px;
+ gap: 2px;
+ }
+ .mode-toggle button {
+ padding: 0.4rem 0.95rem;
+ border-radius: 9999px;
+ font-size: 0.8rem;
+ font-weight: 600;
+ color: #6b7280;
+ transition: all 0.15s;
+ border: none;
+ background: transparent;
+ cursor: pointer;
+ }
+ .mode-toggle button.active {
+ background: #7c3aed;
+ color: #fff;
+ box-shadow: 0 1px 3px rgba(124, 58, 237, 0.3);
+ }
+
+ /* Canvas de desenho */
+ #drawModal {
+ position: fixed;
+ inset: 0;
+ z-index: 110;
+ display: none;
+ align-items: center;
+ justify-content: center;
+ background: rgba(0,0,0,0.45);
+ backdrop-filter: blur(3px);
+ }
+ #drawModal.open { display: flex; }
+ #drawCanvas {
+ touch-action: none;
+ cursor: crosshair;
+ background: #fff;
+ border-radius: 12px;
+ border: 1px solid #e5e7eb;
+ max-width: 100%;
+ }
  </style>
 </head>
 <body class="min-h-screen flex flex-col bg-white text-gray-800 overflow-x-hidden w-full max-w-full">
@@ -398,7 +461,7 @@
  </header>
 
  <div class="flex flex-1 min-h-0 min-w-0 w-full max-w-full overflow-x-hidden">
- <aside id="sidebar" class="fixed md:sticky top-14 left-0 z-40 h-[calc(100vh-3.5rem)] w-60 max-w-[85vw] bg-white border-r border-gray-200 p-3 transform -translate-x-full md:translate-x-0 transition-transform duration-200 overflow-y-auto overflow-x-hidden no-scrollbar">
+ <aside id="sidebar" class="w-60 max-w-[85vw] bg-white border-r border-gray-200 p-3 transform -translate-x-full md:translate-x-0 transition-transform duration-200 overflow-y-auto overflow-x-hidden no-scrollbar">
  <nav class="space-y-1">
  <a href="../../Social.html" class="sidebar-link flex items-center gap-4 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition">
  <i class="fa-solid fa-house w-5 text-center"></i> Início (Feed)
@@ -434,14 +497,31 @@
  </aside>
  <div id="sidebarOverlay" class="fixed inset-0 bg-black/40 z-30 hidden md:hidden" onclick="closeSidebar()"></div>
 
- <main class="flex-1 min-w-0 w-full max-w-full overflow-x-hidden p-3 md:p-5 pb-20 bg-gray-50">
- <div class="flex gap-2 overflow-x-auto no-scrollbar mb-4 pb-1 max-w-full">
+ <main id="mainContent" class="flex-1 min-w-0 w-full max-w-full overflow-x-hidden p-3 md:p-5 pb-20 bg-gray-50">
+ <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3 pb-1 max-w-full">
  <button type="button" class="chip active" data-filter="" onclick="setChipFilter(this, '')">Todos</button>
  <button type="button" class="chip" data-filter="art" onclick="setChipFilter(this, 'art')">Arte</button>
  <button type="button" class="chip" data-filter="photography" onclick="setChipFilter(this, 'photography')">Foto</button>
  <button type="button" class="chip" data-filter="anime" onclick="setChipFilter(this, 'anime')">Anime</button>
  <button type="button" class="chip" data-filter="nostr" onclick="setChipFilter(this, 'nostr')">Nostr</button>
  <button type="button" class="chip" data-filter="nature" onclick="setChipFilter(this, 'nature')">Natureza</button>
+ </div>
+
+ <!-- Toggle Imagens / Desenhos + botão desenhar -->
+ <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
+  <div class="mode-toggle" role="group" aria-label="Modo do feed">
+   <button type="button" id="modeImagesBtn" class="active" onclick="setFeedMode('images')">
+    <i class="fa-solid fa-image mr-1.5"></i>Imagens
+   </button>
+   <button type="button" id="modeDrawingsBtn" onclick="setFeedMode('drawings')">
+    <i class="fa-solid fa-pencil mr-1.5"></i>Desenhos
+   </button>
+  </div>
+  <button type="button" id="drawPostBtn" onclick="openDrawModal()"
+   class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-white text-sm font-semibold hover:bg-violet-700 transition shadow-sm shadow-secondary/30">
+   <i class="fa-solid fa-paintbrush"></i>
+   <span>Desenhar e postar</span>
+  </button>
  </div>
 
  <div id="statusBar" class="flex items-center gap-2 text-sm text-gray-500 mb-4 min-w-0">
@@ -499,6 +579,37 @@
  </div>
  </div>
 
+ <!-- Modal de desenho -->
+ <div id="drawModal" role="dialog" aria-modal="true" aria-label="Desenhar">
+  <div class="bg-white rounded-2xl shadow-2xl w-[min(96vw,640px)] max-h-[92vh] overflow-hidden flex flex-col m-3">
+   <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+    <h2 class="font-semibold text-gray-900 text-sm"><i class="fa-solid fa-paintbrush text-secondary mr-2"></i>Novo desenho</h2>
+    <button type="button" onclick="closeDrawModal()" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600" aria-label="Fechar">
+     <i class="fa-solid fa-xmark"></i>
+    </button>
+   </div>
+   <div class="p-3 flex flex-col gap-3 overflow-auto">
+    <div class="flex flex-wrap items-center gap-2">
+     <label class="text-xs text-gray-500">Cor</label>
+     <input type="color" id="drawColor" value="#7c3aed" class="w-8 h-8 rounded cursor-pointer border border-gray-200">
+     <label class="text-xs text-gray-500 ml-2">Espessura</label>
+     <input type="range" id="drawSize" min="1" max="24" value="4" class="w-24">
+     <button type="button" onclick="clearDrawCanvas()" class="ml-auto text-xs px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-600">Limpar</button>
+    </div>
+    <div class="flex justify-center bg-gray-50 rounded-xl p-2">
+     <canvas id="drawCanvas" width="560" height="400"></canvas>
+    </div>
+    <input type="text" id="drawCaption" placeholder="Legenda (opcional)..."
+     class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/20">
+    <p id="drawStatus" class="text-xs text-gray-500 hidden"></p>
+    <button type="button" id="publishDrawBtn" onclick="publishDrawing()"
+     class="w-full py-2.5 rounded-full bg-secondary text-white text-sm font-semibold hover:bg-violet-700 transition disabled:opacity-60">
+     <i class="fa-solid fa-paper-plane mr-2"></i>Publicar na rede
+    </button>
+   </div>
+  </div>
+ </div>
+
  <!-- FAB voltar ao topo -->
  <button type="button" id="scrollTopBtn" aria-label="Voltar ao topo" title="Voltar ao topo">
   <i class="fa-solid fa-arrow-up"></i>
@@ -514,6 +625,14 @@
  'wss://relay.primal.net'
  ];
 
+ const BLOSSOM_SERVERS = [
+  'https://blossom.primal.net',
+  'https://cdn.nostr.build',
+  'https://blossom.band'
+ ];
+
+ const DRAWING_TAGS = new Set(['desenho', 'drawing', 'loreplay-desenho']);
+
  const IMAGE_EXT = /\.(png|jpe?g|gif|webp|avif|bmp)(\?[^\s]*)?$/i;
  const pool = new NostrTools.SimplePool();
  const profileCache = new Map();
@@ -523,6 +642,7 @@
  let oldestTimestamp = Math.floor(Date.now() / 1000);
  let isLoading = false;
  let activeFilter = '';
+ let feedMode = 'images'; // 'images' | 'drawings'
  let scrollYBeforeModal = 0;
 
  // Parceiros no grid: 1 slot a cada N imagens (não excessivo)
@@ -530,6 +650,11 @@
  let partnerCampaigns = [];
  let partnerCursor = 0;
  const LEVEL_ORDER = { diamante: 4, ouro: 3, plata: 2, bronze: 1 };
+
+ // Canvas state
+ let drawCtx = null;
+ let drawing = false;
+ let lastX = 0, lastY = 0;
 
  function isMobile() {
  return window.matchMedia('(max-width: 767px)').matches;
@@ -606,6 +731,14 @@
  return tags;
  }
 
+ function isDrawingItem(v) {
+ if (!v?.tags) return false;
+ for (const t of DRAWING_TAGS) {
+  if (v.tags.has(t)) return true;
+ }
+ return false;
+ }
+
  async function fetchProfiles(pubkeys) {
  const missing = pubkeys.filter(pk => pk && !profileCache.has(pk));
  if (!missing.length) return;
@@ -659,7 +792,10 @@
  { kinds: [1], limit: 100, ...(until ? { until } : {}) },
  { kinds: [1], '#t': ['art'], limit: 40, ...(until ? { until } : {}) },
  { kinds: [1], '#t': ['photography'], limit: 30, ...(until ? { until } : {}) },
- { kinds: [1], '#t': ['image'], limit: 30, ...(until ? { until } : {}) }
+ { kinds: [1], '#t': ['image'], limit: 30, ...(until ? { until } : {}) },
+ { kinds: [1], '#t': ['desenho'], limit: 40, ...(until ? { until } : {}) },
+ { kinds: [1], '#t': ['drawing'], limit: 40, ...(until ? { until } : {}) },
+ { kinds: [1], '#t': ['loreplay-desenho'], limit: 40, ...(until ? { until } : {}) }
  ];
  const results = await Promise.allSettled(
  filters.map(f => pool.querySync(RELAYS, f))
@@ -854,6 +990,17 @@
  }
  /* ===== FIM SKELETON ===== */
 
+ /* ===== Modo feed ===== */
+ window.setFeedMode = function(mode) {
+  feedMode = mode === 'drawings' ? 'drawings' : 'images';
+  document.getElementById('modeImagesBtn')?.classList.toggle('active', feedMode === 'images');
+  document.getElementById('modeDrawingsBtn')?.classList.toggle('active', feedMode === 'drawings');
+  applyFilter(activeFilter);
+  const label = feedMode === 'drawings' ? 'desenho(s)' : 'imagem(ns)';
+  setStatus(`<span class="text-gray-500 truncate">${filteredImages.length} ${label}${activeFilter ? ' · #' + escapeHtml(activeFilter) : ''} · rede Nostr</span>`);
+ };
+ /* ===== Fim modo feed ===== */
+
  async function loadInitial() {
  if (isLoading) return;
  isLoading = true;
@@ -883,7 +1030,8 @@
  if (!allImages.length) {
  setStatus(`<i class="fa-solid fa-image text-gray-400 shrink-0"></i><span class="truncate">Nenhuma imagem encontrada. Tente carregar mais.</span>`);
  } else {
- setStatus(`<span class="text-gray-500 truncate">${filteredImages.length} imagem(ns) · rede Nostr</span>`);
+ const label = feedMode === 'drawings' ? 'desenho(s)' : 'imagem(ns)';
+ setStatus(`<span class="text-gray-500 truncate">${filteredImages.length} ${label} · rede Nostr</span>`);
  }
  } catch (e) {
  console.error(e);
@@ -908,7 +1056,8 @@
  await fetchProfiles([...new Set(newOnes.map(v => v.pubkey))]);
  }
  applyFilter(activeFilter);
- setStatus(`<span class="text-gray-500 truncate">${filteredImages.length} imagem(ns)</span>`);
+ const label = feedMode === 'drawings' ? 'desenho(s)' : 'imagem(ns)';
+ setStatus(`<span class="text-gray-500 truncate">${filteredImages.length} ${label}</span>`);
  } catch (e) {
  console.error(e);
  } finally {
@@ -918,10 +1067,19 @@
 
  function applyFilter(tag) {
  activeFilter = (tag || '').toLowerCase();
- if (!activeFilter) {
- filteredImages = allImages.slice();
+ let base = allImages.slice();
+
+ // Separar imagens vs desenhos
+ if (feedMode === 'drawings') {
+  base = base.filter(isDrawingItem);
  } else {
- filteredImages = allImages.filter(v => {
+  base = base.filter(v => !isDrawingItem(v));
+ }
+
+ if (!activeFilter) {
+ filteredImages = base;
+ } else {
+ filteredImages = base.filter(v => {
  if (v.tags.has(activeFilter)) return true;
  return (v.content || '').toLowerCase().includes(activeFilter);
  });
@@ -934,7 +1092,8 @@
  c.classList.toggle('active', (c.dataset.filter || '') === (tag || ''));
  });
  applyFilter(tag);
- setStatus(`<span class="text-gray-500 truncate">${filteredImages.length} imagem(ns)${tag ? ' · #' + escapeHtml(tag) : ''}</span>`);
+ const label = feedMode === 'drawings' ? 'desenho(s)' : 'imagem(ns)';
+ setStatus(`<span class="text-gray-500 truncate">${filteredImages.length} ${label}${tag ? ' · #' + escapeHtml(tag) : ''}</span>`);
  closeSidebar();
  };
 
@@ -942,7 +1101,8 @@
  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
  btn.classList.add('active');
  applyFilter(tag);
- setStatus(`<span class="text-gray-500 truncate">${filteredImages.length} imagem(ns)${tag ? ' · #' + escapeHtml(tag) : ''}</span>`);
+ const label = feedMode === 'drawings' ? 'desenho(s)' : 'imagem(ns)';
+ setStatus(`<span class="text-gray-500 truncate">${filteredImages.length} ${label}${tag ? ' · #' + escapeHtml(tag) : ''}</span>`);
  };
 
  window.searchImages = function() {
@@ -953,7 +1113,11 @@
  return;
  }
  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
- filteredImages = allImages.filter(v => {
+ let base = allImages.slice();
+ if (feedMode === 'drawings') base = base.filter(isDrawingItem);
+ else base = base.filter(v => !isDrawingItem(v));
+
+ filteredImages = base.filter(v => {
  const name = (profileCache.get(v.pubkey)?.name || '').toLowerCase();
  return v.tags.has(q) ||
  (v.content || '').toLowerCase().includes(q) ||
@@ -967,10 +1131,13 @@
  function renderMasonry() {
  const grid = document.getElementById('imageMasonry');
  if (!filteredImages.length) {
+ const emptyMsg = feedMode === 'drawings'
+  ? 'Nenhum desenho neste filtro. Publique o seu!'
+  : 'Nenhuma imagem neste filtro.';
  grid.innerHTML = `
  <div style="column-span: all;" class="text-center py-16 text-gray-400">
- <i class="fa-solid fa-image text-4xl mb-3 opacity-50"></i>
- <p class="text-sm">Nenhuma imagem neste filtro.</p>
+ <i class="fa-solid fa-${feedMode === 'drawings' ? 'pencil' : 'image'} text-4xl mb-3 opacity-50"></i>
+ <p class="text-sm">${emptyMsg}</p>
  </div>`;
  return;
  }
@@ -999,8 +1166,8 @@
  </div>
  </article>`;
 
- // 1 espaço de parceiro a cada PARTNER_EVERY imagens
- if ((index + 1) % PARTNER_EVERY === 0 && partnerCampaigns.length) {
+ // 1 espaço de parceiro a cada PARTNER_EVERY imagens (só no modo imagens)
+ if (feedMode === 'images' && (index + 1) % PARTNER_EVERY === 0 && partnerCampaigns.length) {
  html += buildPartnerSlotHtml(nextPartnerCampaign());
  }
  });
@@ -1050,7 +1217,10 @@
  };
 
  document.addEventListener('keydown', (e) => {
- if (e.key === 'Escape' && !isMobile()) closeImageModal();
+ if (e.key === 'Escape' && !isMobile()) {
+  closeImageModal();
+  closeDrawModal();
+ }
  });
 
  (function setupMobileSwipeClose() {
@@ -1141,6 +1311,209 @@
  }
  } catch {}
  }
+
+ /* ===== Desenho + Blossom ===== */
+ function getSessionKeys() {
+  try {
+   const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
+   if (session.sk || session.privateKey) {
+    const skHex = session.sk || session.privateKey;
+    const sk = typeof skHex === 'string'
+     ? (skHex.startsWith('nsec') ? NostrTools.nip19.decode(skHex).data : NostrTools.hexToBytes(skHex))
+     : skHex;
+    return { sk, pubkey: NostrTools.getPublicKey(sk) };
+   }
+  } catch (e) {
+   console.warn('Sessão local inválida', e);
+  }
+  return null;
+ }
+
+ async function signEvent(unsigned) {
+  const local = getSessionKeys();
+  if (local?.sk) {
+   return NostrTools.finalizeEvent(unsigned, local.sk);
+  }
+  if (window.nostr?.signEvent) {
+   return await window.nostr.signEvent(unsigned);
+  }
+  throw new Error('Faça login (sessão Nostr ou extensão NIP-07) para publicar.');
+ }
+
+ async function sha256Hex(buffer) {
+  const hash = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+ }
+
+ async function uploadToBlossom(blob) {
+  const buf = await blob.arrayBuffer();
+  const hash = await sha256Hex(buf);
+  const now = Math.floor(Date.now() / 1000);
+
+  const authUnsigned = {
+   kind: 24242,
+   created_at: now,
+   tags: [
+    ['t', 'upload'],
+    ['x', hash],
+    ['expiration', String(now + 60)]
+   ],
+   content: 'Upload drawing to Blossom'
+  };
+  const authEvent = await signEvent(authUnsigned);
+  const authHeader = 'Nostr ' + btoa(JSON.stringify(authEvent));
+
+  let lastErr = null;
+  for (const server of BLOSSOM_SERVERS) {
+   try {
+    const res = await fetch(server.replace(/\/$/, '') + '/upload', {
+     method: 'PUT',
+     headers: {
+      'Authorization': authHeader,
+      'Content-Type': blob.type || 'image/png',
+      'Content-Length': String(blob.size)
+     },
+     body: blob
+    });
+    if (!res.ok) {
+     lastErr = new Error(`Blossom ${server}: ${res.status}`);
+     continue;
+    }
+    const data = await res.json().catch(() => ({}));
+    const url = data.url || `${server.replace(/\/$/, '')}/${hash}.png`;
+    return { url, sha256: data.sha256 || hash, size: data.size || blob.size, type: data.type || blob.type };
+   } catch (e) {
+    lastErr = e;
+   }
+  }
+  throw lastErr || new Error('Falha no upload Blossom');
+ }
+
+ function initDrawCanvas() {
+  const canvas = document.getElementById('drawCanvas');
+  if (!canvas) return;
+  drawCtx = canvas.getContext('2d');
+  drawCtx.fillStyle = '#ffffff';
+  drawCtx.fillRect(0, 0, canvas.width, canvas.height);
+  drawCtx.lineCap = 'round';
+  drawCtx.lineJoin = 'round';
+
+  const pos = (e) => {
+   const r = canvas.getBoundingClientRect();
+   const scaleX = canvas.width / r.width;
+   const scaleY = canvas.height / r.height;
+   const src = e.touches ? e.touches[0] : e;
+   return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
+  };
+
+  const start = (e) => {
+   e.preventDefault();
+   drawing = true;
+   const p = pos(e);
+   lastX = p.x; lastY = p.y;
+  };
+  const move = (e) => {
+   if (!drawing) return;
+   e.preventDefault();
+   const p = pos(e);
+   drawCtx.strokeStyle = document.getElementById('drawColor').value;
+   drawCtx.lineWidth = Number(document.getElementById('drawSize').value) || 4;
+   drawCtx.beginPath();
+   drawCtx.moveTo(lastX, lastY);
+   drawCtx.lineTo(p.x, p.y);
+   drawCtx.stroke();
+   lastX = p.x; lastY = p.y;
+  };
+  const end = () => { drawing = false; };
+
+  canvas.onmousedown = start;
+  canvas.onmousemove = move;
+  canvas.onmouseup = end;
+  canvas.onmouseleave = end;
+  canvas.ontouchstart = start;
+  canvas.ontouchmove = move;
+  canvas.ontouchend = end;
+ }
+
+ window.clearDrawCanvas = function() {
+  const canvas = document.getElementById('drawCanvas');
+  if (!canvas || !drawCtx) return;
+  drawCtx.fillStyle = '#ffffff';
+  drawCtx.fillRect(0, 0, canvas.width, canvas.height);
+ };
+
+ window.openDrawModal = function() {
+  document.getElementById('drawModal').classList.add('open');
+  document.getElementById('drawStatus').classList.add('hidden');
+  document.getElementById('drawCaption').value = '';
+  initDrawCanvas();
+  clearDrawCanvas();
+ };
+
+ window.closeDrawModal = function() {
+  document.getElementById('drawModal').classList.remove('open');
+ };
+
+ window.publishDrawing = async function() {
+  const btn = document.getElementById('publishDrawBtn');
+  const statusEl = document.getElementById('drawStatus');
+  const canvas = document.getElementById('drawCanvas');
+  if (!canvas) return;
+
+  btn.disabled = true;
+  statusEl.classList.remove('hidden');
+  statusEl.textContent = 'Enviando arquivo (Blossom)...';
+
+  try {
+   const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+   if (!blob) throw new Error('Não foi possível gerar a imagem.');
+
+   const uploaded = await uploadToBlossom(blob);
+   statusEl.textContent = 'Publicando nota nos relays...';
+
+   const caption = (document.getElementById('drawCaption')?.value || '').trim();
+   const content = (caption ? caption + '\n\n' : '') + uploaded.url + '\n\n#desenho #drawing #loreplay-desenho';
+
+   const unsigned = {
+    kind: 1,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [
+     ['t', 'desenho'],
+     ['t', 'drawing'],
+     ['t', 'loreplay-desenho'],
+     ['image', uploaded.url],
+     ['imeta', `url ${uploaded.url}`, `x ${uploaded.sha256}`, `m ${uploaded.type || 'image/png'}`, `size ${uploaded.size}`]
+    ],
+    content
+   };
+
+   const signed = await signEvent(unsigned);
+   await Promise.any(RELAYS.map(r => pool.publish([r], signed).catch(() => null)));
+
+   // Inserir no feed local imediatamente
+   const item = {
+    id: signed.id,
+    eventId: signed.id,
+    pubkey: signed.pubkey,
+    created_at: signed.created_at,
+    content: signed.content,
+    imageUrl: uploaded.url,
+    tags: eventHashtags(signed)
+   };
+   allImages.unshift(item);
+   await fetchProfiles([signed.pubkey]);
+
+   statusEl.textContent = 'Publicado!';
+   closeDrawModal();
+   setFeedMode('drawings');
+  } catch (e) {
+   console.error(e);
+   statusEl.textContent = e.message || 'Falha ao publicar.';
+  } finally {
+   btn.disabled = false;
+  }
+ };
+ /* ===== Fim desenho ===== */
 
  loadSessionAvatar();
  bootPartnerCampaigns().then(() => loadInitial());
