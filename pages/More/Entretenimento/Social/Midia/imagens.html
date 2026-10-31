@@ -382,7 +382,6 @@
  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.3);
  }
 
- /* Modal desenho: sheet inferior, largura total, cantos só em cima no mobile */
  #drawModal {
  position: fixed;
  inset: 0;
@@ -584,7 +583,6 @@
  </div>
  </div>
 
- <!-- Modal desenho: full width, bottom sheet -->
  <div id="drawModal" role="dialog" aria-modal="true" aria-label="Desenhar" onclick="if(event.target===this)closeDrawModal()">
   <div id="drawModalPanel">
    <div class="flex flex-col items-center pt-2.5 pb-1 md:hidden">
@@ -643,7 +641,6 @@
   'https://nostr.download'
  ];
 
- /** Tag exclusiva dos desenhos desta feature (LoreImages) */
  const DRAWING_FEATURE_TAG = 'loreplay-desenho';
 
  const IMAGE_EXT = /\.(png|jpe?g|gif|webp|avif|bmp)(\?[^\s]*)?$/i;
@@ -744,12 +741,10 @@
   return tags;
  }
 
- /** Só desenhos postados nesta feature (tag loreplay-desenho) */
  function isDrawingItem(v) {
   return !!(v?.tags && v.tags.has(DRAWING_FEATURE_TAG));
  }
 
- /* ===== Sessão / login (padrão LoreSocial Edu) ===== */
  function getSession() {
   try { return JSON.parse(localStorage.getItem('nostr_session') || '{}'); }
   catch { return {}; }
@@ -850,7 +845,6 @@
   throw new Error('Blossom falhou: ' + errors.join(' | '));
  }
 
- /** Upload de arquivo de imagem para o storage da rede (mesmo fluxo do Edu) */
  window.uploadFileToHost = async function (file) {
   const buf = await file.arrayBuffer();
   const pk = window.currentUserData.privateKey;
@@ -913,6 +907,13 @@
   throw new Error('Faça login no Social para publicar o desenho.');
  }
 
+ /** Publica evento nos relays (compatível com nostr-tools 2.x) */
+ async function publishToRelays(signedEvent) {
+  const pubs = pool.publish(RELAYS, signedEvent);
+  const list = Array.isArray(pubs) ? pubs : [pubs];
+  await Promise.any(list.map((p) => Promise.resolve(p).catch(() => null)));
+ }
+
  async function fetchProfiles(pubkeys) {
   const missing = pubkeys.filter(pk => pk && !profileCache.has(pk));
   if (!missing.length) return;
@@ -967,7 +968,6 @@
    { kinds: [1], '#t': ['art'], limit: 40, ...(until ? { until } : {}) },
    { kinds: [1], '#t': ['photography'], limit: 30, ...(until ? { until } : {}) },
    { kinds: [1], '#t': ['image'], limit: 30, ...(until ? { until } : {}) },
-   // só desenhos desta feature
    { kinds: [1], '#t': [DRAWING_FEATURE_TAG], limit: 80, ...(until ? { until } : {}) }
   ];
   const results = await Promise.allSettled(
@@ -1228,7 +1228,6 @@
  function applyFilter(tag) {
   activeFilter = (tag || '').toLowerCase();
   let base = allImages.slice();
-  // Modo desenhos: só posts com tag loreplay-desenho
   if (feedMode === 'drawings') {
    base = base.filter(isDrawingItem);
   } else {
@@ -1436,7 +1435,6 @@
   window.scrollTo({ top: 0, behavior: 'smooth' });
  });
 
- /* ===== Canvas de desenho ===== */
  function initDrawCanvas() {
   const canvas = document.getElementById('drawCanvas');
   if (!canvas) return;
@@ -1502,7 +1500,6 @@
   document.body.classList.remove('modal-open');
  };
 
- /** Publica desenho como arquivo de imagem no storage da rede + nota com tag loreplay-desenho */
  window.publishDrawing = async function() {
   const btn = document.getElementById('publishDrawBtn');
   const statusEl = document.getElementById('drawStatus');
@@ -1553,7 +1550,7 @@
    };
 
    const signed = await signEvent(unsigned);
-   await Promise.any(RELAYS.map(r => pool.publish([r], signed).catch(() => null)));
+   await publishToRelays(signed);
 
    const item = {
     id: signed.id,
@@ -1583,4 +1580,4 @@
  bootPartnerCampaigns().then(() => loadInitial());
  </script>
 </body>
-</html>
+ </html>
