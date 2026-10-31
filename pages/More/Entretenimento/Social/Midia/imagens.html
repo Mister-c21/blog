@@ -382,7 +382,7 @@
  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.3);
  }
 
- /* Modal desenho: sheet inferior, largura total */
+ /* Modal desenho: sheet inferior, largura total, cantos só em cima no mobile */
  #drawModal {
  position: fixed;
  inset: 0;
@@ -411,20 +411,10 @@
  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.12);
  transform: translateY(100%);
  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
- /* mobile: só cantos superiores arredondados */
  border-radius: 1.5rem 1.5rem 0 0;
  }
  #drawModal.open #drawModalPanel {
  transform: translateY(0);
- }
- @media (min-width: 768px) {
- #drawModal {
- align-items: flex-end;
- }
- #drawModalPanel {
- max-width: 100%;
- border-radius: 1.25rem 1.25rem 0 0;
- }
  }
  #drawCanvas {
  touch-action: none;
@@ -594,7 +584,7 @@
  </div>
  </div>
 
- <!-- Modal de desenho: full width, bottom sheet -->
+ <!-- Modal desenho: full width, bottom sheet -->
  <div id="drawModal" role="dialog" aria-modal="true" aria-label="Desenhar" onclick="if(event.target===this)closeDrawModal()">
   <div id="drawModalPanel">
    <div class="flex flex-col items-center pt-2.5 pb-1 md:hidden">
@@ -653,7 +643,9 @@
   'https://nostr.download'
  ];
 
- const DRAWING_TAGS = new Set(['desenho', 'drawing', 'loreplay-desenho']);
+ /** Tag exclusiva dos desenhos desta feature (LoreImages) */
+ const DRAWING_FEATURE_TAG = 'loreplay-desenho';
+
  const IMAGE_EXT = /\.(png|jpe?g|gif|webp|avif|bmp)(\?[^\s]*)?$/i;
  const pool = new NostrTools.SimplePool();
  const profileCache = new Map();
@@ -752,15 +744,12 @@
   return tags;
  }
 
+ /** Só desenhos postados nesta feature (tag loreplay-desenho) */
  function isDrawingItem(v) {
-  if (!v?.tags) return false;
-  for (const t of DRAWING_TAGS) {
-   if (v.tags.has(t)) return true;
-  }
-  return false;
+  return !!(v?.tags && v.tags.has(DRAWING_FEATURE_TAG));
  }
 
- /* ===== Sessão / login (mesmo padrão do LoreSocial Edu) ===== */
+ /* ===== Sessão / login (padrão LoreSocial Edu) ===== */
  function getSession() {
   try { return JSON.parse(localStorage.getItem('nostr_session') || '{}'); }
   catch { return {}; }
@@ -861,7 +850,7 @@
   throw new Error('Blossom falhou: ' + errors.join(' | '));
  }
 
- /** Mesmo fluxo de upload do LoreSocial Edu */
+ /** Upload de arquivo de imagem para o storage da rede (mesmo fluxo do Edu) */
  window.uploadFileToHost = async function (file) {
   const buf = await file.arrayBuffer();
   const pk = window.currentUserData.privateKey;
@@ -923,7 +912,6 @@
   if (window.nostr?.signEvent) return await window.nostr.signEvent(unsigned);
   throw new Error('Faça login no Social para publicar o desenho.');
  }
- /* ===== Fim sessão / upload ===== */
 
  async function fetchProfiles(pubkeys) {
   const missing = pubkeys.filter(pk => pk && !profileCache.has(pk));
@@ -979,9 +967,8 @@
    { kinds: [1], '#t': ['art'], limit: 40, ...(until ? { until } : {}) },
    { kinds: [1], '#t': ['photography'], limit: 30, ...(until ? { until } : {}) },
    { kinds: [1], '#t': ['image'], limit: 30, ...(until ? { until } : {}) },
-   { kinds: [1], '#t': ['desenho'], limit: 40, ...(until ? { until } : {}) },
-   { kinds: [1], '#t': ['drawing'], limit: 40, ...(until ? { until } : {}) },
-   { kinds: [1], '#t': ['loreplay-desenho'], limit: 40, ...(until ? { until } : {}) }
+   // só desenhos desta feature
+   { kinds: [1], '#t': [DRAWING_FEATURE_TAG], limit: 80, ...(until ? { until } : {}) }
   ];
   const results = await Promise.allSettled(
    filters.map(f => pool.querySync(RELAYS, f))
@@ -1241,6 +1228,7 @@
  function applyFilter(tag) {
   activeFilter = (tag || '').toLowerCase();
   let base = allImages.slice();
+  // Modo desenhos: só posts com tag loreplay-desenho
   if (feedMode === 'drawings') {
    base = base.filter(isDrawingItem);
   } else {
@@ -1301,7 +1289,7 @@
   const grid = document.getElementById('imageMasonry');
   if (!filteredImages.length) {
    const emptyMsg = feedMode === 'drawings'
-    ? 'Nenhum desenho neste filtro. Publique o seu!'
+    ? 'Nenhum desenho nesta sessão ainda. Publique o seu!'
     : 'Nenhuma imagem neste filtro.';
    grid.innerHTML = `
  <div style="column-span: all;" class="text-center py-16 text-gray-400">
@@ -1448,7 +1436,7 @@
   window.scrollTo({ top: 0, behavior: 'smooth' });
  });
 
- /* ===== Canvas + publicar ===== */
+ /* ===== Canvas de desenho ===== */
  function initDrawCanvas() {
   const canvas = document.getElementById('drawCanvas');
   if (!canvas) return;
@@ -1514,6 +1502,7 @@
   document.body.classList.remove('modal-open');
  };
 
+ /** Publica desenho como arquivo de imagem no storage da rede + nota com tag loreplay-desenho */
  window.publishDrawing = async function() {
   const btn = document.getElementById('publishDrawBtn');
   const statusEl = document.getElementById('drawStatus');
@@ -1530,29 +1519,35 @@
 
   btn.disabled = true;
   statusEl.classList.remove('hidden');
-  statusEl.textContent = 'Enviando arquivo...';
+  statusEl.textContent = 'Enviando arquivo de imagem...';
 
   try {
-   const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-   if (!blob) throw new Error('Não foi possível gerar a imagem.');
-   const file = new File([blob], 'desenho-loreplay.png', { type: 'image/png' });
+   const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Falha ao gerar PNG'))), 'image/png', 1);
+   });
+   const file = new File([blob], 'desenho-loreplay-' + Date.now() + '.png', {
+    type: 'image/png',
+    lastModified: Date.now()
+   });
 
    const imageUrl = await window.uploadFileToHost(file);
    statusEl.textContent = 'Publicando nota nos relays...';
 
    const caption = (document.getElementById('drawCaption')?.value || '').trim();
-   const author = window.currentUserData.nickname || 'Usuario';
-   const content = (caption ? caption + '\n\n' : '') + imageUrl + '\n\n#desenho #drawing #loreplay-desenho';
+   const content =
+    (caption ? caption + '\n\n' : '') +
+    imageUrl +
+    '\n\n#desenho #drawing #loreplay-desenho';
 
    const unsigned = {
     kind: 1,
     created_at: Math.floor(Date.now() / 1000),
     tags: [
+     ['t', DRAWING_FEATURE_TAG],
      ['t', 'desenho'],
      ['t', 'drawing'],
-     ['t', 'loreplay-desenho'],
      ['image', imageUrl],
-     ['imeta', `url ${imageUrl}`, 'm image/png']
+     ['imeta', `url ${imageUrl}`, 'm image/png', `size ${file.size}`]
     ],
     content
    };
@@ -1588,4 +1583,4 @@
  bootPartnerCampaigns().then(() => loadInitial());
  </script>
 </body>
- </html>
+</html>
