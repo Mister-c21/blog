@@ -399,6 +399,8 @@ let isEditMode=false,editingBasePayload=null,catalogLoading=true;
 let slides=[...SRC_FALLBACK_SLIDES],currentSlide=0,slideInterval=null;
 window.__lpMediaIndex=window.__lpMediaIndex||Object.create(null);
 let epubBook=null,epubRendition=null,epubCurrentUrl=null;
+let catalogPage=1;
+const ITEMS_PER_PAGE=28;
 
 const providerData={
     kindle:{name:'Kindle',url:'https://www.amazon.com.br/kindle-dbs/hz/bookshelf',books:[],mangas:[],lightnovels:[]},
@@ -870,26 +872,121 @@ function renderCatalog(){
     if(ct)ct.textContent=`Recomendados · ${data.name}`;
     if(lk)lk.href=data.url;
     if(!g)return;
-    if(!items.length){g.innerHTML='<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título publicado neste catálogo.</div>';return}
-    g.innerHTML=items.map(item=>{
+
+    const oldPag=document.getElementById('catalogPagination');
+    if(oldPag)oldPag.remove();
+
+    if(!items.length){
+        g.innerHTML='<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título publicado neste catálogo.</div>';
+        return;
+    }
+
+    const totalPages=Math.max(1,Math.ceil(items.length/ITEMS_PER_PAGE));
+    if(catalogPage>totalPages)catalogPage=totalPages;
+    if(catalogPage<1)catalogPage=1;
+
+    const start=(catalogPage-1)*ITEMS_PER_PAGE;
+    const pageItems=items.slice(start,start+ITEMS_PER_PAGE);
+
+    g.innerHTML=pageItems.map(item=>{
         const j=JSON.stringify(item).replace(/'/g,'&#39;');
         return`<div class="content-card" onclick='openDetailModal(${JSON.stringify(item.name)},${JSON.stringify(item.img)},${JSON.stringify(item.status||"")},${j})'><div class="content-thumb shadow-sm"><img src="${item.img}" alt="" loading="lazy">${item.badge?`<span class="absolute bottom-2 left-2 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">${item.badge}</span>`:''}</div><p class="text-xs font-semibold mt-2 truncate">${item.name}</p><p class="text-[11px] text-gray-400">${item.status||''}</p></div>`;
     }).join('');
+
+    if(totalPages>1){
+        const pag=document.createElement('div');
+        pag.id='catalogPagination';
+        pag.className='flex flex-wrap items-center justify-center gap-1 mt-6 pt-4 border-t border-gray-200 select-none';
+
+        const prevBtn=document.createElement('button');
+        prevBtn.type='button';
+        prevBtn.className=`px-3 py-2 text-sm rounded-lg ${catalogPage<=1?'text-gray-300 cursor-default':'text-secondary hover:bg-violet-50 font-medium'}`;
+        prevBtn.innerHTML='<i class="fa-solid fa-chevron-left text-xs mr-1"></i>Anterior';
+        prevBtn.disabled=catalogPage<=1;
+        if(catalogPage>1)prevBtn.onclick=()=>{catalogPage--;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})};
+        pag.appendChild(prevBtn);
+
+        const windowSize=2;
+        let startPage=Math.max(1,catalogPage-windowSize);
+        let endPage=Math.min(totalPages,catalogPage+windowSize);
+        if(catalogPage<=windowSize+1)endPage=Math.min(totalPages,windowSize*2+1);
+        if(catalogPage>=totalPages-windowSize)startPage=Math.max(1,totalPages-windowSize*2);
+
+        if(startPage>1){
+            const b=document.createElement('button');
+            b.type='button';
+            b.className='w-9 h-9 text-sm rounded-lg text-gray-700 hover:bg-gray-100 font-medium';
+            b.textContent='1';
+            b.onclick=()=>{catalogPage=1;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})};
+            pag.appendChild(b);
+            if(startPage>2){
+                const dots=document.createElement('span');
+                dots.className='px-1 text-gray-400 text-sm';
+                dots.textContent='…';
+                pag.appendChild(dots);
+            }
+        }
+
+        for(let p=startPage;p<=endPage;p++){
+            const b=document.createElement('button');
+            b.type='button';
+            const isActive=p===catalogPage;
+            b.className=isActive
+                ?'w-9 h-9 text-sm rounded-lg bg-secondary text-white font-bold shadow-sm'
+                :'w-9 h-9 text-sm rounded-lg text-gray-700 hover:bg-gray-100 font-medium';
+            b.textContent=String(p);
+            if(!isActive){
+                b.onclick=(function(page){return function(){catalogPage=page;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})}})(p);
+            }
+            pag.appendChild(b);
+        }
+
+        if(endPage<totalPages){
+            if(endPage<totalPages-1){
+                const dots=document.createElement('span');
+                dots.className='px-1 text-gray-400 text-sm';
+                dots.textContent='…';
+                pag.appendChild(dots);
+            }
+            const b=document.createElement('button');
+            b.type='button';
+            b.className='w-9 h-9 text-sm rounded-lg text-gray-700 hover:bg-gray-100 font-medium';
+            b.textContent=String(totalPages);
+            b.onclick=()=>{catalogPage=totalPages;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})};
+            pag.appendChild(b);
+        }
+
+        const nextBtn=document.createElement('button');
+        nextBtn.type='button';
+        nextBtn.className=`px-3 py-2 text-sm rounded-lg ${catalogPage>=totalPages?'text-gray-300 cursor-default':'text-secondary hover:bg-violet-50 font-medium'}`;
+        nextBtn.innerHTML='Próxima<i class="fa-solid fa-chevron-right text-xs ml-1"></i>';
+        nextBtn.disabled=catalogPage>=totalPages;
+        if(catalogPage<totalPages)nextBtn.onclick=()=>{catalogPage++;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})};
+        pag.appendChild(nextBtn);
+
+        const info=document.createElement('div');
+        info.className='w-full text-center text-[11px] text-gray-400 mt-2';
+        info.textContent=`Página ${catalogPage} de ${totalPages} · ${items.length} título(s)`;
+        pag.appendChild(info);
+
+        g.parentNode.insertBefore(pag,g.nextSibling);
+    }
 }
-function handleSearchInput(v){searchQuery=v;document.getElementById('clearSearchBtn')?.classList.toggle('hidden',!v.trim());renderCatalog()}
-function clearSearch(){document.getElementById('searchInput').value='';searchQuery='';document.getElementById('clearSearchBtn')?.classList.add('hidden');renderCatalog()}
+function handleSearchInput(v){searchQuery=v;catalogPage=1;document.getElementById('clearSearchBtn')?.classList.toggle('hidden',!v.trim());renderCatalog()}
+function clearSearch(){document.getElementById('searchInput').value='';searchQuery='';catalogPage=1;document.getElementById('clearSearchBtn')?.classList.add('hidden');renderCatalog()}
 function setMediaType(t){
     currentMediaType=t;
+    catalogPage=1;
     ['books','mangas','lightnovels'].forEach(k=>{
         const btn=document.getElementById('btn'+({books:'Books',mangas:'Mangas',lightnovels:'LightNovels'}[k]));
         if(btn)btn.className=t===k?'px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white':'px-3 py-1 text-xs font-bold rounded-lg text-gray-600';
     });
     updateSearchEnginesHint();renderCatalog();
 }
-function selectProvider(el,k){document.querySelectorAll('#providerList .provider-card').forEach(c=>c.classList.remove('active'));el.classList.add('active');currentProvider=k;updateSearchEnginesHint();renderCatalog()}
+function selectProvider(el,k){document.querySelectorAll('#providerList .provider-card').forEach(c=>c.classList.remove('active'));el.classList.add('active');currentProvider=k;catalogPage=1;updateSearchEnginesHint();renderCatalog()}
 function setNetworkStatus(html){const el=document.getElementById('networkStatus');if(el)el.innerHTML=html}
 function applyUserMeta(meta){if(!meta)return;if(Array.isArray(meta.saved))savedTitles=meta.saved;if(Array.isArray(meta.history))historyTitles=meta.history;renderSavedModalList();renderHistoryModalList()}
-function onCatalogLoaded(){catalogLoading=false;renderCatalog();rebuildBannerFromCatalog()}
+function onCatalogLoaded(){catalogLoading=false;catalogPage=1;renderCatalog();rebuildBannerFromCatalog()}
 
 loadSessionFromNostr();loadSessionAvatar();updatePostButtonVisibility();renderPostVolumesInputs(1);renderSkeletonGrid();rebuildBannerFromCatalog();updateSearchEnginesHint();
 window.providerData=providerData;window.renderCatalog=renderCatalog;window.setNetworkStatus=setNetworkStatus;window.applyUserMeta=applyUserMeta;window.onCatalogLoaded=onCatalogLoaded;window.storeFullEntry=storeFullEntry;window.lightCatalogEntry=lightCatalogEntry;
