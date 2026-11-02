@@ -457,14 +457,32 @@ body{background:var(--light-violet);display:flex;justify-content:center;align-it
 </div>
 </div>
 <div id="addContactPanelMyQr" style="display:none">
-<p class="qr-status" style="margin-bottom:8px">Mostre este QR. Adição mútua.</p>
-<div class="qr-my-wrap">
-<canvas id="contactMyQrCanvas" width="200" height="200"></canvas>
-<img id="contactMyQrImg" alt="Meu QR" style="display:none;width:200px;height:200px">
-<p id="contactMyQrStatus" class="qr-status">Gerando QR...</p>
-<button type="button" class="primary-btn" style="width:auto;padding:10px 16px" onclick="generateMyContactQr()"><i class="fa-solid fa-rotate"></i> Atualizar QR</button>
-</div>
-<p id="contactMyQrNpub" style="font-size:11px;color:var(--text-muted);text-align:center;word-break:break-all"></p>
+  <p class="qr-status" style="margin-bottom:8px">Mostre este QR. Adição mútua.</p>
+  <div class="qr-my-wrap">
+    <canvas id="contactMyQrCanvas" width="200" height="200"></canvas>
+    <img id="contactMyQrImg" alt="Meu QR" style="display:none;width:200px;height:200px">
+    <p id="contactMyQrStatus" class="qr-status">Gerando QR...</p>
+
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:100%;margin-top:4px">
+      <button type="button" class="primary-btn" style="width:auto;padding:10px 14px" onclick="generateMyContactQr()">
+        <i class="fa-solid fa-rotate"></i> Atualizar QR
+      </button>
+
+      <button type="button" class="primary-btn" style="width:auto;padding:10px 14px;background:var(--gray-bg);color:var(--text-main)" onclick="document.getElementById('qrBgFileInput').click()">
+        <i class="fa-solid fa-image"></i> Fundo
+      </button>
+      <input type="file" id="qrBgFileInput" accept="image/*" style="display:none" onchange="handleQrBgImageSelect(event)">
+
+      <button type="button" class="primary-btn" style="width:auto;padding:10px 14px;background:var(--gray-bg);color:var(--text-main)" onclick="downloadMyQr()">
+        <i class="fa-solid fa-download"></i> Baixar
+      </button>
+
+      <button type="button" class="primary-btn" id="shareMyQrBtn" style="width:auto;padding:10px 14px;background:var(--gray-bg);color:var(--text-main);display:none" onclick="shareMyQr()">
+        <i class="fa-solid fa-share-nodes"></i> Compartilhar
+      </button>
+    </div>
+  </div>
+  <p id="contactMyQrNpub" style="font-size:11px;color:var(--text-muted);text-align:center;word-break:break-all"></p>
 </div>
 </div>
 </div>
@@ -693,7 +711,214 @@ document.getElementById('addContactHeaderBtn').addEventListener('click',()=>{dro
 function openAddContactModal(){document.getElementById('addContactModal').classList.add('show');switchAddContactTab('scan')}
 function closeAddContactModal(){stopContactQrScanner();document.getElementById('addContactModal').classList.remove('show');const m=document.getElementById('contactQrManualInput');if(m)m.value=''}
 function switchAddContactTab(tab){stopContactQrScanner();document.getElementById('addTabScan').classList.toggle('active',tab==='scan');document.getElementById('addTabMyQr').classList.toggle('active',tab==='myqr');document.getElementById('addContactPanelScan').style.display=tab==='scan'?'block':'none';document.getElementById('addContactPanelMyQr').style.display=tab==='myqr'?'block':'none';if(tab==='scan')startContactQrScanner();if(tab==='myqr')generateMyContactQr()}
-async function generateMyContactQr(){const statusEl=document.getElementById('contactMyQrStatus'),canvas=document.getElementById('contactMyQrCanvas'),imgEl=document.getElementById('contactMyQrImg'),npubEl=document.getElementById('contactMyQrNpub');if(!currentUserPubkey){if(statusEl)statusEl.textContent='Sessão inválida.';return}let npub=currentUserNpub;try{if(!npub&&window.NostrTools)npub=NostrTools.nip19.npubEncode(currentUserPubkey)}catch{}if(!npub)npub=currentUserPubkey;const payload=CONTACT_QR_PREFIX+npub;if(npubEl)npubEl.textContent=npub;if(statusEl)statusEl.textContent='Gerando QR...';let ok=false;try{if(window.QRCode?.toCanvas){await QRCode.toCanvas(canvas,payload,{width:200,margin:2,color:{dark:'#6c5ce7',light:'#ffffff'}});canvas.style.display='block';if(imgEl)imgEl.style.display='none';ok=true}}catch{}if(!ok&&imgEl){imgEl.src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+encodeURIComponent(payload);imgEl.style.display='block';if(canvas)canvas.style.display='none';ok=true}if(statusEl)statusEl.textContent=ok?'Pronto':'Falha'}
+
+function qrBgStorageKey(){
+  return 'loresocial_qr_bg_' + String(currentUserPubkey||'anon').toLowerCase();
+}
+function getSavedQrBgUrl(){
+  try{ return localStorage.getItem(qrBgStorageKey()) || null; }catch{ return null; }
+}
+function saveQrBgUrl(url){
+  try{
+    if(url) localStorage.setItem(qrBgStorageKey(), url);
+    else localStorage.removeItem(qrBgStorageKey());
+  }catch{}
+}
+
+async function generateMyContactQr(){
+  const statusEl = document.getElementById('contactMyQrStatus');
+  const canvas = document.getElementById('contactMyQrCanvas');
+  const imgEl = document.getElementById('contactMyQrImg');
+  const npubEl = document.getElementById('contactMyQrNpub');
+  const shareBtn = document.getElementById('shareMyQrBtn');
+
+  if(!currentUserPubkey){
+    if(statusEl) statusEl.textContent = 'Sessão inválida.';
+    return;
+  }
+
+  let npub = currentUserNpub;
+  try{
+    if(!npub && window.NostrTools) npub = NostrTools.nip19.npubEncode(currentUserPubkey);
+  }catch{}
+  if(!npub) npub = currentUserPubkey;
+
+  const payload = CONTACT_QR_PREFIX + npub;
+  if(npubEl) npubEl.textContent = npub;
+  if(statusEl) statusEl.textContent = 'Gerando QR...';
+
+  if(shareBtn){
+    const canShare = !!(navigator.share && navigator.canShare);
+    shareBtn.style.display = canShare ? 'inline-flex' : 'none';
+  }
+
+  const bgUrl = getSavedQrBgUrl();
+  const size = 200;
+  const qrSize = bgUrl ? 160 : 200;
+
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = qrSize;
+  tempCanvas.height = qrSize;
+
+  let ok = false;
+  try{
+    if(window.QRCode?.toCanvas){
+      await QRCode.toCanvas(tempCanvas, payload, {
+        width: qrSize,
+        margin: 1,
+        color: { dark: '#6c5ce7', light: '#ffffff' }
+      });
+      ok = true;
+    }
+  }catch{}
+
+  if(!ok){
+    if(imgEl){
+      imgEl.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(payload);
+      imgEl.style.display = 'block';
+      if(canvas) canvas.style.display = 'none';
+    }
+    if(statusEl) statusEl.textContent = 'Pronto (fallback)';
+    return;
+  }
+
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  if(bgUrl){
+    await new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const scale = Math.max(size / img.width, size / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        const x = (size - w) / 2;
+        const y = (size - h) / 2;
+        ctx.drawImage(img, x, y, w, h);
+
+        const pad = (size - qrSize) / 2;
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        const r = 12;
+        roundRect(ctx, pad - 6, pad - 6, qrSize + 12, qrSize + 12, r);
+        ctx.fill();
+
+        ctx.drawImage(tempCanvas, pad, pad);
+        resolve();
+      };
+      img.onerror = () => {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(tempCanvas, (size - qrSize) / 2, (size - qrSize) / 2);
+        resolve();
+      };
+      img.src = bgUrl;
+    });
+  } else {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+    ctx.drawImage(tempCanvas, 0, 0);
+  }
+
+  canvas.style.display = 'block';
+  if(imgEl) imgEl.style.display = 'none';
+  if(statusEl) statusEl.textContent = bgUrl ? 'Pronto (com fundo)' : 'Pronto';
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+async function handleQrBgImageSelect(e){
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if(!file || !file.type.startsWith('image/')){
+    alert('Selecione uma imagem válida do dispositivo.');
+    return;
+  }
+
+  const statusEl = document.getElementById('contactMyQrStatus');
+  if(statusEl) statusEl.textContent = 'Enviando imagem de fundo...';
+
+  try{
+    const url = await uploadToNostrMedia(file);
+    if(!url) throw new Error('Upload falhou');
+
+    saveQrBgUrl(url);
+    await generateMyContactQr();
+  }catch(err){
+    console.error(err);
+    if(statusEl) statusEl.textContent = 'Erro ao enviar imagem';
+    alert('Não foi possível salvar a imagem de fundo na rede: ' + (err.message || 'erro'));
+  }
+}
+
+function downloadMyQr(){
+  const canvas = document.getElementById('contactMyQrCanvas');
+  if(!canvas || canvas.style.display === 'none'){
+    alert('Gere o QR primeiro.');
+    return;
+  }
+  try{
+    const dataUrl = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = 'meu-qr-loresocial.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }catch(e){
+    console.error(e);
+    alert('Não foi possível baixar a imagem.');
+  }
+}
+
+async function shareMyQr(){
+  const canvas = document.getElementById('contactMyQrCanvas');
+  if(!canvas || canvas.style.display === 'none'){
+    alert('Gere o QR primeiro.');
+    return;
+  }
+
+  if(!navigator.share){
+    alert('Seu navegador não suporta compartilhamento nativo.');
+    return;
+  }
+
+  try{
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if(!blob) throw new Error('Falha ao gerar imagem');
+
+    const file = new File([blob], 'meu-qr-loresocial.png', { type: 'image/png' });
+
+    if(navigator.canShare && !navigator.canShare({ files: [file] })){
+      const npub = document.getElementById('contactMyQrNpub')?.textContent || '';
+      await navigator.share({
+        title: 'Meu QR LoreSocial',
+        text: 'Adicione-me no LoreSocial: ' + npub
+      });
+      return;
+    }
+
+    await navigator.share({
+      title: 'Meu QR LoreSocial',
+      text: 'Escaneie para me adicionar no LoreSocial',
+      files: [file]
+    });
+  }catch(err){
+    if(err.name === 'AbortError') return;
+    console.error(err);
+    alert('Não foi possível compartilhar.');
+  }
+}
+
 async function startContactQrScanner(){const video=document.getElementById('contactQrScanVideo'),statusEl=document.getElementById('contactQrScanStatus');stopContactQrScanner();if(!navigator.mediaDevices?.getUserMedia){if(statusEl)statusEl.textContent='Câmera indisponível.';return}try{contactQrScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});video.srcObject=contactQrScanStream;await video.play();if(statusEl)statusEl.textContent='Aponte para o QR...';const canvas=document.getElementById('contactQrScanCanvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});const tick=()=>{if(!contactQrScanStream)return;if(video.readyState===video.HAVE_ENOUGH_DATA){canvas.width=video.videoWidth;canvas.height=video.videoHeight;ctx.drawImage(video,0,0);const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);if(typeof jsQR!=='undefined'){const code=jsQR(imageData.data,imageData.width,imageData.height,{inversionAttempts:'dontInvert'});if(code?.data){handleContactQrPayload(code.data);return}}}contactQrScanRaf=requestAnimationFrame(tick)};contactQrScanRaf=requestAnimationFrame(tick)}catch{if(statusEl)statusEl.textContent='Permissão negada.'}}
 function stopContactQrScanner(){if(contactQrScanRaf){cancelAnimationFrame(contactQrScanRaf);contactQrScanRaf=null}if(contactQrScanStream){contactQrScanStream.getTracks().forEach(t=>t.stop());contactQrScanStream=null}const video=document.getElementById('contactQrScanVideo');if(video)video.srcObject=null}
 function submitManualContactQr(){const val=(document.getElementById('contactQrManualInput')?.value||'').trim();if(!val){alert('Cole o código.');return}handleContactQrPayload(val)}
