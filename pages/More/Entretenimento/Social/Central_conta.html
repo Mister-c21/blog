@@ -276,6 +276,9 @@ body{background:#f7f5fa;color:#1a1a1a}
   </div>
 </div>
 
+<input type="file" id="quick-file-avatar" accept="image/*" style="display:none">
+<input type="file" id="quick-file-cover" accept="image/*" style="display:none">
+
 <div class="edit-modal-overlay" id="add-account-modal">
   <div class="edit-modal-container">
     <div class="edit-modal-header"><h3 class="edit-modal-title"><i class="fa-solid fa-user-plus"></i> Vincular outra conta</h3><button class="edit-modal-close" id="close-add-account-modal">&times;</button></div>
@@ -298,8 +301,20 @@ body{background:#f7f5fa;color:#1a1a1a}
       <div class="edit-form-group"><label>Descrição</label><textarea id="input-about"></textarea></div>
       <div class="edit-form-group"><label>Site</label><input type="url" id="input-website"></div>
       <div class="form-section-label">Imagens</div>
-      <div class="edit-form-group"><label>URL foto</label><input type="url" id="input-avatar"><img id="preview-avatar" class="img-preview avatar-preview" style="display:none" alt=""></div>
-      <div class="edit-form-group"><label>URL capa</label><input type="url" id="input-cover"><img id="preview-cover" class="img-preview" style="display:none" alt=""></div>
+      <div class="edit-form-group">
+        <label>Foto de perfil (arquivo do dispositivo)</label>
+        <input type="file" id="file-avatar" accept="image/*" class="text-xs">
+        <input type="hidden" id="input-avatar">
+        <p class="text-[11px] text-gray-500 mt-1" id="status-avatar"></p>
+        <img id="preview-avatar" class="img-preview avatar-preview" style="display:none" alt="">
+      </div>
+      <div class="edit-form-group">
+        <label>Capa (arquivo do dispositivo)</label>
+        <input type="file" id="file-cover" accept="image/*" class="text-xs">
+        <input type="hidden" id="input-cover">
+        <p class="text-[11px] text-gray-500 mt-1" id="status-cover"></p>
+        <img id="preview-cover" class="img-preview" style="display:none" alt="">
+      </div>
       <div class="form-section-label">LoreSpace ID</div>
       <div class="edit-form-group"><label>Número</label><input type="text" id="input-number"></div>
       <div class="edit-form-group"><label>E-mail</label><input type="email" id="input-email"></div>
@@ -388,13 +403,11 @@ document.querySelectorAll('.tiktok-tab').forEach(tab=>{
 });
 const editModal=document.getElementById('edit-modal');
 document.getElementById('open-edit-modal').onclick=()=>editModal.classList.add('active');
-document.getElementById('btn-edit-cover').onclick=()=>{editModal.classList.add('active');document.getElementById('input-cover')?.focus()};
-document.getElementById('btn-edit-avatar').onclick=()=>{editModal.classList.add('active');document.getElementById('input-avatar')?.focus()};
+document.getElementById('btn-edit-cover').onclick=()=>document.getElementById('quick-file-cover')?.click();
+document.getElementById('btn-edit-avatar').onclick=()=>document.getElementById('quick-file-avatar')?.click();
 const closeEdit=()=>editModal.classList.remove('active');
 document.getElementById('close-edit-modal').onclick=closeEdit;
 document.getElementById('cancel-edit-modal').onclick=closeEdit;
-function wirePreview(a,b){const i=document.getElementById(a),m=document.getElementById(b);if(!i||!m)return;i.oninput=()=>{const v=i.value.trim();if(v){m.src=v;m.style.display='block'}else m.style.display='none'}}
-wirePreview('input-avatar','preview-avatar');wirePreview('input-cover','preview-cover');
 document.getElementById('save-edit-modal').onclick=async()=>{
   const data={username:document.getElementById('input-username').value.trim().replace(/^@/,''),label:document.getElementById('input-label').value.trim(),category:document.getElementById('input-category').value,about:document.getElementById('input-about').value.trim(),website:document.getElementById('input-website').value.trim(),avatarUrl:document.getElementById('input-avatar').value.trim(),coverUrl:document.getElementById('input-cover').value.trim(),number:document.getElementById('input-number').value.trim(),email:document.getElementById('input-email').value.trim(),fullname:document.getElementById('input-fullname').value.trim(),age:document.getElementById('input-age').value.trim(),gender:document.getElementById('input-gender').value,nationality:document.getElementById('input-nationality').value.trim(),status:document.getElementById('input-status').value};
   if(await window.saveActiveBranchToNostr?.(data)) closeEdit();
@@ -426,6 +439,7 @@ const pool=new NostrTools.SimplePool();
 const profileCache=new Map();
 const PRIVACY_KEY='nostr_privacy_prefs',BRANCHES_KEY='nostr_identity_tree',ACTIVE_BRANCH_KEY='nostr_active_branch_id',LOCAL_FEED_KEY='nostr_branch_feed_cache';
 const CENTRAL_ACCOUNTS_KEY='nostr_central_accounts',VAULT_ORIGIN_KEY='nostr_vault_origin';
+const BLOSSOM_SERVERS=['https://blossom.primal.net','https://cdn.satellite.earth','https://blossom.nostr.build'];
 let currentUserData={pubkey:'',privateKey:null,nickname:'@anonimo',avatarUrl:''};
 let feedSafeMode=localStorage.getItem('safeMode')!=='false';
 const postLikesCache=new Map(),userLikesMap=new Map(),postCommentsCache=new Map();
@@ -519,6 +533,132 @@ function getActiveAccountCredentials(){
   return{email:String(s.loginEmail||'').trim().toLowerCase(),password:String(s.loginPassword||'').trim(),pubkey:normalizePubkey(s.pubkey||currentUserData.pubkey||'')};
 }
 
+/* ===== Upload de imagens (dispositivo → Blossom / nostr.build) ===== */
+function toBase64UrlJson(obj){
+  const json=JSON.stringify(obj);
+  const b64=btoa(unescape(encodeURIComponent(json)));
+  return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function sha256HexOfFile(file){
+  const buf=await file.arrayBuffer();
+  const hash=await crypto.subtle.digest('SHA-256',buf);
+  return bytesToHex(new Uint8Array(hash));
+}
+async function uploadViaBlossom(file,privateKey){
+  if(!privateKey)throw new Error('Sem chave para autenticar no Blossom');
+  const sha=await sha256HexOfFile(file);
+  const expiration=Math.floor(Date.now()/1000)+3600;
+  const signed=NostrTools.finalizeEvent({
+    kind:24242,
+    created_at:Math.floor(Date.now()/1000),
+    tags:[['t','upload'],['x',sha],['expiration',String(expiration)]],
+    content:'Upload Blob'
+  },privateKey);
+  const auth=`Nostr ${toBase64UrlJson(signed)}`;
+  const errors=[];
+  for(const server of BLOSSOM_SERVERS){
+    try{
+      const base=server.replace(/\/$/,'');
+      const res=await fetch(`${base}/upload`,{
+        method:'PUT',
+        headers:{
+          'Content-Type':file.type||'application/octet-stream',
+          'Authorization':auth
+        },
+        body:file
+      });
+      if(!res.ok){
+        const t=await res.text().catch(()=>'');
+        throw new Error(`${res.status} ${t.slice(0,120)}`);
+      }
+      let url='';
+      try{
+        const j=await res.json();
+        url=j.url||(Array.isArray(j.nip94)?j.nip94.find(t=>t[0]==='url')?.[1]:'')||'';
+      }catch{}
+      if(!url)url=`${base}/${sha}`;
+      return url;
+    }catch(e){errors.push(`${server}: ${e.message||e}`)}
+  }
+  throw new Error(errors.join(' | ')||'Blossom falhou');
+}
+async function uploadViaNostrBuild(file){
+  const fd=new FormData();
+  fd.append('file[]',file,file.name||'image.jpg');
+  const res=await fetch('https://nostr.build/api/v2/upload/files',{method:'POST',body:fd});
+  if(!res.ok)throw new Error('nostr.build HTTP '+res.status);
+  const j=await res.json();
+  const item=Array.isArray(j.data)?j.data[0]:j.data;
+  const url=item?.url;
+  if(!url)throw new Error('nostr.build sem URL');
+  return url;
+}
+async function uploadDeviceImage(file,{statusEl}={}){
+  if(!file||!String(file.type||'').startsWith('image/'))throw new Error('Selecione uma imagem');
+  if(file.size>15*1024*1024)throw new Error('Imagem muito grande (máx. ~15MB)');
+  const setStatus=(t)=>{if(statusEl)statusEl.textContent=t};
+  setStatus('Enviando via Blossom…');
+  try{
+    if(currentUserData.privateKey){
+      const url=await uploadViaBlossom(file,currentUserData.privateKey);
+      setStatus('Enviado (Blossom).');
+      return url;
+    }
+  }catch(e){console.warn('[upload blossom]',e);setStatus('Blossom falhou; tentando nostr.build…')}
+  setStatus('Enviando via nostr.build…');
+  const url=await uploadViaNostrBuild(file);
+  setStatus('Enviado (nostr.build).');
+  return url;
+}
+function setImagePreview(previewId,url){
+  const m=document.getElementById(previewId);
+  if(!m)return;
+  if(url){m.src=url;m.style.display='block'}else{m.removeAttribute('src');m.style.display='none'}
+}
+async function handleImageFileChosen(file,kind){
+  const inputId=kind==='avatar'?'input-avatar':'input-cover';
+  const statusId=kind==='avatar'?'status-avatar':'status-cover';
+  const previewId=kind==='avatar'?'preview-avatar':'preview-cover';
+  const statusEl=document.getElementById(statusId);
+  try{
+    const localUrl=URL.createObjectURL(file);
+    setImagePreview(previewId,localUrl);
+    const url=await uploadDeviceImage(file,{statusEl});
+    const inp=document.getElementById(inputId);
+    if(inp)inp.value=url;
+    setImagePreview(previewId,url);
+    if(currentUserData.pubkey){
+      const patch=kind==='avatar'?{avatarUrl:url}:{coverUrl:url};
+      updateActiveBranch(currentUserData.pubkey,patch);
+      applyActiveBranchToUI();
+      renderBranchSwitcher();
+      if(currentUserData.privateKey)publishIdentityTreeToNostr().catch(()=>{});
+    }
+  }catch(e){
+    console.error(e);
+    if(statusEl)statusEl.textContent='Falha no envio: '+(e.message||e);
+    alert('Falha ao enviar imagem: '+(e.message||e));
+  }
+}
+function wireFileImageInputs(){
+  document.getElementById('file-avatar')?.addEventListener('change',e=>{
+    const f=e.target.files?.[0];if(f)handleImageFileChosen(f,'avatar');
+    e.target.value='';
+  });
+  document.getElementById('file-cover')?.addEventListener('change',e=>{
+    const f=e.target.files?.[0];if(f)handleImageFileChosen(f,'cover');
+    e.target.value='';
+  });
+  document.getElementById('quick-file-avatar')?.addEventListener('change',e=>{
+    const f=e.target.files?.[0];if(f)handleImageFileChosen(f,'avatar');
+    e.target.value='';
+  });
+  document.getElementById('quick-file-cover')?.addEventListener('change',e=>{
+    const f=e.target.files?.[0];if(f)handleImageFileChosen(f,'cover');
+    e.target.value='';
+  });
+}
+
 /* ===== COFRE: nunca perde contas com chave ===== */
 function getCentralAccounts(){
   try{
@@ -538,7 +678,6 @@ function saveCentralAccounts(list){
   localStorage.setItem(CENTRAL_ACCOUNTS_KEY,JSON.stringify(cleaned));
   return cleaned;
 }
-/** Mescla listas: preserva privateKeyHex local se a rede não trouxer */
 function mergeCentralAccountsPreferKeys(incomingList){
   const byPk=new Map();
   getCentralAccounts().forEach(a=>{
@@ -600,7 +739,6 @@ function renderCentralAccountsRow(){
   updateAccountsCountBadge();
   const activePk=normalizePubkey(currentUserData.pubkey);
   const originPk=normalizePubkey(getVaultOrigin()?.pubkey||list[0]?.pubkey||'');
-  // todas as contas; ativa por último (destaque)
   const others=list.filter(a=>normalizePubkey(a.pubkey)!==activePk);
   const active=list.find(a=>normalizePubkey(a.pubkey)===activePk);
   const ordered=active?[...others,active]:list;
@@ -623,7 +761,6 @@ function renderCentralAccountsRow(){
       window.switchCentralAccount?.(pk);
     };
   });
-  console.log('[cofre] render',list.length,'contas',list.map(a=>a.nickname));
 }
 function setCentralHint(msg,show){
   const el=document.getElementById('central-accounts-hint');if(!el)return;
@@ -658,7 +795,6 @@ async function restoreAccountsFromVaultFlexible(encryptedVault,email,password){
     let list=Array.isArray(data)?data:(Array.isArray(data.accounts)?data.accounts:null);
     if(!list)return null;
     if(data.vault_origin_pubkey)setVaultOrigin({pubkey:data.vault_origin_pubkey,email:data.vault_origin_email||email||getVaultOrigin()?.email||''});
-    // CORREÇÃO: mescla sem apagar contas locais já adicionadas
     return mergeCentralAccountsPreferKeys(list);
   }catch{return null}
 }
@@ -685,13 +821,11 @@ async function buildAccountsVaultPayload(){
       linkedAt:a.linkedAt||Date.now()
     }))
   };
-  console.log('[cofre] payload',payload.accounts.length,'contas');
   return encryptWithOriginCredentials(JSON.stringify(payload),email,password);
 }
 
 async function pullConnectedAccountsFromNetwork(profileData){
   ensureCurrentInCentral();
-  const before=getCentralAccounts().length;
   const{email,password,pubkey:activePk}=getActiveAccountCredentials();
   let restored=0;
   const tried=new Set();
@@ -699,7 +833,7 @@ async function pullConnectedAccountsFromNetwork(profileData){
     if(!vaultStr||tried.has(vaultStr)||(!email&&!password))return;
     tried.add(vaultStr);
     const r=await restoreAccountsFromVaultFlexible(vaultStr,email,password);
-    if(r?.length){restored=Math.max(restored,r.length);console.log('[cofre] ok',source,r.length)}
+    if(r?.length){restored=Math.max(restored,r.length)}
   }
   if(profileData?.vault_origin_pubkey){
     setVaultOrigin({pubkey:profileData.vault_origin_pubkey,email:profileData.vault_origin_email||email||getVaultOrigin()?.email||''});
@@ -723,7 +857,6 @@ async function pullConnectedAccountsFromNetwork(profileData){
     }catch(e){console.warn(e)}
   }
   ensureCurrentInCentral();
-  // garante que lista local não encolheu sem necessidade
   const after=getCentralAccounts().length;
   renderCentralAccountsRow();
   if(!email&&!password){
@@ -733,7 +866,7 @@ async function pullConnectedAccountsFromNetwork(profileData){
   if(after>0){
     setCentralHint(`Cofre: ${after} conta(s) disponível(is)${restored?` (rede: ${restored})`:''}.`,true);
   }
-  return{restored:Math.max(restored,after),reason:'ok',before,after};
+  return{restored:Math.max(restored,after),reason:'ok'};
 }
 
 async function publishVaultToAllLinkedAccounts(accounts_vault,linked_pubkeys,originMeta){
@@ -944,6 +1077,8 @@ function applyActiveBranchToUI(){
   const setV=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v||''};
   setV('input-username',username);setV('input-label',branch?.label);setV('input-category',branch?.category);setV('input-about',branch?.about);
   setV('input-website',branch?.website);setV('input-avatar',branch?.avatarUrl);setV('input-cover',branch?.coverUrl);
+  setImagePreview('preview-avatar',branch?.avatarUrl||'');
+  setImagePreview('preview-cover',branch?.coverUrl||'');
   setV('input-number',branch?.number);setV('input-email',branch?.email||session.loginEmail||'');setV('input-fullname',branch?.fullname);
   setV('input-age',branch?.age);setV('input-nationality',branch?.nationality);
   document.getElementById('input-gender').value=branch?.gender||'';document.getElementById('input-status').value=branch?.status||'';
@@ -1124,7 +1259,6 @@ document.getElementById('confirm-add-account-modal').onclick=async()=>{
     pub=NostrTools.getPublicKey(sk);
     hex=typeof sk==='string'?sk:bytesToHex(sk);
   }catch(e){return alert('Chave inválida.')}
-  // se já está no cofre
   if(getCentralAccounts().some(a=>normalizePubkey(a.pubkey)===normalizePubkey(pub))){
     alert('Esta conta já está no cofre.');
     addAccM.classList.remove('active');
@@ -1140,9 +1274,7 @@ document.getElementById('confirm-add-account-modal').onclick=async()=>{
   if(label)nickname='@'+label.replace(/^@/,'');
   ensureVaultOriginFromCurrent();
   ensureCurrentInCentral();
-  // CORREÇÃO: grava de forma explícita e re-renderiza
   const list=upsertCentralAccount({pubkey:pub,privateKeyHex:hex,nickname,avatarUrl,label:label||''});
-  console.log('[cofre] após vincular',list.length,list.map(x=>x.nickname));
   document.getElementById('add-account-nsec').value='';
   document.getElementById('add-account-label').value='';
   addAccM.classList.remove('active');
@@ -1208,10 +1340,10 @@ async function loadAll(){
   const pubkey=loadSessionKeys();initPrivacyToggles();
   ensureVaultOriginFromCurrent();
   window.refreshLinkedCredentials();
+  wireFileImageInputs();
   if(!pubkey){document.getElementById('display-name').textContent='Sem sessão';renderCentralAccountsRow();renderBranchSwitcher();return}
   ensureCurrentInCentral();
   getBranchesForPubkey(pubkey);
-  // mostra contas locais imediatamente (antes da rede)
   renderCentralAccountsRow();
   try{
     const events=await pool.querySync(RELAYS,{kinds:[0],authors:[pubkey],limit:5});
