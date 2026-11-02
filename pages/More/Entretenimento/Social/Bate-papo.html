@@ -236,7 +236,6 @@ body{background:var(--light-violet);display:flex;justify-content:center;align-it
 @media(min-width:768px){.modal-overlay{align-items:center}.modal-card{border-radius:16px;max-height:85vh}}
 @media(max-width:767px){.mobile-show-chat .sidebar{display:none}.mobile-show-chat .chat-area{display:flex!important;width:100%;height:100%;height:100dvh;max-height:100dvh}}
 
-/* Câmera Momentos */
 .moment-cam-overlay{display:none;position:fixed;inset:0;z-index:4000;background:#000;flex-direction:column;align-items:center;justify-content:space-between;padding:max(12px,env(safe-area-inset-top)) 16px max(20px,env(safe-area-inset-bottom))}
 .moment-cam-overlay.show{display:flex}
 .moment-cam-top{width:100%;display:flex;align-items:center;justify-content:space-between;color:#fff;z-index:2}
@@ -257,7 +256,7 @@ body{background:var(--light-violet);display:flex;justify-content:center;align-it
 .moment-cam-timer{color:#e74c3c;font-weight:700;font-size:15px;min-height:20px}
 .moment-cam-flip{position:absolute;bottom:12px;right:12px;background:rgba(0,0,0,.45);border:none;color:#fff;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:16px}
 
-/* Desktop: só Meu QR, sem scanner + QR grande */
+/* Desktop: só Meu QR + QR grande */
 @media (min-width: 768px) {
   #addTabScan,
   #addContactPanelScan { display: none !important; }
@@ -559,6 +558,7 @@ const STORY_IMAGE_DURATION_MS=5000,STORY_MAX_TTL_MS=24*60*60*1000;
 const CONTACT_QR_PREFIX='loresocial-contact:',CHATS_STORAGE_PREFIX='loresocial_chats_';
 const STORY_KIND=30078,NOTE_KIND=30078,NOTE_MAX_TTL_MS=24*60*60*1000,NOTE_MAX_LEN=60;
 const MOMENT_KIND=30078,MOMENT_MAX_TTL_MS=24*60*60*1000,MOMENT_VIDEO_MAX_SEC=30;
+const QR_BG_D_TAG='loresocial-qr-bg';
 
 let chatsData=[],currentTab='contatos',currentChatId=null,searchQuery='';
 let activeAttachmentType=null,musicSearchTimeout=null,activePreviewAudio=null,activeChatAudio=null;
@@ -737,11 +737,8 @@ document.getElementById('addContactHeaderBtn').addEventListener('click',()=>{dro
 
 function openAddContactModal(){
   document.getElementById('addContactModal').classList.add('show');
-  if (window.innerWidth >= 768) {
-    switchAddContactTab('myqr');
-  } else {
-    switchAddContactTab('scan');
-  }
+  if (window.innerWidth >= 768) switchAddContactTab('myqr');
+  else switchAddContactTab('scan');
 }
 function closeAddContactModal(){stopContactQrScanner();document.getElementById('addContactModal').classList.remove('show');const m=document.getElementById('contactQrManualInput');if(m)m.value=''}
 function switchAddContactTab(tab){
@@ -755,6 +752,7 @@ function switchAddContactTab(tab){
   if (tab === 'myqr') generateMyContactQr();
 }
 
+/* ===== QR BACKGROUND (sincronizado na rede) ===== */
 function qrBgStorageKey(){
   return 'loresocial_qr_bg_' + String(currentUserPubkey||'anon').toLowerCase();
 }
@@ -766,6 +764,40 @@ function saveQrBgUrl(url){
     if(url) localStorage.setItem(qrBgStorageKey(), url);
     else localStorage.removeItem(qrBgStorageKey());
   }catch{}
+}
+async function publishQrBgToNetwork(url){
+  const sk = getPrivateKeyBytes();
+  if(!sk || !window.NostrTools || !currentUserPubkey || !url) return;
+  try{
+    if(!nostrPool) nostrPool = new NostrTools.SimplePool();
+    const content = JSON.stringify({ lore:1, type:'qr_bg', url });
+    const signed = NostrTools.finalizeEvent({
+      kind: 30078,
+      created_at: Math.floor(Date.now()/1000),
+      tags: [['d', QR_BG_D_TAG]],
+      content
+    }, sk);
+    await Promise.any(nostrPool.publish(NORST_RELAYS, signed));
+  }catch(e){ console.warn('publishQrBg', e); }
+}
+async function loadQrBgFromNetwork(){
+  if(!window.NostrTools || !currentUserPubkey) return getSavedQrBgUrl();
+  try{
+    if(!nostrPool) nostrPool = new NostrTools.SimplePool();
+    const ev = await nostrPool.get(NORST_RELAYS, {
+      kinds: [30078],
+      authors: [currentUserPubkey],
+      '#d': [QR_BG_D_TAG]
+    });
+    if(ev?.content){
+      const data = JSON.parse(ev.content);
+      if(data.lore === 1 && data.type === 'qr_bg' && data.url){
+        saveQrBgUrl(data.url);
+        return data.url;
+      }
+    }
+  }catch(e){ console.warn('loadQrBg', e); }
+  return getSavedQrBgUrl();
 }
 
 async function generateMyContactQr(){
@@ -795,7 +827,7 @@ async function generateMyContactQr(){
     shareBtn.style.display = canShare ? 'inline-flex' : 'none';
   }
 
-  const bgUrl = getSavedQrBgUrl();
+  const bgUrl = await loadQrBgFromNetwork();
   const size = window.innerWidth >= 768 ? 300 : 260;
   const qrSize = bgUrl ? Math.round(size * 0.72) : size;
 
@@ -893,7 +925,9 @@ async function handleQrBgImageSelect(e){
   try{
     const url = await uploadToNostrMedia(file);
     if(!url) throw new Error('Upload falhou');
+
     saveQrBgUrl(url);
+    await publishQrBgToNetwork(url);
     await generateMyContactQr();
   }catch(err){
     console.error(err);
