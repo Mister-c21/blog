@@ -254,7 +254,6 @@
             box-shadow: 0 2px 4px rgba(111, 66, 193, 0.03);
         }
 
-        /* Seletor horizontal de contas */
         .accounts-switcher-wrap {
             background-color: #ffffff;
             border: 1px solid #e9e2f5;
@@ -267,7 +266,7 @@
             font-size: 12px;
             font-weight: 600;
             color: #6b7280;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
             gap: 6px;
@@ -293,6 +292,7 @@
         }
 
         .account-chip {
+            position: relative;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
@@ -317,6 +317,27 @@
             transform: scale(1.02);
         }
 
+        .account-chip-check {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #6f42c1;
+            color: #fff;
+            font-size: 10px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #fff;
+            z-index: 2;
+        }
+
+        .account-chip.active .account-chip-check {
+            display: flex;
+        }
+
         .account-chip-avatar {
             width: 52px;
             height: 52px;
@@ -330,6 +351,10 @@
             font-size: 18px;
             border: 2px solid #ffffff;
             box-shadow: 0 2px 6px rgba(111, 66, 193, 0.12);
+        }
+
+        .account-chip.active .account-chip-avatar {
+            box-shadow: 0 0 0 2px #6f42c1, 0 2px 6px rgba(111, 66, 193, 0.2);
         }
 
         .account-chip-avatar img {
@@ -494,7 +519,6 @@
             background-color: #c9302c;
         }
 
-        /* Skeleton do cabeçalho do perfil */
         .profile-skeleton .fb-avatar-wrapper {
             border: none;
             box-shadow: none;
@@ -717,25 +741,22 @@
         <div id="conta-section" class="tab-content active">
             <div class="fb-account-section">
 
-                <!-- Seletor horizontal de contas -->
                 <div class="accounts-switcher-wrap">
                     <div class="accounts-switcher-label">
-                        <i class="fa-solid fa-users"></i> Contas nesta central
+                        <i class="fa-solid fa-users"></i> Central de contas
                     </div>
-                    <div class="accounts-switcher-row" id="accounts-switcher-row">
-                        <!-- Preenchido via JS: [+] adicionar | contas | conta ativa em destaque -->
-                    </div>
-                    <p class="text-[11px] text-gray-500 mt-3">
-                        Contas adicionadas ou criadas são sincronizadas via metadados (kind 0) na rede Nostr quando possível.
+                    <p class="text-[11px] text-gray-500 mb-3">
+                        Troque entre contas com um toque (estilo Meta). Com e-mail e senha vinculados, a central sincroniza na rede e funciona em qualquer aparelho.
                     </p>
+                    <div class="accounts-switcher-row" id="accounts-switcher-row"></div>
+                    <p id="accounts-sync-hint" class="text-[11px] text-amber-700 mt-3 hidden"></p>
                 </div>
 
-                <!-- Credenciais vinculadas -->
                 <div class="account-card-box" id="linked-credentials-card" style="display:none;">
                     <h3 class="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2">
                         <i class="fa-solid fa-lock text-secondary"></i> Credenciais vinculadas
                     </h3>
-                    <p class="text-xs text-gray-500 mb-4">Você pode visualizar e copiar a senha salva. Elas também estão na rede Nostr.</p>
+                    <p class="text-xs text-gray-500 mb-4">Você pode visualizar e copiar a senha salva. Elas também estão na rede Nostr e protegem o cofre multi-conta.</p>
                     
                     <div class="space-y-3">
                         <div class="edit-form-group">
@@ -760,12 +781,11 @@
                     </div>
                 </div>
 
-                <!-- Vincular E-mail e Senha -->
                 <div class="account-card-box">
                     <h3 class="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2">
                         <i class="fa-solid fa-key text-secondary"></i> Vincular Acesso por E-mail
                     </h3>
-                    <p class="text-xs text-gray-500 mb-4">Adicione um e-mail e uma senha. A chave privada será criptografada e salva na rede para você poder logar em qualquer dispositivo.</p>
+                    <p class="text-xs text-gray-500 mb-4">Adicione um e-mail e uma senha. A chave privada e o cofre de contas vinculadas são criptografados e salvos na rede para login e troca de conta em qualquer dispositivo.</p>
                     
                     <form id="link-credentials-form" onsubmit="handleLinkCredentials(event)" class="space-y-3">
                         <div class="edit-form-group">
@@ -787,7 +807,6 @@
                     </form>
                 </div>
 
-                <!-- Controle da conta e privacidade -->
                 <div class="account-card-box">
                     <h3 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
                         <i class="fa-solid fa-shield-halved text-secondary"></i> Controle e privacidade
@@ -818,7 +837,7 @@
                     <div class="toggle-row">
                         <div>
                             <div class="text-sm font-semibold text-gray-800">Sincronizar contas na rede</div>
-                            <div class="text-xs text-gray-500">Publica lista de contas vinculadas nos metadados</div>
+                            <div class="text-xs text-gray-500">Publica lista + cofre criptografado (multi-aparelho)</div>
                         </div>
                         <label class="toggle-switch">
                             <input type="checkbox" id="toggle-sync-accounts" checked>
@@ -901,7 +920,7 @@
         </div>
     </div>
 
-    <!-- Modal Exclusão de Conta -->
+    <!-- Modal Exclusão -->
     <div class="edit-modal-overlay" id="delete-modal">
         <div class="edit-modal-container">
             <div class="edit-modal-header">
@@ -947,26 +966,51 @@
                 <button class="edit-modal-close" id="close-add-account-modal">&times;</button>
             </div>
             <div class="edit-modal-body">
-                <p class="text-xs text-gray-500 mb-2">
-                    Importe uma chave existente (nsec) ou gere uma nova. A conta será adicionada à central e, se habilitado, publicada nos metadados da rede.
+                <p class="text-xs text-gray-500">
+                    Entre em outra conta para conectá-la a esta central (como no Centro de Contas da Meta).
+                    Use <strong>nsec</strong> ou <strong>e-mail + senha + npub</strong>.
                 </p>
-                <div class="edit-form-group">
-                    <label>Apelido (opcional)</label>
-                    <input type="text" id="add-account-nickname" placeholder="Ex: trabalho">
+
+                <div class="flex gap-2">
+                    <button type="button" id="add-tab-nsec" class="fb-btn fb-btn-primary text-xs flex-1 py-2">Chave (nsec)</button>
+                    <button type="button" id="add-tab-email" class="fb-btn fb-btn-secondary text-xs flex-1 py-2">E-mail e senha</button>
                 </div>
-                <div class="edit-form-group">
-                    <label>Chave privada (nsec) — deixe vazio para gerar nova</label>
-                    <div class="relative">
-                        <input type="password" id="add-account-nsec" placeholder="nsec1... ou vazio para criar" class="w-full pr-10">
-                        <button type="button" id="toggle-add-nsec" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-secondary focus:outline-none" title="Mostrar/ocultar">
-                            <i class="fa-solid fa-eye"></i>
-                        </button>
+
+                <div id="add-panel-nsec" class="space-y-3">
+                    <div class="edit-form-group">
+                        <label>Apelido nesta central (opcional)</label>
+                        <input type="text" id="add-account-nickname" placeholder="Ex: pessoal, trabalho">
+                    </div>
+                    <div class="edit-form-group">
+                        <label>Chave privada (nsec)</label>
+                        <div class="relative">
+                            <input type="password" id="add-account-nsec" placeholder="nsec1... ou vazio para criar nova" class="w-full pr-10">
+                            <button type="button" id="toggle-add-nsec" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-secondary focus:outline-none">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-gray-400">Deixe a nsec vazia apenas se quiser <strong>criar</strong> uma conta nova.</p>
+                </div>
+
+                <div id="add-panel-email" class="space-y-3" style="display:none;">
+                    <div class="edit-form-group">
+                        <label>E-mail de login</label>
+                        <input type="email" id="add-account-email" placeholder="seu@email.com">
+                    </div>
+                    <div class="edit-form-group">
+                        <label>Senha</label>
+                        <input type="password" id="add-account-password" placeholder="••••••••">
+                    </div>
+                    <div class="edit-form-group">
+                        <label>npub da conta</label>
+                        <input type="text" id="add-account-npub" placeholder="npub1...">
                     </div>
                 </div>
             </div>
             <div class="edit-modal-footer">
                 <button class="fb-btn fb-btn-secondary" id="cancel-add-account-modal">Cancelar</button>
-                <button class="fb-btn fb-btn-primary" id="confirm-add-account-modal">Adicionar / Criar</button>
+                <button class="fb-btn fb-btn-primary" id="confirm-add-account-modal">Conectar conta</button>
             </div>
         </div>
     </div>
@@ -1080,7 +1124,6 @@
             if (e.target === deleteModal) closeDeleteModal();
         });
 
-        // Vincular credenciais
         function handleLinkCredentials(e) {
             e.preventDefault();
             const email = document.getElementById('link-email').value.trim();
@@ -1100,7 +1143,7 @@
                 if (typeof window.saveCredentialsToNostr === 'function') {
                     window.saveCredentialsToNostr(email, password).then(ok => {
                         if (ok) {
-                            alert('E-mail e senha vinculados com sucesso!\nA chave privada foi criptografada e salva na rede Nostr.\nVocê poderá logar em qualquer dispositivo usando e-mail + senha (+ npub recomendado).');
+                            alert('E-mail e senha vinculados!\nA chave e o cofre multi-conta foram protegidos e publicados na rede.\nEm outro aparelho, entre com e-mail + senha (+ npub se pedido) para recuperar a central.');
                         } else {
                             alert('Credenciais salvas localmente.\nNão foi possível publicar na rede (verifique se está logado com a chave).');
                         }
@@ -1245,6 +1288,18 @@
             }
         }
 
+        async function encryptAccountVaultPayload(payloadObj, password) {
+            if (!password) return null;
+            return encryptPrivateKey(JSON.stringify(payloadObj), password);
+        }
+
+        async function decryptAccountVaultPayload(encryptedBase64, password) {
+            if (!encryptedBase64 || !password) return null;
+            const json = await decryptPrivateKey(encryptedBase64, password);
+            if (!json) return null;
+            try { return JSON.parse(json); } catch { return null; }
+        }
+
         function escapeHtml(text) {
             const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
             return String(text ?? '').replace(/[&<>"']/g, m => map[m]);
@@ -1268,6 +1323,10 @@
 
         function setPrivacyPrefs(prefs) {
             localStorage.setItem(PRIVACY_KEY, JSON.stringify(prefs));
+        }
+
+        function getVaultPassword() {
+            return getSession().loginPassword || '';
         }
 
         function getAccountsList() {
@@ -1294,27 +1353,36 @@
             return String(pk).toLowerCase();
         }
 
+        function upsertAccount(entry) {
+            const list = getAccountsList();
+            const pk = normalizePubkey(entry.pubkey);
+            const idx = list.findIndex(a => normalizePubkey(a.pubkey) === pk);
+            const next = {
+                pubkey: pk,
+                privateKeyHex: entry.privateKeyHex,
+                nickname: entry.nickname || '@conta',
+                avatarUrl: entry.avatarUrl || '',
+                loginEmail: entry.loginEmail || '',
+                loginPassword: entry.loginPassword || '',
+                updatedAt: Date.now()
+            };
+            if (idx >= 0) list[idx] = { ...list[idx], ...next };
+            else list.push(next);
+            saveAccountsList(list);
+            return list;
+        }
+
         function ensureActiveInAccountsList() {
             const session = getSession();
             if (!session.pubkey || !session.privateKeyHex) return;
-            const pubkey = normalizePubkey(session.pubkey);
-            let list = getAccountsList();
-            const idx = list.findIndex(a => normalizePubkey(a.pubkey) === pubkey);
-            const entry = {
-                pubkey,
+            upsertAccount({
+                pubkey: session.pubkey,
                 privateKeyHex: session.privateKeyHex,
                 nickname: session.nickname || '@anonimo',
                 avatarUrl: session.avatarUrl || '',
                 loginEmail: session.loginEmail || '',
-                loginPassword: session.loginPassword || '',
-                updatedAt: Date.now()
-            };
-            if (idx >= 0) {
-                list[idx] = { ...list[idx], ...entry };
-            } else {
-                list.push(entry);
-            }
-            saveAccountsList(list);
+                loginPassword: session.loginPassword || ''
+            });
         }
 
         function loadSessionKeys() {
@@ -1345,7 +1413,7 @@
                 nickname: account.nickname || '@anonimo',
                 avatarUrl: account.avatarUrl || '',
                 loginEmail: account.loginEmail || '',
-                loginPassword: account.loginPassword || ''
+                loginPassword: account.loginPassword || getSession().loginPassword || ''
             };
             localStorage.setItem('nostr_session', JSON.stringify(session));
             localStorage.setItem('isLoggedIn', 'true');
@@ -1357,6 +1425,18 @@
             }
             currentUserData.nickname = session.nickname;
             currentUserData.avatarUrl = session.avatarUrl;
+        }
+
+        function updateSyncHint(msg, show) {
+            const el = document.getElementById('accounts-sync-hint');
+            if (!el) return;
+            if (show && msg) {
+                el.textContent = msg;
+                el.classList.remove('hidden');
+            } else {
+                el.textContent = '';
+                el.classList.add('hidden');
+            }
         }
 
         window.refreshLinkedCredentials = function() {
@@ -1379,8 +1459,10 @@
                     }
                 }
                 if (linkEmail) linkEmail.value = session.loginEmail;
+                updateSyncHint('', false);
             } else {
                 if (card) card.style.display = 'none';
+                updateSyncHint('Vincule e-mail e senha para sincronizar a central de contas em qualquer aparelho.', true);
             }
         };
 
@@ -1390,8 +1472,6 @@
 
             const list = getAccountsList();
             const activePk = normalizePubkey(currentUserData.pubkey || getSession().pubkey);
-
-            // Ordena: outras contas primeiro, ativa por último (em destaque)
             const others = list.filter(a => normalizePubkey(a.pubkey) !== activePk);
             const active = list.find(a => normalizePubkey(a.pubkey) === activePk);
             const ordered = active ? [...others, active] : others;
@@ -1413,8 +1493,9 @@
                     : `<i class="fa-solid fa-user"></i>`;
                 html += `
                     <button type="button" class="account-chip${isActive ? ' active' : ''}" data-pubkey="${escapeHtml(pk)}" title="${escapeHtml(name)}">
+                        <span class="account-chip-check"><i class="fa-solid fa-check"></i></span>
                         <div class="account-chip-avatar">${avatarInner}</div>
-                        <span class="account-chip-name">${escapeHtml(name)}${isActive ? ' · ativa' : ''}</span>
+                        <span class="account-chip-name">${escapeHtml(name)}</span>
                     </button>
                 `;
             });
@@ -1426,25 +1507,20 @@
             });
 
             row.querySelectorAll('.account-chip[data-pubkey]').forEach(chip => {
-                chip.addEventListener('click', () => {
+                chip.addEventListener('click', async () => {
                     const pk = chip.getAttribute('data-pubkey');
                     if (!pk || pk === activePk) return;
-                    switchToAccount(pk);
+                    const acc = getAccountsList().find(a => normalizePubkey(a.pubkey) === normalizePubkey(pk));
+                    if (!acc?.privateKeyHex) {
+                        alert('Conta incompleta nesta central.');
+                        return;
+                    }
+                    applySessionFromAccount(acc);
+                    renderAccountsSwitcher();
+                    window.refreshLinkedCredentials();
+                    await reloadActiveProfile();
                 });
             });
-        }
-
-        async function switchToAccount(pubkey) {
-            const list = getAccountsList();
-            const acc = list.find(a => normalizePubkey(a.pubkey) === normalizePubkey(pubkey));
-            if (!acc || !acc.privateKeyHex) {
-                alert('Conta não encontrada na central.');
-                return;
-            }
-            applySessionFromAccount(acc);
-            renderAccountsSwitcher();
-            window.refreshLinkedCredentials();
-            await reloadActiveProfile();
         }
 
         async function publishLinkedAccountsMetadata() {
@@ -1452,16 +1528,31 @@
             if (prefs.syncAccounts === false) return false;
             if (!currentUserData.privateKey || !currentUserData.pubkey) return false;
 
+            const session = getSession();
+            const password = getVaultPassword();
             const list = getAccountsList();
-            const linked = list.map(a => ({
+
+            const linkedPublic = list.map(a => ({
                 pubkey: normalizePubkey(a.pubkey),
                 nickname: (a.nickname || '').replace(/^@/, ''),
                 picture: a.avatarUrl || ''
             })).filter(a => a.pubkey);
 
-            const existing = profileCache.get(currentUserData.pubkey) || {};
-            const session = getSession();
+            let accounts_vault = null;
+            if (password) {
+                const vaultData = list
+                    .filter(a => a.privateKeyHex)
+                    .map(a => ({
+                        pubkey: normalizePubkey(a.pubkey),
+                        privateKeyHex: a.privateKeyHex,
+                        nickname: a.nickname || '',
+                        avatarUrl: a.avatarUrl || '',
+                        loginEmail: a.loginEmail || ''
+                    }));
+                accounts_vault = await encryptAccountVaultPayload(vaultData, password);
+            }
 
+            const existing = profileCache.get(currentUserData.pubkey) || {};
             const metadata = {
                 name: existing.name || (session.nickname || 'anonimo').replace(/^@/, ''),
                 display_name: existing.display_name || existing.name || '',
@@ -1474,14 +1565,15 @@
                 education: existing.education || '',
                 login_email: prefs.showEmail === false ? '' : (existing.login_email || session.loginEmail || ''),
                 encrypted_private_key: existing.encrypted_private_key || '',
-                linked_accounts: linked,
-                accounts_central: linked.map(a => a.pubkey)
+                linked_accounts: linkedPublic,
+                accounts_central: linkedPublic.map(a => a.pubkey),
+                accounts_vault: accounts_vault || existing.accounts_vault || ''
             };
 
             const eventTemplate = {
                 kind: 0,
                 created_at: Math.floor(Date.now() / 1000),
-                tags: linked.map(a => ['p', a.pubkey, '', 'linked-account']),
+                tags: linkedPublic.map(a => ['p', a.pubkey, '', 'linked-account']),
                 content: JSON.stringify(metadata)
             };
 
@@ -1491,9 +1583,49 @@
                 profileCache.set(currentUserData.pubkey, { ...existing, ...metadata });
                 return true;
             } catch (err) {
-                console.error('Erro ao publicar contas vinculadas:', err);
+                console.error('Erro ao publicar central de contas:', err);
                 return false;
             }
+        }
+
+        async function restoreAccountsCentralFromNetwork(profileData) {
+            const password = getVaultPassword();
+            if (!password) return { restored: 0, reason: 'no-password' };
+
+            const vaultEnc = profileData?.accounts_vault || '';
+            if (!vaultEnc) return { restored: 0, reason: 'no-vault' };
+
+            const vault = await decryptAccountVaultPayload(vaultEnc, password);
+            if (!Array.isArray(vault) || !vault.length) {
+                return { restored: 0, reason: 'decrypt-failed' };
+            }
+
+            let added = 0;
+            for (const item of vault) {
+                const pk = normalizePubkey(item.pubkey);
+                if (!pk || !item.privateKeyHex) continue;
+                try {
+                    const sk = hexToBytes(item.privateKeyHex);
+                    const derived = NostrTools.getPublicKey(sk);
+                    if (normalizePubkey(derived) !== pk) continue;
+                } catch { continue; }
+
+                const exists = getAccountsList().some(a => normalizePubkey(a.pubkey) === pk);
+                if (!exists) added++;
+
+                upsertAccount({
+                    pubkey: pk,
+                    privateKeyHex: item.privateKeyHex,
+                    nickname: item.nickname || '@conta',
+                    avatarUrl: item.avatarUrl || '',
+                    loginEmail: item.loginEmail || '',
+                    loginPassword: ''
+                });
+            }
+
+            ensureActiveInAccountsList();
+            renderAccountsSwitcher();
+            return { restored: added, reason: 'ok' };
         }
 
         window.saveCredentialsToNostr = async function(email, password) {
@@ -1521,11 +1653,23 @@
             const existing = profileCache.get(currentUserData.pubkey) || {};
             const prefs = getPrivacyPrefs();
             const list = getAccountsList();
-            const linked = list.map(a => ({
+
+            const linkedPublic = list.map(a => ({
                 pubkey: normalizePubkey(a.pubkey),
                 nickname: (a.nickname || '').replace(/^@/, ''),
                 picture: a.avatarUrl || ''
             })).filter(a => a.pubkey);
+
+            const vaultData = list
+                .filter(a => a.privateKeyHex)
+                .map(a => ({
+                    pubkey: normalizePubkey(a.pubkey),
+                    privateKeyHex: a.privateKeyHex,
+                    nickname: a.nickname || '',
+                    avatarUrl: a.avatarUrl || '',
+                    loginEmail: a.loginEmail || ''
+                }));
+            const accounts_vault = await encryptAccountVaultPayload(vaultData, password);
 
             const metadata = {
                 name: existing.name || (session.nickname || 'anonimo').replace(/^@/, ''),
@@ -1539,14 +1683,15 @@
                 education: existing.education || '',
                 login_email: prefs.showEmail === false ? '' : (email || ''),
                 encrypted_private_key: encryptedSk,
-                linked_accounts: linked,
-                accounts_central: linked.map(a => a.pubkey)
+                linked_accounts: linkedPublic,
+                accounts_central: linkedPublic.map(a => a.pubkey),
+                accounts_vault: accounts_vault || ''
             };
 
             const eventTemplate = {
                 kind: 0,
                 created_at: Math.floor(Date.now() / 1000),
-                tags: linked.map(a => ['p', a.pubkey, '', 'linked-account']),
+                tags: linkedPublic.map(a => ['p', a.pubkey, '', 'linked-account']),
                 content: JSON.stringify(metadata)
             };
 
@@ -1561,6 +1706,7 @@
                 localStorage.setItem('nostr_session', JSON.stringify(session));
                 ensureActiveInAccountsList();
                 renderAccountsSwitcher();
+                window.refreshLinkedCredentials();
 
                 return true;
             } catch (err) {
@@ -1592,7 +1738,7 @@
             }
 
             if (!targetPubkey) {
-                alert('Para logar só com e-mail e senha em um dispositivo novo, informe também seu npub.\n\nIsso é necessário porque a rede Nostr não permite busca global por e-mail de forma segura.');
+                alert('Para logar só com e-mail e senha em um dispositivo novo, informe também seu npub.');
                 return false;
             }
 
@@ -1648,6 +1794,7 @@
                 currentUserData.avatarUrl = session.avatarUrl;
 
                 ensureActiveInAccountsList();
+                await restoreAccountsCentralFromNetwork(profile);
 
                 alert('Login realizado com sucesso!');
                 window.location.href = window.location.pathname;
@@ -1659,48 +1806,6 @@
                 return false;
             }
         };
-
-        async function fetchProfiles(pubkeys) {
-            const missing = pubkeys.filter(pk => pk && !profileCache.has(pk));
-            if (!missing.length) return;
-            try {
-                const events = await pool.querySync(RELAYS, {
-                    kinds: [0],
-                    authors: missing,
-                    limit: missing.length
-                });
-                const latest = new Map();
-                (events || []).forEach(ev => {
-                    const prev = latest.get(ev.pubkey);
-                    if (!prev || ev.created_at > prev.created_at) latest.set(ev.pubkey, ev);
-                });
-                latest.forEach((ev, pubkey) => {
-                    try {
-                        const data = JSON.parse(ev.content || '{}');
-                        profileCache.set(pubkey, {
-                            name: data.name || data.display_name || '',
-                            picture: data.picture || data.image || '',
-                            about: data.about || '',
-                            gender: data.gender || data.sexo || '',
-                            status: data.status || data.relationship || '',
-                            nationality: data.nationality || data.country || '',
-                            location: data.location || data.city || '',
-                            education: data.education || '',
-                            login_email: data.login_email || '',
-                            encrypted_private_key: data.encrypted_private_key || '',
-                            linked_accounts: data.linked_accounts || data.accounts_central || []
-                        });
-                    } catch {
-                        profileCache.set(pubkey, { name: '', picture: '', about: '' });
-                    }
-                });
-                missing.forEach(pk => {
-                    if (!profileCache.has(pk)) profileCache.set(pk, { name: '', picture: '', about: '' });
-                });
-            } catch (e) {
-                console.error('Perfis:', e);
-            }
-        }
 
         function hideProfileSkeleton() {
             const header = document.getElementById('profile-header');
@@ -1787,15 +1892,12 @@
                         session.loginEmail = networkEmail;
                         localStorage.setItem('nostr_session', JSON.stringify(session));
                     }
-                    if (typeof window.refreshLinkedCredentials === 'function') {
-                        window.refreshLinkedCredentials();
-                    }
+                    window.refreshLinkedCredentials();
                 } catch (e) {
                     console.warn('Erro ao sincronizar credenciais da rede:', e);
                 }
             }
 
-            // Atualiza avatar/nickname na lista local
             if (pubkey) {
                 const list = getAccountsList();
                 const idx = list.findIndex(a => normalizePubkey(a.pubkey) === normalizePubkey(pubkey));
@@ -1824,11 +1926,27 @@
             const session = getSession();
             const prefs = getPrivacyPrefs();
             const list = getAccountsList();
-            const linked = list.map(a => ({
+            const password = getVaultPassword();
+
+            const linkedPublic = list.map(a => ({
                 pubkey: normalizePubkey(a.pubkey),
                 nickname: (a.nickname || '').replace(/^@/, ''),
                 picture: a.avatarUrl || ''
             })).filter(a => a.pubkey);
+
+            let accounts_vault = existing.accounts_vault || '';
+            if (password) {
+                const vaultData = list
+                    .filter(a => a.privateKeyHex)
+                    .map(a => ({
+                        pubkey: normalizePubkey(a.pubkey),
+                        privateKeyHex: a.privateKeyHex,
+                        nickname: a.nickname || '',
+                        avatarUrl: a.avatarUrl || '',
+                        loginEmail: a.loginEmail || ''
+                    }));
+                accounts_vault = await encryptAccountVaultPayload(vaultData, password) || accounts_vault;
+            }
 
             const metadata = {
                 name: (formData.name || existing.name || session.nickname || 'anonimo').replace(/^@/, ''),
@@ -1842,14 +1960,15 @@
                 education: formData.education || '',
                 login_email: prefs.showEmail === false ? '' : (existing.login_email || session.loginEmail || ''),
                 encrypted_private_key: existing.encrypted_private_key || '',
-                linked_accounts: linked,
-                accounts_central: linked.map(a => a.pubkey)
+                linked_accounts: linkedPublic,
+                accounts_central: linkedPublic.map(a => a.pubkey),
+                accounts_vault
             };
 
             const eventTemplate = {
                 kind: 0,
                 created_at: Math.floor(Date.now() / 1000),
-                tags: linked.map(a => ['p', a.pubkey, '', 'linked-account']),
+                tags: linkedPublic.map(a => ['p', a.pubkey, '', 'linked-account']),
                 content: JSON.stringify(metadata)
             };
 
@@ -1859,17 +1978,7 @@
 
                 profileCache.set(currentUserData.pubkey, {
                     ...existing,
-                    name: metadata.name,
-                    picture: metadata.picture,
-                    about: metadata.about,
-                    gender: metadata.gender,
-                    status: metadata.status,
-                    nationality: metadata.nationality,
-                    location: metadata.location,
-                    education: metadata.education,
-                    login_email: metadata.login_email,
-                    encrypted_private_key: metadata.encrypted_private_key,
-                    linked_accounts: linked
+                    ...metadata
                 });
 
                 const nextSession = { ...session };
@@ -1994,7 +2103,6 @@
                     console.warn('Falha ao limpar perfil:', e);
                 }
 
-                // Remove da central
                 let list = getAccountsList().filter(a => normalizePubkey(a.pubkey) !== normalizePubkey(providedPubkey));
                 saveAccountsList(list);
 
@@ -2039,11 +2147,15 @@
                             education: profileData.education || '',
                             login_email: profileData.login_email || '',
                             encrypted_private_key: profileData.encrypted_private_key || '',
-                            linked_accounts: profileData.linked_accounts || profileData.accounts_central || []
+                            linked_accounts: profileData.linked_accounts || profileData.accounts_central || [],
+                            accounts_vault: profileData.accounts_vault || ''
                         });
                     } catch {}
                 }
                 applyProfileToUI(profileData, pubkey);
+                if (getSession().loginPassword) {
+                    await restoreAccountsCentralFromNetwork(profileData);
+                }
             } catch (e) {
                 console.error(e);
                 hideProfileSkeleton();
@@ -2058,98 +2170,133 @@
             if (e.target === addAccountModal) addAccountModal.classList.remove('active');
         });
 
-        document.getElementById('confirm-add-account-modal')?.addEventListener('click', async () => {
-            const nickInput = document.getElementById('add-account-nickname');
-            const nsecInput = document.getElementById('add-account-nsec');
-            const nick = (nickInput?.value || '').trim();
-            const nsecRaw = (nsecInput?.value || '').trim();
+        document.getElementById('add-tab-nsec')?.addEventListener('click', () => {
+            document.getElementById('add-panel-nsec').style.display = 'block';
+            document.getElementById('add-panel-email').style.display = 'none';
+            document.getElementById('add-tab-nsec').className = 'fb-btn fb-btn-primary text-xs flex-1 py-2';
+            document.getElementById('add-tab-email').className = 'fb-btn fb-btn-secondary text-xs flex-1 py-2';
+        });
+        document.getElementById('add-tab-email')?.addEventListener('click', () => {
+            document.getElementById('add-panel-nsec').style.display = 'none';
+            document.getElementById('add-panel-email').style.display = 'block';
+            document.getElementById('add-tab-email').className = 'fb-btn fb-btn-primary text-xs flex-1 py-2';
+            document.getElementById('add-tab-nsec').className = 'fb-btn fb-btn-secondary text-xs flex-1 py-2';
+        });
 
-            let sk;
-            let privateKeyHex;
+        document.getElementById('confirm-add-account-modal')?.addEventListener('click', async () => {
+            const emailPanel = document.getElementById('add-panel-email');
+            const useEmail = emailPanel && emailPanel.style.display !== 'none';
+
+            let privateKeyHex, pubkey, nickname, loginEmail = '', loginPassword = '', avatarUrl = '';
 
             try {
-                if (nsecRaw) {
-                    if (nsecRaw.startsWith('nsec')) {
-                        const decoded = NostrTools.nip19.decode(nsecRaw);
-                        if (decoded.type !== 'nsec') throw new Error('não é nsec');
-                        sk = decoded.data;
-                    } else {
-                        sk = hexToBytes(nsecRaw);
+                if (useEmail) {
+                    const email = document.getElementById('add-account-email')?.value.trim();
+                    const password = document.getElementById('add-account-password')?.value || '';
+                    const npub = document.getElementById('add-account-npub')?.value.trim();
+                    if (!email || !password || !npub) {
+                        alert('Preencha e-mail, senha e npub.');
+                        return;
                     }
+                    let targetPubkey;
+                    try {
+                        const decoded = NostrTools.nip19.decode(npub);
+                        if (decoded.type !== 'npub') throw new Error();
+                        targetPubkey = decoded.data;
+                    } catch {
+                        alert('npub inválido.');
+                        return;
+                    }
+                    const events = await pool.querySync(RELAYS, { kinds: [0], authors: [targetPubkey], limit: 5 });
+                    if (!events?.length) {
+                        alert('Perfil não encontrado nos relays.');
+                        return;
+                    }
+                    events.sort((a, b) => b.created_at - a.created_at);
+                    const profile = JSON.parse(events[0].content || '{}');
+                    if (profile.login_email !== email) {
+                        alert('E-mail não confere com o cadastrado nesta conta.');
+                        return;
+                    }
+                    if (!profile.encrypted_private_key) {
+                        alert('Esta conta ainda não tem chave protegida por senha.');
+                        return;
+                    }
+                    privateKeyHex = await decryptPrivateKey(profile.encrypted_private_key, password);
+                    if (!privateKeyHex) {
+                        alert('Senha incorreta.');
+                        return;
+                    }
+                    const sk = hexToBytes(privateKeyHex);
+                    pubkey = NostrTools.getPublicKey(sk);
+                    if (normalizePubkey(pubkey) !== normalizePubkey(targetPubkey)) {
+                        alert('Chave não corresponde ao npub informado.');
+                        return;
+                    }
+                    nickname = profile.name ? '@' + profile.name : '@conta';
+                    avatarUrl = profile.picture || '';
+                    loginEmail = email;
+                    loginPassword = password;
                 } else {
-                    sk = NostrTools.generateSecretKey();
+                    const nick = (document.getElementById('add-account-nickname')?.value || '').trim();
+                    const nsecRaw = (document.getElementById('add-account-nsec')?.value || '').trim();
+                    let sk;
+                    if (nsecRaw) {
+                        if (nsecRaw.startsWith('nsec')) {
+                            const decoded = NostrTools.nip19.decode(nsecRaw);
+                            if (decoded.type !== 'nsec') throw new Error();
+                            sk = decoded.data;
+                        } else {
+                            sk = hexToBytes(nsecRaw);
+                        }
+                    } else {
+                        sk = NostrTools.generateSecretKey();
+                    }
+                    privateKeyHex = Array.from(sk).map(b => b.toString(16).padStart(2, '0')).join('');
+                    pubkey = NostrTools.getPublicKey(sk);
+                    nickname = nick ? '@' + nick.replace(/^@/, '') : '@conta';
                 }
-                privateKeyHex = Array.from(sk).map(b => b.toString(16).padStart(2, '0')).join('');
-            } catch {
-                alert('Chave inválida. Use uma nsec válida ou deixe em branco para gerar.');
+            } catch (e) {
+                console.error(e);
+                alert('Não foi possível conectar a conta. Verifique os dados.');
                 return;
             }
 
-            const pubkey = NostrTools.getPublicKey(sk);
-            const list = getAccountsList();
-            if (list.some(a => normalizePubkey(a.pubkey) === normalizePubkey(pubkey))) {
-                alert('Esta conta já está na central.');
-                return;
+            const existing = getAccountsList().find(a => normalizePubkey(a.pubkey) === normalizePubkey(pubkey));
+            if (existing) {
+                applySessionFromAccount({
+                    ...existing,
+                    privateKeyHex,
+                    nickname: nickname || existing.nickname,
+                    avatarUrl: avatarUrl || existing.avatarUrl,
+                    loginEmail: loginEmail || existing.loginEmail,
+                    loginPassword: loginPassword || existing.loginPassword
+                });
+            } else {
+                upsertAccount({ pubkey, privateKeyHex, nickname, avatarUrl, loginEmail, loginPassword });
+                applySessionFromAccount({ pubkey, privateKeyHex, nickname, avatarUrl, loginEmail, loginPassword });
             }
 
-            const entry = {
-                pubkey,
-                privateKeyHex,
-                nickname: nick ? '@' + nick.replace(/^@/, '') : '@conta',
-                avatarUrl: '',
-                loginEmail: '',
-                loginPassword: '',
-                updatedAt: Date.now()
-            };
-            list.push(entry);
-            saveAccountsList(list);
+            addAccountModal.classList.remove('active');
+            ['add-account-nickname','add-account-nsec','add-account-email','add-account-password','add-account-npub']
+                .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
 
-            // Ativa a nova conta
-            applySessionFromAccount(entry);
             renderAccountsSwitcher();
             window.refreshLinkedCredentials();
 
-            addAccountModal.classList.remove('active');
-            if (nickInput) nickInput.value = '';
-            if (nsecInput) nsecInput.value = '';
-
-            // Publica metadados (linked_accounts) da conta ativa
-            const ok = await publishLinkedAccountsMetadata();
-            if (ok) {
-                alert('Conta adicionada e sincronizada nos metadados da rede.');
+            const password = getVaultPassword();
+            if (!password) {
+                alert('Conta conectada neste aparelho.\n\nPara trocar entre contas em QUALQUER dispositivo, vincule e-mail e senha (eles protegem o cofre na rede).');
             } else {
-                alert('Conta adicionada à central localmente.\n(Sincronização na rede depende de chave e preferências.)');
+                const ok = await publishLinkedAccountsMetadata();
+                alert(ok
+                    ? 'Conta vinculada e disponível em outros aparelhos (com o mesmo e-mail e senha da conta que publicou o cofre).'
+                    : 'Conta salva localmente. Não foi possível publicar na rede agora.');
             }
 
             await reloadActiveProfile();
-            // Se gerou nova, publica perfil mínimo
-            if (!nsecRaw && currentUserData.privateKey) {
-                try {
-                    const meta = {
-                        name: (entry.nickname || 'conta').replace(/^@/, ''),
-                        display_name: (entry.nickname || 'conta').replace(/^@/, ''),
-                        about: '',
-                        linked_accounts: getAccountsList().map(a => ({
-                            pubkey: normalizePubkey(a.pubkey),
-                            nickname: (a.nickname || '').replace(/^@/, ''),
-                            picture: a.avatarUrl || ''
-                        })),
-                        accounts_central: getAccountsList().map(a => normalizePubkey(a.pubkey))
-                    };
-                    const ev = NostrTools.finalizeEvent({
-                        kind: 0,
-                        created_at: Math.floor(Date.now() / 1000),
-                        tags: meta.accounts_central.map(pk => ['p', pk, '', 'linked-account']),
-                        content: JSON.stringify(meta)
-                    }, currentUserData.privateKey);
-                    await Promise.any(pool.publish(RELAYS, ev));
-                } catch (e) {
-                    console.warn('Perfil mínimo:', e);
-                }
-            }
         });
 
-        // Preferências de privacidade
         function initPrivacyToggles() {
             const prefs = getPrivacyPrefs();
             const safeMode = localStorage.getItem('safeMode') !== 'false';
@@ -2168,17 +2315,13 @@
                 const p = getPrivacyPrefs();
                 p.showEmail = tEmail.checked;
                 setPrivacyPrefs(p);
-                if (currentUserData.privateKey) {
-                    await publishLinkedAccountsMetadata();
-                }
+                if (currentUserData.privateKey) await publishLinkedAccountsMetadata();
             });
             tSync?.addEventListener('change', async () => {
                 const p = getPrivacyPrefs();
                 p.syncAccounts = tSync.checked;
                 setPrivacyPrefs(p);
-                if (tSync.checked && currentUserData.privateKey) {
-                    await publishLinkedAccountsMetadata();
-                }
+                if (tSync.checked && currentUserData.privateKey) await publishLinkedAccountsMetadata();
             });
         }
 
@@ -2221,7 +2364,6 @@
             localStorage.removeItem('isLoggedIn');
             currentUserData = { pubkey: '', privateKey: null, nickname: '@anonimo', avatarUrl: '' };
 
-            // Se ainda houver outra conta, troca para ela
             if (list.length) {
                 applySessionFromAccount(list[list.length - 1]);
                 await publishLinkedAccountsMetadata();
@@ -2269,7 +2411,8 @@
                             education: profileData.education || '',
                             login_email: profileData.login_email || '',
                             encrypted_private_key: profileData.encrypted_private_key || '',
-                            linked_accounts: profileData.linked_accounts || profileData.accounts_central || []
+                            linked_accounts: profileData.linked_accounts || profileData.accounts_central || [],
+                            accounts_vault: profileData.accounts_vault || ''
                         });
                     } catch {}
                 }
@@ -2281,8 +2424,14 @@
                     if (emailInput) emailInput.value = session.loginEmail;
                 }
 
-                // Opcional: sincroniza lista local a partir dos metadados (só pubkeys conhecidos sem chave não entram na troca)
                 ensureActiveInAccountsList();
+                if (getSession().loginPassword) {
+                    const r = await restoreAccountsCentralFromNetwork(profileData);
+                    if (r.reason === 'ok' && r.restored > 0) {
+                        updateSyncHint(`${r.restored} conta(s) restaurada(s) da rede neste aparelho.`, true);
+                        setTimeout(() => updateSyncHint('', false), 5000);
+                    }
+                }
                 renderAccountsSwitcher();
             } catch (e) {
                 console.error('Erro ao carregar dados:', e);
