@@ -40,9 +40,9 @@ body{background:#f7f5fa;color:#1a1a1a}
 .fb-account-section{padding:24px 20px;display:flex;flex-direction:column;gap:16px;max-width:560px;margin:0 auto}
 .page-feed-section{max-width:680px;margin:0 auto}
 .page-feed-toolbar{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #e4e6eb;background:#fff}
-.account-card-box,.accounts-switcher-wrap{background:#fff;border:1px solid #e9e2f5;border-radius:12px;padding:16px 20px}
+.account-card-box,.accounts-switcher-wrap,.trees-switcher-wrap{background:#fff;border:1px solid #e9e2f5;border-radius:12px;padding:16px 20px}
 .accounts-switcher-label{font-size:12px;font-weight:600;color:#6b7280;margin-bottom:8px;display:flex;align-items:center;gap:6px}
-.accounts-switcher-row{display:flex;align-items:center;gap:12px;overflow-x:auto;padding-bottom:4px}
+.accounts-switcher-row,.trees-switcher-row{display:flex;align-items:center;gap:12px;overflow-x:auto;padding-bottom:4px}
 .account-chip{position:relative;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;padding:6px 8px;border-radius:12px;border:2px solid transparent;min-width:76px}
 .account-chip:hover{background:#f7f5fa}.account-chip.active{border-color:#6f42c1;background:#f3eef9}
 .account-chip-check{position:absolute;top:2px;right:4px;width:18px;height:18px;border-radius:50%;background:#6f42c1;color:#fff;font-size:10px;display:none;align-items:center;justify-content:center;border:2px solid #fff}
@@ -52,6 +52,7 @@ body{background:#f7f5fa;color:#1a1a1a}
 .account-chip-avatar img{width:100%;height:100%;object-fit:cover}
 .account-chip-name{font-size:11px;font-weight:600;color:#4b4b4b;max-width:72px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
 .account-chip-add{border:2px dashed #dcd1ed;background:#faf8fc}
+.tree-chip .account-chip-avatar{border-radius:14px}
 .fb-account-option-btn{display:flex;align-items:center;justify-content:space-between;width:100%;padding:14px 18px;background:#f3eef9;color:#5a32a3;font-size:15px;font-weight:600;border:1px solid #e9e2f5;border-radius:8px;cursor:pointer;text-align:left}
 .fb-account-option-btn.danger{background:#fdf2f2;color:#d9534f;border-color:#f5c6cb}
 .edit-modal-overlay{visibility:hidden;opacity:0;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;transition:.3s}
@@ -86,7 +87,6 @@ body{background:#f7f5fa;color:#1a1a1a}
 .tree-hint{font-size:11px;color:#6b7280;margin-top:10px;line-height:1.4;padding:8px 10px;background:#f7f5fa;border-radius:8px;border:1px solid #e9e2f5}
 .img-preview{width:100%;max-height:120px;object-fit:cover;border-radius:8px;border:1px solid #e9e2f5;margin-top:6px}
 .img-preview.avatar-preview{width:72px;height:72px;border-radius:50%}
-/* Posts estilo Social */
 .safe-blur{filter:blur(32px);transition:filter .35s ease;cursor:pointer;user-select:none}
 .safe-blur.revealed{filter:none;cursor:default}
 .safe-media-wrapper{position:relative;overflow:hidden;background:#000}
@@ -124,6 +124,7 @@ body{background:#f7f5fa;color:#1a1a1a}
 .fb-action-btn i{font-size:18px}
 .branch-feed-box{background:#fff;border:1px solid #e4e6eb;border-radius:.5rem;overflow:hidden;margin:12px 16px 20px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .feed-empty{text-align:center;padding:48px 20px;color:#6b7280;font-size:14px}
+.central-accounts-bar{background:#faf8fc;border-bottom:1px solid #e9e2f5;padding:14px 16px}
 @media(max-width:768px){
 .fb-cover-wrap{height:180px}.fb-header-section{margin-top:-48px}
 .fb-header-content{flex-direction:column;align-items:center;text-align:center}
@@ -138,6 +139,15 @@ body{background:#f7f5fa;color:#1a1a1a}
 </head>
 <body>
 <div class="fb-profile-container">
+
+  <!-- LISTA HORIZONTAL: contas = árvores diferentes na rede -->
+  <div class="central-accounts-bar">
+    <div class="accounts-switcher-label"><i class="fa-solid fa-users"></i> Contas vinculadas à central</div>
+    <p class="text-[11px] text-gray-500 mb-2">Cada conta = <strong>árvore/chave diferente</strong> na rede. Ao logar em qualquer uma, a lista volta em qualquer aparelho (cofre criptografado).</p>
+    <div class="accounts-switcher-row" id="central-accounts-row"></div>
+    <p id="central-accounts-hint" class="text-[11px] text-amber-700 mt-2 hidden"></p>
+  </div>
+
   <div class="fb-cover-wrap">
     <img src="" alt="" class="fb-cover-img" id="display-cover" style="display:none">
     <button type="button" class="fb-cover-edit" id="btn-edit-cover"><i class="fa-solid fa-camera"></i> Editar capa</button>
@@ -197,11 +207,11 @@ body{background:#f7f5fa;color:#1a1a1a}
 
   <div id="conta-section" class="tab-content">
     <div class="fb-account-section">
-      <div class="accounts-switcher-wrap">
-        <div class="accounts-switcher-label"><i class="fa-solid fa-sitemap"></i> Árvore de páginas (ramificações)</div>
-        <p class="text-[11px] text-gray-500 mb-3">Cada ramo = página com foto, capa, descrição e feed próprios. Mesma chave Nostr.</p>
-        <div class="accounts-switcher-row" id="accounts-switcher-row"></div>
-        <div class="tree-hint">Raiz = npub · Cada chip = página com identidade e posts próprios</div>
+      <div class="trees-switcher-wrap">
+        <div class="accounts-switcher-label"><i class="fa-solid fa-sitemap"></i> Páginas desta conta (ramificações da mesma árvore)</div>
+        <p class="text-[11px] text-gray-500 mb-3">Ramos da <strong>conta ativa</strong> acima — mesma chave, perfis diferentes.</p>
+        <div class="accounts-switcher-row trees-switcher-row" id="accounts-switcher-row"></div>
+        <div class="tree-hint">Conta (barra do topo) = outra identidade na rede · Chip abaixo = página/ramo da conta atual</div>
         <p id="accounts-sync-hint" class="text-[11px] text-amber-700 mt-2 hidden"></p>
       </div>
 
@@ -220,8 +230,8 @@ body{background:#f7f5fa;color:#1a1a1a}
       </div>
 
       <div class="account-card-box">
-        <h3 class="text-sm font-bold mb-1"><i class="fa-solid fa-key text-secondary"></i> Vincular e-mail</h3>
-        <p class="text-xs text-gray-500 mb-3">Abre a árvore inteira em qualquer aparelho.</p>
+        <h3 class="text-sm font-bold mb-1"><i class="fa-solid fa-key text-secondary"></i> Vincular e-mail + senha</h3>
+        <p class="text-xs text-gray-500 mb-3">Protege o cofre de contas: em outro aparelho, ao logar com e-mail/senha ou nsec de qualquer conta vinculada, a lista completa é restaurada.</p>
         <form id="link-credentials-form" onsubmit="handleLinkCredentials(event)" class="space-y-3">
           <div class="edit-form-group"><label class="text-xs">E-mail</label><input type="email" id="link-email" required class="text-xs"></div>
           <div class="edit-form-group"><label class="text-xs">Senha</label>
@@ -230,53 +240,66 @@ body{background:#f7f5fa;color:#1a1a1a}
               <button type="button" id="toggle-link-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="fa-solid fa-eye"></i></button>
             </div>
           </div>
-          <button type="submit" class="w-full fb-btn fb-btn-primary text-xs py-2.5">Vincular</button>
+          <button type="submit" class="w-full fb-btn fb-btn-primary text-xs py-2.5">Vincular e publicar cofre</button>
         </form>
       </div>
 
       <div class="account-card-box">
         <h3 class="text-sm font-bold mb-3"><i class="fa-solid fa-shield-halved text-secondary"></i> Privacidade</h3>
-        <div class="toggle-row"><div><div class="text-sm font-semibold">Modo seguro (ID)</div><div class="text-xs text-gray-500">Blur no LoreSpace ID</div></div><label class="toggle-switch"><input type="checkbox" id="toggle-safe-mode"><span class="toggle-slider"></span></label></div>
+        <div class="toggle-row"><div><div class="text-sm font-semibold">Modo seguro (ID)</div></div><label class="toggle-switch"><input type="checkbox" id="toggle-safe-mode"><span class="toggle-slider"></span></label></div>
         <div class="toggle-row"><div><div class="text-sm font-semibold">Mostrar e-mail</div></div><label class="toggle-switch"><input type="checkbox" id="toggle-show-email"><span class="toggle-slider"></span></label></div>
-        <div class="toggle-row"><div><div class="text-sm font-semibold">Publicar árvore na rede</div></div><label class="toggle-switch"><input type="checkbox" id="toggle-sync-accounts" checked><span class="toggle-slider"></span></label></div>
+        <div class="toggle-row"><div><div class="text-sm font-semibold">Publicar árvore + cofre na rede</div></div><label class="toggle-switch"><input type="checkbox" id="toggle-sync-accounts" checked><span class="toggle-slider"></span></label></div>
         <p class="privacy-status-line" id="privacy-status-line"></p>
       </div>
 
-      <button type="button" class="fb-account-option-btn" id="btn-copy-npub"><span><i class="fa-solid fa-fingerprint" style="margin-right:8px"></i> Copiar npub (raiz)</span><i class="fa-solid fa-copy"></i></button>
+      <button type="button" class="fb-account-option-btn" id="btn-copy-npub"><span><i class="fa-solid fa-fingerprint" style="margin-right:8px"></i> Copiar npub da conta ativa</span><i class="fa-solid fa-copy"></i></button>
+      <button type="button" class="fb-account-option-btn" id="btn-unlink-account"><span><i class="fa-solid fa-link-slash" style="margin-right:8px"></i> Desvincular conta ativa da central</span><i class="fa-solid fa-chevron-right"></i></button>
       <button type="button" class="fb-account-option-btn" id="btn-logout-local"><span><i class="fa-solid fa-right-from-bracket" style="margin-right:8px"></i> Sair</span><i class="fa-solid fa-chevron-right"></i></button>
-      <button type="button" class="fb-account-option-btn" id="btn-remove-branch"><span><i class="fa-solid fa-code-branch" style="margin-right:8px"></i> Remover página ativa</span><i class="fa-solid fa-chevron-right"></i></button>
+      <button type="button" class="fb-account-option-btn" id="btn-remove-branch"><span><i class="fa-solid fa-code-branch" style="margin-right:8px"></i> Remover página (ramo) ativa</span><i class="fa-solid fa-chevron-right"></i></button>
       <button class="fb-account-option-btn danger" id="open-delete-modal"><span><i class="fa-solid fa-user-slash" style="margin-right:8px"></i> Excluir conta raiz</span><i class="fa-solid fa-chevron-right"></i></button>
     </div>
   </div>
 </div>
 
-<!-- Modal editar página -->
+<!-- Modal vincular outra conta (outra árvore) -->
+<div class="edit-modal-overlay" id="add-account-modal">
+  <div class="edit-modal-container">
+    <div class="edit-modal-header"><h3 class="edit-modal-title"><i class="fa-solid fa-user-plus"></i> Vincular outra conta</h3><button class="edit-modal-close" id="close-add-account-modal">&times;</button></div>
+    <div class="edit-modal-body">
+      <p class="text-xs text-gray-500">Conta <strong>totalmente diferente</strong> na rede (outra nsec/npub = outra árvore). O npub fica vinculado à central para trocar em qualquer aparelho.</p>
+      <div class="edit-form-group"><label>nsec da outra conta</label><input type="password" id="add-account-nsec" placeholder="nsec1..."></div>
+      <div class="edit-form-group"><label>Apelido (opcional)</label><input type="text" id="add-account-label" placeholder="Ex: Trabalho"></div>
+      <p class="text-[11px] text-amber-700">É necessário e-mail/senha vinculados na conta atual para gravar o cofre criptografado na rede.</p>
+    </div>
+    <div class="edit-modal-footer"><button class="fb-btn fb-btn-secondary" id="cancel-add-account-modal">Cancelar</button><button class="fb-btn fb-btn-primary" id="confirm-add-account-modal">Vincular</button></div>
+  </div>
+</div>
+
 <div class="edit-modal-overlay" id="edit-modal">
   <div class="edit-modal-container">
     <div class="edit-modal-header"><h3 class="edit-modal-title"><i class="fa-solid fa-flag"></i> Editar página (ramo)</h3><button class="edit-modal-close" id="close-edit-modal">&times;</button></div>
     <div class="edit-modal-body">
-      <p class="text-xs text-gray-500">User name = público · Nome real = só no LoreSpace ID deste ramo.</p>
-      <div class="form-section-label">Identidade da página</div>
-      <div class="edit-form-group"><label>Nome de usuário (público)</label><input type="text" id="input-username"></div>
-      <div class="edit-form-group"><label>Rótulo / nome da página</label><input type="text" id="input-label"></div>
+      <div class="form-section-label">Identidade</div>
+      <div class="edit-form-group"><label>Nome de usuário</label><input type="text" id="input-username"></div>
+      <div class="edit-form-group"><label>Rótulo</label><input type="text" id="input-label"></div>
       <div class="edit-form-group"><label>Categoria</label>
         <select id="input-category"><option value="">Selecione</option><option>Perfil pessoal</option><option>Negócios</option><option>Criador de conteúdo</option><option>Marca</option><option>Comunidade</option><option>Projeto</option><option>Outro</option></select>
       </div>
-      <div class="edit-form-group"><label>Descrição / sobre</label><textarea id="input-about"></textarea></div>
-      <div class="edit-form-group"><label>Site</label><input type="url" id="input-website" placeholder="https://"></div>
-      <div class="form-section-label">Imagens desta página</div>
-      <div class="edit-form-group"><label>URL da foto de perfil</label><input type="url" id="input-avatar"><img id="preview-avatar" class="img-preview avatar-preview" style="display:none" alt=""></div>
-      <div class="edit-form-group"><label>URL da capa</label><input type="url" id="input-cover"><img id="preview-cover" class="img-preview" style="display:none" alt=""></div>
-      <div class="form-section-label">LoreSpace ID (só deste ramo)</div>
+      <div class="edit-form-group"><label>Descrição</label><textarea id="input-about"></textarea></div>
+      <div class="edit-form-group"><label>Site</label><input type="url" id="input-website"></div>
+      <div class="form-section-label">Imagens</div>
+      <div class="edit-form-group"><label>URL foto</label><input type="url" id="input-avatar"><img id="preview-avatar" class="img-preview avatar-preview" style="display:none" alt=""></div>
+      <div class="edit-form-group"><label>URL capa</label><input type="url" id="input-cover"><img id="preview-cover" class="img-preview" style="display:none" alt=""></div>
+      <div class="form-section-label">LoreSpace ID</div>
       <div class="edit-form-group"><label>Número</label><input type="text" id="input-number"></div>
       <div class="edit-form-group"><label>E-mail</label><input type="email" id="input-email"></div>
-      <div class="edit-form-group"><label>Nome real completo</label><input type="text" id="input-fullname" placeholder="Só no card ID"></div>
+      <div class="edit-form-group"><label>Nome real completo</label><input type="text" id="input-fullname"></div>
       <div class="edit-form-group"><label>Idade</label><input type="number" id="input-age" min="1" max="120"></div>
       <div class="edit-form-group"><label>Gênero</label><select id="input-gender"><option value="">Selecione</option><option>Feminino</option><option>Masculino</option><option>Outro</option><option>Prefiro não informar</option></select></div>
       <div class="edit-form-group"><label>Nacionalidade</label><input type="text" id="input-nationality"></div>
       <div class="edit-form-group"><label>Estado civil</label><select id="input-status"><option value="">Selecione</option><option>Solteira(o)</option><option>Casada(o)</option><option>Em um relacionamento</option><option>Divorciada(o)</option><option>Viúva(o)</option></select></div>
     </div>
-    <div class="edit-modal-footer"><button class="fb-btn fb-btn-secondary" id="cancel-edit-modal">Cancelar</button><button class="fb-btn fb-btn-primary" id="save-edit-modal">Salvar página</button></div>
+    <div class="edit-modal-footer"><button class="fb-btn fb-btn-secondary" id="cancel-edit-modal">Cancelar</button><button class="fb-btn fb-btn-primary" id="save-edit-modal">Salvar</button></div>
   </div>
 </div>
 
@@ -284,12 +307,11 @@ body{background:#f7f5fa;color:#1a1a1a}
   <div class="edit-modal-container">
     <div class="edit-modal-header"><h3 class="edit-modal-title"><i class="fa-solid fa-flag"></i> Nova página / ramo</h3><button class="edit-modal-close" id="close-add-branch-modal">&times;</button></div>
     <div class="edit-modal-body">
-      <p class="text-xs text-gray-500">Mesma árvore (mesma chave), identidade e feed próprios.</p>
-      <div class="edit-form-group"><label>User name da página</label><input type="text" id="add-branch-username"></div>
-      <div class="edit-form-group"><label>Nome / rótulo</label><input type="text" id="add-branch-label"></div>
+      <div class="edit-form-group"><label>User name</label><input type="text" id="add-branch-username"></div>
+      <div class="edit-form-group"><label>Rótulo</label><input type="text" id="add-branch-label"></div>
       <div class="edit-form-group"><label>Categoria</label><select id="add-branch-category"><option value="">Selecione</option><option>Perfil pessoal</option><option>Negócios</option><option>Criador de conteúdo</option><option>Marca</option><option>Comunidade</option><option>Projeto</option><option>Outro</option></select></div>
     </div>
-    <div class="edit-modal-footer"><button class="fb-btn fb-btn-secondary" id="cancel-add-branch-modal">Cancelar</button><button class="fb-btn fb-btn-primary" id="confirm-add-branch-modal">Criar página</button></div>
+    <div class="edit-modal-footer"><button class="fb-btn fb-btn-secondary" id="cancel-add-branch-modal">Cancelar</button><button class="fb-btn fb-btn-primary" id="confirm-add-branch-modal">Criar</button></div>
   </div>
 </div>
 
@@ -297,8 +319,8 @@ body{background:#f7f5fa;color:#1a1a1a}
   <div class="edit-modal-container">
     <div class="edit-modal-header"><h3 class="edit-modal-title"><i class="fa-solid fa-pen-to-square"></i> Publicar neste ramo</h3><button class="edit-modal-close" id="close-compose-modal">&times;</button></div>
     <div class="edit-modal-body">
-      <div class="edit-form-group"><label>Texto</label><textarea id="compose-text" placeholder="No que você está pensando? Use #hashtags"></textarea></div>
-      <div class="edit-form-group"><label>URL de mídia (opcional)</label><input type="url" id="compose-media" placeholder="https://...jpg ou .mp4"></div>
+      <div class="edit-form-group"><label>Texto</label><textarea id="compose-text"></textarea></div>
+      <div class="edit-form-group"><label>URL de mídia</label><input type="url" id="compose-media"></div>
     </div>
     <div class="edit-modal-footer"><button class="fb-btn fb-btn-secondary" id="cancel-compose-modal">Cancelar</button><button class="fb-btn fb-btn-primary" id="confirm-compose-modal">Publicar</button></div>
   </div>
@@ -320,7 +342,7 @@ body{background:#f7f5fa;color:#1a1a1a}
     <div class="p-4 border-b flex justify-between items-center"><h3 class="font-bold text-sm">Comentários</h3><button type="button" onclick="closeCommentsModal()" class="w-8 h-8 bg-gray-100 rounded-full"><i class="fa-solid fa-xmark"></i></button></div>
     <div id="commentsModalList" class="p-4 overflow-y-auto flex-1"></div>
     <div class="p-4 bg-gray-50 border-t flex gap-2">
-      <input type="text" id="modalCommentInput" placeholder="Escreva um comentário..." class="w-full text-xs px-3 py-3 border rounded-xl outline-none focus:border-secondary">
+      <input type="text" id="modalCommentInput" class="w-full text-xs px-3 py-3 border rounded-xl outline-none" placeholder="Comentário...">
       <button type="button" onclick="submitModalComment()" class="bg-secondary text-white px-4 py-3 rounded-xl text-xs font-semibold">Enviar</button>
     </div>
   </div>
@@ -376,7 +398,7 @@ function handleLinkCredentials(e){
   if(!email||!password)return alert('Preencha e-mail e senha.');
   const s=JSON.parse(localStorage.getItem('nostr_session')||'{}');
   s.loginEmail=email;s.loginPassword=password;localStorage.setItem('nostr_session',JSON.stringify(s));
-  window.saveCredentialsToNostr?.(email,password).then(ok=>{alert(ok?'Vinculado e árvore publicada.':'Salvo localmente.');document.getElementById('link-password').value='';window.refreshLinkedCredentials?.()});
+  window.saveCredentialsToNostr?.(email,password).then(ok=>{alert(ok?'Vinculado e cofre de contas publicado.':'Salvo localmente.');document.getElementById('link-password').value='';window.refreshLinkedCredentials?.()});
 }
 function setupToggle(a,b){const i=document.getElementById(a),btn=document.getElementById(b);if(!i||!btn)return;btn.onclick=()=>{const p=i.type==='password';i.type=p?'text':'password';const ic=btn.querySelector('i');if(ic){ic.classList.toggle('fa-eye',!p);ic.classList.toggle('fa-eye-slash',p)}}}
 setupToggle('link-password','toggle-link-password');setupToggle('view-password','toggle-view-password');setupToggle('delete-access-key','toggle-delete-key');
@@ -390,12 +412,13 @@ document.getElementById('confirm-delete-modal').onclick=()=>window.deleteAccount
 
 <script type="module">
 import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
-import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+import { hexToBytes, bytesToHex } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
 
 const RELAYS=['wss://relay.damus.io','wss://nos.lol','wss://relay.nostr.band','wss://relay.primal.net'];
 const pool=new NostrTools.SimplePool();
 const profileCache=new Map();
 const PRIVACY_KEY='nostr_privacy_prefs',BRANCHES_KEY='nostr_identity_tree',ACTIVE_BRANCH_KEY='nostr_active_branch_id',LOCAL_FEED_KEY='nostr_branch_feed_cache';
+const CENTRAL_ACCOUNTS_KEY='nostr_central_accounts'; // lista de contas (árvores distintas)
 let currentUserData={pubkey:'',privateKey:null,nickname:'@anonimo',avatarUrl:''};
 let feedSafeMode=localStorage.getItem('safeMode')!=='false';
 const postLikesCache=new Map(),userLikesMap=new Map(),postCommentsCache=new Map();
@@ -411,6 +434,10 @@ async function encryptText(text,password){
   const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(text));
   const buff=new Uint8Array(iv.length+enc.byteLength);buff.set(iv,0);buff.set(new Uint8Array(enc),iv.length);
   return btoa(String.fromCharCode(...buff));
+}
+async function decryptText(b64,password){
+  try{const buff=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));const key=await deriveKeyFromPassword(password);
+    return new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:buff.slice(0,12)},key,buff.slice(12)))}catch{return null}
 }
 function escapeHtml(t){return String(t??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function getSession(){try{return JSON.parse(localStorage.getItem('nostr_session')||'{}')}catch{return{}}}
@@ -452,19 +479,150 @@ function loadSessionKeys(){
 function updateSyncHint(msg,show){const el=document.getElementById('accounts-sync-hint');if(!el)return;if(show&&msg){el.textContent=msg;el.classList.remove('hidden')}else el.classList.add('hidden')}
 function branchTag(id){return`branch:${id}`}
 
-/* Posts estilo Social */
+/* ===== CENTRAL: várias contas (árvores distintas) ===== */
+function getCentralAccounts(){
+  try{const list=JSON.parse(localStorage.getItem(CENTRAL_ACCOUNTS_KEY)||'[]');return Array.isArray(list)?list:[]}catch{return[]}
+}
+function saveCentralAccounts(list){
+  localStorage.setItem(CENTRAL_ACCOUNTS_KEY,JSON.stringify(list));
+}
+function upsertCentralAccount(entry){
+  const pk=normalizePubkey(entry.pubkey);
+  if(!pk||!entry.privateKeyHex)return;
+  let list=getCentralAccounts();
+  const i=list.findIndex(a=>normalizePubkey(a.pubkey)===pk);
+  const item={
+    pubkey:pk,
+    privateKeyHex:entry.privateKeyHex,
+    nickname:(entry.nickname||'@conta').replace(/^@/,'')?'@'+(entry.nickname||'conta').replace(/^@/,''):'@conta',
+    avatarUrl:entry.avatarUrl||'',
+    label:entry.label||'',
+    linkedAt:entry.linkedAt||Date.now()
+  };
+  if(i>=0)list[i]={...list[i],...item};else list.push(item);
+  saveCentralAccounts(list);
+  return list;
+}
+function ensureCurrentInCentral(){
+  const s=getSession();
+  if(!s.pubkey||!s.privateKeyHex)return;
+  upsertCentralAccount({
+    pubkey:s.pubkey,
+    privateKeyHex:s.privateKeyHex,
+    nickname:s.nickname||'@usuario',
+    avatarUrl:s.avatarUrl||''
+  });
+}
+function renderCentralAccountsRow(){
+  const row=document.getElementById('central-accounts-row');
+  if(!row)return;
+  ensureCurrentInCentral();
+  const list=getCentralAccounts();
+  const activePk=normalizePubkey(currentUserData.pubkey);
+  const others=list.filter(a=>normalizePubkey(a.pubkey)!==activePk);
+  const active=list.find(a=>normalizePubkey(a.pubkey)===activePk);
+  const ordered=active?[...others,active]:others;
+
+  let html=`<button type="button" class="account-chip account-chip-add" id="btn-open-add-account" title="Vincular outra conta (outra árvore)">
+    <div class="account-chip-avatar"><i class="fa-solid fa-plus"></i></div>
+    <span class="account-chip-name">Vincular</span>
+  </button>`;
+
+  ordered.forEach(a=>{
+    const isA=normalizePubkey(a.pubkey)===activePk;
+    const name=(a.label||a.nickname||'conta').replace(/^@/,'');
+    const pic=a.avatarUrl||'';
+    const av=pic?`<img src="${escapeHtml(pic)}" onerror="this.remove()">`:`<i class="fa-solid fa-user"></i>`;
+    html+=`<button type="button" class="account-chip${isA?' active':''}" data-central-pk="${escapeHtml(normalizePubkey(a.pubkey))}" title="npub vinculado">
+      <span class="account-chip-check"><i class="fa-solid fa-check"></i></span>
+      <div class="account-chip-avatar">${av}</div>
+      <span class="account-chip-name">${escapeHtml(name)}</span>
+    </button>`;
+  });
+  row.innerHTML=html;
+
+  document.getElementById('btn-open-add-account')?.addEventListener('click',()=>{
+    document.getElementById('add-account-modal')?.classList.add('active');
+  });
+  row.querySelectorAll('[data-central-pk]').forEach(chip=>{
+    chip.onclick=()=>{
+      const pk=chip.getAttribute('data-central-pk');
+      if(!pk||pk===activePk)return;
+      window.switchCentralAccount?.(pk);
+    };
+  });
+}
+function setCentralHint(msg,show){
+  const el=document.getElementById('central-accounts-hint');
+  if(!el)return;
+  if(show&&msg){el.textContent=msg;el.classList.remove('hidden')}else{el.classList.add('hidden');el.textContent=''}
+}
+
+/** Cofre: lista de contas (com privateKeyHex) criptografada com senha de login */
+async function buildAccountsVaultPayload(password){
+  const list=getCentralAccounts();
+  if(!list.length||!password)return null;
+  return encryptText(JSON.stringify(list),password);
+}
+async function restoreAccountsFromVault(encryptedVault,password){
+  if(!encryptedVault||!password)return null;
+  const plain=await decryptText(encryptedVault,password);
+  if(!plain)return null;
+  try{
+    const list=JSON.parse(plain);
+    if(!Array.isArray(list))return null;
+    // mescla com local (não perde contas só locais)
+    const byPk=new Map(getCentralAccounts().map(a=>[normalizePubkey(a.pubkey),a]));
+    list.forEach(a=>{
+      const pk=normalizePubkey(a.pubkey);
+      if(!pk||!a.privateKeyHex)return;
+      byPk.set(pk,{...byPk.get(pk),...a,pubkey:pk});
+    });
+    const merged=[...byPk.values()];
+    saveCentralAccounts(merged);
+    return merged;
+  }catch{return null}
+}
+
+window.switchCentralAccount=function(targetPubkey){
+  const pk=normalizePubkey(targetPubkey);
+  const list=getCentralAccounts();
+  const acc=list.find(a=>normalizePubkey(a.pubkey)===pk);
+  if(!acc?.privateKeyHex)return alert('Conta não encontrada no cofre local.');
+  if(!confirm('Trocar para esta conta (outra árvore na rede)?'))return;
+  try{
+    const priv=hexToBytes(acc.privateKeyHex);
+    const pub=NostrTools.getPublicKey(priv);
+    if(normalizePubkey(pub)!==pk)return alert('Chave inconsistente.');
+    const prev=getSession();
+    const next={
+      pubkey:pk,
+      privateKeyHex:acc.privateKeyHex,
+      nickname:acc.nickname||'@usuario',
+      avatarUrl:acc.avatarUrl||'',
+      loginEmail:prev.loginEmail||'',
+      loginPassword:prev.loginPassword||''
+    };
+    localStorage.setItem('nostr_session',JSON.stringify(next));
+    localStorage.setItem('isLoggedIn','true');
+    localStorage.setItem(ACTIVE_BRANCH_KEY,'root');
+    location.reload();
+  }catch(e){console.error(e);alert('Falha ao trocar de conta.')}
+};
+
+/* Posts estilo Social (inalterado em espírito) */
 function isMediaUrl(url){return/\.(png|jpe?g|gif|webp|avif|bmp|svg|mp4|webm|ogg|mov)(\?|$)/i.test(url||'')}
 function buildImageHtml(url){
   if(!feedSafeMode)return`<div class="fb-media-wrap"><img src="${escapeHtml(url)}" alt="" loading="lazy"></div>`;
-  return`<div class="fb-media-wrap safe-media-wrapper" onclick="revealImage(this)"><img src="${escapeHtml(url)}" class="safe-blur" alt="" loading="lazy"><div class="safe-overlay"><div class="text-center px-4"><i class="fa-solid fa-eye-slash text-xl mb-2"></i><div class="text-sm font-semibold">Imagem protegida</div><div class="text-[11px] opacity-90 mt-1">Clique para revelar</div></div></div></div>`;
+  return`<div class="fb-media-wrap safe-media-wrapper" onclick="revealImage(this)"><img src="${escapeHtml(url)}" class="safe-blur" alt="" loading="lazy"><div class="safe-overlay"><div class="text-center px-4"><i class="fa-solid fa-eye-slash text-xl mb-2"></i><div class="text-sm font-semibold">Imagem protegida</div></div></div></div>`;
 }
 function buildVideoHtml(url){
   if(!feedSafeMode)return`<div class="fb-media-wrap"><video src="${escapeHtml(url)}" controls playsinline preload="metadata"></video></div>`;
-  return`<div class="fb-media-wrap safe-video-blocked" onclick="revealVideo(this,'${escapeHtml(url)}')"><i class="fa-solid fa-video-slash text-2xl"></i><div class="text-sm font-semibold">Vídeo bloqueado</div><div class="text-[11px] opacity-80">Clique para carregar</div></div>`;
+  return`<div class="fb-media-wrap safe-video-blocked" onclick="revealVideo(this,'${escapeHtml(url)}')"><i class="fa-solid fa-video-slash text-2xl"></i><div class="text-sm font-semibold">Vídeo bloqueado</div></div>`;
 }
-window.revealImage=function(w){if(!confirm('Ver esta imagem?'))return;w.querySelector('.safe-blur')?.classList.add('revealed');w.querySelector('.safe-overlay')?.classList.add('hidden-overlay')};
-window.revealVideo=function(c,u){if(!confirm('Carregar este vídeo?'))return;c.className='fb-media-wrap';c.onclick=null;c.innerHTML=`<video src="${escapeHtml(u)}" controls autoplay playsinline></video>`};
-window.revealLink=function(span,url){if(!confirm('Abrir este link?'))return;const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';a.className='text-secondary underline break-all';a.textContent=url;span.parentNode.replaceChild(a,span)};
+window.revealImage=function(w){if(!confirm('Ver imagem?'))return;w.querySelector('.safe-blur')?.classList.add('revealed');w.querySelector('.safe-overlay')?.classList.add('hidden-overlay')};
+window.revealVideo=function(c,u){if(!confirm('Carregar vídeo?'))return;c.className='fb-media-wrap';c.onclick=null;c.innerHTML=`<video src="${escapeHtml(u)}" controls autoplay playsinline></video>`};
+window.revealLink=function(span,url){if(!confirm('Abrir link?'))return;const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';a.className='text-secondary underline break-all';a.textContent=url;span.parentNode.replaceChild(a,span)};
 window.carouselGo=function(id,dir){const root=document.getElementById(id);if(!root)return;const track=root.querySelector('.media-carousel-track'),slides=root.querySelectorAll('.media-carousel-slide'),dots=root.querySelectorAll('.media-carousel-dot'),counter=root.querySelector('.media-carousel-counter');let idx=parseInt(root.dataset.index||'0',10);const total=slides.length;if(!total)return;idx=(idx+dir+total)%total;root.dataset.index=String(idx);track.style.transform=`translateX(-${idx*100}%)`;dots.forEach((d,i)=>d.classList.toggle('active',i===idx));if(counter)counter.textContent=`${idx+1}/${total}`};
 window.carouselGoTo=function(id,index){const root=document.getElementById(id);if(!root)return;const track=root.querySelector('.media-carousel-track'),dots=root.querySelectorAll('.media-carousel-dot'),counter=root.querySelector('.media-carousel-counter'),total=root.querySelectorAll('.media-carousel-slide').length;const idx=Math.max(0,Math.min(index,total-1));root.dataset.index=String(idx);track.style.transform=`translateX(-${idx*100}%)`;dots.forEach((d,i)=>d.classList.toggle('active',i===idx));if(counter)counter.textContent=`${idx+1}/${total}`};
 function buildCarouselHtml(items){
@@ -584,11 +742,11 @@ function renderBranchSwitcher(){
   const branches=getBranchesForPubkey(pk);const activeId=getActiveBranchId();
   const others=branches.filter(b=>b.id!==activeId);const active=branches.find(b=>b.id===activeId);
   const ordered=active?[...others,active]:others;
-  let html=`<button type="button" class="account-chip account-chip-add" id="btn-open-add-branch"><div class="account-chip-avatar"><i class="fa-solid fa-plus"></i></div><span class="account-chip-name">Nova página</span></button>`;
+  let html=`<button type="button" class="account-chip account-chip-add tree-chip" id="btn-open-add-branch"><div class="account-chip-avatar"><i class="fa-solid fa-plus"></i></div><span class="account-chip-name">Nova página</span></button>`;
   ordered.forEach(b=>{
     const isA=b.id===activeId;const name=(b.label||b.username||'pagina').replace(/^@/,'');
     const pic=b.avatarUrl||'';const av=pic?`<img src="${escapeHtml(pic)}" onerror="this.remove()">`:`<i class="fa-solid fa-flag"></i>`;
-    html+=`<button type="button" class="account-chip${isA?' active':''}" data-branch="${escapeHtml(b.id)}"><span class="account-chip-check"><i class="fa-solid fa-check"></i></span><div class="account-chip-avatar">${av}</div><span class="account-chip-name">${escapeHtml(name)}</span></button>`;
+    html+=`<button type="button" class="account-chip tree-chip${isA?' active':''}" data-branch="${escapeHtml(b.id)}"><span class="account-chip-check"><i class="fa-solid fa-check"></i></span><div class="account-chip-avatar">${av}</div><span class="account-chip-name">${escapeHtml(name)}</span></button>`;
   });
   row.innerHTML=html;
   document.getElementById('btn-open-add-branch')?.addEventListener('click',()=>document.getElementById('add-branch-modal').classList.add('active'));
@@ -623,7 +781,11 @@ function applyActiveBranchToUI(){
   setV('input-age',branch?.age);setV('input-nationality',branch?.nationality);
   document.getElementById('input-gender').value=branch?.gender||'';document.getElementById('input-status').value=branch?.status||'';
   const s=getSession();s.nickname='@'+username;s.avatarUrl=picture;localStorage.setItem('nostr_session',JSON.stringify(s));
-  currentUserData.nickname='@'+username;currentUserData.avatarUrl=picture;window.applyPrivacyControls?.();
+  currentUserData.nickname='@'+username;currentUserData.avatarUrl=picture;
+  // atualiza chip da conta na central
+  upsertCentralAccount({pubkey:currentUserData.pubkey,privateKeyHex:s.privateKeyHex,nickname:'@'+username,avatarUrl:picture});
+  renderCentralAccountsRow();
+  window.applyPrivacyControls?.();
 }
 
 async function publishIdentityTreeToNostr(){
@@ -632,13 +794,33 @@ async function publishIdentityTreeToNostr(){
   const session=getSession();const existing=profileCache.get(currentUserData.pubkey)||{};
   const branches=getBranchesForPubkey(currentUserData.pubkey);const active=getActiveBranch(currentUserData.pubkey);
   const username=(active?.username||'usuario').replace(/^@/,'');
-  const metadata={name:username,display_name:username,picture:active?.avatarUrl||'',banner:active?.coverUrl||'',about:active?.about||'',website:active?.website||'',
+
+  // Cofre de contas (árvores distintas) — só se houver senha
+  let accounts_vault=existing.accounts_vault||'';
+  if(session.loginPassword){
+    try{const v=await buildAccountsVaultPayload(session.loginPassword);if(v)accounts_vault=v}catch{}
+  }
+  const linked_pubkeys=getCentralAccounts().map(a=>normalizePubkey(a.pubkey)).filter(Boolean);
+
+  const metadata={
+    name:username,display_name:username,picture:active?.avatarUrl||'',banner:active?.coverUrl||'',about:active?.about||'',website:active?.website||'',
     lorespace_number:active?.number||'',lorespace_email:active?.email||'',lorespace_fullname:active?.fullname||'',lorespace_age:active?.age||'',
     gender:active?.gender||'',nationality:active?.nationality||'',status:active?.status||'',
-    login_email:getPrivacyPrefs().showEmail?(existing.login_email||session.loginEmail||''):'',encrypted_private_key:existing.encrypted_private_key||'',
-    identity_tree:branches.map(serializeBranch),active_branch_id:active?.id||'root'};
-  try{const signed=NostrTools.finalizeEvent({kind:0,created_at:Math.floor(Date.now()/1000),tags:[['t','lorespace-tree']],content:JSON.stringify(metadata)},currentUserData.privateKey);
-    await Promise.any(pool.publish(RELAYS,signed));profileCache.set(currentUserData.pubkey,{...existing,...metadata});return true}catch(e){console.error(e);return false}
+    login_email:getPrivacyPrefs().showEmail?(existing.login_email||session.loginEmail||''):'',
+    encrypted_private_key:existing.encrypted_private_key||'',
+    identity_tree:branches.map(serializeBranch),active_branch_id:active?.id||'root',
+    // vínculo multi-conta (npubs públicos + cofre criptografado)
+    linked_accounts:linked_pubkeys,
+    accounts_vault
+  };
+  try{
+    const tags=[['t','lorespace-tree'],['t','lorespace-central']];
+    linked_pubkeys.forEach(p=>{if(p)tags.push(['p',p])});
+    const signed=NostrTools.finalizeEvent({kind:0,created_at:Math.floor(Date.now()/1000),tags,content:JSON.stringify(metadata)},currentUserData.privateKey);
+    await Promise.any(pool.publish(RELAYS,signed));
+    profileCache.set(currentUserData.pubkey,{...existing,...metadata});
+    return true;
+  }catch(e){console.error(e);return false}
 }
 function pullTreeFromProfile(profileData){
   if(!currentUserData.pubkey)return{count:0};
@@ -653,7 +835,7 @@ function pullTreeFromProfile(profileData){
 window.renderBranchFeed=async function(){
   const list=document.getElementById('branch-feed-list');if(!list)return;
   const pk=currentUserData.pubkey;
-  if(!pk){list.innerHTML=`<div class="feed-empty">Faça login para ver o feed.</div>`;return}
+  if(!pk){list.innerHTML=`<div class="feed-empty">Faça login.</div>`;return}
   const branch=getActiveBranch(pk);const tag=branchTag(branch.id);
   list.innerHTML=`<div class="feed-empty"><i class="fa-solid fa-spinner fa-spin"></i> Carregando…</div>`;
   let events=[];
@@ -662,14 +844,14 @@ window.renderBranchFeed=async function(){
     const byId=new Map();[...events,...local].forEach(ev=>{if(ev?.id)byId.set(ev.id,ev)});events=[...byId.values()].sort((a,b)=>b.created_at-a.created_at)}catch{}
   const ids=events.map(e=>e.id);
   await Promise.all([fetchReactionsForPosts(ids),fetchCommentCountsForPosts(ids)]);
-  if(!events.length){list.innerHTML=`<div class="feed-empty"><i class="fa-regular fa-newspaper text-2xl text-violet-400 mb-2"></i><br>Nenhum post neste ramo ainda.</div>`;return}
+  if(!events.length){list.innerHTML=`<div class="feed-empty">Nenhum post neste ramo.</div>`;return}
   list.innerHTML=events.map(ev=>buildFbPostHtml(ev,branch)).join('');
 };
 
 window.publishBranchPost=async function(text,mediaUrl){
   if(!currentUserData.privateKey||!currentUserData.pubkey){alert('Faça login.');return false}
   let content=(text||'').trim();const media=(mediaUrl||'').trim();
-  if(!content&&!media){alert('Escreva algo ou informe mídia.');return false}
+  if(!content&&!media){alert('Escreva algo ou mídia.');return false}
   const branch=getActiveBranch(currentUserData.pubkey);const tag=branchTag(branch.id);
   const tags=[['t',tag],['t','lorespace-page'],['branch',branch.id]];
   if(media){if(/\.(mp4|webm|ogg|mov)(\?|$)/i.test(media))tags.push(['video',media]);else tags.push(['image',media]);tags.push(['url',media]);if(!content.includes(media))content+=(content?'\n':'')+media}
@@ -691,7 +873,7 @@ window.applyPrivacyControls=function(){
     el.onclick=null;if(safe&&el.classList.contains('privacy-masked'))el.onclick=()=>{if(!confirm('Revelar?'))return;el.classList.add('revealed');el.classList.remove('privacy-masked')};
   });
   const st=document.getElementById('privacy-status-line');
-  if(st)st.innerHTML=[safe?'Modo seguro ID <strong>ligado</strong>':'Modo seguro ID <strong>desligado</strong>',prefs.showEmail?'E-mail <strong>visível</strong>':'E-mail <strong>oculto</strong>',prefs.syncAccounts?'Árvore <strong>na rede</strong>':'Publicação <strong>pausada</strong>'].join(' · ');
+  if(st)st.innerHTML=[safe?'Modo seguro ID <strong>ligado</strong>':'Modo seguro ID <strong>desligado</strong>',prefs.showEmail?'E-mail <strong>visível</strong>':'E-mail <strong>oculto</strong>',prefs.syncAccounts?'Árvore/cofre <strong>na rede</strong>':'Publicação <strong>pausada</strong>'].join(' · ');
 };
 function initPrivacyToggles(){
   const prefs=getPrivacyPrefs();
@@ -719,19 +901,64 @@ window.saveCredentialsToNostr=async function(email,password){
   const session=getSession();if(!session.privateKeyHex)return false;
   const encryptedSk=await encryptText(session.privateKeyHex,password);
   session.loginEmail=email;session.loginPassword=password;localStorage.setItem('nostr_session',JSON.stringify(session));
-  const existing=profileCache.get(currentUserData.pubkey)||{};existing.encrypted_private_key=encryptedSk;existing.login_email=getPrivacyPrefs().showEmail?email:'';
-  profileCache.set(currentUserData.pubkey,existing);const ok=await publishIdentityTreeToNostr();window.refreshLinkedCredentials();return ok;
+  const existing=profileCache.get(currentUserData.pubkey)||{};
+  existing.encrypted_private_key=encryptedSk;
+  existing.login_email=getPrivacyPrefs().showEmail?email:'';
+  profileCache.set(currentUserData.pubkey,existing);
+  ensureCurrentInCentral();
+  const ok=await publishIdentityTreeToNostr();
+  window.refreshLinkedCredentials();
+  setCentralHint(ok?'Cofre de contas publicado na rede.':'Cofre local; publique com sync ligado.',true);
+  return ok;
 };
 window.deleteAccountPermanently=async function(u,k){
   const session=getSession();if(!session.privateKeyHex)return alert('Sem sessão.');
   let sk;try{if(k.trim().startsWith('nsec')){const d=NostrTools.nip19.decode(k.trim());if(d.type!=='nsec')throw 0;sk=d.data}else sk=hexToBytes(k.trim())}catch{return alert('nsec inválida.')}
   if(normalizePubkey(NostrTools.getPublicKey(sk))!==normalizePubkey(currentUserData.pubkey))return alert('Chave não corresponde.');
   if(u.toLowerCase().replace(/^@/,'')!==(getActiveBranch(currentUserData.pubkey)?.username||'').toLowerCase())return alert('User name não confere.');
-  if(!confirm('Excluir raiz e árvore?'))return;
+  if(!confirm('Excluir raiz e árvore desta conta?'))return;
   try{await Promise.any(pool.publish(RELAYS,NostrTools.finalizeEvent({kind:0,created_at:Math.floor(Date.now()/1000),tags:[],content:JSON.stringify({deleted:true})},sk)))}catch{}
   const store=getTreeStore();delete store[normalizePubkey(currentUserData.pubkey)];saveTreeStore(store);
+  const list=getCentralAccounts().filter(a=>normalizePubkey(a.pubkey)!==normalizePubkey(currentUserData.pubkey));
+  saveCentralAccounts(list);
   localStorage.removeItem('nostr_session');localStorage.removeItem('isLoggedIn');localStorage.removeItem(ACTIVE_BRANCH_KEY);
   alert('Excluído.');location.href='../Social.html';
+};
+
+/* Modal vincular outra conta (outra árvore) */
+const addAccM=document.getElementById('add-account-modal');
+document.getElementById('close-add-account-modal').onclick=()=>addAccM.classList.remove('active');
+document.getElementById('cancel-add-account-modal').onclick=()=>addAccM.classList.remove('active');
+document.getElementById('confirm-add-account-modal').onclick=async()=>{
+  const nsec=(document.getElementById('add-account-nsec').value||'').trim();
+  const label=(document.getElementById('add-account-label').value||'').trim();
+  if(!nsec)return alert('Informe a nsec.');
+  let sk;
+  try{
+    if(nsec.startsWith('nsec')){const d=NostrTools.nip19.decode(nsec);if(d.type!=='nsec')throw 0;sk=d.data}
+    else sk=hexToBytes(nsec);
+  }catch{return alert('nsec inválida.')}
+  const pub=NostrTools.getPublicKey(sk);
+  const hex=bytesToHex(sk);
+  let nickname='@conta',avatarUrl='';
+  try{
+    const evs=await pool.querySync(RELAYS,{kinds:[0],authors:[pub],limit:3});
+    if(evs?.length){evs.sort((a,b)=>b.created_at-a.created_at);const data=JSON.parse(evs[0].content||'{}');nickname='@'+(data.name||data.display_name||'conta');avatarUrl=data.picture||''}
+  }catch{}
+  if(label)nickname='@'+label.replace(/^@/,'');
+  upsertCentralAccount({pubkey:pub,privateKeyHex:hex,nickname,avatarUrl,label});
+  document.getElementById('add-account-nsec').value='';
+  document.getElementById('add-account-label').value='';
+  addAccM.classList.remove('active');
+  renderCentralAccountsRow();
+  const session=getSession();
+  if(!session.loginPassword){
+    setCentralHint('Conta vinculada localmente. Vincule e-mail/senha e publique o cofre para usar em outros aparelhos.',true);
+  }else{
+    const ok=await publishIdentityTreeToNostr();
+    setCentralHint(ok?'Conta vinculada e cofre atualizado na rede.':'Vinculada localmente; falha ao publicar cofre.',true);
+  }
+  alert('Conta vinculada à central. Você pode alternar pelo seletor horizontal.');
 };
 
 const addM=document.getElementById('add-branch-modal');
@@ -759,27 +986,49 @@ document.getElementById('confirm-compose-modal').onclick=async()=>{
 };
 document.getElementById('btn-remove-branch').onclick=async()=>{
   if(!currentUserData.pubkey)return;const branches=getBranchesForPubkey(currentUserData.pubkey);const id=getActiveBranchId();
-  if(branches.length<=1)return alert('Única página.');if(id==='root')return alert('Troque de ramo antes de remover o principal.');
+  if(branches.length<=1)return alert('Única página.');if(id==='root')return alert('Troque de ramo antes.');
   if(!confirm('Remover página?'))return;
   setBranchesForPubkey(currentUserData.pubkey,branches.filter(b=>b.id!==id));setActiveBranchId(getBranchesForPubkey(currentUserData.pubkey)[0].id);
   applyActiveBranchToUI();renderBranchSwitcher();window.renderBranchFeed?.();await publishIdentityTreeToNostr();
+};
+document.getElementById('btn-unlink-account').onclick=async()=>{
+  if(!currentUserData.pubkey)return;
+  const list=getCentralAccounts();
+  if(list.length<=1)return alert('Só há uma conta na central.');
+  if(!confirm('Desvincular esta conta da central? (não apaga a conta na rede)'))return;
+  const pk=normalizePubkey(currentUserData.pubkey);
+  const next=list.filter(a=>normalizePubkey(a.pubkey)!==pk);
+  saveCentralAccounts(next);
+  // troca para outra conta do cofre
+  const other=next[0];
+  if(other)window.switchCentralAccount(other.pubkey);
+  else{renderCentralAccountsRow();await publishIdentityTreeToNostr()}
 };
 document.getElementById('btn-copy-npub').onclick=async()=>{if(!currentUserData.pubkey)return;try{await navigator.clipboard.writeText(NostrTools.nip19.npubEncode(currentUserData.pubkey));alert('npub copiado!')}catch{}};
 document.getElementById('btn-logout-local').onclick=()=>{if(!confirm('Sair?'))return;localStorage.removeItem('nostr_session');localStorage.removeItem('isLoggedIn');location.reload()};
 
 async function loadAll(){
   const pubkey=loadSessionKeys();initPrivacyToggles();window.refreshLinkedCredentials();
-  if(!pubkey){document.getElementById('display-name').textContent='Sem sessão';renderBranchSwitcher();return}
+  if(!pubkey){document.getElementById('display-name').textContent='Sem sessão';renderCentralAccountsRow();renderBranchSwitcher();return}
+  ensureCurrentInCentral();
   getBranchesForPubkey(pubkey);
   try{
     const events=await pool.querySync(RELAYS,{kinds:[0],authors:[pubkey],limit:5});
     let profileData={};
     if(events?.length){events.sort((a,b)=>b.created_at-a.created_at);try{profileData=JSON.parse(events[0].content||'{}');profileCache.set(pubkey,profileData)}catch{}}
+    // restaura cofre de contas (outras árvores) se houver senha
+    const session=getSession();
+    if(profileData.accounts_vault&&session.loginPassword){
+      const restored=await restoreAccountsFromVault(profileData.accounts_vault,session.loginPassword);
+      if(restored?.length)setCentralHint(`Cofre restaurado: ${restored.length} conta(s) vinculada(s).`,true);
+    }else if(Array.isArray(profileData.linked_accounts)&&profileData.linked_accounts.length){
+      setCentralHint(`${profileData.linked_accounts.length} npub(s) vinculados. Entre com e-mail/senha para descriptografar o cofre e alternar.`,true);
+    }
     const pulled=pullTreeFromProfile(profileData);
-    updateSyncHint(pulled.count?`${pulled.count} página(s) na árvore.`:'Árvore local.',true);
-    applyActiveBranchToUI();renderBranchSwitcher();await window.renderBranchFeed();
+    updateSyncHint(pulled.count?`${pulled.count} página(s) nesta árvore.`:'Árvore local.',true);
+    applyActiveBranchToUI();renderCentralAccountsRow();renderBranchSwitcher();await window.renderBranchFeed();
     if(!profileData.identity_tree&&currentUserData.privateKey&&getPrivacyPrefs().syncAccounts)await publishIdentityTreeToNostr();
-  }catch(e){console.error(e);applyActiveBranchToUI();renderBranchSwitcher()}
+  }catch(e){console.error(e);applyActiveBranchToUI();renderCentralAccountsRow();renderBranchSwitcher()}
 }
 loadAll();
 </script>
