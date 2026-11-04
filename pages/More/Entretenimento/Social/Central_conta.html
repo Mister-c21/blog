@@ -469,28 +469,12 @@ body{background:#f7f5fa;color:#1a1a1a}
 </div>
 <div class="edit-modal-overlay" id="compose-modal">
   <div class="edit-modal-container">
-    <div class="edit-modal-header">
-      <h3 class="edit-modal-title"><i class="fa-solid fa-pen-to-square"></i> Publicar</h3>
-      <button class="edit-modal-close" id="close-compose-modal">&times;</button>
-    </div>
+    <div class="edit-modal-header"><h3 class="edit-modal-title"><i class="fa-solid fa-pen-to-square"></i> Publicar</h3><button class="edit-modal-close" id="close-compose-modal">&times;</button></div>
     <div class="edit-modal-body">
-      <div class="edit-form-group">
-        <label>Texto</label>
-        <textarea id="compose-text" placeholder="O que você quer publicar?"></textarea>
-      </div>
-      <div class="edit-form-group">
-        <label>Mídia do dispositivo</label>
-        <input type="file" id="compose-file" accept="image/*,video/*" class="text-xs">
-        <input type="hidden" id="compose-media" value="">
-        <p class="text-[11px] text-gray-500 mt-1" id="compose-upload-status"></p>
-        <img id="compose-preview-img" class="img-preview" style="display:none;margin-top:8px" alt="">
-        <video id="compose-preview-video" class="img-preview" style="display:none;margin-top:8px;max-height:160px" controls playsinline></video>
-      </div>
+      <div class="edit-form-group"><label>Texto</label><textarea id="compose-text"></textarea></div>
+      <div class="edit-form-group"><label>URL mídia</label><input type="url" id="compose-media"></div>
     </div>
-    <div class="edit-modal-footer">
-      <button class="fb-btn fb-btn-secondary" id="cancel-compose-modal">Cancelar</button>
-      <button class="fb-btn fb-btn-primary" id="confirm-compose-modal">Publicar</button>
-    </div>
+    <div class="edit-modal-footer"><button class="fb-btn fb-btn-secondary" id="cancel-compose-modal">Cancelar</button><button class="fb-btn fb-btn-primary" id="confirm-compose-modal">Publicar</button></div>
   </div>
 </div>
 <div class="edit-modal-overlay" id="delete-modal">
@@ -751,35 +735,6 @@ async function uploadDeviceImage(file,{statusEl}={}){
   setStatus('Enviado (nostr.build).');
   return url;
 }
-/** Upload imagem/vídeo para armazenamento da rede (Blossom → nostr.build) */
-async function uploadComposeMediaFile(file,statusEl){
-  if(!file)throw new Error('Nenhum arquivo');
-  const type=String(file.type||'');
-  const isImage=type.startsWith('image/');
-  const isVideo=type.startsWith('video/');
-  if(!isImage&&!isVideo)throw new Error('Use imagem ou vídeo');
-  if(file.size>40*1024*1024)throw new Error('Arquivo muito grande (máx. ~40MB)');
-  const setStatus=(t)=>{if(statusEl)statusEl.textContent=t};
-  if(currentUserData.privateKey){
-    setStatus('Enviando via Blossom…');
-    try{
-      const url=await uploadViaBlossom(file,currentUserData.privateKey);
-      setStatus('Enviado (Blossom).');
-      return url;
-    }catch(e){console.warn(e);setStatus('Blossom falhou; tentando nostr.build…')}
-  }
-  setStatus('Enviando via nostr.build…');
-  const fd=new FormData();
-  fd.append('file[]',file,file.name||(isVideo?'video.mp4':'image.jpg'));
-  const res=await fetch('https://nostr.build/api/v2/upload/files',{method:'POST',body:fd});
-  if(!res.ok)throw new Error('nostr.build HTTP '+res.status);
-  const j=await res.json();
-  const item=Array.isArray(j.data)?j.data[0]:j.data;
-  const url=item?.url;
-  if(!url)throw new Error('Resposta sem URL');
-  setStatus('Enviado (nostr.build).');
-  return url;
-}
 function setImagePreview(previewId,url){
   const m=document.getElementById(previewId);
   if(!m)return;
@@ -925,6 +880,7 @@ async function buildAccountsVaultPayload(){
   return encryptWithOriginCredentials(JSON.stringify(payload),email,password);
 }
 
+/* ===== QR cofre: desktop = requisição | mobile = câmera ===== */
 const VAULT_QR_KIND=24134,VAULT_QR_PREFIX='loresocial-vault:';
 let vaultRecvSk=null,vaultRecvPk=null,vaultRecvChallenge=null,vaultRecvSub=null,vaultRecvTimeout=null,vaultScanStream=null,vaultScanRaf=null;
 function isVaultOpenLocally(){const{email,password}=getActiveAccountCredentials();return !!(email&&password&&getCentralAccounts().length)}
@@ -941,6 +897,7 @@ async function renderVaultQrImage(payload){
   if(!canvas&&!imgEl)return false;
   const opts={width:220,margin:2,color:{dark:'#5a32a3',light:'#ffffff'}};
   const globalQR=typeof window!=='undefined'?window.QRCode:null;
+
   if(globalQR&&typeof globalQR.toCanvas==='function'&&canvas){
     try{
       await new Promise((resolve,reject)=>{
@@ -954,6 +911,7 @@ async function renderVaultQrImage(payload){
       return true;
     }catch(e){console.warn('[vault-qr] toCanvas',e)}
   }
+
   if(globalQR&&typeof globalQR.toDataURL==='function'&&imgEl){
     try{
       const dataUrl=await new Promise((resolve,reject)=>{
@@ -970,6 +928,7 @@ async function renderVaultQrImage(payload){
       }
     }catch(e){console.warn('[vault-qr] toDataURL',e)}
   }
+
   if(imgEl){
     imgEl.src='https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&color=5a32a3&bgcolor=ffffff&data='+encodeURIComponent(payload);
     imgEl.classList.remove('hidden');imgEl.style.display='block';
@@ -995,6 +954,7 @@ window.startVaultReceiveSession=async function(){
     if(textEl)textEl.value=payload;
     const ok=await renderVaultQrImage(payload);
     if(statusEl)statusEl.textContent=ok?'Aguardando o celular escanear…':'Use o código em texto abaixo.';
+
     vaultRecvSub=pool.subscribeMany(RELAYS,[{kinds:[VAULT_QR_KIND],'#p':[vaultRecvPk],since:Math.floor(Date.now()/1000)-30}],{
       onevent:async(ev)=>{
         try{
@@ -1407,10 +1367,10 @@ window.renderBranchFeed=async function(){
 window.publishBranchPost=async function(text,mediaUrl){
   if(!currentUserData.privateKey||!currentUserData.pubkey){alert('Faça login.');return false}
   let content=(text||'').trim();const media=(mediaUrl||'').trim();
-  if(!content&&!media){alert('Escreva algo ou anexe uma mídia.');return false}
+  if(!content&&!media){alert('Escreva algo ou mídia.');return false}
   const branch=getActiveBranch(currentUserData.pubkey);const tag=branchTag(branch.id);
   const tags=[['t',tag],['t','lorespace-page'],['branch',branch.id]];
-  if(media){if(/\.(mp4|webm|ogg|mov)(\?|$)/i.test(media)||/video/i.test(media))tags.push(['video',media]);else tags.push(['image',media]);tags.push(['url',media]);if(!content.includes(media))content+=(content?'\n':'')+media}
+  if(media){if(/\.(mp4|webm|ogg|mov)(\?|$)/i.test(media))tags.push(['video',media]);else tags.push(['image',media]);tags.push(['url',media]);if(!content.includes(media))content+=(content?'\n':'')+media}
   (content.match(/#[\p{L}\p{N}_]+/gu)||[]).forEach(h=>{const t=h.slice(1).toLowerCase();if(!tags.some(x=>x[0]==='t'&&x[1]===t))tags.push(['t',t])});
   try{const signed=NostrTools.finalizeEvent({kind:1,created_at:Math.floor(Date.now()/1000),tags,content},currentUserData.privateKey);
     await Promise.any(pool.publish(RELAYS,signed));
@@ -1525,66 +1485,15 @@ document.getElementById('confirm-add-branch-modal').onclick=async()=>{
   addM.classList.remove('active');document.getElementById('add-branch-username').value='';document.getElementById('add-branch-label').value='';
   applyActiveBranchToUI();renderBranchSwitcher();window.renderBranchFeed?.();await publishIdentityTreeToNostr();
 };
-
-/* Compose: arquivo do dispositivo → Blossom / nostr.build */
 const composeM=document.getElementById('compose-modal');
-document.getElementById('btn-compose-branch-post').onclick=()=>{
-  document.getElementById('compose-text').value='';
-  document.getElementById('compose-media').value='';
-  document.getElementById('compose-file').value='';
-  const st=document.getElementById('compose-upload-status');if(st)st.textContent='';
-  const pi=document.getElementById('compose-preview-img'),pv=document.getElementById('compose-preview-video');
-  if(pi){pi.style.display='none';pi.removeAttribute('src')}
-  if(pv){pv.style.display='none';pv.removeAttribute('src')}
-  composeM.classList.add('active');
-};
+document.getElementById('btn-compose-branch-post').onclick=()=>composeM.classList.add('active');
 document.getElementById('close-compose-modal').onclick=()=>composeM.classList.remove('active');
 document.getElementById('cancel-compose-modal').onclick=()=>composeM.classList.remove('active');
-document.getElementById('compose-file')?.addEventListener('change',async(e)=>{
-  const file=e.target.files?.[0];
-  const statusEl=document.getElementById('compose-upload-status');
-  const mediaInp=document.getElementById('compose-media');
-  const pi=document.getElementById('compose-preview-img');
-  const pv=document.getElementById('compose-preview-video');
-  if(!file)return;
-  if(pi){pi.style.display='none';pi.removeAttribute('src')}
-  if(pv){pv.style.display='none';pv.removeAttribute('src')}
-  if(mediaInp)mediaInp.value='';
-  const localUrl=URL.createObjectURL(file);
-  const isVideo=String(file.type||'').startsWith('video/');
-  if(isVideo&&pv){pv.src=localUrl;pv.style.display='block'}
-  else if(pi){pi.src=localUrl;pi.style.display='block'}
-  try{
-    if(statusEl)statusEl.textContent='Enviando para a rede (Blossom)…';
-    const url=await uploadComposeMediaFile(file,statusEl);
-    if(mediaInp)mediaInp.value=url;
-    if(isVideo&&pv)pv.src=url;else if(pi)pi.src=url;
-    if(statusEl)statusEl.textContent='Arquivo indexado na rede.';
-  }catch(err){
-    console.error(err);
-    if(statusEl)statusEl.textContent='Falha no envio: '+(err.message||err);
-    alert('Falha ao enviar arquivo: '+(err.message||err));
-  }
-});
 document.getElementById('confirm-compose-modal').onclick=async()=>{
-  const text=document.getElementById('compose-text').value;
-  const media=document.getElementById('compose-media').value;
-  const statusEl=document.getElementById('compose-upload-status');
-  if(statusEl?.textContent?.includes('Enviando')){alert('Aguarde o upload do arquivo terminar.');return}
-  const ok=await window.publishBranchPost(text,media);
-  if(ok){
-    document.getElementById('compose-text').value='';
-    document.getElementById('compose-media').value='';
-    document.getElementById('compose-file').value='';
-    if(statusEl)statusEl.textContent='';
-    const pi=document.getElementById('compose-preview-img'),pv=document.getElementById('compose-preview-video');
-    if(pi){pi.style.display='none';pi.removeAttribute('src')}
-    if(pv){pv.style.display='none';pv.removeAttribute('src')}
-    composeM.classList.remove('active');
-    await window.renderBranchFeed();
-  }else alert('Falha ao publicar.');
+  const ok=await window.publishBranchPost(document.getElementById('compose-text').value,document.getElementById('compose-media').value);
+  if(ok){document.getElementById('compose-text').value='';document.getElementById('compose-media').value='';composeM.classList.remove('active');await window.renderBranchFeed()}
+  else alert('Falha.');
 };
-
 document.getElementById('btn-remove-branch').onclick=async()=>{
   if(!currentUserData.pubkey)return;const branches=getBranchesForPubkey(currentUserData.pubkey);const id=getActiveBranchId();
   if(branches.length<=1)return alert('Única página.');if(id==='root')return alert('Troque de ramo antes.');
@@ -1633,4 +1542,4 @@ async function loadAll(){
 loadAll();
 </script>
 </body>
-</html>
+  </html>
