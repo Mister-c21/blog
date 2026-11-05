@@ -11,6 +11,12 @@
     <script>tailwind.config={theme:{extend:{colors:{primary:'#ffffff',secondary:'#7c3aed'}}}}</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+      if(window.pdfjsLib){
+        pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+    </script>
     <style>
         .no-scrollbar::-webkit-scrollbar{display:none}
         .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
@@ -56,8 +62,9 @@
         #readerCover.hidden-cover{display:none!important}
         #epubViewer{width:100%;height:100%;background:#fafafa;display:none}
         #epubViewer.active{display:block}
-        #pdfViewer{width:100%;height:100%;border:0;background:#111;display:none}
+        #pdfViewer{width:100%;height:100%;border:0;background:#111;display:none;overflow:auto;-webkit-overflow-scrolling:touch}
         #pdfViewer.active{display:block}
+        #pdfViewer .pdf-page{display:block;margin:0 auto 8px;max-width:100%;height:auto;box-shadow:0 2px 12px rgba(0,0,0,.35)}
         .epub-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:25;width:2.75rem;height:2.75rem;border-radius:9999px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);color:#fff;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);cursor:pointer}
         .epub-nav.visible{display:flex}
         .epub-nav:hover{background:rgba(124,58,237,.85)}
@@ -288,7 +295,7 @@
         <div id="readerStage">
             <img id="readerCover" src="" alt="Capa">
             <div id="epubViewer"></div>
-            <iframe id="pdfViewer" title="Leitor PDF"></iframe>
+            <div id="pdfViewer" title="Leitor PDF"></div>
             <div id="epubProgress"><div id="epubProgressBar"></div></div>
             <button type="button" class="epub-nav prev" id="epubPrevBtn" onclick="epubPrev()" aria-label="Página anterior"><i class="fa-solid fa-chevron-left"></i></button>
             <button type="button" class="epub-nav next" id="epubNextBtn" onclick="epubNext()" aria-label="Próxima página"><i class="fa-solid fa-chevron-right"></i></button>
@@ -507,7 +514,7 @@ function showCoverOnly(){
     const titleOv=document.getElementById('detailTitleOverlay');
     if(cover){cover.classList.remove('hidden-cover');cover.style.display=''}
     if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
-    if(pdfEl){pdfEl.classList.remove('active');pdfEl.removeAttribute('src')}
+    if(pdfEl){pdfEl.classList.remove('active');pdfEl.innerHTML='';pdfEl.removeAttribute('src')}
     if(titleOv)titleOv.classList.remove('hidden');
     document.getElementById('epubPrevBtn')?.classList.remove('visible');
     document.getElementById('epubNextBtn')?.classList.remove('visible');
@@ -537,55 +544,58 @@ async function fetchFileBuffer(src){
     if(!res.ok)throw new Error('HTTP '+res.status);
     return{buffer:await res.arrayBuffer(),mime:res.headers.get('content-type')||''};
 }
+async function renderPdfWithPdfJs(buffer){
+    if(!window.pdfjsLib)throw new Error('PDF.js não carregou');
+    const pdfEl=document.getElementById('pdfViewer');
+    if(!pdfEl)throw new Error('pdfViewer ausente');
+    pdfEl.innerHTML='';
+    const doc=await pdfjsLib.getDocument({data:buffer}).promise;
+    const baseW=pdfEl.clientWidth||window.innerWidth||360;
+    const scale=Math.min(1.75,Math.max(1,baseW/600));
+    for(let i=1;i<=doc.numPages;i++){
+        const page=await doc.getPage(i);
+        const viewport=page.getViewport({scale});
+        const canvas=document.createElement('canvas');
+        canvas.className='pdf-page';
+        canvas.width=viewport.width;
+        canvas.height=viewport.height;
+        const ctx=canvas.getContext('2d');
+        await page.render({canvasContext:ctx,viewport}).promise;
+        pdfEl.appendChild(canvas);
+    }
+}
 async function openInReader(src,ref){
     const cover=document.getElementById('readerCover');
     const epubEl=document.getElementById('epubViewer');
     const pdfEl=document.getElementById('pdfViewer');
     const titleOv=document.getElementById('detailTitleOverlay');
     destroyEpub();
-    if(pdfEl){pdfEl.classList.remove('active');pdfEl.removeAttribute('src')}
+    if(pdfEl){pdfEl.classList.remove('active');pdfEl.innerHTML=''}
     if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
     if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
 
     const kindHint=guessFileKind(src,ref,'');
     const isHttp=/^https?:\/\//i.test(src);
-    const isBlob=/^blob:/i.test(src);
 
-    function showNativePdf(url){
+    function showPdfStage(){
         if(cover)cover.classList.add('hidden-cover');
         if(titleOv)titleOv.classList.add('hidden');
         document.getElementById('epubPrevBtn')?.classList.remove('visible');
         document.getElementById('epubNextBtn')?.classList.remove('visible');
-        if(pdfEl){
-            pdfEl.classList.add('active');
-            pdfEl.src=url;
-        }
+        if(pdfEl)pdfEl.classList.add('active');
         enterReadingMode();
-        setMediaLoading(false);
     }
 
     if(kindHint==='pdf'||/\.pdf(\?|#|$)/i.test(String(src))){
         setMediaLoading(true,'Abrindo PDF...');
         try{
-            if(isBlob){
-                showNativePdf(src);
-                return;
-            }
-            const{buffer,mime}=await fetchFileBuffer(src);
-            const head=new Uint8Array(buffer.slice(0,5));
-            const isPdfMagic=head[0]===0x25&&head[1]===0x50&&head[2]===0x44&&head[3]===0x46;
-            if(isPdfMagic||!mime||String(mime).toLowerCase().includes('pdf')||kindHint==='pdf'){
-                const blob=new Blob([buffer],{type:'application/pdf'});
-                currentObjectUrl=URL.createObjectURL(blob);
-                showNativePdf(currentObjectUrl);
-                return;
-            }
+            const{buffer}=await fetchFileBuffer(src);
+            showPdfStage();
+            await renderPdfWithPdfJs(buffer);
+            setMediaLoading(false);
+            return;
         }catch(err){
-            console.warn('PDF via buffer falhou, tentando URL direta no iframe',err);
-            if(isHttp){
-                showNativePdf(src);
-                return;
-            }
+            console.error(err);
             setMediaLoading(false);
             alert('Não foi possível abrir o PDF na página. Use Baixar.');
             return;
@@ -632,14 +642,7 @@ async function openInReader(src,ref){
     }catch(err){
         console.error(err);
         setMediaLoading(false);
-        if(isHttp){
-            if(kindHint==='pdf'||/\.pdf(\?|#|$)/i.test(src)){
-                showNativePdf(src);
-                return;
-            }
-            window.open(src,'_blank','noopener,noreferrer');
-            return;
-        }
+        if(isHttp){window.open(src,'_blank','noopener,noreferrer');return}
         alert('Não foi possível carregar o arquivo para leitura (CORS ou rede). Use Baixar.');
         return;
     }
@@ -650,9 +653,14 @@ async function openInReader(src,ref){
     const isPdfMagic=head[0]===0x25&&head[1]===0x50&&head[2]===0x44&&head[3]===0x46;
 
     if(kind==='pdf'||isPdfMagic||(mime&&String(mime).toLowerCase().includes('pdf'))){
-        const blob=new Blob([buffer],{type:'application/pdf'});
-        currentObjectUrl=URL.createObjectURL(blob);
-        showNativePdf(currentObjectUrl);
+        try{
+            showPdfStage();
+            await renderPdfWithPdfJs(buffer);
+        }catch(err){
+            console.error(err);
+            alert('Não foi possível renderizar o PDF. Use Baixar.');
+            showCoverOnly();
+        }finally{setMediaLoading(false)}
         return;
     }
 
@@ -690,10 +698,6 @@ async function openInReader(src,ref){
     setMediaLoading(false);
     const blob=new Blob([buffer],{type:mime||'application/octet-stream'});
     currentObjectUrl=URL.createObjectURL(blob);
-    if(pdfEl&&(String(mime).includes('pdf')||kind==='pdf')){
-        showNativePdf(currentObjectUrl);
-        return;
-    }
     const w=window.open(currentObjectUrl,'_blank','noopener,noreferrer');
     if(!w)alert('Não foi possível abrir este formato no leitor. Use o botão Baixar.');
 }
