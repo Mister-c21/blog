@@ -549,16 +549,47 @@ async function openInReader(src,ref){
 
     const kindHint=guessFileKind(src,ref,'');
     const isHttp=/^https?:\/\//i.test(src);
+    const isBlob=/^blob:/i.test(src);
 
-    if(isHttp&&(kindHint==='pdf'||/\.pdf(\?|#|$)/i.test(src))){
+    function showNativePdf(url){
         if(cover)cover.classList.add('hidden-cover');
         if(titleOv)titleOv.classList.add('hidden');
-        if(pdfEl){pdfEl.classList.add('active');pdfEl.src=src}
         document.getElementById('epubPrevBtn')?.classList.remove('visible');
         document.getElementById('epubNextBtn')?.classList.remove('visible');
+        if(pdfEl){
+            pdfEl.classList.add('active');
+            pdfEl.src=url;
+        }
         enterReadingMode();
         setMediaLoading(false);
-        return;
+    }
+
+    if(kindHint==='pdf'||/\.pdf(\?|#|$)/i.test(String(src))){
+        setMediaLoading(true,'Abrindo PDF...');
+        try{
+            if(isBlob){
+                showNativePdf(src);
+                return;
+            }
+            const{buffer,mime}=await fetchFileBuffer(src);
+            const head=new Uint8Array(buffer.slice(0,5));
+            const isPdfMagic=head[0]===0x25&&head[1]===0x50&&head[2]===0x44&&head[3]===0x46;
+            if(isPdfMagic||!mime||String(mime).toLowerCase().includes('pdf')||kindHint==='pdf'){
+                const blob=new Blob([buffer],{type:'application/pdf'});
+                currentObjectUrl=URL.createObjectURL(blob);
+                showNativePdf(currentObjectUrl);
+                return;
+            }
+        }catch(err){
+            console.warn('PDF via buffer falhou, tentando URL direta no iframe',err);
+            if(isHttp){
+                showNativePdf(src);
+                return;
+            }
+            setMediaLoading(false);
+            alert('Não foi possível abrir o PDF na página. Use Baixar.');
+            return;
+        }
     }
 
     if(isHttp&&(kindHint==='epub'||/\.epub(\?|#|$)/i.test(src))&&window.ePub){
@@ -602,6 +633,10 @@ async function openInReader(src,ref){
         console.error(err);
         setMediaLoading(false);
         if(isHttp){
+            if(kindHint==='pdf'||/\.pdf(\?|#|$)/i.test(src)){
+                showNativePdf(src);
+                return;
+            }
             window.open(src,'_blank','noopener,noreferrer');
             return;
         }
@@ -613,6 +648,13 @@ async function openInReader(src,ref){
     const head=new Uint8Array(buffer.slice(0,4));
     const isZipLike=head[0]===0x50&&head[1]===0x4B;
     const isPdfMagic=head[0]===0x25&&head[1]===0x50&&head[2]===0x44&&head[3]===0x46;
+
+    if(kind==='pdf'||isPdfMagic||(mime&&String(mime).toLowerCase().includes('pdf'))){
+        const blob=new Blob([buffer],{type:'application/pdf'});
+        currentObjectUrl=URL.createObjectURL(blob);
+        showNativePdf(currentObjectUrl);
+        return;
+    }
 
     if(kind==='epub'||(kind==='unknown'&&isZipLike&&window.ePub)){
         if(!window.ePub){setMediaLoading(false);alert('epub.js não carregou. Recarregue a página.');return}
@@ -645,22 +687,13 @@ async function openInReader(src,ref){
         return;
     }
 
-    if(kind==='pdf'||isPdfMagic||(mime&&mime.includes('pdf'))){
-        if(cover)cover.classList.add('hidden-cover');
-        if(titleOv)titleOv.classList.add('hidden');
-        const blob=new Blob([buffer],{type:'application/pdf'});
-        currentObjectUrl=URL.createObjectURL(blob);
-        if(pdfEl){pdfEl.classList.add('active');pdfEl.src=currentObjectUrl}
-        document.getElementById('epubPrevBtn')?.classList.remove('visible');
-        document.getElementById('epubNextBtn')?.classList.remove('visible');
-        enterReadingMode();
-        setMediaLoading(false);
-        return;
-    }
-
     setMediaLoading(false);
     const blob=new Blob([buffer],{type:mime||'application/octet-stream'});
     currentObjectUrl=URL.createObjectURL(blob);
+    if(pdfEl&&(String(mime).includes('pdf')||kind==='pdf')){
+        showNativePdf(currentObjectUrl);
+        return;
+    }
     const w=window.open(currentObjectUrl,'_blank','noopener,noreferrer');
     if(!w)alert('Não foi possível abrir este formato no leitor. Use o botão Baixar.');
 }
