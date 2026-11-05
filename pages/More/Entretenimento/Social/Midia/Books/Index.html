@@ -88,7 +88,6 @@
         .suggest-card img{width:100%;height:100%;object-fit:cover}
         .suggest-card p{font-size:10px;margin-top:6px;color:#e5e7eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-        /* Leitor tela cheia no mobile */
         @media (max-width:1023px){
             #detailModal.reading-mode #detailShell{flex-direction:column;height:100dvh;max-height:100dvh}
             #detailModal.reading-mode #readerStage{flex:1 1 0;min-height:0;height:100%;max-height:none;padding:0}
@@ -456,9 +455,17 @@ function getActiveMediaRef(){
         const chs=currentVolumesData[activeVolume]||{};
         if(activeChapterKey&&hasMediaRef(chs[activeChapterKey]))return chs[activeChapterKey];
         const k=Object.keys(chs).find(x=>hasMediaRef(chs[x]));
-        return k?chs[k]:null;
+        if(k)return chs[k];
+        for(const vol of Object.keys(currentVolumesData||{})){
+            const chs2=currentVolumesData[vol]||{};
+            const k2=Object.keys(chs2).find(x=>hasMediaRef(chs2[x]));
+            if(k2){
+                activeVolume=vol;
+                return chs2[k2];
+            }
+        }
     }
-    if(currentItemFullData?.fileUrl)return currentItemFullData.fileUrl;
+    if(hasMediaRef(currentItemFullData?.fileUrl))return currentItemFullData.fileUrl;
     return null;
 }
 async function resolveMediaSrc(ref,{showLoading=true}={}){
@@ -540,6 +547,51 @@ async function openInReader(src,ref){
     if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
     if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
 
+    const kindHint=guessFileKind(src,ref,'');
+    const isHttp=/^https?:\/\//i.test(src);
+
+    if(isHttp&&(kindHint==='pdf'||/\.pdf(\?|#|$)/i.test(src))){
+        if(cover)cover.classList.add('hidden-cover');
+        if(titleOv)titleOv.classList.add('hidden');
+        if(pdfEl){pdfEl.classList.add('active');pdfEl.src=src}
+        document.getElementById('epubPrevBtn')?.classList.remove('visible');
+        document.getElementById('epubNextBtn')?.classList.remove('visible');
+        enterReadingMode();
+        setMediaLoading(false);
+        return;
+    }
+
+    if(isHttp&&(kindHint==='epub'||/\.epub(\?|#|$)/i.test(src))&&window.ePub){
+        if(cover)cover.classList.add('hidden-cover');
+        if(titleOv)titleOv.classList.add('hidden');
+        if(epubEl)epubEl.classList.add('active');
+        setMediaLoading(true,'Carregando EPUB...');
+        try{
+            epubBook=ePub(src);
+            epubRendition=epubBook.renderTo('epubViewer',{width:'100%',height:'100%',spread:'none',flow:'paginated',allowScriptedContent:true});
+            await epubRendition.display();
+            epubCurrentUrl=src;
+            document.getElementById('epubPrevBtn')?.classList.add('visible');
+            document.getElementById('epubNextBtn')?.classList.add('visible');
+            enterReadingMode();
+            epubRendition.on('relocated',(loc)=>{
+                try{
+                    if(!epubBook.locations||typeof epubBook.locations.percentageFromCfi!=='function')return;
+                    const p=epubBook.locations.percentageFromCfi(loc.start.cfi);
+                    const bar=document.getElementById('epubProgressBar');
+                    if(bar)bar.style.width=((p||0)*100)+'%';
+                }catch(_){}
+            });
+            epubBook.ready.then(()=>{try{epubBook.locations.generate(1024)}catch(_){}}).catch(()=>{});
+            setMediaLoading(false);
+            return;
+        }catch(err){
+            console.warn('EPUB por URL falhou, tentando buffer...',err);
+            destroyEpub();
+            if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
+        }
+    }
+
     setMediaLoading(true,'Carregando arquivo...');
     let buffer,mime='';
     try{
@@ -549,6 +601,10 @@ async function openInReader(src,ref){
     }catch(err){
         console.error(err);
         setMediaLoading(false);
+        if(isHttp){
+            window.open(src,'_blank','noopener,noreferrer');
+            return;
+        }
         alert('Não foi possível carregar o arquivo para leitura (CORS ou rede). Use Baixar.');
         return;
     }
@@ -793,8 +849,11 @@ async function openDetailModal(title,img,desc,item=null){
     }
     currentItemFullData=full||item;
     activeChapterKey=null;
-    if(currentItemFullData?.volumes)currentVolumesData=currentItemFullData.volumes;
-    else if(currentItemFullData?.fileUrl)currentVolumesData={1:{1:currentItemFullData.fileUrl}};
+    const vols=currentItemFullData?.volumes;
+    const hasVolMedia=vols&&Object.values(vols).some(chs=>Object.values(chs||{}).some(hasMediaRef));
+    if(hasVolMedia)currentVolumesData=vols;
+    else if(hasMediaRef(currentItemFullData?.fileUrl))currentVolumesData={1:{1:currentItemFullData.fileUrl}};
+    else if(vols&&Object.keys(vols).length)currentVolumesData=vols;
     else currentVolumesData={1:{1:''}};
     activeVolume=Object.keys(currentVolumesData)[0]||1;
     renderVolumesTabBar();renderDetailChaptersUI();renderSuggestions();
