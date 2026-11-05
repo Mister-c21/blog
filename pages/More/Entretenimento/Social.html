@@ -125,6 +125,7 @@
   .desktop-feed-col .fb-avatar { width: 38px; height: 38px; }
   #section-postar.md-desktop-show { display: block !important; }
   #nav-postar-li { display: none !important; }
+  #desktop-profile-panels.md-desktop-show { display: block !important; }
 }
 </style>
 </head>
@@ -205,7 +206,7 @@
 <h2 id="profileUsernameDisplay" class="font-bold text-lg text-gray-900 font-mono text-xs">@nostr...</h2>
 <p id="profileAboutDisplay" class="text-xs text-gray-500 mt-2 max-w-xs mx-auto line-clamp-4 hidden"></p>
 </div>
-<div class="flex gap-2 w-full">
+<div class="flex gap-2 w-full md:hidden">
 <button type="button" onclick="openProfileEditModal()" class="flex-1 py-2.5 bg-secondary text-white text-xs font-semibold rounded-xl"><i class="fa-solid fa-pen-to-square"></i> Editar perfil</button>
 <button type="button" onclick="openFeedPreferencesModal()" class="flex-1 py-2.5 bg-white border border-gray-200 text-gray-700 text-xs font-semibold rounded-xl"><i class="fa-solid fa-sliders"></i> Preferências</button>
 </div>
@@ -258,6 +259,67 @@
 </div>
 </div>
 </section>
+
+<div id="desktop-profile-panels" class="hidden space-y-4">
+  <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+    <div class="p-4 border-b border-gray-100 flex items-center gap-2">
+      <i class="fa-solid fa-pen-to-square text-secondary"></i>
+      <h3 class="font-semibold text-sm text-gray-900">Editar perfil</h3>
+    </div>
+    <div class="p-4 space-y-4">
+      <div class="flex flex-col items-center">
+        <div id="editProfileAvatarPreviewDesktop" class="w-16 h-16 rounded-full bg-gray-200 text-secondary flex items-center justify-center text-2xl overflow-hidden relative border-2 border-white shadow">
+          <i id="editProfileAvatarIconDesktop" class="fa-solid fa-user"></i>
+          <img id="editProfileAvatarImgDesktop" class="w-full h-full object-cover hidden absolute inset-0" alt="Preview">
+        </div>
+      </div>
+      <div class="space-y-1 text-left">
+        <label class="text-xs font-semibold text-gray-700">Biografia</label>
+        <textarea id="profileAboutInputDesktop" rows="3" maxlength="300" class="w-full text-xs px-3 py-2.5 bg-gray-50 border rounded-xl outline-none focus:border-secondary resize-none"></textarea>
+      </div>
+      <div class="space-y-2 text-left">
+        <label class="text-xs font-semibold text-gray-700">Foto de perfil (NIP-96)</label>
+        <input type="file" id="profileImageFileInputDesktop" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif" class="w-full text-xs px-3 py-2.5 bg-gray-50 border rounded-xl outline-none focus:border-secondary file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-secondary/10 file:text-secondary file:text-xs file:font-semibold" onchange="handleProfileImageFileSelectDesktop(event)">
+        <p id="profileImageUploadStatusDesktop" class="text-[11px] text-gray-400">Envio via NIP-96.</p>
+        <input type="hidden" id="profileImageUrlInputDesktop" value="">
+      </div>
+      <button type="button" onclick="saveProfileAboutDesktop()" class="w-full py-2.5 bg-secondary text-white text-xs font-semibold rounded-xl">Salvar perfil na rede</button>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+    <div class="p-4 border-b border-gray-100 flex items-center gap-2">
+      <i class="fa-solid fa-sliders text-secondary"></i>
+      <h3 class="font-semibold text-sm text-gray-900">Preferências do feed</h3>
+    </div>
+    <div class="p-4 space-y-4">
+      <label class="flex items-start gap-3 cursor-pointer">
+        <input type="checkbox" id="prefSafeModeDesktop" class="mt-0.5 w-4 h-4 accent-secondary">
+        <div><span class="text-sm font-semibold">Modo Seguro</span></div>
+      </label>
+      <div class="space-y-2">
+        <label class="text-xs font-semibold">Ordenação</label>
+        <select id="prefFeedSortDesktop" class="w-full text-xs px-3 py-2.5 bg-gray-50 border rounded-xl">
+          <option value="recent">Mais recentes</option>
+          <option value="oldest">Mais antigos</option>
+        </select>
+      </div>
+      <div class="space-y-2">
+        <label class="text-xs font-semibold">Mídia</label>
+        <select id="prefMediaFilterDesktop" class="w-full text-xs px-3 py-2.5 bg-gray-50 border rounded-xl">
+          <option value="all">Todos</option>
+          <option value="text">Só texto</option>
+          <option value="media">Só mídia</option>
+        </select>
+      </div>
+      <div class="space-y-2">
+        <label class="text-xs font-semibold">Temas</label>
+        <div id="prefThemesListDesktop" class="flex gap-2 overflow-x-auto no-scrollbar flex-wrap"></div>
+      </div>
+      <button type="button" onclick="applyFeedPreferencesDesktop()" class="w-full py-2.5 bg-secondary text-white text-xs font-semibold rounded-xl">Salvar na rede</button>
+    </div>
+  </div>
+</div>
 </div>
 
 </div>
@@ -906,11 +968,92 @@ function renderPrefThemesList() {
     return `<button type="button" onclick="toggleFeedTheme('${theme.id}')" class="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition whitespace-nowrap ${active ? 'bg-secondary text-white border-secondary' : 'bg-gray-50 text-gray-600 border-gray-200'}"><i class="fa-solid ${theme.icon} text-[10px]"></i>${theme.label}</button>`;
   }).join('');
 }
+function renderPrefThemesListDesktop() {
+  const list = document.getElementById('prefThemesListDesktop');
+  if (!list) return;
+  list.innerHTML = FEED_THEMES.map(theme => {
+    const active = selectedThemes.includes(theme.id);
+    return `<button type="button" onclick="toggleFeedTheme('${theme.id}');renderPrefThemesListDesktop();renderPrefThemesList();" class="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition whitespace-nowrap ${active ? 'bg-secondary text-white border-secondary' : 'bg-gray-50 text-gray-600 border-gray-200'}"><i class="fa-solid ${theme.icon} text-[10px]"></i>${theme.label}</button>`;
+  }).join('');
+}
 window.toggleFeedTheme = function(themeId) {
   if (!themeId) return;
   const idx = selectedThemes.indexOf(themeId);
   if (idx >= 0) selectedThemes.splice(idx, 1); else selectedThemes.push(themeId);
   renderPrefThemesList();
+  renderPrefThemesListDesktop();
+};
+function populateDesktopProfilePanels() {
+  if (!currentUserData.privateKey) return;
+  const p = profileCache.get(currentUserData.pubkey) || {};
+  const session = JSON.parse(localStorage.getItem('nostr_session') || '{}');
+  const about = document.getElementById('profileAboutInputDesktop');
+  const urlInput = document.getElementById('profileImageUrlInputDesktop');
+  if (about) about.value = p.about || session.about || '';
+  if (urlInput) urlInput.value = currentUserData.avatarUrl || p.picture || session.avatarUrl || '';
+  const img = document.getElementById('editProfileAvatarImgDesktop');
+  const icon = document.getElementById('editProfileAvatarIconDesktop');
+  const url = urlInput?.value || currentUserData.avatarUrl || '';
+  if (img) {
+    if (url) { img.src = url; img.classList.remove('hidden'); icon?.classList.add('hidden'); }
+    else { img.classList.add('hidden'); img.removeAttribute('src'); icon?.classList.remove('hidden'); }
+  }
+  const prefSafe = document.getElementById('prefSafeModeDesktop');
+  const prefSort = document.getElementById('prefFeedSortDesktop');
+  const prefMedia = document.getElementById('prefMediaFilterDesktop');
+  if (prefSafe) prefSafe.checked = safeMode;
+  if (prefSort) prefSort.value = feedSort;
+  if (prefMedia) prefMedia.value = mediaFilter;
+  renderPrefThemesListDesktop();
+}
+window.handleProfileImageFileSelectDesktop = async function(event) {
+  const input = event?.target, file = input?.files?.[0];
+  const statusEl = document.getElementById('profileImageUploadStatusDesktop');
+  const urlInput = document.getElementById('profileImageUrlInputDesktop');
+  if (!file) return;
+  if (!currentUserData.privateKey) { alert('Faça login primeiro.'); openAuthModal(); if (input) input.value = ''; return; }
+  if (!file.type.startsWith('image/')) { alert('Selecione uma imagem.'); if (input) input.value = ''; return; }
+  try {
+    const localUrl = URL.createObjectURL(file);
+    const img = document.getElementById('editProfileAvatarImgDesktop');
+    const icon = document.getElementById('editProfileAvatarIconDesktop');
+    if (img) { img.src = localUrl; img.classList.remove('hidden'); icon?.classList.add('hidden'); }
+    setAvatarEverywhere(localUrl);
+  } catch {}
+  profileImageUploading = true;
+  if (statusEl) statusEl.textContent = 'Enviando imagem (NIP-96)...';
+  try {
+    const uploadedUrl = await uploadFileNip96(file, currentUserData.privateKey);
+    if (urlInput) urlInput.value = uploadedUrl;
+    setAvatarEverywhere(uploadedUrl);
+    if (statusEl) statusEl.textContent = 'Upload concluído. Salve o perfil.';
+  } catch (e) {
+    console.error(e);
+    if (statusEl) statusEl.textContent = 'Falha: ' + (e.message || '');
+    alert('Não foi possível enviar a imagem.\n' + (e.message || ''));
+    if (urlInput) urlInput.value = '';
+  } finally { profileImageUploading = false; }
+};
+window.saveProfileAboutDesktop = async function() {
+  const aboutEl = document.getElementById('profileAboutInput');
+  const urlEl = document.getElementById('profileImageUrlInput');
+  const aboutD = document.getElementById('profileAboutInputDesktop');
+  const urlD = document.getElementById('profileImageUrlInputDesktop');
+  if (aboutEl && aboutD) aboutEl.value = aboutD.value;
+  if (urlEl && urlD) urlEl.value = urlD.value;
+  await window.saveProfileAbout();
+};
+window.applyFeedPreferencesDesktop = async function() {
+  const prefSafe = document.getElementById('prefSafeMode');
+  const prefSort = document.getElementById('prefFeedSort');
+  const prefMedia = document.getElementById('prefMediaFilter');
+  const prefSafeD = document.getElementById('prefSafeModeDesktop');
+  const prefSortD = document.getElementById('prefFeedSortDesktop');
+  const prefMediaD = document.getElementById('prefMediaFilterDesktop');
+  if (prefSafe && prefSafeD) prefSafe.checked = prefSafeD.checked;
+  if (prefSort && prefSortD) prefSort.value = prefSortD.value;
+  if (prefMedia && prefMediaD) prefMedia.value = prefMediaD.value;
+  await window.applyFeedPreferences();
 };
 window.openFeedPreferencesModal = function() {
   if (!currentUserData.privateKey) { alert('Faça login primeiro.'); openAuthModal(); return; }
@@ -1264,6 +1407,9 @@ function setAvatarEverywhere(url) {
   const postAvatar = document.querySelector('#postAuthorAvatar .post-avatar-img'), postIcon = document.querySelector('#postAuthorAvatar .post-avatar-icon');
   if (postAvatar) { postAvatar.src = url; postAvatar.classList.remove('hidden'); postIcon?.classList.add('hidden'); }
   currentUserData.avatarUrl = url; updateEditAvatarPreview(url);
+  const imgD = document.getElementById('editProfileAvatarImgDesktop');
+  const iconD = document.getElementById('editProfileAvatarIconDesktop');
+  if (imgD) { imgD.src = url; imgD.classList.remove('hidden'); iconD?.classList.add('hidden'); }
 }
 function updateEditAvatarPreview(url) {
   const img = document.getElementById('editProfileAvatarImg'), icon = document.getElementById('editProfileAvatarIcon');
@@ -2126,20 +2272,34 @@ window.switchSection = function(sectionId) {
   document.getElementById('section-' + sectionId)?.classList.remove('hidden');
 
   const postSection = document.getElementById('section-postar');
+  const profilePanels = document.getElementById('desktop-profile-panels');
   const isDesktop = window.innerWidth >= 768;
 
   if (isDesktop) {
     if (sectionId === 'feed' || sectionId === 'postar') {
       postSection?.classList.remove('hidden');
       postSection?.classList.add('md-desktop-show');
+      profilePanels?.classList.add('hidden');
+      profilePanels?.classList.remove('md-desktop-show');
       if (sectionId === 'postar') {
         document.getElementById('section-feed')?.classList.remove('hidden');
         sectionId = 'feed';
       }
+    } else if (sectionId === 'perfil') {
+      postSection?.classList.remove('md-desktop-show');
+      postSection?.classList.add('hidden');
+      profilePanels?.classList.remove('hidden');
+      profilePanels?.classList.add('md-desktop-show');
+      populateDesktopProfilePanels();
     } else {
       postSection?.classList.remove('md-desktop-show');
       postSection?.classList.add('hidden');
+      profilePanels?.classList.add('hidden');
+      profilePanels?.classList.remove('md-desktop-show');
     }
+  } else {
+    profilePanels?.classList.add('hidden');
+    profilePanels?.classList.remove('md-desktop-show');
   }
 
   document.querySelectorAll('.nav-link').forEach(link => {
