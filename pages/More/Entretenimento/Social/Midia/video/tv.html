@@ -11,6 +11,7 @@
     <script>tailwind.config={theme:{extend:{colors:{primary:'#ffffff',secondary:'#7c3aed'}}}}</script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
     <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         .no-scrollbar::-webkit-scrollbar{display:none}
         .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
@@ -34,6 +35,7 @@
         .content-thumb img{width:100%;height:100%;object-fit:cover}
         .live-badge{position:absolute;top:8px;left:8px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px}
         .net-badge{position:absolute;top:8px;right:8px;background:#7c3aed;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:999px}
+        .import-badge{position:absolute;top:8px;right:8px;background:#0ea5e9;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:999px}
         .carousel-dot{transition:.3s;cursor:pointer}
         @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
         .skeleton{background:linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%);background-size:200% 100%;animation:shimmer 1.4s infinite}
@@ -45,9 +47,9 @@
         .lp-slot .lp-slot-tag{font-size:9px;font-weight:800;color:#fff;background:linear-gradient(90deg,#7c3aed,#8b5cf6);padding:2px 7px;border-radius:999px;width:fit-content;text-transform:uppercase}
         .lp-slot .lp-slot-heading{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .lp-slot .lp-slot-text{font-size:11px;color:#64748b;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-        #historyModal,#savedModal,#creationModal{align-items:flex-end;justify-content:center;padding:0}
-        #historyModal>div,#savedModal>div,#creationModal>div{width:100%;max-width:100%;border-radius:1.25rem 1.25rem 0 0;max-height:88vh;margin:0}
-        @media (min-width:640px){#historyModal,#savedModal,#creationModal{align-items:center;padding:1rem}#historyModal>div,#savedModal>div,#creationModal>div{max-width:28rem;border-radius:1rem;max-height:90vh}}
+        #historyModal,#savedModal,#creationModal,#importModal{align-items:flex-end;justify-content:center;padding:0}
+        #historyModal>div,#savedModal>div,#creationModal>div,#importModal>div{width:100%;max-width:100%;border-radius:1.25rem 1.25rem 0 0;max-height:88vh;margin:0}
+        @media (min-width:640px){#historyModal,#savedModal,#creationModal,#importModal{align-items:center;padding:1rem}#historyModal>div,#savedModal>div,#creationModal>div,#importModal>div{max-width:28rem;border-radius:1rem;max-height:90vh}}
         #detailModal{position:fixed;inset:0;z-index:50;background:#0a0a0c}
         #detailShell{width:100%;height:100%;min-height:100dvh;display:flex;flex-direction:column;background:#0a0a0c;color:#fff;overflow:hidden}
         #playerStage{position:relative;flex:1 1 auto;min-height:42vh;background:#000;display:flex;align-items:center;justify-content:center}
@@ -106,6 +108,7 @@
         </div>
         <div class="flex items-center gap-1">
             <button type="button" id="postContentBtn" onclick="openModal('creationModal')" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-secondary" title="Publicar canal IPTV"><i class="fa-solid fa-cloud-arrow-up"></i></button>
+            <button type="button" onclick="openModal('importModal')" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-sky-600" title="Importar lista (PDF / TXT)"><i class="fa-solid fa-file-import"></i></button>
             <button type="button" onclick="openModal('historyModal')" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700"><i class="fa-regular fa-clock"></i></button>
             <button type="button" onclick="openModal('savedModal')" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700"><i class="fa-regular fa-bookmark"></i></button>
             <div id="userAvatarHeader" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-secondary overflow-hidden ml-1 border border-gray-200"><i class="fa-solid fa-tv"></i></div>
@@ -138,6 +141,7 @@
                         <div class="flex gap-3 overflow-x-auto no-scrollbar pb-2" id="providerList">
                             <div class="provider-card active" onclick="selectCategory(this,'todos')"><img src="https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400&h=225&fit=crop" alt=""><span>Todos</span></div>
                             <div class="provider-card" onclick="selectCategory(this,'rede')"><img src="https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=400&h=225&fit=crop" alt=""><span>Rede IPTV</span></div>
+                            <div class="provider-card" onclick="selectCategory(this,'importados')"><img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&h=225&fit=crop" alt=""><span>Importados</span></div>
                             <div class="provider-card" onclick="selectCategory(this,'noticias')"><img src="https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=400&h=225&fit=crop" alt=""><span>Notícias</span></div>
                             <div class="provider-card" onclick="selectCategory(this,'entretenimento')"><img src="https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=225&fit=crop" alt=""><span>Entretenimento</span></div>
                             <div class="provider-card" onclick="selectCategory(this,'esportes')"><img src="https://images.unsplash.com/photo-1461896836934-ffe607ba6851?w=400&h=225&fit=crop" alt=""><span>Esportes</span></div>
@@ -157,6 +161,7 @@
                         <span class="text-xs text-gray-400" id="channelCountLabel">0 canais</span>
                     </div>
                     <div class="flex items-center gap-2">
+                        <button type="button" onclick="openModal('importModal')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-sky-600 text-white flex items-center gap-1.5"><i class="fa-solid fa-file-import"></i> Importar lista</button>
                         <button type="button" onclick="openModal('creationModal')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-secondary text-white flex items-center gap-1.5"><i class="fa-solid fa-plus"></i> Publicar IPTV</button>
                         <div class="inline-flex p-1 bg-gray-200/80 rounded-xl">
                             <button type="button" id="btnLive" onclick="setViewMode('live')" class="px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white">Ao vivo</button>
@@ -227,6 +232,42 @@
     </div>
 </div>
 
+<!-- Importar lista PDF / TXT -->
+<div id="importModal" class="hidden fixed inset-0 z-50 flex bg-black/40" onclick="closeModalOnBackdrop(event,'importModal')">
+    <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-5 sm:mx-auto mt-auto sm:my-auto max-h-[90vh] flex flex-col shadow-2xl" onclick="event.stopPropagation()">
+        <div class="flex justify-between mb-3 border-b pb-3 shrink-0">
+            <h3 class="font-bold"><i class="fa-solid fa-file-import text-sky-600"></i> Importar lista de canais</h3>
+            <button type="button" onclick="closeModal('importModal')" class="w-8 h-8 rounded-full hover:bg-gray-100"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p class="text-[11px] text-gray-500 mb-3">Importe listas em <strong>TXT</strong>, <strong>M3U</strong> ou <strong>PDF</strong>. Os canais ficam salvos neste dispositivo (não vão para a rede Nostr).</p>
+        <div class="space-y-3 overflow-y-auto no-scrollbar flex-1">
+            <div>
+                <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Arquivo <span class="req">*</span></label>
+                <input type="file" id="importFile" accept=".txt,.m3u,.m3u8,.pdf,text/plain,application/pdf" class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-sky-600 file:text-white">
+                <p class="text-[10px] text-gray-400 mt-1">Formatos: M3U (#EXTINF), linhas <code>Nome | URL</code>, <code>Nome,URL</code> ou URLs soltas. PDF: texto extraído automaticamente.</p>
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Categoria padrão</label>
+                <select id="importCategory" class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm">
+                    <option value="importados">Importados</option>
+                    <option value="noticias">Notícias</option>
+                    <option value="entretenimento">Entretenimento</option>
+                    <option value="esportes">Esportes</option>
+                    <option value="ciencia">Ciência</option>
+                    <option value="musica">Música</option>
+                    <option value="clima">Clima</option>
+                    <option value="rede">Rede IPTV</option>
+                </select>
+            </div>
+            <div id="importPreview" class="hidden text-[11px] bg-gray-50 border rounded-xl p-3 max-h-40 overflow-y-auto no-scrollbar text-gray-600"></div>
+            <div class="flex gap-2">
+                <button type="button" id="importSubmitBtn" onclick="handleImportList()" class="flex-1 bg-sky-600 text-white font-bold py-2.5 rounded-xl text-sm">Importar canais</button>
+                <button type="button" onclick="clearImportedChannels()" class="px-3 py-2.5 rounded-xl text-sm font-bold border border-gray-200 text-gray-600 hover:bg-gray-50" title="Limpar importados">Limpar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="historyModal" class="hidden fixed inset-0 z-50 flex bg-black/40" onclick="closeModalOnBackdrop(event,'historyModal')">
     <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-5 max-h-[88vh] flex flex-col shadow-2xl" onclick="event.stopPropagation()">
         <div class="flex justify-between mb-3 border-b pb-3"><h3 class="font-bold"><i class="fa-regular fa-clock text-secondary"></i> Histórico</h3>
@@ -289,10 +330,12 @@ const BUILTIN_CHANNELS = [
     {id:'cbsnews',name:'CBS News',category:'noticias',status:'Notícias · EUA',img:'https://i.imgur.com/nki2HDQ.png',url:'https://cbsnews.akamaized.net/hls/live/2020607/cbsnlineup_8/master.m3u8',desc:'CBS News 24h.',isUser:false},
     {id:'apple-test',name:'Demo HLS (Apple)',category:'ciencia',status:'Teste',img:'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400&h=225&fit=crop',url:'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8',desc:'Stream de teste Apple.',isUser:false}
 ];
-const CATEGORY_NAMES={todos:'Todos',rede:'Rede IPTV',noticias:'Notícias',entretenimento:'Entretenimento',esportes:'Esportes',ciencia:'Ciência',musica:'Música',clima:'Clima'};
+const CATEGORY_NAMES={todos:'Todos',rede:'Rede IPTV',importados:'Importados',noticias:'Notícias',entretenimento:'Entretenimento',esportes:'Esportes',ciencia:'Ciência',musica:'Música',clima:'Clima'};
 const DEFAULT_IMG='https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400&h=225&fit=crop';
+const IMPORTED_STORAGE_KEY='loreplay_iptv_imported_channels_v1';
 
 let networkChannels=[];
+let importedChannels=[];
 let CHANNELS=[];
 let currentCategory='todos',viewMode='live',searchQuery='';
 let currentChannel=null,hlsInstance=null;
@@ -316,8 +359,18 @@ function loadSessionAvatar(){
     const el=document.getElementById('userAvatarHeader');if(!el)return;
     if(currentUserData.avatarUrl){el.innerHTML=`<img src="${String(currentUserData.avatarUrl).replace(/"/g,'&quot;')}" class="w-full h-full object-cover" alt="">`}
 }
+function loadImportedChannels(){
+    try{
+        const raw=localStorage.getItem(IMPORTED_STORAGE_KEY);
+        const list=raw?JSON.parse(raw):[];
+        importedChannels=Array.isArray(list)?list.map(c=>({...c,isImported:true,isUser:false})):[]
+    }catch(_){importedChannels=[]}
+}
+function saveImportedChannels(){
+    try{localStorage.setItem(IMPORTED_STORAGE_KEY,JSON.stringify(importedChannels))}catch(e){console.warn(e)}
+}
 function rebuildChannelList(){
-    CHANNELS=[...networkChannels,...BUILTIN_CHANNELS];
+    CHANNELS=[...importedChannels,...networkChannels,...BUILTIN_CHANNELS];
     renderCatalog();rebuildBanner();
 }
 function setNetworkStatus(html){const el=document.getElementById('networkStatus');if(el)el.innerHTML=html}
@@ -346,6 +399,7 @@ function getFilteredChannels(){
     let list=[...CHANNELS];
     if(viewMode==='favorites'){const names=new Set(savedTitles.map(s=>s.name));list=list.filter(c=>names.has(c.name))}
     else if(currentCategory==='rede')list=list.filter(c=>c.isUser);
+    else if(currentCategory==='importados')list=list.filter(c=>c.isImported);
     else if(currentCategory!=='todos')list=list.filter(c=>c.category===currentCategory);
     if(searchQuery.trim()){const q=searchQuery.toLowerCase();list=list.filter(c=>c.name.toLowerCase().includes(q)||(c.status||'').toLowerCase().includes(q)||(c.desc||'').toLowerCase().includes(q))}
     return list;
@@ -356,13 +410,13 @@ function renderCatalog(){
     if(ct)ct.textContent=viewMode==='favorites'?'Favoritos':`Canais · ${CATEGORY_NAMES[currentCategory]||'Todos'}`;
     if(cl)cl.textContent=`${items.length} canal(is)`;
     if(!g)return;
-    if(!items.length){g.innerHTML='<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum canal.<br><button type="button" onclick="openModal(\'creationModal\')" class="mt-3 text-secondary font-semibold">Publicar IPTV</button></div>';return}
+    if(!items.length){g.innerHTML='<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum canal.<br><button type="button" onclick="openModal(\'importModal\')" class="mt-3 text-sky-600 font-semibold mr-2">Importar lista</button><button type="button" onclick="openModal(\'creationModal\')" class="mt-3 text-secondary font-semibold">Publicar IPTV</button></div>';return}
     g.innerHTML=items.map(ch=>`
         <div class="content-card" onclick='openChannel(${JSON.stringify(ch.id)})'>
             <div class="content-thumb shadow-sm">
                 <img src="${ch.img||DEFAULT_IMG}" alt="${ch.name}" loading="lazy" onerror="this.src='${DEFAULT_IMG}'">
                 <span class="live-badge">AO VIVO</span>
-                ${ch.isUser?'<span class="net-badge">REDE</span>':''}
+                ${ch.isUser?'<span class="net-badge">REDE</span>':(ch.isImported?'<span class="import-badge">IMPORT</span>':'')}
             </div>
             <p class="text-xs font-semibold mt-2 truncate">${ch.name}</p>
             <p class="text-[11px] text-gray-400">${ch.status||CATEGORY_NAMES[ch.category]||''}</p>
@@ -391,7 +445,7 @@ function openChannel(id){
     currentChannel=ch;
     document.getElementById('detailModalTitle').textContent=ch.name;
     document.getElementById('detailChannelDesc').textContent=ch.desc||ch.status||'Canal ao vivo';
-    document.getElementById('detailSourceLabel').textContent=ch.isUser?'IPTV · Rede Nostr':'IPTV · Stream público';
+    document.getElementById('detailSourceLabel').textContent=ch.isUser?'IPTV · Rede Nostr':(ch.isImported?'IPTV · Importado (local)':'IPTV · Stream público');
     updateFavoriteUI();renderSuggestions();openModal('detailModal');addToHistory(ch);playChannelUrl(ch.url);
 }
 function renderSuggestions(){
@@ -466,6 +520,150 @@ function nextSlide(){if(!slides.length)return;currentSlide=(currentSlide+1)%slid
 function prevSlide(){if(!slides.length)return;currentSlide=(currentSlide-1+slides.length)%slides.length;updateSlideUI()}
 function setSlide(i){currentSlide=i;updateSlideUI();clearInterval(slideInterval);slideInterval=setInterval(nextSlide,5000)}
 
+/* ===== Importação PDF / TXT / M3U ===== */
+function looksLikeStreamUrl(s){
+    if(!s||typeof s!=='string')return false;
+    const u=s.trim();
+    if(!/^https?:\/\//i.test(u))return false;
+    if(/\.(m3u8?|ts|mpd)(\?|$)/i.test(u))return true;
+    if(/\/(live|stream|playlist|index|master|channel)/i.test(u))return true;
+    if(/iptv|hls|mpegts/i.test(u))return true;
+    return u.length>12&&!/\.(jpg|jpeg|png|gif|webp|svg|css|js|html?)(\?|$)/i.test(u);
+}
+function parseChannelListText(text,defaultCategory){
+    const lines=String(text||'').replace(/\r/g,'\n').split('\n').map(l=>l.trim()).filter(Boolean);
+    const out=[];
+    let pendingName=null;
+    const cat=defaultCategory||'importados';
+    for(let i=0;i<lines.length;i++){
+        const line=lines[i];
+        if(/^#EXTM3U/i.test(line))continue;
+        if(/^#EXTINF/i.test(line)){
+            let name=line.replace(/^#EXTINF[^,]*,?/i,'').trim();
+            const tvgName=line.match(/tvg-name="([^"]+)"/i);
+            const group=line.match(/group-title="([^"]+)"/i);
+            if(tvgName)name=tvgName[1].trim();
+            pendingName={name:name||('Canal '+(out.length+1)),group:group?group[1].trim():null};
+            continue;
+        }
+        if(line.startsWith('#'))continue;
+        // Nome | URL  ou  Nome,URL  ou  Nome;URL
+        const sep=line.match(/^(.+?)\s*[|;,]\s*(https?:\/\/\S+)$/i);
+        if(sep){
+            const name=sep[1].trim().replace(/^["']|["']$/g,'');
+            const url=sep[2].trim();
+            if(looksLikeStreamUrl(url))out.push({name:name||('Canal '+(out.length+1)),url,category:cat});
+            pendingName=null;
+            continue;
+        }
+        if(/^https?:\/\//i.test(line)){
+            const url=line.split(/\s+/)[0];
+            if(looksLikeStreamUrl(url)){
+                const name=pendingName?.name||('Canal '+(out.length+1));
+                out.push({name,url,category:pendingName?.group?cat:cat});
+            }
+            pendingName=null;
+            continue;
+        }
+        // linha só com nome: espera URL na próxima
+        if(pendingName)pendingName=null;
+        else if(line.length>1&&line.length<80&&!/[=<>{}]/.test(line))pendingName={name:line,group:null};
+    }
+    // dedupe por URL
+    const seen=new Set();
+    return out.filter(c=>{
+        const k=c.url.toLowerCase();
+        if(seen.has(k))return false;
+        seen.add(k);
+        return true;
+    });
+}
+async function extractTextFromPdf(file){
+    if(!window.pdfjsLib)throw new Error('pdf.js não carregou. Verifique a conexão.');
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    let text='';
+    for(let p=1;p<=pdf.numPages;p++){
+        const page=await pdf.getPage(p);
+        const content=await page.getTextContent();
+        const pageText=content.items.map(it=>it.str).join(' ');
+        text+=pageText+'\n';
+    }
+    // Também tenta separar URLs que o PDF juntou
+    text=text.replace(/(https?:\/\/\S+)/gi,'\n$1\n');
+    return text;
+}
+async function handleImportList(){
+    const input=document.getElementById('importFile');
+    const file=input?.files?.[0];
+    const category=document.getElementById('importCategory')?.value||'importados';
+    const btn=document.getElementById('importSubmitBtn');
+    const preview=document.getElementById('importPreview');
+    if(!file){alert('Selecione um arquivo TXT, M3U ou PDF.');return}
+    if(btn){btn.disabled=true;btn.textContent='Processando...'}
+    try{
+        let text='';
+        const name=(file.name||'').toLowerCase();
+        if(name.endsWith('.pdf')||file.type==='application/pdf'){
+            text=await extractTextFromPdf(file);
+        }else{
+            text=await file.text();
+        }
+        const parsed=parseChannelListText(text,category);
+        if(!parsed.length){
+            if(preview){preview.classList.remove('hidden');preview.textContent='Nenhum canal válido encontrado. Use M3U (#EXTINF + URL), linhas "Nome | URL" ou URLs http(s).'}
+            alert('Nenhum canal válido encontrado no arquivo.');
+            return;
+        }
+        const existingUrls=new Set(importedChannels.map(c=>String(c.url).toLowerCase()));
+        let added=0;
+        for(const p of parsed){
+            const key=p.url.toLowerCase();
+            if(existingUrls.has(key))continue;
+            existingUrls.add(key);
+            const id='imp-'+(crypto.randomUUID?.()||(Date.now()+'-'+Math.random().toString(36).slice(2,9)));
+            importedChannels.push({
+                id,
+                name:String(p.name).slice(0,120),
+                category:p.category||category,
+                status:'Importado · '+(CATEGORY_NAMES[p.category||category]||'Lista'),
+                img:DEFAULT_IMG,
+                url:p.url,
+                desc:'Importado de '+(file.name||'arquivo'),
+                isImported:true,
+                isUser:false
+            });
+            added++;
+        }
+        saveImportedChannels();
+        rebuildChannelList();
+        if(preview){
+            preview.classList.remove('hidden');
+            preview.innerHTML=`<strong>${added}</strong> canal(is) adicionados (${parsed.length} detectados no arquivo).<br>`+
+                parsed.slice(0,8).map(c=>`• ${c.name}`).join('<br>')+(parsed.length>8?'<br>…':'');
+        }
+        alert(added?`${added} canal(is) importados com sucesso.`:'Todos os canais do arquivo já estavam na lista.');
+        if(added)closeModal('importModal');
+        if(input)input.value='';
+    }catch(err){
+        console.error(err);
+        alert('Falha ao importar: '+(err.message||err));
+    }finally{
+        if(btn){btn.disabled=false;btn.textContent='Importar canais'}
+    }
+}
+function clearImportedChannels(){
+    if(!importedChannels.length){alert('Não há canais importados.');return}
+    if(!confirm('Remover todos os canais importados deste dispositivo?'))return;
+    importedChannels=[];
+    saveImportedChannels();
+    rebuildChannelList();
+    const preview=document.getElementById('importPreview');
+    if(preview){preview.classList.remove('hidden');preview.textContent='Lista importada limpa.'}
+    alert('Canais importados removidos.');
+}
+
 async function handleChannelPost(ev){
     ev.preventDefault();
     if(!isUserLoggedIn()){alert('Login Nostr necessário.');return}
@@ -494,6 +692,7 @@ function onNetworkChannelsLoaded(list){
 }
 
 loadSessionFromNostr();loadSessionAvatar();
+loadImportedChannels();
 rebuildChannelList();
 window.setNetworkStatus=setNetworkStatus;
 window.onNetworkChannelsLoaded=onNetworkChannelsLoaded;
