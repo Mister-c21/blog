@@ -312,8 +312,23 @@
                     <input type="url" id="singleUrl" placeholder="https://.../playlist.m3u8" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-secondary">
                 </div>
                 <div>
-                    <label class="text-xs font-bold text-gray-700 block mb-1">URL da logo (opcional)</label>
-                    <input type="url" id="singleImg" placeholder="https://.../logo.png" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-secondary">
+                    <label class="text-xs font-bold text-gray-700 block mb-1">Imagem de capa</label>
+                    <div class="flex items-start gap-3">
+                        <div class="w-28 aspect-video rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0 flex items-center justify-center">
+                            <img id="singleCoverPreview" src="" alt="" class="w-full h-full object-cover hidden">
+                            <i id="singleCoverPlaceholder" class="fa-regular fa-image text-gray-300 text-xl"></i>
+                        </div>
+                        <div class="flex-1 min-w-0 space-y-2">
+                            <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-xs font-semibold text-gray-700 cursor-pointer hover:border-secondary">
+                                <i class="fa-solid fa-image text-secondary"></i>
+                                Escolher capa
+                                <input type="file" id="singleCoverFile" accept="image/*" class="hidden" onchange="handleCoverFile(event)">
+                            </label>
+                            <input type="url" id="singleImg" placeholder="ou cole a URL da capa (opcional)" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-secondary" oninput="handleCoverUrlInput(this.value)">
+                            <button type="button" onclick="clearCoverImage()" class="text-[11px] text-red-500 font-semibold hover:underline">Remover capa</button>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1">A capa fica salva neste navegador junto com o canal.</p>
                 </div>
                 <div>
                     <label class="text-xs font-bold text-gray-700 block mb-1">Categoria</label>
@@ -394,163 +409,29 @@
 </div>
 
 <script>
-/* ===================== CANAIS PRÉ-CARREGADOS (públicos / free-to-air) ===================== */
+/* ===================== CANAIS PRÉ-CARREGADOS ===================== */
 const BUILTIN_CHANNELS = [
-    {
-        id: 'bloomberg',
-        name: 'Bloomberg TV',
-        category: 'noticias',
-        status: 'Notícias · Economia',
-        img: 'https://i.imgur.com/VnCcH73.png',
-        url: 'https://bloomberg.com/media-manifest/streams/us.m3u8',
-        desc: 'Notícias financeiras e de negócios 24h.'
-    },
-    {
-        id: 'abcnews',
-        name: 'ABC News',
-        category: 'noticias',
-        status: 'Notícias · EUA',
-        img: 'https://i.imgur.com/7sJLzKi.png',
-        url: 'https://abcnews-streams.akamaized.net/hls/live/2023560/abcnewshudson1/master.m3u8',
-        desc: 'Cobertura jornalística ao vivo da ABC.'
-    },
-    {
-        id: 'cbsnews',
-        name: 'CBS News',
-        category: 'noticias',
-        status: 'Notícias · EUA',
-        img: 'https://i.imgur.com/nki2HDQ.png',
-        url: 'https://cbsnews.akamaized.net/hls/live/2020607/cbsnlineup_8/master.m3u8',
-        desc: 'CBS News streaming 24 horas.'
-    },
-    {
-        id: 'foxlivenow',
-        name: 'FOX Live Now',
-        category: 'noticias',
-        status: 'Notícias',
-        img: 'https://graph.facebook.com/livenowfox/picture?width=400&height=400',
-        url: 'https://fox-foxnewsnow-vizio.amagi.tv/playlist.m3u8',
-        desc: 'Notícias e atualidades FOX.'
-    },
-    {
-        id: 'newsmax',
-        name: 'Newsmax TV',
-        category: 'noticias',
-        status: 'Notícias',
-        img: 'https://graph.facebook.com/newsmax/picture?width=400&height=400',
-        url: 'https://nmxlive.akamaized.net/hls/live/529965/Live_1/index.m3u8',
-        desc: 'Canal de notícias Newsmax.'
-    },
-    {
-        id: 'courttv',
-        name: 'Court TV',
-        category: 'noticias',
-        status: 'Tribunal · Notícias',
-        img: 'https://graph.facebook.com/courttv/picture?width=400&height=400',
-        url: 'https://content.uplynk.com/channel/6c0bd0f94b1d4526a98676e9699a10ef.m3u8',
-        desc: 'Cobertura de tribunais e casos judiciais.'
-    },
-    {
-        id: 'biztv',
-        name: 'Biz TV',
-        category: 'noticias',
-        status: 'Negócios',
-        img: 'https://i.imgur.com/cbGvXyF.jpg',
-        url: 'https://2-fss-1.streamhoster.com/pl_154/205722-2251224-1/playlist.m3u8',
-        desc: 'Programação de negócios e empreendedorismo.'
-    },
-    {
-        id: 'retrotv',
-        name: 'Retro TV',
-        category: 'entretenimento',
-        status: 'Clássicos',
-        img: 'https://i.imgur.com/PNTYOgg.png',
-        url: 'https://lukentvlive.vgcdn.net/v1/master/cef183924f24adfa3d5d7601c3a17769082c0c2b/retro/index.m3u8',
-        desc: 'Séries e programas clássicos.'
-    },
-    {
-        id: 'heartland',
-        name: 'Heartland',
-        category: 'entretenimento',
-        status: 'Lifestyle',
-        img: 'https://i.imgur.com/a67bbag.png',
-        url: 'https://lukentvlive.vgcdn.net/v1/master/cef183924f24adfa3d5d7601c3a17769082c0c2b/heartland/index.m3u8',
-        desc: 'Conteúdo lifestyle e rural americano.'
-    },
-    {
-        id: 'revn',
-        name: "Rev'n",
-        category: 'entretenimento',
-        status: 'Automóveis',
-        img: 'https://i.imgur.com/VUhqVgG.png',
-        url: 'https://lukentvlive.vgcdn.net/v1/master/cef183924f24adfa3d5d7601c3a17769082c0c2b/Revn/index.m3u8',
-        desc: 'Programas sobre carros e motores.'
-    },
-    {
-        id: 'drybar',
-        name: 'Dry Bar Comedy',
-        category: 'entretenimento',
-        status: 'Comédia',
-        img: 'https://i.imgur.com/EldlmTp.png',
-        url: 'https://drybar-drybarcomedy-1-us.samsung.wurl.tv/playlist.m3u8',
-        desc: 'Stand-up comedy limpa e familiar.'
-    },
-    {
-        id: 'docurama',
-        name: 'Docurama',
-        category: 'ciencia',
-        status: 'Documentários',
-        img: 'https://i.imgur.com/bNg8mze.png',
-        url: 'https://cinedigm.vo.llnwd.net/conssui/amagi_hls_data_xumo1234A-docuramaA/CDN/master.m3u8',
-        desc: 'Documentários e não-ficção.'
-    },
-    {
-        id: 'stadium',
-        name: 'Stadium',
-        category: 'esportes',
-        status: 'Esportes',
-        img: 'https://i.imgur.com/6ae9E8d.png',
-        url: 'https://bcovlive-a.akamaihd.net/e64d564b9275484f85981d8c146fb915/us-east-1/5994000126001/profile_1/976f34cf5a614518b7b539cbf9812080/chunklist_ssaiV.m3u8',
-        desc: 'Esportes e highlights.'
-    },
-    {
-        id: 'weathernation',
-        name: 'WeatherNation',
-        category: 'clima',
-        status: 'Clima',
-        img: 'https://graph.facebook.com/WeatherNation/picture?width=400&height=400',
-        url: 'https://d2ferbiwcx1539.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-8zd06wicndthf-ssai-prd/WNNationalSamsung/WNNationalSamsung.m3u8',
-        desc: 'Previsão do tempo e clima nacional.'
-    },
-    {
-        id: 'buzzr',
-        name: 'Buzzr',
-        category: 'entretenimento',
-        status: 'Game shows',
-        img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Buzzr_logo.svg/960px-Buzzr_logo.svg.png',
-        url: 'http://23.237.104.106:8080/USA_BUZZR/index.m3u8',
-        desc: 'Game shows clássicos.'
-    },
-    {
-        id: 'apple-test',
-        name: 'Demo HLS (Apple)',
-        category: 'ciencia',
-        status: 'Teste · Sempre online',
-        img: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400&h=225&fit=crop',
-        url: 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8',
-        desc: 'Stream de teste oficial da Apple (sempre funcional para validar o player).'
-    }
+    { id:'bloomberg', name:'Bloomberg TV', category:'noticias', status:'Notícias · Economia', img:'https://i.imgur.com/VnCcH73.png', url:'https://bloomberg.com/media-manifest/streams/us.m3u8', desc:'Notícias financeiras e de negócios 24h.' },
+    { id:'abcnews', name:'ABC News', category:'noticias', status:'Notícias · EUA', img:'https://i.imgur.com/7sJLzKi.png', url:'https://abcnews-streams.akamaized.net/hls/live/2023560/abcnewshudson1/master.m3u8', desc:'Cobertura jornalística ao vivo da ABC.' },
+    { id:'cbsnews', name:'CBS News', category:'noticias', status:'Notícias · EUA', img:'https://i.imgur.com/nki2HDQ.png', url:'https://cbsnews.akamaized.net/hls/live/2020607/cbsnlineup_8/master.m3u8', desc:'CBS News streaming 24 horas.' },
+    { id:'foxlivenow', name:'FOX Live Now', category:'noticias', status:'Notícias', img:'https://graph.facebook.com/livenowfox/picture?width=400&height=400', url:'https://fox-foxnewsnow-vizio.amagi.tv/playlist.m3u8', desc:'Notícias e atualidades FOX.' },
+    { id:'newsmax', name:'Newsmax TV', category:'noticias', status:'Notícias', img:'https://graph.facebook.com/newsmax/picture?width=400&height=400', url:'https://nmxlive.akamaized.net/hls/live/529965/Live_1/index.m3u8', desc:'Canal de notícias Newsmax.' },
+    { id:'courttv', name:'Court TV', category:'noticias', status:'Tribunal · Notícias', img:'https://graph.facebook.com/courttv/picture?width=400&height=400', url:'https://content.uplynk.com/channel/6c0bd0f94b1d4526a98676e9699a10ef.m3u8', desc:'Cobertura de tribunais e casos judiciais.' },
+    { id:'biztv', name:'Biz TV', category:'noticias', status:'Negócios', img:'https://i.imgur.com/cbGvXyF.jpg', url:'https://2-fss-1.streamhoster.com/pl_154/205722-2251224-1/playlist.m3u8', desc:'Programação de negócios e empreendedorismo.' },
+    { id:'retrotv', name:'Retro TV', category:'entretenimento', status:'Clássicos', img:'https://i.imgur.com/PNTYOgg.png', url:'https://lukentvlive.vgcdn.net/v1/master/cef183924f24adfa3d5d7601c3a17769082c0c2b/retro/index.m3u8', desc:'Séries e programas clássicos.' },
+    { id:'heartland', name:'Heartland', category:'entretenimento', status:'Lifestyle', img:'https://i.imgur.com/a67bbag.png', url:'https://lukentvlive.vgcdn.net/v1/master/cef183924f24adfa3d5d7601c3a17769082c0c2b/heartland/index.m3u8', desc:'Conteúdo lifestyle e rural americano.' },
+    { id:'revn', name:"Rev'n", category:'entretenimento', status:'Automóveis', img:'https://i.imgur.com/VUhqVgG.png', url:'https://lukentvlive.vgcdn.net/v1/master/cef183924f24adfa3d5d7601c3a17769082c0c2b/Revn/index.m3u8', desc:'Programas sobre carros e motores.' },
+    { id:'drybar', name:'Dry Bar Comedy', category:'entretenimento', status:'Comédia', img:'https://i.imgur.com/EldlmTp.png', url:'https://drybar-drybarcomedy-1-us.samsung.wurl.tv/playlist.m3u8', desc:'Stand-up comedy limpa e familiar.' },
+    { id:'docurama', name:'Docurama', category:'ciencia', status:'Documentários', img:'https://i.imgur.com/bNg8mze.png', url:'https://cinedigm.vo.llnwd.net/conssui/amagi_hls_data_xumo1234A-docuramaA/CDN/master.m3u8', desc:'Documentários e não-ficção.' },
+    { id:'stadium', name:'Stadium', category:'esportes', status:'Esportes', img:'https://i.imgur.com/6ae9E8d.png', url:'https://bcovlive-a.akamaihd.net/e64d564b9275484f85981d8c146fb915/us-east-1/5994000126001/profile_1/976f34cf5a614518b7b539cbf9812080/chunklist_ssaiV.m3u8', desc:'Esportes e highlights.' },
+    { id:'weathernation', name:'WeatherNation', category:'clima', status:'Clima', img:'https://graph.facebook.com/WeatherNation/picture?width=400&height=400', url:'https://d2ferbiwcx1539.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-8zd06wicndthf-ssai-prd/WNNationalSamsung/WNNationalSamsung.m3u8', desc:'Previsão do tempo e clima nacional.' },
+    { id:'buzzr', name:'Buzzr', category:'entretenimento', status:'Game shows', img:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Buzzr_logo.svg/960px-Buzzr_logo.svg.png', url:'http://23.237.104.106:8080/USA_BUZZR/index.m3u8', desc:'Game shows clássicos.' },
+    { id:'apple-test', name:'Demo HLS (Apple)', category:'ciencia', status:'Teste · Sempre online', img:'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400&h=225&fit=crop', url:'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8', desc:'Stream de teste oficial da Apple (sempre funcional para validar o player).' }
 ];
 
 const CATEGORY_NAMES = {
-    todos: 'Todos',
-    meus: 'Meus IPTV',
-    noticias: 'Notícias',
-    entretenimento: 'Entretenimento',
-    esportes: 'Esportes',
-    ciencia: 'Ciência',
-    musica: 'Música',
-    clima: 'Clima'
+    todos:'Todos', meus:'Meus IPTV', noticias:'Notícias', entretenimento:'Entretenimento',
+    esportes:'Esportes', ciencia:'Ciência', musica:'Música', clima:'Clima'
 };
 
 const DEFAULT_CHANNEL_IMG = 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400&h=225&fit=crop';
@@ -570,6 +451,7 @@ let currentSlide = 0;
 let slideInterval = null;
 let castContext = null;
 let castSession = null;
+let pendingCoverDataUrl = '';
 
 try {
     savedTitles = JSON.parse(localStorage.getItem('lp_iptv_saved') || '[]');
@@ -589,7 +471,7 @@ function persistUserChannels() {
     try {
         localStorage.setItem('lp_iptv_user_channels', JSON.stringify(userChannels));
     } catch (e) {
-        alert('Não foi possível salvar. O armazenamento do navegador pode estar cheio.');
+        alert('Não foi possível salvar. O armazenamento do navegador pode estar cheio (capas em base64 ocupam espaço).');
         console.warn(e);
     }
     rebuildChannelList();
@@ -692,6 +574,91 @@ function mergeUserChannels(newList) {
     return added;
 }
 
+/* ===================== CAPA DO CANAL ===================== */
+function setCoverPreview(src) {
+    const img = document.getElementById('singleCoverPreview');
+    const ph = document.getElementById('singleCoverPlaceholder');
+    if (!img || !ph) return;
+    if (src) {
+        img.src = src;
+        img.classList.remove('hidden');
+        ph.classList.add('hidden');
+    } else {
+        img.removeAttribute('src');
+        img.classList.add('hidden');
+        ph.classList.remove('hidden');
+    }
+}
+
+function clearCoverImage() {
+    pendingCoverDataUrl = '';
+    const file = document.getElementById('singleCoverFile');
+    const url = document.getElementById('singleImg');
+    if (file) file.value = '';
+    if (url) url.value = '';
+    setCoverPreview('');
+}
+
+function handleCoverUrlInput(v) {
+    const t = (v || '').trim();
+    if (t && /^https?:\/\//i.test(t)) {
+        pendingCoverDataUrl = '';
+        setCoverPreview(t);
+    } else if (!t && !pendingCoverDataUrl) {
+        setCoverPreview('');
+    }
+}
+
+function compressImageFile(file, maxW, maxH, quality) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Falha ao ler a imagem'));
+        reader.onload = () => {
+            const img = new Image();
+            img.onerror = () => reject(new Error('Imagem inválida'));
+            img.onload = () => {
+                let w = img.width, h = img.height;
+                const ratio = Math.min(maxW / w, maxH / h, 1);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+async function handleCoverFile(ev) {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    if (!/^image\//i.test(file.type)) {
+        alert('Selecione um arquivo de imagem.');
+        ev.target.value = '';
+        return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+        alert('Imagem muito grande (máx. 8 MB).');
+        ev.target.value = '';
+        return;
+    }
+    try {
+        pendingCoverDataUrl = await compressImageFile(file, 640, 360, 0.82);
+        const urlInput = document.getElementById('singleImg');
+        if (urlInput) urlInput.value = '';
+        setCoverPreview(pendingCoverDataUrl);
+    } catch (e) {
+        console.warn(e);
+        alert('Não foi possível processar a imagem.');
+        ev.target.value = '';
+    }
+}
+
 /* ===================== UPLOAD UI ===================== */
 function setUploadTab(tab) {
     document.getElementById('tabFile')?.classList.toggle('active', tab === 'file');
@@ -729,8 +696,10 @@ function importPastedM3u() {
 function importSingleChannel() {
     const name = (document.getElementById('singleName')?.value || '').trim();
     const url = (document.getElementById('singleUrl')?.value || '').trim();
-    const img = (document.getElementById('singleImg')?.value || '').trim() || DEFAULT_CHANNEL_IMG;
+    const urlImg = (document.getElementById('singleImg')?.value || '').trim();
     const category = document.getElementById('singleCategory')?.value || 'meus';
+    const img = pendingCoverDataUrl || urlImg || DEFAULT_CHANNEL_IMG;
+
     if (!name || !url) {
         alert('Preencha nome e URL do stream.');
         return;
@@ -739,6 +708,11 @@ function importSingleChannel() {
         alert('A URL precisa começar com http:// ou https://');
         return;
     }
+    if (urlImg && !pendingCoverDataUrl && !/^https?:\/\//i.test(urlImg)) {
+        alert('A URL da capa precisa começar com http:// ou https://');
+        return;
+    }
+
     const ch = {
         id: slugId(name, url),
         name,
@@ -752,7 +726,7 @@ function importSingleChannel() {
     const added = mergeUserChannels([ch]);
     document.getElementById('singleName').value = '';
     document.getElementById('singleUrl').value = '';
-    document.getElementById('singleImg').value = '';
+    clearCoverImage();
     alert(added ? 'Canal adicionado à rede.' : 'Canal atualizado na rede.');
 }
 
@@ -968,11 +942,7 @@ function playChannelUrl(url) {
     setMediaLoading(true, 'Conectando ao vivo...');
 
     if (Hls.isSupported() && /\.m3u8($|\?)/i.test(url)) {
-        hlsInstance = new Hls({
-            enableWorker: true,
-            lowLatencyMode: true,
-            backBufferLength: 30
-        });
+        hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true, backBufferLength: 30 });
         hlsInstance.loadSource(url);
         hlsInstance.attachMedia(video);
         hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
