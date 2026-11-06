@@ -33,6 +33,7 @@
         .content-thumb{aspect-ratio:16/9;border-radius:12px;background:#f3f4f6;overflow:hidden;position:relative;border:1px solid #f3f4f6}
         .content-thumb img{width:100%;height:100%;object-fit:cover}
         .live-badge{position:absolute;top:8px;left:8px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;letter-spacing:.3px}
+        .user-badge{position:absolute;top:8px;right:8px;background:#7c3aed;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:999px;letter-spacing:.3px}
         .carousel-dot{transition:.3s;cursor:pointer}
         @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
         .skeleton{background:linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%);background-size:200% 100%;animation:shimmer 1.4s infinite}
@@ -47,9 +48,9 @@
         .lp-slot .lp-slot-tag{font-size:9px;font-weight:800;color:#fff;background:linear-gradient(90deg,#7c3aed,#8b5cf6);padding:2px 7px;border-radius:999px;width:fit-content;letter-spacing:.4px;text-transform:uppercase}
         .lp-slot .lp-slot-heading{font-size:13px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .lp-slot .lp-slot-text{font-size:11px;color:#64748b;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35}
-        #historyModal,#savedModal{align-items:flex-end;justify-content:center;padding:0}
-        #historyModal>div,#savedModal>div{width:100%;max-width:100%;border-radius:1.25rem 1.25rem 0 0;max-height:88vh;margin:0}
-        @media (min-width:640px){#historyModal,#savedModal{align-items:center;padding:1rem}#historyModal>div,#savedModal>div{max-width:28rem;border-radius:1rem;max-height:90vh}}
+        #historyModal,#savedModal,#uploadModal{align-items:flex-end;justify-content:center;padding:0}
+        #historyModal>div,#savedModal>div,#uploadModal>div{width:100%;max-width:100%;border-radius:1.25rem 1.25rem 0 0;max-height:88vh;margin:0}
+        @media (min-width:640px){#historyModal,#savedModal,#uploadModal{align-items:center;padding:1rem}#historyModal>div,#savedModal>div,#uploadModal>div{max-width:28rem;border-radius:1rem;max-height:90vh}}
         #detailModal{position:fixed;inset:0;z-index:50;background:#0a0a0c}
         #detailShell{width:100%;height:100%;min-height:100dvh;display:flex;flex-direction:column;background:#0a0a0c;color:#fff;overflow:hidden}
         #playerStage{position:relative;flex:1 1 auto;min-height:42vh;background:#000;display:flex;align-items:center;justify-content:center}
@@ -77,6 +78,10 @@
         .suggest-card .thumb{aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#1f2937;border:1px solid rgba(255,255,255,.08)}
         .suggest-card img{width:100%;height:100%;object-fit:cover}
         .suggest-card p{font-size:10px;margin-top:6px;color:#e5e7eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .upload-drop{border:2px dashed #e2e8f0;border-radius:14px;padding:18px;text-align:center;background:#f8fafc;cursor:pointer;transition:.15s}
+        .upload-drop:hover,.upload-drop.dragover{border-color:rgba(124,58,237,.45);background:#f5f3ff}
+        .upload-tab{padding:8px 12px;border-radius:10px;font-size:12px;font-weight:700;color:#64748b;cursor:pointer}
+        .upload-tab.active{background:#7c3aed;color:#fff}
         @media (min-width:1024px){
             #detailShell{flex-direction:row;height:100dvh}
             #playerStage{flex:1 1 0;min-height:100%;min-width:0;height:100%}
@@ -129,6 +134,7 @@
             </div>
         </div>
         <div class="flex items-center gap-1">
+            <button type="button" onclick="openModal('uploadModal')" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-secondary" title="Adicionar IPTV"><i class="fa-solid fa-cloud-arrow-up"></i></button>
             <button type="button" onclick="openModal('historyModal')" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700" title="Histórico"><i class="fa-regular fa-clock"></i></button>
             <button type="button" onclick="openModal('savedModal')" class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-700" title="Favoritos"><i class="fa-regular fa-bookmark"></i></button>
             <div id="userAvatarHeader" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-secondary overflow-hidden ml-1 border border-gray-200"><i class="fa-solid fa-tv"></i></div>
@@ -162,6 +168,10 @@
                             <div class="provider-card active" onclick="selectCategory(this,'todos')">
                                 <img src="https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400&h=225&fit=crop" alt="">
                                 <span>Todos</span>
+                            </div>
+                            <div class="provider-card" onclick="selectCategory(this,'meus')">
+                                <img src="https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=400&h=225&fit=crop" alt="">
+                                <span>Meus IPTV</span>
                             </div>
                             <div class="provider-card" onclick="selectCategory(this,'noticias')">
                                 <img src="https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=400&h=225&fit=crop" alt="">
@@ -199,14 +209,19 @@
                         <h2 class="text-sm font-bold text-gray-900 uppercase" id="catalogTitle">Canais · Todos</h2>
                         <span class="text-xs text-gray-400" id="channelCountLabel">0 canais</span>
                     </div>
-                    <div class="inline-flex p-1 bg-gray-200/80 rounded-xl">
-                        <button type="button" id="btnLive" onclick="setViewMode('live')" class="px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white">Ao vivo</button>
-                        <button type="button" id="btnFav" onclick="setViewMode('favorites')" class="px-3 py-1 text-xs font-bold rounded-lg text-gray-600">Favoritos</button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="openModal('uploadModal')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-secondary text-white hover:opacity-90 flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> Adicionar IPTV
+                        </button>
+                        <div class="inline-flex p-1 bg-gray-200/80 rounded-xl">
+                            <button type="button" id="btnLive" onclick="setViewMode('live')" class="px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white">Ao vivo</button>
+                            <button type="button" id="btnFav" onclick="setViewMode('favorites')" class="px-3 py-1 text-xs font-bold rounded-lg text-gray-600">Favoritos</button>
+                        </div>
                     </div>
                 </div>
                 <div id="networkStatus" class="text-xs text-gray-500 mb-2 flex items-center gap-2">
                     <i class="fa-solid fa-circle text-green-500 text-[8px]"></i>
-                    <span>Canais públicos carregados · prontos para assistir</span>
+                    <span id="networkStatusText">Canais públicos carregados · prontos para assistir</span>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4" id="contentGrid"></div>
             </div>
@@ -260,6 +275,72 @@
     </div>
 </div>
 
+<!-- Upload / Importar IPTV -->
+<div id="uploadModal" class="hidden fixed inset-0 z-50 flex bg-black/40" onclick="closeModalOnBackdrop(event,'uploadModal')">
+    <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-5 sm:mx-auto mt-auto sm:my-auto max-h-[88vh] flex flex-col shadow-2xl" onclick="event.stopPropagation()">
+        <div class="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-3 sm:hidden shrink-0"></div>
+        <div class="flex justify-between mb-3 border-b pb-3 shrink-0">
+            <h3 class="font-bold"><i class="fa-solid fa-cloud-arrow-up text-secondary"></i> Adicionar IPTV</h3>
+            <button type="button" onclick="closeModal('uploadModal')" class="w-8 h-8 rounded-full hover:bg-gray-100"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex gap-1 mb-4 bg-gray-100 p-1 rounded-xl shrink-0">
+            <button type="button" class="upload-tab active flex-1" id="tabFile" onclick="setUploadTab('file')">Arquivo</button>
+            <button type="button" class="upload-tab flex-1" id="tabPaste" onclick="setUploadTab('paste')">Colar M3U</button>
+            <button type="button" class="upload-tab flex-1" id="tabSingle" onclick="setUploadTab('single')">Canal único</button>
+        </div>
+        <div class="overflow-y-auto no-scrollbar flex-1 space-y-4">
+            <div id="uploadPaneFile">
+                <label class="upload-drop block" id="uploadDropZone" for="m3uFileInput">
+                    <i class="fa-solid fa-file-arrow-up text-2xl text-secondary mb-2"></i>
+                    <p class="text-sm font-semibold text-gray-800">Enviar lista .m3u / .m3u8</p>
+                    <p class="text-xs text-gray-500 mt-1">Clique ou arraste o arquivo aqui</p>
+                    <input type="file" id="m3uFileInput" accept=".m3u,.m3u8,audio/x-mpegurl,application/vnd.apple.mpegurl,text/plain" class="hidden" onchange="handleM3uFile(event)">
+                </label>
+            </div>
+            <div id="uploadPanePaste" class="hidden">
+                <label class="text-xs font-bold text-gray-700 block mb-1">Conteúdo da playlist M3U</label>
+                <textarea id="m3uPasteArea" rows="8" placeholder="#EXTM3U&#10;#EXTINF:-1,Nome do Canal&#10;https://exemplo.com/stream.m3u8" class="w-full border border-gray-200 rounded-xl p-3 text-xs font-mono outline-none focus:border-secondary resize-y min-h-[140px]"></textarea>
+                <button type="button" onclick="importPastedM3u()" class="mt-3 w-full py-2.5 rounded-xl bg-secondary text-white text-sm font-bold hover:opacity-90">Importar playlist</button>
+            </div>
+            <div id="uploadPaneSingle" class="hidden space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-gray-700 block mb-1">Nome do canal *</label>
+                    <input type="text" id="singleName" placeholder="Ex: Meu Canal HD" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-secondary">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-700 block mb-1">URL do stream (HLS / M3U8) *</label>
+                    <input type="url" id="singleUrl" placeholder="https://.../playlist.m3u8" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-secondary">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-700 block mb-1">URL da logo (opcional)</label>
+                    <input type="url" id="singleImg" placeholder="https://.../logo.png" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-secondary">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-700 block mb-1">Categoria</label>
+                    <select id="singleCategory" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-secondary bg-white">
+                        <option value="entretenimento">Entretenimento</option>
+                        <option value="noticias">Notícias</option>
+                        <option value="esportes">Esportes</option>
+                        <option value="ciencia">Ciência</option>
+                        <option value="musica">Música</option>
+                        <option value="clima">Clima</option>
+                        <option value="meus">Meus IPTV</option>
+                    </select>
+                </div>
+                <button type="button" onclick="importSingleChannel()" class="w-full py-2.5 rounded-xl bg-secondary text-white text-sm font-bold hover:opacity-90">Adicionar canal</button>
+            </div>
+            <div class="border-t pt-3">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-bold text-gray-800">Canais importados <span id="userChannelCount" class="text-gray-400 font-normal">(0)</span></p>
+                    <button type="button" onclick="clearUserChannels()" class="text-[11px] text-red-500 font-semibold hover:underline">Limpar todos</button>
+                </div>
+                <div id="userChannelsList" class="space-y-2 max-h-40 overflow-y-auto no-scrollbar"></div>
+            </div>
+            <p class="text-[11px] text-gray-400 leading-relaxed">Os canais ficam salvos neste navegador (localStorage) e aparecem no catálogo junto aos canais públicos. Use apenas listas e streams que você tem permissão para usar.</p>
+        </div>
+    </div>
+</div>
+
 <!-- Player / Detalhe -->
 <div id="detailModal" class="hidden" onclick="closeModalOnBackdrop(event,'detailModal')">
     <div id="detailShell" onclick="event.stopPropagation()">
@@ -280,7 +361,7 @@
         </div>
         <div id="detailPanel" class="p-4 sm:p-6 space-y-5 no-scrollbar">
             <div class="flex justify-between flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-gray-300">
-                <span>IPTV · Stream público</span>
+                <span id="detailSourceLabel">IPTV · Stream público</span>
                 <span class="text-secondary"><i class="fa-solid fa-broadcast-tower"></i> Live</span>
             </div>
             <div class="grid grid-cols-3 gap-2 max-w-lg mx-auto text-center">
@@ -314,7 +395,7 @@
 
 <script>
 /* ===================== CANAIS PRÉ-CARREGADOS (públicos / free-to-air) ===================== */
-const CHANNELS = [
+const BUILTIN_CHANNELS = [
     {
         id: 'bloomberg',
         name: 'Bloomberg TV',
@@ -463,6 +544,7 @@ const CHANNELS = [
 
 const CATEGORY_NAMES = {
     todos: 'Todos',
+    meus: 'Meus IPTV',
     noticias: 'Notícias',
     entretenimento: 'Entretenimento',
     esportes: 'Esportes',
@@ -471,7 +553,11 @@ const CATEGORY_NAMES = {
     clima: 'Clima'
 };
 
+const DEFAULT_CHANNEL_IMG = 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400&h=225&fit=crop';
+
 /* ===================== ESTADO ===================== */
+let userChannels = [];
+let CHANNELS = [];
 let currentCategory = 'todos';
 let viewMode = 'live';
 let searchQuery = '';
@@ -488,7 +574,244 @@ let castSession = null;
 try {
     savedTitles = JSON.parse(localStorage.getItem('lp_iptv_saved') || '[]');
     historyTitles = JSON.parse(localStorage.getItem('lp_iptv_history') || '[]');
-} catch (_) {}
+    userChannels = JSON.parse(localStorage.getItem('lp_iptv_user_channels') || '[]');
+    if (!Array.isArray(userChannels)) userChannels = [];
+} catch (_) {
+    userChannels = [];
+}
+
+function rebuildChannelList() {
+    CHANNELS = [...userChannels, ...BUILTIN_CHANNELS];
+    updateNetworkStatus();
+}
+
+function persistUserChannels() {
+    try {
+        localStorage.setItem('lp_iptv_user_channels', JSON.stringify(userChannels));
+    } catch (e) {
+        alert('Não foi possível salvar. O armazenamento do navegador pode estar cheio.');
+        console.warn(e);
+    }
+    rebuildChannelList();
+    renderUserChannelsList();
+    renderCatalog();
+    rebuildBanner();
+}
+
+function updateNetworkStatus() {
+    const el = document.getElementById('networkStatusText');
+    if (!el) return;
+    const u = userChannels.length;
+    el.textContent = u
+        ? `${BUILTIN_CHANNELS.length} públicos + ${u} seu(s) · prontos para assistir`
+        : 'Canais públicos carregados · prontos para assistir';
+}
+
+/* ===================== PARSER M3U ===================== */
+function slugId(name, url) {
+    const base = (name || 'canal').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+    let hash = 0;
+    const s = (url || '') + '|' + (name || '');
+    for (let i = 0; i < s.length; i++) hash = ((hash << 5) - hash) + s.charCodeAt(i) | 0;
+    return 'user-' + base + '-' + Math.abs(hash).toString(36);
+}
+
+function mapGroupToCategory(group) {
+    const g = (group || '').toLowerCase();
+    if (/news|notíc|noticia|jornal|info/.test(g)) return 'noticias';
+    if (/sport|esport|futebol|soccer|nba|nfl/.test(g)) return 'esportes';
+    if (/music|música|musica|radio|rádio/.test(g)) return 'musica';
+    if (/weather|clima|tempo|meteo/.test(g)) return 'clima';
+    if (/doc|ciência|ciencia|science|edu|kids|infantil/.test(g)) return 'ciencia';
+    if (/movie|filme|series|série|entertain|cinema|tv/.test(g)) return 'entretenimento';
+    return 'meus';
+}
+
+function parseM3u(text) {
+    const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/);
+    const out = [];
+    let pending = null;
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line || line.startsWith('#EXTM3U') || line.startsWith('#EXTVLCOPT') || line.startsWith('#EXTGRP')) continue;
+        if (line.startsWith('#EXTINF:')) {
+            const comma = line.indexOf(',');
+            const meta = comma >= 0 ? line.slice(0, comma) : line;
+            const name = (comma >= 0 ? line.slice(comma + 1) : 'Canal').trim() || 'Canal';
+            const logoMatch = meta.match(/tvg-logo="([^"]*)"/i) || meta.match(/tvg-logo='([^']*)'/i);
+            const groupMatch = meta.match(/group-title="([^"]*)"/i) || meta.match(/group-title='([^']*)'/i);
+            pending = {
+                name,
+                img: (logoMatch && logoMatch[1]) || DEFAULT_CHANNEL_IMG,
+                group: (groupMatch && groupMatch[1]) || ''
+            };
+            continue;
+        }
+        if (line.startsWith('#')) continue;
+        if (/^https?:\/\//i.test(line) || line.startsWith('//')) {
+            const url = line.startsWith('//') ? 'https:' + line : line;
+            const name = (pending && pending.name) || ('Canal ' + (out.length + 1));
+            const img = (pending && pending.img) || DEFAULT_CHANNEL_IMG;
+            const category = mapGroupToCategory(pending && pending.group);
+            const status = (pending && pending.group) ? pending.group : 'Importado';
+            out.push({
+                id: slugId(name, url),
+                name,
+                category,
+                status,
+                img,
+                url,
+                desc: 'Canal importado pelo usuário.',
+                isUser: true
+            });
+            pending = null;
+        }
+    }
+    return out;
+}
+
+function mergeUserChannels(newList) {
+    if (!newList.length) {
+        alert('Nenhum canal válido encontrado na lista.');
+        return 0;
+    }
+    const byUrl = new Map(userChannels.map(c => [c.url, c]));
+    let added = 0;
+    for (const ch of newList) {
+        if (!ch.url || !/^https?:\/\//i.test(ch.url)) continue;
+        if (byUrl.has(ch.url)) {
+            const prev = byUrl.get(ch.url);
+            byUrl.set(ch.url, { ...prev, ...ch, id: prev.id, isUser: true });
+        } else {
+            byUrl.set(ch.url, { ...ch, isUser: true });
+            added++;
+        }
+    }
+    userChannels = Array.from(byUrl.values());
+    persistUserChannels();
+    return added;
+}
+
+/* ===================== UPLOAD UI ===================== */
+function setUploadTab(tab) {
+    document.getElementById('tabFile')?.classList.toggle('active', tab === 'file');
+    document.getElementById('tabPaste')?.classList.toggle('active', tab === 'paste');
+    document.getElementById('tabSingle')?.classList.toggle('active', tab === 'single');
+    document.getElementById('uploadPaneFile')?.classList.toggle('hidden', tab !== 'file');
+    document.getElementById('uploadPanePaste')?.classList.toggle('hidden', tab !== 'paste');
+    document.getElementById('uploadPaneSingle')?.classList.toggle('hidden', tab !== 'single');
+}
+
+function handleM3uFile(ev) {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        const parsed = parseM3u(String(reader.result || ''));
+        const added = mergeUserChannels(parsed);
+        alert(added ? `${added} canal(is) adicionado(s) à rede.` : 'Lista processada (atualizados ou já existentes).');
+        ev.target.value = '';
+    };
+    reader.onerror = () => alert('Falha ao ler o arquivo.');
+    reader.readAsText(file);
+}
+
+function importPastedM3u() {
+    const text = document.getElementById('m3uPasteArea')?.value || '';
+    const parsed = parseM3u(text);
+    const added = mergeUserChannels(parsed);
+    if (added || parsed.length) {
+        document.getElementById('m3uPasteArea').value = '';
+        alert(added ? `${added} canal(is) adicionado(s) à rede.` : 'Lista processada (atualizados ou já existentes).');
+    }
+}
+
+function importSingleChannel() {
+    const name = (document.getElementById('singleName')?.value || '').trim();
+    const url = (document.getElementById('singleUrl')?.value || '').trim();
+    const img = (document.getElementById('singleImg')?.value || '').trim() || DEFAULT_CHANNEL_IMG;
+    const category = document.getElementById('singleCategory')?.value || 'meus';
+    if (!name || !url) {
+        alert('Preencha nome e URL do stream.');
+        return;
+    }
+    if (!/^https?:\/\//i.test(url)) {
+        alert('A URL precisa começar com http:// ou https://');
+        return;
+    }
+    const ch = {
+        id: slugId(name, url),
+        name,
+        category,
+        status: 'Importado',
+        img,
+        url,
+        desc: 'Canal adicionado pelo usuário.',
+        isUser: true
+    };
+    const added = mergeUserChannels([ch]);
+    document.getElementById('singleName').value = '';
+    document.getElementById('singleUrl').value = '';
+    document.getElementById('singleImg').value = '';
+    alert(added ? 'Canal adicionado à rede.' : 'Canal atualizado na rede.');
+}
+
+function removeUserChannel(id) {
+    userChannels = userChannels.filter(c => c.id !== id);
+    persistUserChannels();
+}
+
+function clearUserChannels() {
+    if (!userChannels.length) return;
+    if (!confirm('Remover todos os canais importados deste navegador?')) return;
+    userChannels = [];
+    persistUserChannels();
+}
+
+function renderUserChannelsList() {
+    const list = document.getElementById('userChannelsList');
+    const count = document.getElementById('userChannelCount');
+    if (count) count.textContent = `(${userChannels.length})`;
+    if (!list) return;
+    if (!userChannels.length) {
+        list.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">Nenhum canal importado ainda.</p>';
+        return;
+    }
+    list.innerHTML = userChannels.slice(0, 50).map(c => `
+        <div class="flex items-center gap-2 p-2 rounded-lg bg-gray-50 border border-gray-100">
+            <img src="${c.img || DEFAULT_CHANNEL_IMG}" class="w-10 h-8 object-cover rounded" onerror="this.src='${DEFAULT_CHANNEL_IMG}'">
+            <div class="min-w-0 flex-1">
+                <p class="text-[11px] font-semibold truncate">${c.name}</p>
+                <p class="text-[10px] text-gray-400 truncate">${c.status || 'Importado'}</p>
+            </div>
+            <button type="button" onclick="removeUserChannel('${c.id}')" class="w-7 h-7 rounded-full hover:bg-red-50 text-red-500 shrink-0" title="Remover"><i class="fa-solid fa-trash text-xs"></i></button>
+        </div>
+    `).join('') + (userChannels.length > 50 ? `<p class="text-[10px] text-gray-400 text-center">+ ${userChannels.length - 50} outros</p>` : '');
+}
+
+(function setupDropZone() {
+    const zone = document.getElementById('uploadDropZone');
+    if (!zone) return;
+    ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => {
+        e.preventDefault();
+        zone.classList.add('dragover');
+    }));
+    ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+    }));
+    zone.addEventListener('drop', e => {
+        const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            const parsed = parseM3u(String(reader.result || ''));
+            const added = mergeUserChannels(parsed);
+            alert(added ? `${added} canal(is) adicionado(s) à rede.` : 'Lista processada (atualizados ou já existentes).');
+        };
+        reader.readAsText(file);
+    });
+})();
 
 /* ===================== HELPERS UI ===================== */
 function scrollRail(id, dir) {
@@ -509,6 +832,7 @@ function openModal(id) {
     document.getElementById(id)?.classList.remove('hidden');
     if (id === 'savedModal') renderSavedModalList();
     if (id === 'historyModal') renderHistoryModalList();
+    if (id === 'uploadModal') renderUserChannelsList();
     if (id === 'detailModal') document.body.style.overflow = 'hidden';
 }
 
@@ -545,6 +869,8 @@ function getFilteredChannels() {
     if (viewMode === 'favorites') {
         const names = new Set(savedTitles.map(s => s.name));
         list = list.filter(c => names.has(c.name));
+    } else if (currentCategory === 'meus') {
+        list = list.filter(c => c.isUser);
     } else if (currentCategory !== 'todos') {
         list = list.filter(c => c.category === currentCategory);
     }
@@ -570,7 +896,7 @@ function renderCatalog() {
     if (cl) cl.textContent = `${items.length} canal(is)`;
     if (!g) return;
     if (!items.length) {
-        g.innerHTML = '<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum canal nesta seleção.</div>';
+        g.innerHTML = '<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum canal nesta seleção.<br><button type="button" onclick="openModal(\'uploadModal\')" class="mt-3 text-secondary font-semibold hover:underline">Adicionar IPTV</button></div>';
         return;
     }
     g.innerHTML = items.map(ch => `
@@ -578,6 +904,7 @@ function renderCatalog() {
             <div class="content-thumb shadow-sm">
                 <img src="${ch.img}" alt="${ch.name}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x225/1f2937/ffffff?text=TV'">
                 <span class="live-badge">AO VIVO</span>
+                ${ch.isUser ? '<span class="user-badge">MEU</span>' : ''}
             </div>
             <p class="text-xs font-semibold mt-2 truncate">${ch.name}</p>
             <p class="text-[11px] text-gray-400">${ch.status || ''}</p>
@@ -684,6 +1011,8 @@ function openChannel(id) {
     currentChannel = ch;
     document.getElementById('detailModalTitle').textContent = ch.name;
     document.getElementById('detailChannelDesc').textContent = ch.desc || ch.status || 'Canal ao vivo';
+    const srcLabel = document.getElementById('detailSourceLabel');
+    if (srcLabel) srcLabel.textContent = ch.isUser ? 'IPTV · Canal importado' : 'IPTV · Stream público';
     updateFavoriteUI();
     renderSuggestions();
     openModal('detailModal');
@@ -927,7 +1256,8 @@ window['__onGCastApiAvailable'] = function (isAvailable) {
 
 /* ===================== BANNER ===================== */
 function rebuildBanner() {
-    slides = CHANNELS.slice(0, 8).map(ch => ({
+    const source = CHANNELS.length ? CHANNELS : BUILTIN_CHANNELS;
+    slides = source.slice(0, 8).map(ch => ({
         img: ch.img,
         title: ch.name,
         desc: ch.status || 'Ao vivo',
@@ -1011,8 +1341,10 @@ function setSlide(i) {
 })();
 
 /* ===================== BOOT ===================== */
+rebuildChannelList();
 rebuildBanner();
 renderCatalog();
+renderUserChannelsList();
 </script>
 </body>
 </html>
