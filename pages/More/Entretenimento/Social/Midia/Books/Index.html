@@ -441,7 +441,6 @@ function openSearchEngine(engine){
     if(map[engine])window.open(map[engine],'_blank','noopener,noreferrer');
 }
 
-/** URLs de busca por provedor — sessão ativa = currentProvider + currentMediaType */
 function getStreamingSearchUrl(query){
     const q=encodeURIComponent(String(query||'').trim());
     if(!q)return '';
@@ -472,11 +471,6 @@ function countCatalogMatches(q){
     });
     return n;
 }
-/**
- * Confirma a pesquisa (Enter / lupa).
- * Com resultados locais → só filtra.
- * Sem resultados na sessão → redireciona para a plataforma de streaming literário.
- */
 function performSearch(){
     const input=document.getElementById('searchInput');
     const raw=(input&&input.value)?input.value:searchQuery;
@@ -607,16 +601,37 @@ async function renderPdfWithPdfJs(buffer){
     if(!pdfEl)throw new Error('pdfViewer ausente');
     pdfEl.innerHTML='';
     const doc=await pdfjsLib.getDocument({data:buffer}).promise;
-    const baseW=pdfEl.clientWidth||window.innerWidth||360;
-    const scale=Math.min(1.75,Math.max(1,baseW/600));
+
+    const containerW=Math.max(pdfEl.clientWidth||0,window.innerWidth||360);
+    const dpr=Math.max(window.devicePixelRatio||1,2);
+    const MAX_CANVAS_EDGE=8192;
+
     for(let i=1;i<=doc.numPages;i++){
         const page=await doc.getPage(i);
-        const viewport=page.getViewport({scale});
+        const baseViewport=page.getViewport({scale:1});
+        const cssScale=containerW/baseViewport.width;
+        let renderScale=cssScale*Math.max(dpr,3);
+        renderScale=Math.min(Math.max(renderScale,cssScale*2),8);
+
+        let viewport=page.getViewport({scale:renderScale});
+        const maxEdge=Math.max(viewport.width,viewport.height);
+        if(maxEdge>MAX_CANVAS_EDGE){
+            renderScale*=MAX_CANVAS_EDGE/maxEdge;
+            viewport=page.getViewport({scale:renderScale});
+        }
+
         const canvas=document.createElement('canvas');
         canvas.className='pdf-page';
-        canvas.width=viewport.width;
-        canvas.height=viewport.height;
-        const ctx=canvas.getContext('2d');
+        canvas.width=Math.floor(viewport.width);
+        canvas.height=Math.floor(viewport.height);
+        canvas.style.width=Math.floor(baseViewport.width*cssScale)+'px';
+        canvas.style.height=Math.floor(baseViewport.height*cssScale)+'px';
+
+        const ctx=canvas.getContext('2d',{alpha:false});
+        if(ctx){
+            ctx.imageSmoothingEnabled=true;
+            ctx.imageSmoothingQuality='high';
+        }
         await page.render({canvasContext:ctx,viewport}).promise;
         pdfEl.appendChild(canvas);
     }
