@@ -122,9 +122,9 @@
         <a href="../Social.html" class="hidden sm:inline font-bold text-lg text-gray-900">Lore<span class="text-secondary">Streaming</span></a>
         <div class="flex-1 min-w-0 max-w-md mx-auto relative">
             <div class="flex items-center bg-gray-50 border border-gray-200 rounded-full overflow-hidden focus-within:border-secondary">
-                <input type="search" id="searchInput" placeholder="Pesquisar..." oninput="handleSearchInput(this.value)" class="flex-1 bg-transparent px-4 py-1.5 text-sm outline-none">
+                <input type="search" id="searchInput" placeholder="Pesquisar..." oninput="handleSearchInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();performExternalSearchIfNeeded();}" class="flex-1 bg-transparent px-4 py-1.5 text-sm outline-none">
                 <button type="button" id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-10 text-gray-400"><i class="fa-solid fa-xmark"></i></button>
-                <button type="button" class="px-3 py-1.5 bg-gray-100 border-l border-gray-200 text-gray-500"><i class="fa-solid fa-magnifying-glass"></i></button>
+                <button type="button" class="px-3 py-1.5 bg-gray-100 border-l border-gray-200 text-gray-500" onclick="performExternalSearchIfNeeded()"><i class="fa-solid fa-magnifying-glass"></i></button>
             </div>
         </div>
         <div class="flex items-center gap-1">
@@ -160,14 +160,10 @@
                         <div class="flex gap-3 overflow-x-auto no-scrollbar pb-2" id="providerList">
                             <div class="provider-card active" onclick="selectProvider(this,'netflix')"><img src="./Src/netflix.png" alt=""><span>Netflix</span></div>
                             <div class="provider-card" onclick="selectProvider(this,'disney')"><img src="./Src/disney.png" alt=""><span>Disney+</span></div>
-                            <div class="provider-card" onclick="selectProvider(this,'appletv')"><img src="./Src/appletv.png" alt=""><span>Apple TV+</span></div>
-                            <div class="provider-card" onclick="selectProvider(this,'roku')"><img src="./Src/roku.png" alt=""><span>Roku</span></div>
                             <div class="provider-card" onclick="selectProvider(this,'crunchyroll')"><img src="./Src/crunchyroll.png" alt=""><span>Crunchyroll</span></div>
                             <div class="provider-card" onclick="selectProvider(this,'globoplay')"><img src="./Src/globoplay.png" alt=""><span>Globoplay</span></div>
                             <div class="provider-card" onclick="selectProvider(this,'prime')"><img src="./Src/prime.png" alt=""><span>Prime Video</span></div>
-                            <div class="provider-card" onclick="selectProvider(this,'hbo')"><img src="./Src/hbo.png" alt=""><span>HBO Max</span></div>
                             <div class="provider-card" onclick="selectProvider(this,'paramount')"><img src="./Src/paramount.png" alt=""><span>Paramount+</span></div>
-                            <div class="provider-card" onclick="selectProvider(this,'pluto')"><img src="./Src/pluto.png" alt=""><span>Pluto TV</span></div>
                         </div>
                     </div>
                     <button type="button" class="scroll-btn next" onclick="scrollRail('providerList',1)" aria-label="Próximo"><i class="fa-solid fa-chevron-right text-sm"></i></button>
@@ -227,9 +223,12 @@
             <input type="hidden" id="editEventDTag" value="">
             <div><label class="block text-xs font-bold uppercase text-gray-700 mb-1">Plataforma</label>
                 <select id="postProvider" required class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm">
-                    <option value="netflix">Netflix</option><option value="disney">Disney+</option><option value="appletv">Apple TV+</option>
-                    <option value="roku">Roku</option><option value="crunchyroll">Crunchyroll</option><option value="globoplay">Globoplay</option>
-                    <option value="prime">Prime Video</option><option value="hbo">HBO Max</option><option value="paramount">Paramount+</option><option value="pluto">Pluto TV</option>
+                    <option value="netflix">Netflix</option>
+                    <option value="disney">Disney+</option>
+                    <option value="crunchyroll">Crunchyroll</option>
+                    <option value="globoplay">Globoplay</option>
+                    <option value="prime">Prime Video</option>
+                    <option value="paramount">Paramount+</option>
                 </select></div>
             <div><label class="block text-xs font-bold uppercase text-gray-700 mb-1">Tipo</label>
                 <select id="postType" onchange="togglePostFields(this.value)" class="w-full bg-gray-50 border rounded-xl px-3 py-2 text-sm">
@@ -358,8 +357,7 @@ const ALLOWED_POST_PRIVATE_KEY_HEX='05ed493ea4ae9fa6e16847b7f2a2453f6ea57c815dd9
 const SRC_FALLBACK_SLIDES=[
     {img:'./Src/netflix.png',title:'Netflix',desc:'Catálogo Netflix no LorePlay'},
     {img:'./Src/disney.png',title:'Disney+',desc:'Catálogo Disney+ no LorePlay'},
-    {img:'./Src/prime.png',title:'Prime Video',desc:'Catálogo Prime no LorePlay'},
-    {img:'./Src/hbo.png',title:'HBO Max',desc:'Catálogo HBO Max no LorePlay'}
+    {img:'./Src/prime.png',title:'Prime Video',desc:'Catálogo Prime no LorePlay'}
 ];
 const BLOSSOM_LOOKUP=['https://blossom.primal.net','https://cdn.satellite.earth','https://blossom.band','https://nostr.download'];
 let currentUserData={pubkey:'',privateKeyHex:null,nickname:'',avatarUrl:''};
@@ -384,16 +382,12 @@ let castContext=null,castSession=null;
 window.__lpMediaIndex=window.__lpMediaIndex||Object.create(null);
 
 const providerData={
-    netflix:{name:'Netflix',url:'https://www.netflix.com',series:[],movies:[]},
-    disney:{name:'Disney+',url:'https://www.disneyplus.com',series:[],movies:[]},
-    appletv:{name:'Apple TV+',url:'https://tv.apple.com',series:[],movies:[]},
-    roku:{name:'Roku',url:'https://therokuchannel.roku.com',series:[],movies:[]},
-    crunchyroll:{name:'Crunchyroll',url:'https://www.crunchyroll.com',series:[],movies:[]},
-    globoplay:{name:'Globoplay',url:'https://globoplay.globo.com',series:[],movies:[]},
-    prime:{name:'Prime Video',url:'https://www.primevideo.com',series:[],movies:[]},
-    hbo:{name:'HBO Max',url:'https://www.max.com',series:[],movies:[]},
-    paramount:{name:'Paramount+',url:'https://www.paramountplus.com',series:[],movies:[]},
-    pluto:{name:'Pluto TV',url:'https://pluto.tv',series:[],movies:[]}
+    netflix:{name:'Netflix',url:'https://www.netflix.com',searchUrl:q=>`https://www.netflix.com/search?q=${encodeURIComponent(q)}`,series:[],movies:[]},
+    disney:{name:'Disney+',url:'https://www.disneyplus.com',searchUrl:q=>`https://www.disneyplus.com/search?q=${encodeURIComponent(q)}`,series:[],movies:[]},
+    crunchyroll:{name:'Crunchyroll',url:'https://www.crunchyroll.com',searchUrl:q=>`https://www.crunchyroll.com/search?q=${encodeURIComponent(q)}`,series:[],movies:[]},
+    globoplay:{name:'Globoplay',url:'https://globoplay.globo.com',searchUrl:q=>`https://globoplay.globo.com/busca/?q=${encodeURIComponent(q)}`,series:[],movies:[]},
+    prime:{name:'Prime Video',url:'https://www.primevideo.com',searchUrl:q=>`https://www.primevideo.com/search?phrase=${encodeURIComponent(q)}`,series:[],movies:[]},
+    paramount:{name:'Paramount+',url:'https://www.paramountplus.com',searchUrl:q=>`https://www.paramountplus.com/search/?q=${encodeURIComponent(q)}`,series:[],movies:[]}
 };
 
 function lightCatalogEntry(entry){
@@ -673,7 +667,25 @@ function updateFavoriteUI(){const ic=document.getElementById('favoriteIcon'),tx=
 function renderSavedModalList(){const c=document.getElementById('savedItemsList');if(!c)return;if(!isUserLoggedIn()){c.innerHTML='<p class="text-xs text-gray-400 text-center py-6">Login no Social para sincronizar.</p>';return}c.innerHTML=savedTitles.length?savedTitles.map(i=>`<div class="flex gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick='openDetailModal(${JSON.stringify(i.name)},${JSON.stringify(i.img)},${JSON.stringify(i.type)})'><div class="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100"><img src="${i.img}" class="w-full h-full object-cover"></div><div><p class="text-xs font-semibold truncate">${i.name}</p><p class="text-[11px] text-secondary">${i.type||''}</p></div></div>`).join(''):'<p class="text-xs text-gray-400 text-center py-6">Nenhum salvo.</p>'}
 async function addToHistory(entry){if(!entry?.name)return;historyTitles=historyTitles.filter(h=>h.name!==entry.name);historyTitles.unshift({...entry,viewedAt:Date.now()});if(historyTitles.length>50)historyTitles=historyTitles.slice(0,50);renderHistoryModalList();if(window.syncUserMetaToNetwork)await window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles})}
 function renderHistoryModalList(){const c=document.getElementById('historyItemsList');if(!c)return;if(!isUserLoggedIn()){c.innerHTML='<p class="text-xs text-gray-400 text-center py-6">Login no Social para sincronizar.</p>';return}c.innerHTML=historyTitles.length?historyTitles.map(i=>`<div class="flex gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick='openDetailModal(${JSON.stringify(i.name)},${JSON.stringify(i.img||"")},${JSON.stringify(i.type||"")})'><div class="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100">${i.img?`<img src="${i.img}" class="w-full h-full object-cover">`:''}</div><div><p class="text-xs font-semibold truncate">${i.name}</p><p class="text-[11px] text-gray-400">${i.type||''}</p></div></div>`).join(''):'<p class="text-xs text-gray-400 text-center py-6">Nenhum histórico.</p>'}
-function renderCatalog(){if(catalogLoading){renderSkeletonGrid();return}const data=providerData[currentProvider]||providerData.netflix;let items=currentMediaType==='series'?data.series:data.movies;if(searchQuery.trim()){const q=searchQuery.toLowerCase();items=items.filter(i=>i.name.toLowerCase().includes(q))}const ct=document.getElementById('catalogTitle'),lk=document.getElementById('externalAcervoLink'),g=document.getElementById('contentGrid');if(ct)ct.textContent=`Recomendados · ${data.name}`;if(lk)lk.href=data.url;if(!g)return;if(!items.length){g.innerHTML='<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título publicado neste catálogo.</div>';return}g.innerHTML=items.map(item=>{const j=JSON.stringify(item).replace(/'/g,'&#39;');return`<div class="content-card" onclick='openDetailModal(${JSON.stringify(item.name)},${JSON.stringify(item.img)},${JSON.stringify(item.status||"")},${j})'><div class="content-thumb shadow-sm"><img src="${item.img}" alt="" loading="lazy">${item.badge?`<span class="absolute bottom-2 left-2 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">${item.badge}</span>`:''}</div><p class="text-xs font-semibold mt-2 truncate">${item.name}</p><p class="text-[11px] text-gray-400">${item.status||''}</p></div>`}).join('')}
+function getFilteredCatalogItems(){
+    const data=providerData[currentProvider]||providerData.netflix;
+    let items=currentMediaType==='series'?data.series:data.movies;
+    if(searchQuery.trim()){
+        const q=searchQuery.toLowerCase();
+        items=items.filter(i=>i.name.toLowerCase().includes(q));
+    }
+    return items;
+}
+function performExternalSearchIfNeeded(){
+    const q=searchQuery.trim();
+    if(!q)return;
+    const items=getFilteredCatalogItems();
+    if(items.length)return;
+    const data=providerData[currentProvider]||providerData.netflix;
+    const url=typeof data.searchUrl==='function'?data.searchUrl(q):(data.url||'https://www.netflix.com');
+    window.open(url,'_blank','noopener,noreferrer');
+}
+function renderCatalog(){if(catalogLoading){renderSkeletonGrid();return}const data=providerData[currentProvider]||providerData.netflix;const items=getFilteredCatalogItems();const ct=document.getElementById('catalogTitle'),lk=document.getElementById('externalAcervoLink'),g=document.getElementById('contentGrid');if(ct)ct.textContent=`Recomendados · ${data.name}`;if(lk)lk.href=data.url;if(!g)return;if(!items.length){if(searchQuery.trim()){g.innerHTML=`<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhuma correspondência local.<br><span class="text-secondary font-semibold">Pressione Enter</span> ou o ícone de busca para abrir em ${data.name}.</div>`;}else{g.innerHTML='<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título publicado neste catálogo.</div>';}return}g.innerHTML=items.map(item=>{const j=JSON.stringify(item).replace(/'/g,'&#39;');return`<div class="content-card" onclick='openDetailModal(${JSON.stringify(item.name)},${JSON.stringify(item.img)},${JSON.stringify(item.status||"")},${j})'><div class="content-thumb shadow-sm"><img src="${item.img}" alt="" loading="lazy">${item.badge?`<span class="absolute bottom-2 left-2 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">${item.badge}</span>`:''}</div><p class="text-xs font-semibold mt-2 truncate">${item.name}</p><p class="text-[11px] text-gray-400">${item.status||''}</p></div>`}).join('')}
 function handleSearchInput(v){searchQuery=v;document.getElementById('clearSearchBtn')?.classList.toggle('hidden',!v.trim());renderCatalog()}
 function clearSearch(){document.getElementById('searchInput').value='';searchQuery='';document.getElementById('clearSearchBtn')?.classList.add('hidden');renderCatalog()}
 function setMediaType(t){currentMediaType=t;document.getElementById('btnSeries').className=t==='series'?'px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white':'px-3 py-1 text-xs font-bold rounded-lg text-gray-600';document.getElementById('btnMovies').className=t==='movies'?'px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white':'px-3 py-1 text-xs font-bold rounded-lg text-gray-600';updateSearchEnginesHint();renderCatalog()}
