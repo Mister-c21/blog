@@ -152,14 +152,9 @@
         <a href="../Social.html" class="hidden sm:inline font-bold text-lg text-gray-900">Lore<span class="text-secondary">Books</span></a>
         <div class="flex-1 min-w-0 max-w-md mx-auto relative">
             <div class="flex items-center bg-gray-50 border border-gray-200 rounded-full overflow-hidden focus-within:border-secondary">
-                <input type="search" id="searchInput" placeholder="Pesquisar livros, mangás, LNs..."
-                       oninput="handleSearchInput(this.value)"
-                       onkeydown="if(event.key==='Enter'){event.preventDefault();performSearch();}"
-                       class="flex-1 bg-transparent px-4 py-1.5 text-sm outline-none">
+                <input type="search" id="searchInput" placeholder="Pesquisar livros, mangás, LNs..." oninput="handleSearchInput(this.value)" class="flex-1 bg-transparent px-4 py-1.5 text-sm outline-none">
                 <button type="button" id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-10 text-gray-400"><i class="fa-solid fa-xmark"></i></button>
-                <button type="button" onclick="performSearch()" class="px-3 py-1.5 bg-gray-100 border-l border-gray-200 text-gray-500" title="Pesquisar">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                </button>
+                <button type="button" class="px-3 py-1.5 bg-gray-100 border-l border-gray-200 text-gray-500"><i class="fa-solid fa-magnifying-glass"></i></button>
             </div>
         </div>
         <div class="flex items-center gap-1">
@@ -440,52 +435,6 @@ function openSearchEngine(engine){
     const map={google:`https://www.google.com/search?q=${q}`,duckduckgo:`https://duckduckgo.com/?q=${q}`,bing:`https://www.bing.com/search?q=${q}`,youtube:`https://www.youtube.com/results?search_query=${q}`,startpage:`https://www.startpage.com/sp/search?query=${q}`,brave:`https://search.brave.com/search?q=${q}`};
     if(map[engine])window.open(map[engine],'_blank','noopener,noreferrer');
 }
-
-function getStreamingSearchUrl(query){
-    const q=encodeURIComponent(String(query||'').trim());
-    if(!q)return '';
-    const byProvider={
-        kindle:`https://www.amazon.com.br/s?k=${q}&i=digital-text`,
-        bookwalker:`https://global.bookwalker.jp/search/?qword=${q}`,
-        mangaplus:`https://mangaplus.shueisha.co.jp/app/search/result?keyword=${q}`,
-        webtoon:`https://www.webtoons.com/en/search?keyword=${q}`,
-        crunchyroll:`https://www.crunchyroll.com/search?q=${q}`,
-        googlebooks:`https://www.google.com/search?tbm=bks&q=${q}`,
-        kobo:`https://www.kobo.com/search?query=${q}`,
-        jnovel:`https://j-novel.club/series?search=${q}`,
-        yenpress:`https://yenpress.com/?s=${q}`
-    };
-    if(currentProvider&&byProvider[currentProvider])return byProvider[currentProvider];
-    if(currentMediaType==='mangas')return byProvider.mangaplus||byProvider.webtoon;
-    if(currentMediaType==='lightnovels')return byProvider.bookwalker||byProvider.jnovel;
-    return byProvider.kindle||byProvider.googlebooks;
-}
-function countCatalogMatches(q){
-    const query=String(q||'').trim().toLowerCase();
-    if(!query)return 0;
-    let n=0;
-    Object.keys(providerData).forEach(k=>{
-        (providerData[k][currentMediaType]||[]).forEach(it=>{
-            if(it&&it.name&&it.name.toLowerCase().includes(query))n++;
-        });
-    });
-    return n;
-}
-function performSearch(){
-    const input=document.getElementById('searchInput');
-    const raw=(input&&input.value)?input.value:searchQuery;
-    const q=String(raw||'').trim();
-    searchQuery=q;
-    catalogPage=1;
-    document.getElementById('clearSearchBtn')?.classList.toggle('hidden',!q);
-    renderCatalog();
-    if(!q)return;
-    if(countCatalogMatches(q)===0){
-        const url=getStreamingSearchUrl(q);
-        if(url)window.location.href=url;
-    }
-}
-
 function isChunkedRef(r){return !!(r&&r.chunked&&Array.isArray(r.chunks)&&r.chunks.length)}
 function hasMediaRef(r){if(!r)return false;if(typeof r==='string')return!!r;if(r.publicUrl||r.playbackUrl||r.url)return true;return isChunkedRef(r)}
 function getPublicMediaUrl(ref){
@@ -601,37 +550,16 @@ async function renderPdfWithPdfJs(buffer){
     if(!pdfEl)throw new Error('pdfViewer ausente');
     pdfEl.innerHTML='';
     const doc=await pdfjsLib.getDocument({data:buffer}).promise;
-
-    const containerW=Math.max(pdfEl.clientWidth||0,window.innerWidth||360);
-    const dpr=Math.max(window.devicePixelRatio||1,2);
-    const MAX_CANVAS_EDGE=8192;
-
+    const baseW=pdfEl.clientWidth||window.innerWidth||360;
+    const scale=Math.min(1.75,Math.max(1,baseW/600));
     for(let i=1;i<=doc.numPages;i++){
         const page=await doc.getPage(i);
-        const baseViewport=page.getViewport({scale:1});
-        const cssScale=containerW/baseViewport.width;
-        let renderScale=cssScale*Math.max(dpr,3);
-        renderScale=Math.min(Math.max(renderScale,cssScale*2),8);
-
-        let viewport=page.getViewport({scale:renderScale});
-        const maxEdge=Math.max(viewport.width,viewport.height);
-        if(maxEdge>MAX_CANVAS_EDGE){
-            renderScale*=MAX_CANVAS_EDGE/maxEdge;
-            viewport=page.getViewport({scale:renderScale});
-        }
-
+        const viewport=page.getViewport({scale});
         const canvas=document.createElement('canvas');
         canvas.className='pdf-page';
-        canvas.width=Math.floor(viewport.width);
-        canvas.height=Math.floor(viewport.height);
-        canvas.style.width=Math.floor(baseViewport.width*cssScale)+'px';
-        canvas.style.height=Math.floor(baseViewport.height*cssScale)+'px';
-
-        const ctx=canvas.getContext('2d',{alpha:false});
-        if(ctx){
-            ctx.imageSmoothingEnabled=true;
-            ctx.imageSmoothingQuality='high';
-        }
+        canvas.width=viewport.width;
+        canvas.height=viewport.height;
+        const ctx=canvas.getContext('2d');
         await page.render({canvasContext:ctx,viewport}).promise;
         pdfEl.appendChild(canvas);
     }
@@ -1027,9 +955,7 @@ function renderCatalog(){
     if(oldPag)oldPag.remove();
 
     if(!items.length){
-        g.innerHTML=searchQuery.trim()
-            ?'<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título no catálogo. Use Enter ou a lupa para buscar na plataforma de streaming…</div>'
-            :'<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título publicado neste catálogo.</div>';
+        g.innerHTML='<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título publicado neste catálogo.</div>';
         return;
     }
 
