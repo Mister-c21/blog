@@ -286,7 +286,7 @@ body{background:#f7f5fa;color:#1a1a1a}
       <div class="trees-switcher-wrap">
         <div class="accounts-switcher-label"><i class="fa-solid fa-sitemap"></i> Páginas desta conta</div>
         <div class="accounts-switcher-row" id="accounts-switcher-row"></div>
-        <div class="tree-hint">Banner → Contas = outras identidades do cofre · Abaixo = ramos desta árvore</div>
+        <div class="tree-hint">Banner → Contas = outras identidades do cofre · Abaixo = ramos desta árvore · Dados pessoais (LoreSpace ID) são iguais em todos os ramos; só user name, rótulo, categoria, avatar, capa e feed mudam por página.</div>
         <p id="accounts-sync-hint" class="text-[11px] text-amber-700 mt-2 hidden"></p>
       </div>
 
@@ -423,13 +423,11 @@ body{background:#f7f5fa;color:#1a1a1a}
   <div class="edit-modal-container">
     <div class="edit-modal-header"><h3 class="edit-modal-title"><i class="fa-solid fa-flag"></i> Editar página</h3><button class="edit-modal-close" id="close-edit-modal">&times;</button></div>
     <div class="edit-modal-body">
-      <div class="form-section-label">Identidade</div>
+      <div class="form-section-label">Identidade do ramo</div>
       <div class="edit-form-group"><label>User name</label><input type="text" id="input-username"></div>
       <div class="edit-form-group"><label>Rótulo</label><input type="text" id="input-label"></div>
       <div class="edit-form-group"><label>Categoria</label><select id="input-category"><option value="">Selecione</option><option>Perfil pessoal</option><option>Negócios</option><option>Criador de conteúdo</option><option>Marca</option><option>Comunidade</option><option>Projeto</option><option>Outro</option></select></div>
-      <div class="edit-form-group"><label>Descrição</label><textarea id="input-about"></textarea></div>
-      <div class="edit-form-group"><label>Site</label><input type="url" id="input-website"></div>
-      <div class="form-section-label">Imagens</div>
+      <div class="form-section-label">Imagens do ramo</div>
       <div class="edit-form-group">
         <label>Foto de perfil</label>
         <input type="file" id="file-avatar" accept="image/*" class="text-xs">
@@ -444,7 +442,9 @@ body{background:#f7f5fa;color:#1a1a1a}
         <p class="text-[11px] text-gray-500 mt-1" id="status-cover"></p>
         <img id="preview-cover" class="img-preview" style="display:none" alt="">
       </div>
-      <div class="form-section-label">LoreSpace ID</div>
+      <div class="form-section-label">Dados pessoais da árvore (iguais em todos os ramos)</div>
+      <div class="edit-form-group"><label>Descrição</label><textarea id="input-about"></textarea></div>
+      <div class="edit-form-group"><label>Site</label><input type="url" id="input-website"></div>
       <div class="edit-form-group"><label>Número</label><input type="text" id="input-number"></div>
       <div class="edit-form-group"><label>E-mail</label><input type="email" id="input-email"></div>
       <div class="edit-form-group"><label>Nome real</label><input type="text" id="input-fullname"></div>
@@ -460,6 +460,7 @@ body{background:#f7f5fa;color:#1a1a1a}
   <div class="edit-modal-container">
     <div class="edit-modal-header"><h3 class="edit-modal-title"><i class="fa-solid fa-flag"></i> Nova página</h3><button class="edit-modal-close" id="close-add-branch-modal">&times;</button></div>
     <div class="edit-modal-body">
+      <p class="text-xs text-gray-500 mb-2">Só user name, rótulo e categoria. Os dados pessoais da árvore serão herdados automaticamente.</p>
       <div class="edit-form-group"><label>User name</label><input type="text" id="add-branch-username"></div>
       <div class="edit-form-group"><label>Rótulo</label><input type="text" id="add-branch-label"></div>
       <div class="edit-form-group"><label>Categoria</label><select id="add-branch-category"><option value="">Selecione</option><option>Perfil pessoal</option><option>Negócios</option><option>Criador de conteúdo</option><option>Marca</option><option>Comunidade</option><option>Projeto</option><option>Outro</option></select></div>
@@ -554,7 +555,22 @@ const closeEdit=()=>editModal.classList.remove('active');
 document.getElementById('close-edit-modal').onclick=closeEdit;
 document.getElementById('cancel-edit-modal').onclick=closeEdit;
 document.getElementById('save-edit-modal').onclick=async()=>{
-  const data={username:document.getElementById('input-username').value.trim().replace(/^@/,''),label:document.getElementById('input-label').value.trim(),category:document.getElementById('input-category').value,about:document.getElementById('input-about').value.trim(),website:document.getElementById('input-website').value.trim(),avatarUrl:document.getElementById('input-avatar').value.trim(),coverUrl:document.getElementById('input-cover').value.trim(),number:document.getElementById('input-number').value.trim(),email:document.getElementById('input-email').value.trim(),fullname:document.getElementById('input-fullname').value.trim(),age:document.getElementById('input-age').value.trim(),gender:document.getElementById('input-gender').value,nationality:document.getElementById('input-nationality').value.trim(),status:document.getElementById('input-status').value};
+  const data={
+    username:document.getElementById('input-username').value.trim().replace(/^@/,''),
+    label:document.getElementById('input-label').value.trim(),
+    category:document.getElementById('input-category').value,
+    about:document.getElementById('input-about').value.trim(),
+    website:document.getElementById('input-website').value.trim(),
+    avatarUrl:document.getElementById('input-avatar').value.trim(),
+    coverUrl:document.getElementById('input-cover').value.trim(),
+    number:document.getElementById('input-number').value.trim(),
+    email:document.getElementById('input-email').value.trim(),
+    fullname:document.getElementById('input-fullname').value.trim(),
+    age:document.getElementById('input-age').value.trim(),
+    gender:document.getElementById('input-gender').value,
+    nationality:document.getElementById('input-nationality').value.trim(),
+    status:document.getElementById('input-status').value
+  };
   if(await window.saveActiveBranchToNostr?.(data)) closeEdit();
 };
 function handleLinkCredentials(e){
@@ -607,6 +623,22 @@ let feedSafeMode=localStorage.getItem('safeMode')!=='false';
 const postLikesCache=new Map(),userLikesMap=new Map(),postCommentsCache=new Map();
 let activeCommentPostId=null,activeCommentAuthorPubkey=null;
 
+/** Dados pessoais iguais em TODOS os ramos da mesma árvore */
+const SHARED_PERSON_FIELDS=['about','website','number','email','fullname','age','gender','nationality','status'];
+/** Só estes mudam por ramo (+ feed via tags) */
+const BRANCH_ONLY_FIELDS=['id','label','username','category','avatarUrl','coverUrl','createdAt'];
+
+function pickSharedPerson(src={}){
+  const out={};
+  SHARED_PERSON_FIELDS.forEach(k=>{out[k]=src[k]??'';});
+  return out;
+}
+function pickBranchOnly(src={}){
+  const out={};
+  BRANCH_ONLY_FIELDS.forEach(k=>{if(src[k]!==undefined)out[k]=src[k];});
+  return out;
+}
+
 async function deriveKeyFromPassword(password,salt){
   const enc=new TextEncoder();
   const km=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveKey']);
@@ -643,7 +675,22 @@ function isSafeModeId(){return localStorage.getItem('safeModeId')!=='false'}
 function setSafeModeId(on){localStorage.setItem('safeModeId',on?'true':'false')}
 function normalizePubkey(pk){if(!pk)return'';try{if(String(pk).startsWith('npub')){const d=NostrTools.nip19.decode(pk);if(d.type==='npub')return d.data}}catch{}return String(pk).toLowerCase()}
 function newBranchId(){return'br_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36)}
-function emptyBranch(o={}){return{id:newBranchId(),label:'',username:'pagina',category:'',about:'',website:'',avatarUrl:'',coverUrl:'',number:'',email:'',fullname:'',age:'',gender:'',nationality:'',status:'',createdAt:Date.now(),...o}}
+function emptyBranch(o={}){
+  const shared=pickSharedPerson(o);
+  const branchOnly=pickBranchOnly(o);
+  return{
+    id:newBranchId(),
+    label:'',
+    username:'pagina',
+    category:'',
+    avatarUrl:'',
+    coverUrl:'',
+    createdAt:Date.now(),
+    ...shared,
+    ...branchOnly,
+    ...shared
+  };
+}
 function getTreeStore(){try{return JSON.parse(localStorage.getItem(BRANCHES_KEY)||'{}')}catch{return{}}}
 function saveTreeStore(s){localStorage.setItem(BRANCHES_KEY,JSON.stringify(s))}
 function getBranchesForPubkey(pubkey){
@@ -651,20 +698,71 @@ function getBranchesForPubkey(pubkey){
   if(!Array.isArray(store[pk])||!store[pk].length){
     const root=emptyBranch({id:'root',label:'Principal',username:(getSession().nickname||'usuario').replace(/^@/,''),category:'Perfil pessoal'});
     store[pk]=[root];saveTreeStore(store);localStorage.setItem(ACTIVE_BRANCH_KEY,'root');return store[pk];
-  }return store[pk];
+  }
+  // Normaliza personais iguais ao carregar
+  const shared=pickSharedPerson(store[pk].find(b=>b.id==='root')||store[pk][0]||{});
+  const normalized=store[pk].map(b=>({...b,...shared}));
+  store[pk]=normalized;saveTreeStore(store);
+  return normalized;
 }
 function setBranchesForPubkey(pubkey,branches){const s=getTreeStore();s[normalizePubkey(pubkey)]=branches;saveTreeStore(s)}
 function getActiveBranchId(){return localStorage.getItem(ACTIVE_BRANCH_KEY)||'root'}
 function setActiveBranchId(id){localStorage.setItem(ACTIVE_BRANCH_KEY,id)}
 function getActiveBranch(pubkey){const b=getBranchesForPubkey(pubkey);const id=getActiveBranchId();return b.find(x=>x.id===id)||b[0]}
-function updateActiveBranch(pubkey,patch){const b=getBranchesForPubkey(pubkey);const id=getActiveBranchId();const i=b.findIndex(x=>x.id===id);if(i<0)return null;b[i]={...b[i],...patch};setBranchesForPubkey(pubkey,b);return b[i]}
-function serializeBranch(b){return{id:b.id,label:b.label||'',username:(b.username||'').replace(/^@/,''),category:b.category||'',about:b.about||'',website:b.website||'',avatarUrl:b.avatarUrl||'',coverUrl:b.coverUrl||'',number:b.number||'',email:b.email||'',fullname:b.fullname||'',age:b.age||'',gender:b.gender||'',nationality:b.nationality||'',status:b.status||''}}
+function getSharedPerson(pubkey){
+  const branches=getBranchesForPubkey(pubkey);
+  if(!branches.length)return pickSharedPerson({});
+  const root=branches.find(b=>b.id==='root')||branches[0];
+  return pickSharedPerson(root);
+}
+function syncSharedPersonToAllBranches(pubkey,personPatch){
+  const shared=pickSharedPerson({...getSharedPerson(pubkey),...personPatch});
+  const branches=getBranchesForPubkey(pubkey).map(b=>({...b,...shared}));
+  setBranchesForPubkey(pubkey,branches);
+  return shared;
+}
+function updateActiveBranch(pubkey,patch){
+  const id=getActiveBranchId();
+  const hasShared=SHARED_PERSON_FIELDS.some(k=>patch[k]!==undefined);
+  if(hasShared)syncSharedPersonToAllBranches(pubkey,patch);
+  const branches=getBranchesForPubkey(pubkey);
+  const idx=branches.findIndex(x=>x.id===id);
+  if(idx<0)return null;
+  const branchPatch=pickBranchOnly(patch);
+  branches[idx]={...branches[idx],...branchPatch,...getSharedPerson(pubkey)};
+  setBranchesForPubkey(pubkey,branches);
+  return branches[idx];
+}
+function serializeBranch(b){
+  return{
+    id:b.id,
+    label:b.label||'',
+    username:(b.username||'').replace(/^@/,''),
+    category:b.category||'',
+    about:b.about||'',
+    website:b.website||'',
+    avatarUrl:b.avatarUrl||'',
+    coverUrl:b.coverUrl||'',
+    number:b.number||'',
+    email:b.email||'',
+    fullname:b.fullname||'',
+    age:b.age||'',
+    gender:b.gender||'',
+    nationality:b.nationality||'',
+    status:b.status||''
+  };
+}
 function mergeTreeFromNetwork(pubkey,networkBranches){
   if(!Array.isArray(networkBranches)||!networkBranches.length)return getBranchesForPubkey(pubkey);
   const local=getBranchesForPubkey(pubkey);const byId=new Map(local.map(b=>[b.id,b]));
   networkBranches.forEach(nb=>{if(!nb?.id)return;const prev=byId.get(nb.id)||{};byId.set(nb.id,{...prev,...serializeBranch({...prev,...nb})})});
-  const merged=[...byId.values()];if(!merged.length)merged.push(emptyBranch({id:'root',label:'Principal'}));
-  setBranchesForPubkey(pubkey,merged);if(!merged.some(b=>b.id===getActiveBranchId()))setActiveBranchId(merged[0].id);return merged;
+  let merged=[...byId.values()];if(!merged.length)merged.push(emptyBranch({id:'root',label:'Principal'}));
+  const netRoot=networkBranches.find(b=>b.id==='root')||networkBranches[0]||{};
+  const shared=pickSharedPerson({...getSharedPerson(pubkey),...netRoot});
+  merged=merged.map(b=>({...b,...shared}));
+  setBranchesForPubkey(pubkey,merged);
+  if(!merged.some(b=>b.id===getActiveBranchId()))setActiveBranchId(merged[0].id);
+  return merged;
 }
 function loadSessionKeys(){
   const s=getSession();if(!s.pubkey)return null;let pubkey=s.pubkey;
@@ -751,7 +849,6 @@ async function uploadDeviceImage(file,{statusEl}={}){
   setStatus('Enviado (nostr.build).');
   return url;
 }
-/** Upload imagem/vídeo para armazenamento da rede (Blossom → nostr.build) */
 async function uploadComposeMediaFile(file,statusEl){
   if(!file)throw new Error('Nenhum arquivo');
   const type=String(file.type||'');
@@ -1318,7 +1415,10 @@ function renderBranchSwitcher(){
   });
 }
 function applyActiveBranchToUI(){
-  const pk=currentUserData.pubkey;const branch=pk?getActiveBranch(pk):null;const session=getSession();
+  const pk=currentUserData.pubkey;
+  const branch=pk?getActiveBranch(pk):null;
+  const person=pk?getSharedPerson(pk):{};
+  const session=getSession();
   const username=(branch?.username||session.nickname||'usuario').replace(/^@/,'');
   const cover=branch?.coverUrl||'',picture=branch?.avatarUrl||'';
   const coverImg=document.getElementById('display-cover');
@@ -1328,22 +1428,36 @@ function applyActiveBranchToUI(){
   document.getElementById('display-username').textContent='@'+username;
   const cat=document.getElementById('display-category');
   if(branch?.category){cat.style.display='inline-flex';document.getElementById('display-category-text').textContent=branch.category}else cat.style.display='none';
-  document.getElementById('display-about').textContent=branch?.about||'';
+  document.getElementById('display-about').textContent=person.about||'';
   const webLi=document.getElementById('display-website'),webA=document.getElementById('display-website-link');
-  if(branch?.website){webLi.style.display='flex';webA.href=branch.website;webA.textContent=branch.website.replace(/^https?:\/\//,'')}else webLi.style.display='none';
+  if(person.website){webLi.style.display='flex';webA.href=person.website;webA.textContent=person.website.replace(/^https?:\/\//,'')}else webLi.style.display='none';
   document.getElementById('branch-label').textContent=branch?.label?`· ${branch.label}`:'';
   const setD=(id,icon,v)=>{const el=document.getElementById(id);if(el)el.innerHTML=`<i class="fa-solid ${icon}"></i> ${escapeHtml(v||'—')}`};
-  setD('display-number','fa-hashtag',branch?.number||'—');setD('display-email','fa-envelope',branch?.email||session.loginEmail||'—');
-  setD('display-fullname','fa-signature',branch?.fullname||'—');setD('display-age','fa-cake-candles',branch?.age?branch.age+' anos':'—');
-  setD('display-gender','fa-venus-mars',branch?.gender||'—');setD('display-nationality','fa-globe',branch?.nationality||'—');setD('display-status','fa-ring',branch?.status||'—');
+  setD('display-number','fa-hashtag',person.number||'—');
+  setD('display-email','fa-envelope',person.email||session.loginEmail||'—');
+  setD('display-fullname','fa-signature',person.fullname||'—');
+  setD('display-age','fa-cake-candles',person.age?person.age+' anos':'—');
+  setD('display-gender','fa-venus-mars',person.gender||'—');
+  setD('display-nationality','fa-globe',person.nationality||'—');
+  setD('display-status','fa-ring',person.status||'—');
   document.getElementById('feed-branch-name').textContent=branch?.label||username;
   const setV=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v||''};
-  setV('input-username',username);setV('input-label',branch?.label);setV('input-category',branch?.category);setV('input-about',branch?.about);
-  setV('input-website',branch?.website);setV('input-avatar',branch?.avatarUrl);setV('input-cover',branch?.coverUrl);
-  setImagePreview('preview-avatar',branch?.avatarUrl||'');setImagePreview('preview-cover',branch?.coverUrl||'');
-  setV('input-number',branch?.number);setV('input-email',branch?.email||session.loginEmail||'');setV('input-fullname',branch?.fullname);
-  setV('input-age',branch?.age);setV('input-nationality',branch?.nationality);
-  document.getElementById('input-gender').value=branch?.gender||'';document.getElementById('input-status').value=branch?.status||'';
+  setV('input-username',username);
+  setV('input-label',branch?.label);
+  setV('input-category',branch?.category);
+  setV('input-about',person.about);
+  setV('input-website',person.website);
+  setV('input-avatar',branch?.avatarUrl);
+  setV('input-cover',branch?.coverUrl);
+  setImagePreview('preview-avatar',branch?.avatarUrl||'');
+  setImagePreview('preview-cover',branch?.coverUrl||'');
+  setV('input-number',person.number);
+  setV('input-email',person.email||session.loginEmail||'');
+  setV('input-fullname',person.fullname);
+  setV('input-age',person.age);
+  setV('input-nationality',person.nationality);
+  document.getElementById('input-gender').value=person.gender||'';
+  document.getElementById('input-status').value=person.status||'';
   const s=getSession();s.nickname='@'+username;s.avatarUrl=picture;localStorage.setItem('nostr_session',JSON.stringify(s));
   currentUserData.nickname='@'+username;currentUserData.avatarUrl=picture;
   if(s.privateKeyHex)upsertCentralAccount({pubkey:currentUserData.pubkey,privateKeyHex:s.privateKeyHex,nickname:'@'+username,avatarUrl:picture});
@@ -1353,7 +1467,9 @@ async function publishIdentityTreeToNostr(){
   if(!currentUserData.privateKey||!currentUserData.pubkey)return false;
   if(getPrivacyPrefs().syncAccounts===false)return false;
   const session=getSession();const existing=profileCache.get(currentUserData.pubkey)||{};
-  const branches=getBranchesForPubkey(currentUserData.pubkey);const active=getActiveBranch(currentUserData.pubkey);
+  const branches=getBranchesForPubkey(currentUserData.pubkey);
+  const active=getActiveBranch(currentUserData.pubkey);
+  const person=getSharedPerson(currentUserData.pubkey);
   const username=(active?.username||'usuario').replace(/^@/,'');
   ensureCurrentInCentral();
   const origin=ensureVaultOriginFromCurrent();
@@ -1363,9 +1479,11 @@ async function publishIdentityTreeToNostr(){
   if(email&&password){try{const v=await buildAccountsVaultPayload();if(v)accounts_vault=v}catch(e){console.warn(e)}}
   const originMeta={pubkey:origin?.pubkey||normalizePubkey(currentUserData.pubkey),email:email||origin?.email||''};
   const metadata={
-    name:username,display_name:username,picture:active?.avatarUrl||'',banner:active?.coverUrl||'',about:active?.about||'',website:active?.website||'',
-    lorespace_number:active?.number||'',lorespace_email:active?.email||'',lorespace_fullname:active?.fullname||'',lorespace_age:active?.age||'',
-    gender:active?.gender||'',nationality:active?.nationality||'',status:active?.status||'',
+    name:username,display_name:username,
+    picture:active?.avatarUrl||'',banner:active?.coverUrl||'',
+    about:person.about||'',website:person.website||'',
+    lorespace_number:person.number||'',lorespace_email:person.email||'',lorespace_fullname:person.fullname||'',lorespace_age:person.age||'',
+    gender:person.gender||'',nationality:person.nationality||'',status:person.status||'',
     login_email:getPrivacyPrefs().showEmail?(existing.login_email||session.loginEmail||''):'',
     encrypted_private_key:existing.encrypted_private_key||'',
     identity_tree:branches.map(serializeBranch),active_branch_id:active?.id||'root',
@@ -1452,7 +1570,27 @@ window.refreshLinkedCredentials=function(){
 };
 window.saveActiveBranchToNostr=async function(formData){
   if(!currentUserData.pubkey){alert('Sem sessão.');return false}
-  updateActiveBranch(currentUserData.pubkey,{username:(formData.username||'pagina').replace(/^@/,''),label:formData.label||'',category:formData.category||'',about:formData.about||'',website:formData.website||'',avatarUrl:formData.avatarUrl||'',coverUrl:formData.coverUrl||'',number:formData.number||'',email:formData.email||'',fullname:formData.fullname||'',age:formData.age||'',gender:formData.gender||'',nationality:formData.nationality||'',status:formData.status||''});
+  const pk=currentUserData.pubkey;
+  // Dados pessoais → todos os ramos
+  syncSharedPersonToAllBranches(pk,{
+    about:formData.about||'',
+    website:formData.website||'',
+    number:formData.number||'',
+    email:formData.email||'',
+    fullname:formData.fullname||'',
+    age:formData.age||'',
+    gender:formData.gender||'',
+    nationality:formData.nationality||'',
+    status:formData.status||''
+  });
+  // Só o ramo ativo muda identidade visual / nome / rótulo / categoria
+  updateActiveBranch(pk,{
+    username:(formData.username||'pagina').replace(/^@/,''),
+    label:formData.label||'',
+    category:formData.category||'',
+    avatarUrl:formData.avatarUrl||'',
+    coverUrl:formData.coverUrl||''
+  });
   applyActiveBranchToUI();renderBranchSwitcher();window.renderBranchFeed?.();
   if(!currentUserData.privateKey){alert('Salvo localmente.');return true}
   const ok=await publishIdentityTreeToNostr();alert(ok?'Publicado.':'Local; falha na rede.');return true;
@@ -1520,13 +1658,20 @@ document.getElementById('confirm-add-branch-modal').onclick=async()=>{
   const label=(document.getElementById('add-branch-label').value||'').trim();
   const category=document.getElementById('add-branch-category').value||'';
   if(!username)return alert('User name.');
-  const branch=emptyBranch({username,label:label||username,category,email:getSession().loginEmail||''});
+  const person=getSharedPerson(currentUserData.pubkey);
+  const sessionEmail=getSession().loginEmail||'';
+  const branch=emptyBranch({
+    username,
+    label:label||username,
+    category,
+    ...person,
+    email:person.email||sessionEmail||''
+  });
   const branches=getBranchesForPubkey(currentUserData.pubkey);branches.push(branch);setBranchesForPubkey(currentUserData.pubkey,branches);setActiveBranchId(branch.id);
   addM.classList.remove('active');document.getElementById('add-branch-username').value='';document.getElementById('add-branch-label').value='';
   applyActiveBranchToUI();renderBranchSwitcher();window.renderBranchFeed?.();await publishIdentityTreeToNostr();
 };
 
-/* Compose: arquivo do dispositivo → Blossom / nostr.build */
 const composeM=document.getElementById('compose-modal');
 document.getElementById('btn-compose-branch-post').onclick=()=>{
   document.getElementById('compose-text').value='';
