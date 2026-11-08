@@ -1055,7 +1055,6 @@
             <i class="fas fa-search search-btn" onclick="triggerSearch()"></i>
         </div>
 
-        <!-- Barra de Botões posicionada abaixo da Busca (incluindo a opção de Wiki) -->
         <div class="nav-buttons-container">
             <button class="header-btn" onclick="openRecursoModal('studio')">
                 <i class="fas fa-palette"></i> Studio
@@ -1444,7 +1443,7 @@
         function deleteCustomEngine() {
             if (!confirm('Tem certeza que deseja excluir este buscador personalizado?')) return;
             
-            custom proEngine = null;
+            customEngine = null;
             localStorage.removeItem('lorespace_custom_engine');
             
             updateCustomEngineUI();
@@ -1639,7 +1638,6 @@
             touchMoveY = 0;
         });
 
-        /* Lógica para arrastar e fechar o drawer de motores de busca */
         const engineDragHandle = document.getElementById('engine-drawer-drag-handle');
         let engineTouchStartY = 0;
         let engineTouchMoveY = 0;
@@ -1696,37 +1694,45 @@
         const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
         function updateClock() {
+            const clockEl = document.getElementById('info-clock');
+            const dateEl = document.getElementById('info-date');
+            if (!clockEl || !dateEl) return;
+
             const now = new Date();
             const h = String(now.getHours()).padStart(2, '0');
             const m = String(now.getMinutes()).padStart(2, '0');
             const s = String(now.getSeconds()).padStart(2, '0');
-            document.getElementById('info-clock').textContent = `${h}:${m}:${s}`;
+            clockEl.textContent = `${h}:${m}:${s}`;
 
             const diaSemana = diasSemana[now.getDay()];
             const dia = now.getDate();
             const mes = meses[now.getMonth()];
             const ano = now.getFullYear();
-            document.getElementById('info-date').textContent = `${diaSemana}, ${dia} de ${mes} de ${ano}`;
+            dateEl.textContent = `${diaSemana}, ${dia} de ${mes} de ${ano}`;
         }
+
         updateClock();
         setInterval(updateClock, 1000);
 
-        // Clima via Open-Meteo (sem chave de API)
         async function fetchWeather(lat, lon) {
+            const weatherEl = document.getElementById('info-weather');
+            if (!weatherEl) return;
+
             try {
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=auto`;
                 const res = await fetch(url);
+                if (!res.ok) throw new Error('Falha na API');
                 const data = await res.json();
                 const temp = Math.round(data.current.temperature_2m);
                 const code = data.current.weather_code;
                 const icon = weatherCodeToIcon(code);
                 const desc = weatherCodeToText(code);
-                document.getElementById('info-weather').innerHTML = `
+                weatherEl.innerHTML = `
                     <i class="fas ${icon}"></i>
                     <span>${temp}°C · ${desc}</span>
                 `;
             } catch (e) {
-                document.getElementById('info-weather').innerHTML = `
+                weatherEl.innerHTML = `
                     <i class="fas fa-cloud"></i>
                     <span>Clima indisponível</span>
                 `;
@@ -1756,14 +1762,16 @@
         }
 
         function initWeather() {
+            // Sempre começa com fallback (São Paulo) para não ficar vazio
+            fetchWeather(-23.55, -46.63);
+
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude),
-                    () => fetchWeather(-23.55, -46.63) // fallback: São Paulo
+                    () => {} // já tem fallback
                 );
-            } else {
-                fetchWeather(-23.55, -46.63);
             }
+
             // Atualiza o clima a cada 15 minutos
             setInterval(() => {
                 if (navigator.geolocation) {
@@ -1771,9 +1779,12 @@
                         (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude),
                         () => fetchWeather(-23.55, -46.63)
                     );
+                } else {
+                    fetchWeather(-23.55, -46.63);
                 }
             }, 15 * 60 * 1000);
         }
+
         initWeather();
     </script>
 
@@ -1860,13 +1871,11 @@
                 return;
             }
 
-            // Mensagem do usuário
             const userMsg = document.createElement("div");
             userMsg.className = "page-ai-message user";
             userMsg.innerText = text;
             chatBody.appendChild(userMsg);
 
-            // Cria o balão de resposta da IA com o efeito Skeleton Loader
             const aiMsg = document.createElement("div");
             aiMsg.className = "page-ai-message ai ai-skeleton";
             aiMsg.innerHTML = `
@@ -1885,7 +1894,6 @@
                         max_tokens: 256
                     });
                     
-                    // Remove o efeito skeleton e insere o texto real da resposta
                     aiMsg.classList.remove("ai-skeleton");
                     aiMsg.innerText = reply.choices[0].message.content;
                 } else {
