@@ -33,7 +33,7 @@
             font-family: 'Segoe UI', sans-serif; 
             margin: 0; 
             padding: 20px; 
-            padding-bottom: 220px; /* espaço extra para o novo container */
+            padding-bottom: 220px;
             overflow: hidden; 
             transition: padding-left 0.3s ease;
         }
@@ -90,7 +90,7 @@
         }
         body.ai-mode .search-container {
             position: fixed;
-            bottom: 70px; /* acima do info-bar */
+            bottom: 70px;
             left: 50%;
             transform: translateX(-50%);
             margin-bottom: 0;
@@ -588,7 +588,7 @@
 
         .tabbar { 
             position: fixed; 
-            bottom: 70px; /* sobe um pouco para não sobrepor o info-bar */
+            bottom: 70px;
             right: 20px;
             left: auto;
             transform: none; 
@@ -780,7 +780,7 @@
             display: block;
         }
 
-        /* ========== NOVO: Barra de Info (horário + clima + ações) ========== */
+        /* ========== Barra de Info (horário + clima) ========== */
         .info-bar {
             position: fixed;
             bottom: 0;
@@ -808,7 +808,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 0 16px;
+            padding: 0 18px;
             white-space: nowrap;
             font-size: 0.88rem;
             font-weight: 600;
@@ -825,47 +825,31 @@
             font-size: 0.95rem;
         }
 
-        .info-time {
+        .info-datetime {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            line-height: 1.2;
+            gap: 1px;
+        }
+        .info-datetime .time {
             font-variant-numeric: tabular-nums;
             letter-spacing: 0.5px;
             color: var(--primary-color);
             font-weight: 700;
-            min-width: 70px;
+            font-size: 0.95rem;
+        }
+        .info-datetime .date {
+            font-size: 0.72rem;
+            font-weight: 500;
+            color: #666;
+            text-transform: capitalize;
         }
 
         .info-weather {
             display: flex;
             align-items: center;
             gap: 6px;
-        }
-
-        .info-stock {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.84rem;
-        }
-        .info-stock .symbol {
-            color: #555;
-            font-weight: 600;
-        }
-        .info-stock .price {
-            font-weight: 700;
-            color: #222;
-        }
-        .info-stock .change {
-            font-size: 0.78rem;
-            font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 6px;
-        }
-        .info-stock .change.up {
-            color: #0a8a3a;
-            background: rgba(10, 138, 58, 0.1);
-        }
-        .info-stock .change.down {
-            color: #c62828;
-            background: rgba(198, 40, 40, 0.1);
         }
 
         .info-loading {
@@ -875,11 +859,14 @@
 
         @media (max-width: 600px) {
             .info-item {
-                padding: 0 10px;
+                padding: 0 12px;
                 font-size: 0.8rem;
             }
-            .info-stock {
-                font-size: 0.78rem;
+            .info-datetime .time {
+                font-size: 0.88rem;
+            }
+            .info-datetime .date {
+                font-size: 0.68rem;
             }
         }
 
@@ -1018,7 +1005,7 @@
             }
 
             .info-bar {
-                left: 260px; /* não cobre a sidebar */
+                left: 260px;
             }
         }
     </style>
@@ -1148,37 +1135,19 @@
         <div class="tab-item" onclick="showView('view-menu', event)"><i class="fas fa-bars"></i></div>
     </nav>
 
-    <!-- ========== NOVO CONTAINER: Horário + Clima + Cotações ========== -->
+    <!-- ========== CONTAINER: Horário + Clima ========== -->
     <div class="info-bar" id="info-bar">
         <div class="info-item">
             <i class="fas fa-clock"></i>
-            <span class="info-time" id="info-clock">--:--:--</span>
+            <div class="info-datetime">
+                <span class="time" id="info-clock">--:--:--</span>
+                <span class="date" id="info-date">—</span>
+            </div>
         </div>
         <div class="info-item">
             <div class="info-weather" id="info-weather">
                 <i class="fas fa-cloud-sun"></i>
                 <span class="info-loading">Clima...</span>
-            </div>
-        </div>
-        <div class="info-item">
-            <div class="info-stock" id="stock-ibov">
-                <span class="symbol">IBOV</span>
-                <span class="price">—</span>
-                <span class="change">—</span>
-            </div>
-        </div>
-        <div class="info-item">
-            <div class="info-stock" id="stock-petr">
-                <span class="symbol">PETR4</span>
-                <span class="price">—</span>
-                <span class="change">—</span>
-            </div>
-        </div>
-        <div class="info-item">
-            <div class="info-stock" id="stock-vale">
-                <span class="symbol">VALE3</span>
-                <span class="price">—</span>
-                <span class="change">—</span>
             </div>
         </div>
     </div>
@@ -1475,7 +1444,7 @@
         function deleteCustomEngine() {
             if (!confirm('Tem certeza que deseja excluir este buscador personalizado?')) return;
             
-            customEngine = null;
+            custom proEngine = null;
             localStorage.removeItem('lorespace_custom_engine');
             
             updateCustomEngineUI();
@@ -1722,13 +1691,22 @@
             }
         }
 
-        /* ========== LÓGICA DO INFO-BAR (horário, clima, cotações) ========== */
+        /* ========== LÓGICA DO INFO-BAR (horário + clima) ========== */
+        const diasSemana = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+        const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
         function updateClock() {
             const now = new Date();
             const h = String(now.getHours()).padStart(2, '0');
             const m = String(now.getMinutes()).padStart(2, '0');
             const s = String(now.getSeconds()).padStart(2, '0');
             document.getElementById('info-clock').textContent = `${h}:${m}:${s}`;
+
+            const diaSemana = diasSemana[now.getDay()];
+            const dia = now.getDate();
+            const mes = meses[now.getMonth()];
+            const ano = now.getFullYear();
+            document.getElementById('info-date').textContent = `${diaSemana}, ${dia} de ${mes} de ${ano}`;
         }
         updateClock();
         setInterval(updateClock, 1000);
@@ -1797,47 +1775,6 @@
             }, 15 * 60 * 1000);
         }
         initWeather();
-
-        // Cotações (usando API pública gratuita do Yahoo Finance via proxy CORS)
-        async function fetchStock(symbol, elementId) {
-            const el = document.getElementById(elementId);
-            if (!el) return;
-
-            try {
-                // Endpoint público (Yahoo Finance chart) – funciona bem na maioria dos casos
-                const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-                const res = await fetch(url);
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                const data = await res.json();
-                const meta = data.chart.result[0].meta;
-                const price = meta.regularMarketPrice;
-                const prev = meta.chartPreviousClose || meta.previousClose;
-                const changePct = prev ? ((price - prev) / prev) * 100 : 0;
-                const isUp = changePct >= 0;
-
-                el.querySelector('.price').textContent = price.toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                });
-                const changeEl = el.querySelector('.change');
-                changeEl.textContent = `${isUp ? '+' : ''}${changePct.toFixed(2)}%`;
-                changeEl.className = 'change ' + (isUp ? 'up' : 'down');
-            } catch (e) {
-                // Fallback silencioso – mantém o valor anterior ou "—"
-                console.warn('Erro ao buscar cotação de', symbol, e);
-            }
-        }
-
-        function updateStocks() {
-            // Símbolos brasileiros na Yahoo Finance
-            fetchStock('^BVSP', 'stock-ibov');      // Ibovespa
-            fetchStock('PETR4.SA', 'stock-petr');   // Petrobras
-            fetchStock('VALE3.SA', 'stock-vale');   // Vale
-        }
-
-        updateStocks();
-        // Atualiza cotações a cada 60 segundos
-        setInterval(updateStocks, 60 * 1000);
     </script>
 
     <script type="module">
