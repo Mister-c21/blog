@@ -33,7 +33,7 @@
             font-family: 'Segoe UI', sans-serif; 
             margin: 0; 
             padding: 20px; 
-            padding-bottom: 180px; 
+            padding-bottom: 220px; /* espaço extra para o novo container */
             overflow: hidden; 
             transition: padding-left 0.3s ease;
         }
@@ -59,15 +59,15 @@
 
         /* ========== MODO IA: página vira o chat ========== */
         body.ai-mode {
-            padding-bottom: 110px;
+            padding-bottom: 150px;
             overflow: hidden;
         }
         body.ai-mode #view-feed {
             padding-top: 12px;
             justify-content: flex-start;
-            min-height: calc(100vh - 140px);
-            height: calc(100vh - 140px);
-            max-height: calc(100vh - 140px);
+            min-height: calc(100vh - 180px);
+            height: calc(100vh - 180px);
+            max-height: calc(100vh - 180px);
         }
         body.ai-mode .brand-header {
             margin-bottom: 10px;
@@ -90,7 +90,7 @@
         }
         body.ai-mode .search-container {
             position: fixed;
-            bottom: 24px;
+            bottom: 70px; /* acima do info-bar */
             left: 50%;
             transform: translateX(-50%);
             margin-bottom: 0;
@@ -588,7 +588,7 @@
 
         .tabbar { 
             position: fixed; 
-            bottom: 20px; 
+            bottom: 70px; /* sobe um pouco para não sobrepor o info-bar */
             right: 20px;
             left: auto;
             transform: none; 
@@ -626,6 +626,7 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
             box-sizing: border-box;
             padding: 0 10px;
+            bottom: 70px;
         }
 
         .tabbar .tab-item, .tabbar .close-tabbar-btn {
@@ -779,6 +780,109 @@
             display: block;
         }
 
+        /* ========== NOVO: Barra de Info (horário + clima + ações) ========== */
+        .info-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 52px;
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            z-index: 900;
+            box-shadow: 0 -4px 20px rgba(138, 43, 226, 0.08);
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding: 0 12px;
+            box-sizing: border-box;
+        }
+        .info-bar::-webkit-scrollbar { display: none; }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 16px;
+            white-space: nowrap;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #444;
+            border-right: 1px solid rgba(138, 43, 226, 0.12);
+            height: 100%;
+        }
+        .info-item:last-child {
+            border-right: none;
+        }
+
+        .info-item i {
+            color: var(--primary-color);
+            font-size: 0.95rem;
+        }
+
+        .info-time {
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.5px;
+            color: var(--primary-color);
+            font-weight: 700;
+            min-width: 70px;
+        }
+
+        .info-weather {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .info-stock {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.84rem;
+        }
+        .info-stock .symbol {
+            color: #555;
+            font-weight: 600;
+        }
+        .info-stock .price {
+            font-weight: 700;
+            color: #222;
+        }
+        .info-stock .change {
+            font-size: 0.78rem;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+        .info-stock .change.up {
+            color: #0a8a3a;
+            background: rgba(10, 138, 58, 0.1);
+        }
+        .info-stock .change.down {
+            color: #c62828;
+            background: rgba(198, 40, 40, 0.1);
+        }
+
+        .info-loading {
+            opacity: 0.6;
+            font-size: 0.82rem;
+        }
+
+        @media (max-width: 600px) {
+            .info-item {
+                padding: 0 10px;
+                font-size: 0.8rem;
+            }
+            .info-stock {
+                font-size: 0.78rem;
+            }
+        }
+
         @media (min-width: 992px) {
             body {
                 padding-left: 280px;
@@ -906,11 +1010,15 @@
             .brand-logo { font-size: 2.8rem; }
 
             body.ai-mode .search-container {
-                bottom: 32px;
+                bottom: 70px;
             }
             body.ai-mode #view-feed {
-                height: calc(100vh - 120px);
-                max-height: calc(100vh - 120px);
+                height: calc(100vh - 160px);
+                max-height: calc(100vh - 160px);
+            }
+
+            .info-bar {
+                left: 260px; /* não cobre a sidebar */
             }
         }
     </style>
@@ -1039,6 +1147,41 @@
         <a href="pages/More/Entretenimento/Social" class="tab-item" onclick="event.stopPropagation();"><i class="fas fa-play"></i></a>
         <div class="tab-item" onclick="showView('view-menu', event)"><i class="fas fa-bars"></i></div>
     </nav>
+
+    <!-- ========== NOVO CONTAINER: Horário + Clima + Cotações ========== -->
+    <div class="info-bar" id="info-bar">
+        <div class="info-item">
+            <i class="fas fa-clock"></i>
+            <span class="info-time" id="info-clock">--:--:--</span>
+        </div>
+        <div class="info-item">
+            <div class="info-weather" id="info-weather">
+                <i class="fas fa-cloud-sun"></i>
+                <span class="info-loading">Clima...</span>
+            </div>
+        </div>
+        <div class="info-item">
+            <div class="info-stock" id="stock-ibov">
+                <span class="symbol">IBOV</span>
+                <span class="price">—</span>
+                <span class="change">—</span>
+            </div>
+        </div>
+        <div class="info-item">
+            <div class="info-stock" id="stock-petr">
+                <span class="symbol">PETR4</span>
+                <span class="price">—</span>
+                <span class="change">—</span>
+            </div>
+        </div>
+        <div class="info-item">
+            <div class="info-stock" id="stock-vale">
+                <span class="symbol">VALE3</span>
+                <span class="price">—</span>
+                <span class="change">—</span>
+            </div>
+        </div>
+    </div>
 
     <script>
         (function setupPWA() {
@@ -1578,6 +1721,123 @@
                 window.sendAiChatMessage();
             }
         }
+
+        /* ========== LÓGICA DO INFO-BAR (horário, clima, cotações) ========== */
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('info-clock').textContent = `${h}:${m}:${s}`;
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // Clima via Open-Meteo (sem chave de API)
+        async function fetchWeather(lat, lon) {
+            try {
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=auto`;
+                const res = await fetch(url);
+                const data = await res.json();
+                const temp = Math.round(data.current.temperature_2m);
+                const code = data.current.weather_code;
+                const icon = weatherCodeToIcon(code);
+                const desc = weatherCodeToText(code);
+                document.getElementById('info-weather').innerHTML = `
+                    <i class="fas ${icon}"></i>
+                    <span>${temp}°C · ${desc}</span>
+                `;
+            } catch (e) {
+                document.getElementById('info-weather').innerHTML = `
+                    <i class="fas fa-cloud"></i>
+                    <span>Clima indisponível</span>
+                `;
+            }
+        }
+
+        function weatherCodeToIcon(code) {
+            if (code === 0) return 'fa-sun';
+            if (code <= 3) return 'fa-cloud-sun';
+            if (code <= 48) return 'fa-smog';
+            if (code <= 67) return 'fa-cloud-rain';
+            if (code <= 77) return 'fa-snowflake';
+            if (code <= 82) return 'fa-cloud-showers-heavy';
+            if (code <= 99) return 'fa-bolt';
+            return 'fa-cloud';
+        }
+
+        function weatherCodeToText(code) {
+            if (code === 0) return 'Limpo';
+            if (code <= 3) return 'Parcial';
+            if (code <= 48) return 'Nublado';
+            if (code <= 67) return 'Chuva';
+            if (code <= 77) return 'Neve';
+            if (code <= 82) return 'Pancadas';
+            if (code <= 99) return 'Tempestade';
+            return '—';
+        }
+
+        function initWeather() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude),
+                    () => fetchWeather(-23.55, -46.63) // fallback: São Paulo
+                );
+            } else {
+                fetchWeather(-23.55, -46.63);
+            }
+            // Atualiza o clima a cada 15 minutos
+            setInterval(() => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude),
+                        () => fetchWeather(-23.55, -46.63)
+                    );
+                }
+            }, 15 * 60 * 1000);
+        }
+        initWeather();
+
+        // Cotações (usando API pública gratuita do Yahoo Finance via proxy CORS)
+        async function fetchStock(symbol, elementId) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+
+            try {
+                // Endpoint público (Yahoo Finance chart) – funciona bem na maioria dos casos
+                const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                const meta = data.chart.result[0].meta;
+                const price = meta.regularMarketPrice;
+                const prev = meta.chartPreviousClose || meta.previousClose;
+                const changePct = prev ? ((price - prev) / prev) * 100 : 0;
+                const isUp = changePct >= 0;
+
+                el.querySelector('.price').textContent = price.toLocaleString('pt-BR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                const changeEl = el.querySelector('.change');
+                changeEl.textContent = `${isUp ? '+' : ''}${changePct.toFixed(2)}%`;
+                changeEl.className = 'change ' + (isUp ? 'up' : 'down');
+            } catch (e) {
+                // Fallback silencioso – mantém o valor anterior ou "—"
+                console.warn('Erro ao buscar cotação de', symbol, e);
+            }
+        }
+
+        function updateStocks() {
+            // Símbolos brasileiros na Yahoo Finance
+            fetchStock('^BVSP', 'stock-ibov');      // Ibovespa
+            fetchStock('PETR4.SA', 'stock-petr');   // Petrobras
+            fetchStock('VALE3.SA', 'stock-vale');   // Vale
+        }
+
+        updateStocks();
+        // Atualiza cotações a cada 60 segundos
+        setInterval(updateStocks, 60 * 1000);
     </script>
 
     <script type="module">
