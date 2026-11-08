@@ -101,7 +101,6 @@
             transition: all 0.55s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
-        /* Esconde o botão plus / tabbar no modo IA */
         body.ai-mode .tabbar,
         body.ai-mode #main-tabbar {
             display: none !important;
@@ -110,7 +109,6 @@
             visibility: hidden !important;
         }
 
-        /* Área de chat embutida na página */
         .page-ai-chat {
             display: none;
             flex-direction: column;
@@ -169,7 +167,6 @@
             box-shadow: 0 2px 10px rgba(138, 43, 226, 0.25);
         }
 
-        /* Efeito de Skeleton Loader */
         .page-ai-message.ai-skeleton {
             background: rgba(255, 255, 255, 0.7);
             min-width: 180px;
@@ -231,7 +228,6 @@
             transition: all 0.55s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
-        /* Container horizontal de botões abaixo da Busca */
         .nav-buttons-container {
             display: flex;
             gap: 10px;
@@ -1007,6 +1003,40 @@
             .info-bar {
                 left: 260px;
             }
+
+            /* Menu de motores flutuante no desktop */
+            .engine-drawer-menu {
+                bottom: auto !important;
+                top: 120px;
+                left: 50%;
+                width: 340px;
+                max-width: calc(100vw - 48px);
+                border-radius: 18px;
+                border: 1px solid var(--glass-border);
+                box-shadow: 0 20px 50px rgba(0, 0, 0, 0.16);
+                padding: 12px;
+                transform: translate(-50%, -8px) scale(0.96);
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.25, 1, 0.5, 1) !important;
+            }
+
+            .engine-drawer-menu.active {
+                opacity: 1;
+                pointer-events: auto;
+                transform: translate(-50%, 0) scale(1);
+                bottom: auto !important;
+            }
+
+            .engine-drawer-drag-handle {
+                display: none !important;
+            }
+
+            .engine-menu-overlay {
+                background: rgba(0, 0, 0, 0.22);
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+            }
         }
     </style>
 </head>
@@ -1333,16 +1363,68 @@
         const engineDrawer = document.getElementById('engine-drawer-menu');
 
         function openEngineMenu() {
-            engineDrawer.style.transition = 'bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
-            engineDrawer.style.bottom = '0';
-            document.getElementById('engine-menu-overlay').classList.add('active');
+            const isDesktop = window.innerWidth >= 992;
+            const overlay = document.getElementById('engine-menu-overlay');
+
+            if (isDesktop) {
+                const trigger = document.getElementById('search-engine-trigger');
+                const rect = trigger.getBoundingClientRect();
+
+                let left = rect.left;
+                const menuWidth = 340;
+                if (left + menuWidth > window.innerWidth - 16) {
+                    left = window.innerWidth - menuWidth - 16;
+                }
+                if (left < 16) left = 16;
+
+                engineDrawer.style.transition = 'opacity 0.22s ease, transform 0.22s cubic-bezier(0.25, 1, 0.5, 1)';
+                engineDrawer.style.bottom = 'auto';
+                engineDrawer.style.top = (rect.bottom + 10) + 'px';
+                engineDrawer.style.left = left + 'px';
+                engineDrawer.style.transform = 'translateY(0) scale(1)';
+                engineDrawer.style.opacity = '1';
+                engineDrawer.style.pointerEvents = 'auto';
+                engineDrawer.style.width = menuWidth + 'px';
+                engineDrawer.style.maxWidth = 'calc(100vw - 32px)';
+            } else {
+                engineDrawer.style.top = '';
+                engineDrawer.style.left = '';
+                engineDrawer.style.width = '';
+                engineDrawer.style.maxWidth = '';
+                engineDrawer.style.transform = '';
+                engineDrawer.style.opacity = '';
+                engineDrawer.style.pointerEvents = '';
+                engineDrawer.style.transition = 'bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+                engineDrawer.style.bottom = '0';
+            }
+
+            overlay.classList.add('active');
             engineDrawer.classList.add('active');
         }
 
         function closeEngineMenu() {
-            document.getElementById('engine-menu-overlay').classList.remove('active');
-            engineDrawer.style.transition = 'bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
-            engineDrawer.style.bottom = '-100%';
+            const isDesktop = window.innerWidth >= 992;
+            const overlay = document.getElementById('engine-menu-overlay');
+
+            overlay.classList.remove('active');
+
+            if (isDesktop) {
+                engineDrawer.style.transition = 'opacity 0.18s ease, transform 0.18s ease';
+                engineDrawer.style.opacity = '0';
+                engineDrawer.style.transform = 'translateY(-6px) scale(0.96)';
+                engineDrawer.style.pointerEvents = 'none';
+                engineDrawer.style.bottom = 'auto';
+            } else {
+                engineDrawer.style.transition = 'bottom 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+                engineDrawer.style.bottom = '-100%';
+                engineDrawer.style.top = '';
+                engineDrawer.style.left = '';
+                engineDrawer.style.width = '';
+                engineDrawer.style.transform = '';
+                engineDrawer.style.opacity = '';
+                engineDrawer.style.pointerEvents = '';
+            }
+
             engineDrawer.classList.remove('active');
         }
 
@@ -1762,17 +1844,15 @@
         }
 
         function initWeather() {
-            // Sempre começa com fallback (São Paulo) para não ficar vazio
             fetchWeather(-23.55, -46.63);
 
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude),
-                    () => {} // já tem fallback
+                    () => {}
                 );
             }
 
-            // Atualiza o clima a cada 15 minutos
             setInterval(() => {
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
