@@ -71,6 +71,11 @@
         .epub-nav:hover{background:rgba(124,58,237,.85)}
         .epub-nav.prev{left:.75rem}
         .epub-nav.next{right:.75rem}
+        .chapter-nav{position:absolute;bottom:1.25rem;z-index:25;min-width:2.75rem;height:2.5rem;padding:0 .85rem;border-radius:9999px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);color:#fff;display:none;align-items:center;justify-content:center;gap:.4rem;backdrop-filter:blur(6px);cursor:pointer;font-size:11px;font-weight:700}
+        .chapter-nav.visible{display:flex}
+        .chapter-nav:hover{background:rgba(124,58,237,.85)}
+        .chapter-nav.prev{left:.75rem}
+        .chapter-nav.next{right:.75rem}
         #epubProgress{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.1);z-index:20}
         #epubProgressBar{height:100%;width:0;background:#7c3aed;transition:width .2s}
         #detailTitleOverlay.hidden{display:none!important}
@@ -104,6 +109,7 @@
             #detailModal.reading-mode #pdfViewer{width:100%;height:100%;min-height:100%}
             #detailModal.reading-mode .epub-nav{width:2.5rem;height:2.5rem}
             #detailModal.reading-mode #exitReadingBtn{display:flex}
+            #detailModal.reading-mode .chapter-nav{bottom:1.5rem}
         }
         @media (min-width:1024px){
             #exitReadingBtn{display:none!important}
@@ -305,6 +311,8 @@
             <div id="epubProgress"><div id="epubProgressBar"></div></div>
             <button type="button" class="epub-nav prev" id="epubPrevBtn" onclick="epubPrev()" aria-label="Página anterior"><i class="fa-solid fa-chevron-left"></i></button>
             <button type="button" class="epub-nav next" id="epubNextBtn" onclick="epubNext()" aria-label="Próxima página"><i class="fa-solid fa-chevron-right"></i></button>
+            <button type="button" class="chapter-nav prev" id="chapterPrevBtn" onclick="chapterPrev()" aria-label="Capítulo anterior"><i class="fa-solid fa-angles-left"></i><span>Cap</span></button>
+            <button type="button" class="chapter-nav next" id="chapterNextBtn" onclick="chapterNext()" aria-label="Próximo capítulo"><span>Cap</span><i class="fa-solid fa-angles-right"></i></button>
             <div id="mediaLoadingOverlay" class="hidden absolute inset-0 bg-black/70 z-30 flex flex-col items-center justify-center gap-2">
                 <i class="fa-solid fa-spinner fa-spin text-secondary text-2xl"></i>
                 <span class="text-xs text-gray-300" id="mediaLoadingText">Carregando...</span>
@@ -574,6 +582,7 @@ function showCoverOnly(){
     document.getElementById('epubNextBtn')?.classList.remove('visible');
     const bar=document.getElementById('epubProgressBar');if(bar)bar.style.width='0';
     if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
+    updateChapterNavVisibility();
 }
 function destroyEpub(){
     try{if(epubRendition){epubRendition.destroy();epubRendition=null}}catch(_){}
@@ -739,6 +748,7 @@ async function openInReader(src,ref){
         document.getElementById('epubNextBtn')?.classList.remove('visible');
         if(pdfEl)pdfEl.classList.add('active');
         enterReadingMode();
+        updateChapterNavVisibility();
     }
 
     if(kindHint==='pdf'||/\.pdf(\?|#|$)/i.test(String(src))){
@@ -748,6 +758,7 @@ async function openInReader(src,ref){
             showPdfStage();
             await renderPdfWithPdfJs(buffer);
             setMediaLoading(false);
+            updateChapterNavVisibility();
             return;
         }catch(err){
             console.error(err);
@@ -770,6 +781,7 @@ async function openInReader(src,ref){
             document.getElementById('epubPrevBtn')?.classList.add('visible');
             document.getElementById('epubNextBtn')?.classList.add('visible');
             enterReadingMode();
+            updateChapterNavVisibility();
             epubRendition.on('relocated',(loc)=>{
                 try{
                     if(!epubBook.locations||typeof epubBook.locations.percentageFromCfi!=='function')return;
@@ -811,6 +823,7 @@ async function openInReader(src,ref){
         try{
             showPdfStage();
             await renderPdfWithPdfJs(buffer);
+            updateChapterNavVisibility();
         }catch(err){
             console.error(err);
             alert('Não foi possível renderizar o PDF.');
@@ -832,6 +845,7 @@ async function openInReader(src,ref){
             document.getElementById('epubPrevBtn')?.classList.add('visible');
             document.getElementById('epubNextBtn')?.classList.add('visible');
             enterReadingMode();
+            updateChapterNavVisibility();
             epubRendition.on('relocated',(loc)=>{
                 try{
                     if(!epubBook.locations||typeof epubBook.locations.percentageFromCfi!=='function')return;
@@ -858,6 +872,69 @@ async function openInReader(src,ref){
 }
 function epubPrev(){if(epubRendition)epubRendition.prev()}
 function epubNext(){if(epubRendition)epubRendition.next()}
+
+function getChapterSequence(){
+    const seq=[];
+    const vols=Object.keys(currentVolumesData||{}).sort((a,b)=>Number(a)-Number(b)||String(a).localeCompare(String(b)));
+    for(const vol of vols){
+        const chs=currentVolumesData[vol]||{};
+        const keys=Object.keys(chs).filter(k=>hasMediaRef(chs[k]))
+            .sort((a,b)=>Number(a)-Number(b)||String(a).localeCompare(String(b)));
+        for(const ch of keys)seq.push({vol,ch});
+    }
+    return seq;
+}
+function getCurrentChapterIndex(){
+    const seq=getChapterSequence();
+    if(!seq.length)return -1;
+    const vol=String(activeVolume);
+    const ch=activeChapterKey!=null?String(activeChapterKey):null;
+    if(ch!=null){
+        const i=seq.findIndex(x=>String(x.vol)===vol&&String(x.ch)===ch);
+        if(i>=0)return i;
+    }
+    const firstInVol=seq.findIndex(x=>String(x.vol)===vol);
+    return firstInVol>=0?firstInVol:(seq.length?0:-1);
+}
+function updateChapterNavVisibility(){
+    const prevBtn=document.getElementById('chapterPrevBtn');
+    const nextBtn=document.getElementById('chapterNextBtn');
+    if(!prevBtn||!nextBtn)return;
+    const cover=document.getElementById('readerCover');
+    const reading=!!(cover&&cover.classList.contains('hidden-cover'));
+    const seq=getChapterSequence();
+    const idx=getCurrentChapterIndex();
+    const showPrev=reading&&seq.length>1&&idx>0;
+    const showNext=reading&&seq.length>1&&idx>=0&&idx<seq.length-1;
+    prevBtn.classList.toggle('visible',showPrev);
+    nextBtn.classList.toggle('visible',showNext);
+}
+async function goToChapterAt(index){
+    const seq=getChapterSequence();
+    if(index<0||index>=seq.length)return;
+    const target=seq[index];
+    activeVolume=target.vol;
+    activeChapterKey=target.ch;
+    renderVolumesTabBar();
+    renderDetailChaptersUI();
+    const btn=[...document.querySelectorAll('#chaptersContainer .ep-btn')]
+        .find(b=>String(b.textContent).trim()===String(target.ch));
+    if(btn){
+        document.querySelectorAll('#chaptersContainer .ep-btn').forEach(b=>b.className='ep-btn w-12 h-12 rounded-xl bg-white/10 text-white font-bold text-sm shrink-0');
+        btn.className='ep-btn w-12 h-12 rounded-xl bg-white text-gray-900 font-bold text-sm shrink-0 shadow-md';
+    }
+    await openCurrentFile();
+    updateChapterNavVisibility();
+}
+function chapterPrev(){
+    const idx=getCurrentChapterIndex();
+    if(idx>0)goToChapterAt(idx-1);
+}
+function chapterNext(){
+    const idx=getCurrentChapterIndex();
+    const seq=getChapterSequence();
+    if(idx>=0&&idx<seq.length-1)goToChapterAt(idx+1);
+}
 
 async function openCurrentFile(){
     const ref=getActiveMediaRef();
@@ -1040,6 +1117,7 @@ async function openDetailModal(title,img,desc,item=null){
     document.getElementById('detailModal').classList.remove('hidden');document.body.style.overflow='hidden';
     addToHistory({name:title,img,type:currentItemFullData?.type||currentMediaType,provider:currentItemFullData?.provider||currentProvider});
     if(window.refreshPartnerSlots)window.refreshPartnerSlots();
+    updateChapterNavVisibility();
 }
 function renderVolumesTabBar(){
     const tb=document.getElementById('volumesTabBar');if(!tb)return;
@@ -1058,8 +1136,9 @@ async function selectChapter(ch,btn){
     document.querySelectorAll('#chaptersContainer .ep-btn').forEach(b=>b.className='ep-btn w-12 h-12 rounded-xl bg-white/10 text-white font-bold text-sm shrink-0');
     if(btn)btn.className='ep-btn w-12 h-12 rounded-xl bg-white text-gray-900 font-bold text-sm shrink-0 shadow-md';
     await openCurrentFile();
+    updateChapterNavVisibility();
 }
-async function changeVolume(v){activeVolume=v;activeChapterKey=null;renderVolumesTabBar();renderDetailChaptersUI()}
+async function changeVolume(v){activeVolume=v;activeChapterKey=null;renderVolumesTabBar();renderDetailChaptersUI();updateChapterNavVisibility()}
 function isTitleSaved(t){return savedTitles.some(i=>i.name===t)}
 async function toggleFavorite(){
     if(!currentDetailTitle)return;
