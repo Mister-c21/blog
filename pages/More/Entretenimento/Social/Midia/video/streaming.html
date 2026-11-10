@@ -319,8 +319,8 @@
                 <button type="button" id="editContentBtn" onclick="openEditCurrentContent()" class="hidden shrink-0 bg-secondary text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-pen mr-1"></i> Editar</button>
             </div>
             <div class="grid grid-cols-4 gap-2 max-w-lg mx-auto text-center">
-                <button type="button" id="downloadMediaBtn" onclick="downloadCurrentMedia()" class="bg-white/10 hover:bg-white/15 p-3 rounded-2xl flex flex-col items-center gap-1.5 transition">
-                    <i class="fa-solid fa-download" id="downloadMediaIcon"></i><div class="text-[11px] mt-1" id="downloadMediaText">Baixar</div>
+                <button type="button" id="openOnProviderBtn" onclick="openCurrentTitleOnProvider()" class="bg-white/10 hover:bg-white/15 p-3 rounded-2xl flex flex-col items-center gap-1.5 transition">
+                    <i class="fa-solid fa-arrow-up-right-from-square" id="openOnProviderIcon"></i><div class="text-[11px] mt-1" id="openOnProviderText">Abrir</div>
                 </button>
                 <button type="button" onclick="togglePlayerFullscreen()" class="bg-white/10 hover:bg-white/15 p-3 rounded-2xl flex flex-col items-center gap-1.5">
                     <i class="fa-solid fa-tv"></i><div class="text-[11px] mt-1">Tela cheia</div>
@@ -608,7 +608,14 @@ async function castToTv(){
 }
 window['__onGCastApiAvailable']=function(isAvailable){if(isAvailable&&window.cast&&cast.framework){try{cast.framework.CastContext.getInstance().setOptions({receiverApplicationId:chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,autoJoinPolicy:chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED});castContext=cast.framework.CastContext.getInstance()}catch(e){console.warn(e)}}};
 
-async function downloadCurrentMedia(){const btnText=document.getElementById('downloadMediaText');const btnIcon=document.getElementById('downloadMediaIcon');const setUi=(loading,label)=>{if(btnText)btnText.textContent=label;if(btnIcon)btnIcon.className=loading?'fa-solid fa-spinner fa-spin':'fa-solid fa-download'};try{const player=document.getElementById('contentVideoPlayer');const currentSrc=player&&player.currentSrc?player.currentSrc:'';const ref=getActiveMediaRef();setUi(true,'Preparando...');let blobUrl=null,revoke=false;let filename=(currentDetailTitle||'loreplay-video').replace(/[^\w\s.-]/g,'').trim().replace(/\s+/g,'_')||'loreplay-video';if(activeEpisodeKey)filename+=`_T${activeSeason}E${activeEpisodeKey}`;filename+=`_${activePlaybackAudioMode}`;if(currentSrc&&currentSrc.startsWith('blob:'))blobUrl=currentSrc;else if(ref){setUi(true,'Baixando...');const src=await resolveMediaSrc(ref);if(!src)throw new Error('Mídia indisponível.');if(src.startsWith('blob:'))blobUrl=src;else{const res=await fetch(src);if(!res.ok)throw new Error('Falha ('+res.status+').');const blob=await res.blob();blobUrl=URL.createObjectURL(blob);revoke=true}}else if(currentSrc&&/^https?:\/\//i.test(currentSrc)){setUi(true,'Baixando...');const res=await fetch(currentSrc);if(!res.ok)throw new Error('Falha.');const blob=await res.blob();blobUrl=URL.createObjectURL(blob);revoke=true}else throw new Error('Nenhuma mídia carregada.');if(!/\.(mp4|webm|mkv|mov)$/i.test(filename))filename+='.mp4';const a=document.createElement('a');a.href=blobUrl;a.download=filename;a.rel='noopener';document.body.appendChild(a);a.click();a.remove();setUi(false,'Baixado');setTimeout(()=>setUi(false,'Baixar'),2000);if(revoke)setTimeout(()=>{try{URL.revokeObjectURL(blobUrl)}catch(_){}},60000)}catch(err){console.error(err);alert('Não foi possível baixar: '+(err.message||err));setUi(false,'Baixar')}}
+function openCurrentTitleOnProvider(){
+    const q=(currentDetailTitle||'').trim();
+    if(!q){alert('Nenhum título aberto.');return}
+    const provKey=currentItemFullData?.provider||currentProvider;
+    const data=(isAvailableProvider(provKey)?providerData[provKey]:null)||providerData[currentProvider]||providerData.netflix;
+    const url=typeof data.searchUrl==='function'?data.searchUrl(q):(data.url||'https://www.netflix.com');
+    window.open(url,'_blank','noopener,noreferrer');
+}
 
 function renderSkeletonGrid(count=8){const g=document.getElementById('contentGrid');if(!g)return;g.innerHTML=Array.from({length:count}).map(()=>`<div class="content-card skeleton-card pointer-events-none"><div class="content-thumb skeleton"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>`).join('')}
 function collectBannerSlidesFromCatalog(){const items=[];Object.keys(providerData).forEach(k=>{const fulls=Object.values(window.__lpMediaIndex||{}).filter(it=>it&&it.provider===k&&it.img);if(fulls.length){fulls.forEach(it=>{if(it.img&&it.name)items.push({img:it.img,title:it.name,desc:it.status||'',item:lightCatalogEntry(it)})})}else{(providerData[k].series||[]).forEach(it=>{if(it.img)items.push({img:it.img,title:it.name,desc:it.status||'Série',item:it})});(providerData[k].movies||[]).forEach(it=>{if(it.img)items.push({img:it.img,title:it.name,desc:it.status||'Filme',item:it})})}});return items.length?items.slice(0,12):[...SRC_FALLBACK_SLIDES]}
