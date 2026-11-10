@@ -141,8 +141,8 @@
         }
         @media (max-width:1023px) and (orientation:landscape){
             #detailModal:not(.hidden):not(.reading-mode) #detailShell{flex-direction:row}
-            #detailModal:not(.hidden):not(.reading-mode) #readerStage{min-height:100%;flex:1 1 65%}
             #detailModal:not(.hidden):not(.reading-mode) #detailPanel{max-height:100%;flex:0 0 35%;border-top:none;border-left:1px solid rgba(255,255,255,.08)}
+            #detailModal:not(.hidden):not(.reading-mode) #readerStage{min-height:100%;flex:1 1 65%}
         }
     </style>
 </head>
@@ -322,8 +322,8 @@
                 <button type="button" id="editContentBtn" onclick="openEditCurrentContent()" class="hidden shrink-0 bg-secondary text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-pen mr-1"></i> Editar</button>
             </div>
             <div class="grid grid-cols-3 gap-2 max-w-lg mx-auto text-center">
-                <button type="button" id="downloadMediaBtn" onclick="downloadCurrentMedia()" class="bg-white/10 hover:bg-white/15 p-3 rounded-2xl flex flex-col items-center gap-1.5 transition">
-                    <i class="fa-solid fa-download" id="downloadMediaIcon"></i><div class="text-[11px] mt-1" id="downloadMediaText">Baixar</div>
+                <button type="button" id="streamSearchBtn" onclick="openStreamingForCurrent()" class="bg-white/10 hover:bg-white/15 p-3 rounded-2xl flex flex-col items-center gap-1.5 transition">
+                    <i class="fa-solid fa-magnifying-glass"></i><div class="text-[11px] mt-1">Buscar</div>
                 </button>
                 <button type="button" id="openExternalBtn" onclick="openCurrentFile()" class="bg-white/10 hover:bg-white/15 p-3 rounded-2xl flex flex-col items-center gap-1.5">
                     <i class="fa-solid fa-book-open"></i><div class="text-[11px] mt-1">Ler</div>
@@ -456,7 +456,8 @@ function getStreamingSearchUrl(query){
         jnovel:`https://j-novel.club/series?search=${q}`,
         yenpress:`https://yenpress.com/?s=${q}`
     };
-    if(currentProvider&&byProvider[currentProvider])return byProvider[currentProvider];
+    const prov=currentItemFullData?.provider||currentProvider;
+    if(prov&&byProvider[prov])return byProvider[prov];
     if(currentMediaType==='mangas')return byProvider.mangaplus||byProvider.webtoon;
     if(currentMediaType==='lightnovels')return byProvider.bookwalker||byProvider.jnovel;
     return byProvider.kindle||byProvider.googlebooks;
@@ -598,7 +599,6 @@ async function fetchFileBuffer(src){
     return{buffer:await res.arrayBuffer(),mime:res.headers.get('content-type')||''};
 }
 
-/** PDF adaptativo: leve boost em todas; +100% (2×) nas páginas visíveis */
 async function renderPdfWithPdfJs(buffer){
     if(!window.pdfjsLib)throw new Error('PDF.js não carregou');
     const pdfEl=document.getElementById('pdfViewer');
@@ -615,9 +615,7 @@ async function renderPdfWithPdfJs(buffer){
     const containerW=Math.max(pdfEl.clientWidth||0,Math.min(window.innerWidth||360,1200));
     const dpr=Math.min(Math.max(window.devicePixelRatio||1,1),3);
 
-    // Leve aumento em TODAS as páginas (base)
     const LOW_SCALE=Math.min(Math.max(dpr*1.12,1.15),1.55);
-    // Visível: +100% de qualidade em relação à base (2× pixels)
     const HIGH_SCALE=Math.min(LOW_SCALE*2,4);
     const MAX_CANVAS_EDGE=4096;
     const LOW_CONCURRENCY=3;
@@ -754,7 +752,7 @@ async function openInReader(src,ref){
         }catch(err){
             console.error(err);
             setMediaLoading(false);
-            alert('Não foi possível abrir o PDF na página. Use Baixar.');
+            alert('Não foi possível abrir o PDF na página.');
             return;
         }
     }
@@ -800,7 +798,7 @@ async function openInReader(src,ref){
         console.error(err);
         setMediaLoading(false);
         if(isHttp){window.open(src,'_blank','noopener,noreferrer');return}
-        alert('Não foi possível carregar o arquivo para leitura (CORS ou rede). Use Baixar.');
+        alert('Não foi possível carregar o arquivo para leitura (CORS ou rede).');
         return;
     }
 
@@ -815,7 +813,7 @@ async function openInReader(src,ref){
             await renderPdfWithPdfJs(buffer);
         }catch(err){
             console.error(err);
-            alert('Não foi possível renderizar o PDF. Use Baixar.');
+            alert('Não foi possível renderizar o PDF.');
             showCoverOnly();
         }finally{setMediaLoading(false)}
         return;
@@ -856,7 +854,7 @@ async function openInReader(src,ref){
     const blob=new Blob([buffer],{type:mime||'application/octet-stream'});
     currentObjectUrl=URL.createObjectURL(blob);
     const w=window.open(currentObjectUrl,'_blank','noopener,noreferrer');
-    if(!w)alert('Não foi possível abrir este formato no leitor. Use o botão Baixar.');
+    if(!w)alert('Não foi possível abrir este formato no leitor.');
 }
 function epubPrev(){if(epubRendition)epubRendition.prev()}
 function epubNext(){if(epubRendition)epubRendition.next()}
@@ -880,34 +878,15 @@ async function openCurrentFile(){
     }finally{setMediaLoading(false)}
 }
 
-async function downloadCurrentMedia(){
-    const btnText=document.getElementById('downloadMediaText');
-    const btnIcon=document.getElementById('downloadMediaIcon');
-    const setUi=(loading,label)=>{if(btnText)btnText.textContent=label;if(btnIcon)btnIcon.className=loading?'fa-solid fa-spinner fa-spin':'fa-solid fa-download'};
-    try{
-        const ref=getActiveMediaRef();
-        setUi(true,'Preparando...');
-        if(!ref)throw new Error('Nenhum arquivo disponível.');
-        setUi(true,'Baixando...');
-        const src=await resolveMediaSrc(ref);
-        if(!src)throw new Error('Mídia indisponível.');
-        const{buffer,mime}=await fetchFileBuffer(src);
-        const kind=guessFileKind(src,typeof ref==='object'?ref:null,mime);
-        let blobType=mime||'application/octet-stream';
-        if(kind==='epub')blobType='application/epub+zip';
-        if(kind==='pdf')blobType='application/pdf';
-        const blob=new Blob([buffer],{type:blobType});
-        const blobUrl=URL.createObjectURL(blob);
-        let filename=(currentDetailTitle||'loreplay-book').replace(/[^\w\s.-]/g,'').trim().replace(/\s+/g,'_')||'loreplay-book';
-        if(activeChapterKey)filename+=`_V${activeVolume}C${activeChapterKey}`;
-        if(kind==='epub'&&!/\.epub$/i.test(filename))filename+='.epub';
-        else if(kind==='pdf'&&!/\.pdf$/i.test(filename))filename+='.pdf';
-        else if(!/\.(pdf|epub|zip|cbz|cbr)$/i.test(filename))filename+='.bin';
-        const a=document.createElement('a');a.href=blobUrl;a.download=filename;a.rel='noopener';
-        document.body.appendChild(a);a.click();a.remove();
-        setUi(false,'Baixado');setTimeout(()=>setUi(false,'Baixar'),2000);
-        setTimeout(()=>{try{URL.revokeObjectURL(blobUrl)}catch(_){}},60000);
-    }catch(err){console.error(err);alert('Não foi possível baixar: '+(err.message||err));setUi(false,'Baixar')}
+function openStreamingForCurrent(){
+    const q=String(currentDetailTitle||currentItemFullData?.name||'').trim();
+    if(!q){
+        alert('Nenhum título para buscar.');
+        return;
+    }
+    const url=getStreamingSearchUrl(q);
+    if(url)window.open(url,'_blank','noopener,noreferrer');
+    else alert('Não foi possível abrir a busca no streaming.');
 }
 
 function renderSkeletonGrid(count=8){const g=document.getElementById('contentGrid');if(!g)return;g.innerHTML=Array.from({length:count}).map(()=>`<div class="content-card skeleton-card pointer-events-none"><div class="content-thumb skeleton"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>`).join('')}
@@ -1110,6 +1089,8 @@ function renderCatalog(){
 
     const oldPag=document.getElementById('catalogPagination');
     if(oldPag)oldPag.remove();
+    const oldFull=document.getElementById('catalogFullLink');
+    if(oldFull)oldFull.remove();
 
     if(!items.length){
         g.innerHTML=searchQuery.trim()
@@ -1207,6 +1188,32 @@ function renderCatalog(){
         pag.appendChild(info);
 
         g.parentNode.insertBefore(pag,g.nextSibling);
+    }
+
+    if(catalogPage===totalPages){
+        const homeByType={
+            books:'https://www.amazon.com.br/kindle-dbs/hz/bookshelf',
+            mangas:'https://mangaplus.shueisha.co.jp',
+            lightnovels:'https://global.bookwalker.jp'
+        };
+        const labelByType={
+            books:'Kindle',
+            mangas:'Manga Plus',
+            lightnovels:'BookWalker'
+        };
+        const url=homeByType[currentMediaType]||homeByType.books;
+        const platform=labelByType[currentMediaType]||'streaming';
+        const full=document.createElement('div');
+        full.id='catalogFullLink';
+        full.className='mt-6 pt-4 border-t border-gray-200 flex justify-center';
+        full.innerHTML=`<a href="${url}" target="_blank" rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-secondary text-white text-sm font-bold shadow-sm hover:opacity-90 transition">
+            <i class="fa-solid fa-book-open"></i>
+            Ver todo o catálogo · ${platform}
+            <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-80"></i>
+        </a>`;
+        const anchor=document.getElementById('catalogPagination')||g;
+        anchor.parentNode.insertBefore(full,anchor.nextSibling);
     }
 }
 function handleSearchInput(v){searchQuery=v;catalogPage=1;document.getElementById('clearSearchBtn')?.classList.toggle('hidden',!v.trim());renderCatalog()}
@@ -1430,4 +1437,4 @@ loadPostsFromNetwork().catch(()=>{if(window.onCatalogLoaded)window.onCatalogLoad
 setInterval(()=>loadPostsFromNetwork().catch(()=>{}),120000);
 </script>
 </body>
-                </html>
+</html>
