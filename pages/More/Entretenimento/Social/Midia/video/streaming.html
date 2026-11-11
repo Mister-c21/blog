@@ -338,8 +338,8 @@
                 <button type="button" onclick="togglePlayerFullscreen()" class="bg-white/10 hover:bg-white/15 p-3 rounded-2xl flex flex-col items-center gap-1.5">
                     <i class="fa-solid fa-tv"></i><div class="text-[11px] mt-1">Tela cheia</div>
                 </button>
-                <button type="button" id="castTvBtn" onclick="castToTv()" class="bg-white/10 hover:bg-white/15 p-3 rounded-2xl flex flex-col items-center gap-1.5 transition">
-                    <i class="fa-solid fa-cast" id="castTvIcon"></i><div class="text-[11px] mt-1" id="castTvText">TV</div>
+                <button type="button" id="shareContentBtn" onclick="shareCurrentContent()" class="bg-white/10 hover:bg-white/15 p-3 rounded-2xl flex flex-col items-center gap-1.5 transition">
+                    <i class="fa-solid fa-share-nodes" id="shareContentIcon"></i><div class="text-[11px] mt-1" id="shareContentText">Enviar</div>
                 </button>
                 <button type="button" id="favoriteBtn" onclick="toggleFavorite()" class="bg-white/10 p-3 rounded-2xl flex flex-col items-center gap-1.5">
                     <i id="favoriteIcon" class="fa-regular fa-star"></i><div class="text-[11px] mt-1" id="favoriteText">Favorito</div>
@@ -409,6 +409,7 @@ const mediaPreloadCache=new Map();
 const MAX_PRELOAD_ENTRIES=12;
 let castContext=null,castSession=null;
 window.__lpMediaIndex=window.__lpMediaIndex||Object.create(null);
+window.__lpOpeningShared=false;
 let catalogPage=1;
 const ITEMS_PER_PAGE=28;
 
@@ -694,6 +695,134 @@ function bindPlayerUiEvents(){
         updateEpisodeNavVisibility();
         updateSkipIntroVisibility();
     });
+}
+
+function buildShareUrl(){
+    const url=new URL(window.location.href);
+    ['play','playName','provider','s','e','audio'].forEach(k=>url.searchParams.delete(k));
+    const dTag=currentItemFullData&&currentItemFullData._dTag;
+    if(dTag){
+        url.searchParams.set('play',String(dTag));
+    }else{
+        url.searchParams.set('playName',String(currentDetailTitle||currentItemFullData?.name||''));
+        url.searchParams.set('provider',String(currentItemFullData?.provider||currentProvider||''));
+    }
+    url.searchParams.set('s',String(activeSeason||1));
+    if(activeEpisodeKey!=null&&activeEpisodeKey!=='')url.searchParams.set('e',String(activeEpisodeKey));
+    url.searchParams.set('audio',String(activePlaybackAudioMode||'dublado'));
+    return url.toString();
+}
+async function shareCurrentContent(){
+    if(!currentDetailTitle&&!currentItemFullData){
+        alert('Nenhum conteúdo aberto para compartilhar.');
+        return;
+    }
+    const shareUrl=buildShareUrl();
+    const title=currentDetailTitle||currentItemFullData?.name||'LorePlay';
+    const epLabel=(activeEpisodeKey!=null&&activeEpisodeKey!=='')
+        ?` · T${activeSeason}E${activeEpisodeKey}`
+        :'';
+    const text=`${title}${epLabel} no LorePlay`;
+    const icon=document.getElementById('shareContentIcon');
+    const label=document.getElementById('shareContentText');
+    try{
+        if(navigator.share){
+            await navigator.share({title,text,url:shareUrl});
+            return;
+        }
+    }catch(err){
+        if(err&&err.name==='AbortError')return;
+    }
+    try{
+        await navigator.clipboard.writeText(shareUrl);
+        if(label)label.textContent='Copiado';
+        if(icon)icon.className='fa-solid fa-check text-secondary';
+        setTimeout(()=>{
+            if(label)label.textContent='Enviar';
+            if(icon)icon.className='fa-solid fa-share-nodes';
+        },1800);
+    }catch(_){
+        prompt('Copie o link para compartilhar:',shareUrl);
+    }
+}
+async function resolveSharedCatalogItem(play,playName,provider){
+    let item=null;
+    if(play){
+        if(window.__lpStreamNet&&typeof window.__lpStreamNet.fetchPostByDTag==='function'){
+            try{
+                const remote=await window.__lpStreamNet.fetchPostByDTag(play);
+                if(remote){
+                    storeFullEntry(remote);
+                    item=remote;
+                }
+            }catch(e){console.warn(e)}
+        }
+        if(!item){
+            item=window.__lpMediaIndex[play]
+                ||Object.values(window.__lpMediaIndex||{}).find(x=>x&&x._dTag===play)
+                ||null;
+        }
+    }
+    if(!item&&playName){
+        const prov=provider||'';
+        if(prov)item=window.__lpMediaIndex['name:'+prov+'|'+playName]||null;
+        if(!item){
+            item=Object.values(window.__lpMediaIndex||{}).find(x=>x&&x.name===playName&&(!prov||x.provider===prov))||null;
+        }
+        if(!item){
+            Object.keys(providerData).forEach(k=>{
+                if(item)return;
+                if(prov&&k!==prov)return;
+                (providerData[k].series||[]).concat(providerData[k].movies||[]).forEach(it=>{
+                    if(!item&&it&&it.name===playName)item=it;
+                });
+            });
+        }
+    }
+    return item;
+}
+async function tryOpenSharedContent(){
+    const params=new URLSearchParams(window.location.search);
+    const play=params.get('play');
+    const playName=params.get('playName');
+    if(!play&&!playName)return;
+    if(window.__lpOpeningShared)return;
+    window.__lpOpeningShared=true;
+    try{
+        const season=params.get('s')||'1';
+        const episode=params.get('e');
+        const audio=params.get('audio')||'dublado';
+        const provider=params.get('provider')||'';
+        const item=await resolveSharedCatalogItem(play,playName,provider);
+        if(!item)return;
+
+        await openDetailModal(item.name,item.img||'',item.status||'',item);
+
+        if(audio==='legendado'||audio==='dublado'){
+            const ls=document.getElementById('languageSelect');
+            if(ls)ls.value=audio;
+            if(activePlaybackAudioMode!==audio)await switchPlaybackAudioMode(audio);
+        }
+
+        const modeData=currentSeasonsData[activePlaybackAudioMode]||{};
+        if(Object.keys(modeData).map(String).includes(String(season))){
+            activeSeason=season;
+            activeEpisodeKey=null;
+            renderSeasonsTabBar();
+            renderDetailEpisodesUI();
+        }
+
+        if(episode!=null&&episode!==''){
+            const eps=(currentSeasonsData[activePlaybackAudioMode]||{})[activeSeason]||{};
+            if(hasMediaRef(eps[episode])){
+                const btn=[...document.querySelectorAll('#episodesContainer .ep-btn')]
+                    .find(b=>String(b.textContent).trim()===String(episode));
+                await selectEpisode(String(episode),btn||null);
+            }
+        }
+    }finally{
+        window.__lpOpeningShared=false;
+    }
 }
 
 async function playMediaRef(ref){
@@ -1031,7 +1160,13 @@ function setMediaType(t){currentMediaType=t;catalogPage=1;document.getElementByI
 function selectProvider(el,k){if(!isAvailableProvider(k))return;document.querySelectorAll('#providerList .provider-card').forEach(c=>c.classList.remove('active'));el.classList.add('active');currentProvider=k;catalogPage=1;updateSearchEnginesHint();renderCatalog()}
 function setNetworkStatus(html){const el=document.getElementById('networkStatus');if(el)el.innerHTML=html}
 function applyUserMeta(meta){if(!meta)return;if(Array.isArray(meta.saved))savedTitles=meta.saved;if(Array.isArray(meta.history))historyTitles=meta.history;renderSavedModalList();renderHistoryModalList()}
-function onCatalogLoaded(){catalogLoading=false;catalogPage=1;renderCatalog();rebuildBannerFromCatalog()}
+function onCatalogLoaded(){
+    catalogLoading=false;
+    catalogPage=1;
+    renderCatalog();
+    rebuildBannerFromCatalog();
+    tryOpenSharedContent();
+}
 
 loadSessionFromNostr();loadSessionAvatar();updatePostButtonVisibility();renderPostSeasonsInputs(2);renderSkeletonGrid();rebuildBannerFromCatalog();updateSearchEnginesHint();bindPlayerUiEvents();
 window.providerData=providerData;window.renderCatalog=renderCatalog;window.setNetworkStatus=setNetworkStatus;window.applyUserMeta=applyUserMeta;window.onCatalogLoaded=onCatalogLoaded;window.storeFullEntry=storeFullEntry;window.lightCatalogEntry=lightCatalogEntry;window.isAvailableProvider=isAvailableProvider;window.countAvailableCatalogTitles=countAvailableCatalogTitles;
