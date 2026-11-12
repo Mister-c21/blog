@@ -340,6 +340,7 @@
                     <i id="favoriteIcon" class="fa-regular fa-star"></i><div class="text-[11px] mt-1" id="favoriteText">Favorito</div>
                 </button>
             </div>
+            <button type="button" onclick="clearReadingProgress()" class="w-full text-[11px] text-gray-500 hover:text-white underline text-center -mt-2">Recomeçar do início</button>
             <div>
                 <h3 class="text-sm font-bold uppercase mb-3">Volumes / Capítulos</h3>
                 <div class="flex gap-2 overflow-x-auto no-scrollbar border-b border-white/10 pb-1" id="volumesTabBar"></div>
@@ -400,6 +401,250 @@ window.__lpMediaIndex=window.__lpMediaIndex||Object.create(null);
 let epubBook=null,epubRendition=null,epubCurrentUrl=null;
 let catalogPage=1;
 const ITEMS_PER_PAGE=28;
+
+/* ========== Progresso de leitura + conflitos Nostr ========== */
+const READING_PROGRESS_KEY='lp_reading_progress_v1';
+const CLOCK_SKEW_MS=2*60*1000;
+let readingProgressSaveTimer=null;
+let readingProgressNetworkTimer=null;
+let readingProgressMap=Object.create(null);
+let metaSyncInFlight=false;
+let metaDirty=false;
+
+function loadAllProgress(){
+    try{
+        const raw=JSON.parse(localStorage.getItem(READING_PROGRESS_KEY)||'{}')||{};
+        readingProgressMap=raw;
+        return raw;
+    }catch(_){
+        readingProgressMap=Object.create(null);
+        return readingProgressMap;
+    }
+}
+function saveAllProgress(map){
+    readingProgressMap=map||{};
+    try{localStorage.setItem(READING_PROGRESS_KEY,JSON.stringify(readingProgressMap))}catch(e){console.warn(e)}
+}
+function getProgressStorageKey(){
+    const item=currentItemFullData;
+    if(!item)return null;
+    const id=item._dTag||((item.provider||currentProvider)+'|'+item.name);
+    const vol=String(activeVolume??1);
+    const ch=activeChapterKey!=null?String(activeChapterKey):'1';
+    return id+'|v'+vol+'|c'+ch;
+}
+function getSavedProgress(){
+    const key=getProgressStorageKey();
+    if(!key)return null;
+    if(!Object.keys(readingProgressMap).length)loadAllProgress();
+    return readingProgressMap[key]||null;
+}
+function pruneProgressMap(map,max=80){
+    const keys=Object.keys(map||{}).sort((a,b)=>(map[b].updatedAt||0)-(map[a].updatedAt||0));
+    if(keys.length<=max)return map||{};
+    const next={};
+    keys.slice(0,max).forEach(k=>{next[k]=map[k]});
+    return next;
+}
+function progressScore(p){
+    if(!p||typeof p!=='object')return -1;
+    if(typeof p.percentage==='number'&&!Number.isNaN(p.percentage))
+        return Math.min(1,Math.max(0,p.percentage));
+    if(p.type==='pdf'||p.page!=null){
+        const page=Number(p.page)||0;
+        const total=Number(p.totalPages)||0;
+        if(total>0)return Math.min(1,Math.max(0,(page-1)/total));
+        return Math.min(1,page/5000);
+    }
+    if(typeof p.scrollTop==='number')return Math.min(1,Math.max(0,p.scrollTop/1e7));
+    if(p.cfi)return 0.001;
+    return -1;
+}
+function resolveProgressEntry(a,b){
+    if(!a)return b||null;
+    if(!b)return a;
+    const ta=Number(a.updatedAt)||0;
+    const tb=Number(b.updatedAt)||0;
+    const sa=progressScore(a);
+    const sb=progressScore(b);
+    const dt=ta-tb;
+    if(Math.abs(dt)>CLOCK_SKEW_MS)return dt>0?a:b;
+    if(Math.abs(sa-sb)>0.002)return sa>sb?a:b;
+    if(dt!==0)return dt>0?a:b;
+    return{
+        ...b,...a,
+        cfi:a.cfi||b.cfi,
+        page:a.page!=null?a.page:b.page,
+        scrollTop:a.scrollTop!=null?a.scrollTop:b.scrollTop,
+        percentage:a.percentage!=null?a.percentage:b.percentage,
+        totalPages:a.totalPages||b.totalPages,
+        type:a.type||b.type,
+        title:a.title||b.title,
+        provider:a.provider||b.provider,
+        dTag:a.dTag||b.dTag,
+        vol:a.vol||b.vol,
+        ch:a.ch||b.ch,
+        updatedAt:Math.max(ta,tb)
+    };
+}
+function mergeProgressMaps(...maps){
+    const out={};
+    for(const map of maps){
+        if(!map||typeof map!=='object')continue;
+        for(const k of Object.keys(map))out[k]=resolveProgressEntry(out[k],map[k]);
+    }
+    return pruneProgressMap(out,80);
+}
+function itemIdentity(it){
+    if(!it)return '';
+    return String(it._dTag||it.dTag||it.name||'').toLowerCase();
+}
+function mergeItemLists(localList,remoteList,timeField){
+    const map=new Map();
+    const put=(it)=>{
+        if(!it||!it.name)return;
+        const id=itemIdentity(it);
+        if(!id)return;
+        const prev=map.get(id);
+        if(!prev){map.set(id,it);return}
+        const tNew=Number(it[timeField])||Number(it.updatedAt)||0;
+        const tOld=Number(prev[timeField])||Number(prev.updatedAt)||0;
+        map.set(id,tNew>=tOld?{...prev,...it}:{...it,...prev});
+    };
+    (remoteList||[]).forEach(put);
+    (localList||[]).forEach(put);
+    return [...map.values()].sort((a,b)=>{
+        const ta=Number(a[timeField])||Number(a.updatedAt)||0;
+        const tb=Number(b[timeField])||Number(b.updatedAt)||0;
+        return tb-ta;
+    });
+}
+function resolveUserMetaConflict(localMeta,remoteMeta){
+    const local={
+        saved:Array.isArray(localMeta?.saved)?localMeta.saved:[],
+        history:Array.isArray(localMeta?.history)?localMeta.history:[],
+        progress:(localMeta?.progress&&typeof localMeta.progress==='object')?localMeta.progress:{}
+    };
+    const remote={
+        saved:Array.isArray(remoteMeta?.saved)?remoteMeta.saved:[],
+        history:Array.isArray(remoteMeta?.history)?remoteMeta.history:[],
+        progress:(remoteMeta?.progress&&typeof remoteMeta.progress==='object')?remoteMeta.progress:{}
+    };
+    const saved=mergeItemLists(local.saved,remote.saved,'savedAt');
+    const history=mergeItemLists(local.history,remote.history,'viewedAt').slice(0,50);
+    const progress=mergeProgressMaps(local.progress,remote.progress);
+    const remoteFlat=JSON.stringify({saved:remote.saved,history:remote.history,progress:remote.progress});
+    const mergedFlat=JSON.stringify({saved,history,progress});
+    return{saved,history,progress,changed:remoteFlat!==mergedFlat,updatedAt:Date.now()};
+}
+function saveReadingProgress(partial){
+    const key=getProgressStorageKey();
+    if(!key||!partial)return;
+    clearTimeout(readingProgressSaveTimer);
+    readingProgressSaveTimer=setTimeout(()=>{
+        if(!Object.keys(readingProgressMap).length)loadAllProgress();
+        const prev=readingProgressMap[key]||{};
+        const next={
+            ...prev,
+            ...partial,
+            title:currentDetailTitle||prev.title||'',
+            provider:currentItemFullData?.provider||currentProvider||prev.provider||'',
+            type:currentItemFullData?.type||currentMediaType||prev.type||'',
+            dTag:currentItemFullData?._dTag||prev.dTag||null,
+            vol:String(activeVolume??1),
+            ch:activeChapterKey!=null?String(activeChapterKey):'1',
+            updatedAt:Date.now()
+        };
+        readingProgressMap[key]=resolveProgressEntry(prev,next);
+        readingProgressMap=pruneProgressMap(readingProgressMap,80);
+        saveAllProgress(readingProgressMap);
+        metaDirty=true;
+        updateResumeUI();
+        scheduleProgressNetworkSync();
+    },400);
+}
+function clearReadingProgress(){
+    const key=getProgressStorageKey();
+    if(!key)return;
+    if(!Object.keys(readingProgressMap).length)loadAllProgress();
+    delete readingProgressMap[key];
+    saveAllProgress(readingProgressMap);
+    metaDirty=true;
+    updateResumeUI();
+    scheduleProgressNetworkSync(true);
+}
+function updateResumeUI(){
+    const btn=document.getElementById('openExternalBtn');
+    if(!btn)return;
+    const prog=getSavedProgress();
+    const label=btn.querySelector('div');
+    const has=prog&&(prog.cfi||prog.page!=null||prog.scrollTop!=null);
+    if(has){
+        if(label)label.textContent='Continuar';
+        btn.classList.add('ring-2','ring-secondary/60');
+        btn.title='Continuar de onde parou';
+    }else{
+        if(label)label.textContent='Ler';
+        btn.classList.remove('ring-2','ring-secondary/60');
+        btn.title='Ler';
+    }
+}
+function getLocalUserMeta(){
+    if(!Object.keys(readingProgressMap).length)loadAllProgress();
+    return{saved:savedTitles,history:historyTitles,progress:readingProgressMap};
+}
+function applyResolvedMeta(resolved,{fromNetwork=false}={}){
+    if(!resolved)return;
+    if(Array.isArray(resolved.saved))savedTitles=resolved.saved;
+    if(Array.isArray(resolved.history))historyTitles=resolved.history;
+    if(resolved.progress&&typeof resolved.progress==='object'){
+        readingProgressMap=pruneProgressMap(resolved.progress,80);
+        saveAllProgress(readingProgressMap);
+    }
+    renderSavedModalList();
+    renderHistoryModalList();
+    updateResumeUI();
+    if(fromNetwork&&resolved.changed&&isUserLoggedIn()&&window.syncUserMetaToNetwork){
+        metaDirty=true;
+        scheduleProgressNetworkSync(true);
+    }
+}
+function applyUserMeta(meta){
+    if(!meta)return;
+    const local=getLocalUserMeta();
+    const resolved=resolveUserMetaConflict(local,meta);
+    applyResolvedMeta(resolved,{fromNetwork:true});
+}
+async function pushUserMetaToNetwork(force=false){
+    if(!window.syncUserMetaToNetwork)return false;
+    if(!isUserLoggedIn())return false;
+    if(metaSyncInFlight){metaDirty=true;return false}
+    if(!force&&!metaDirty)return false;
+    metaSyncInFlight=true;
+    metaDirty=false;
+    try{
+        const ok=await window.syncUserMetaToNetwork({
+            saved:savedTitles,
+            history:historyTitles,
+            progress:readingProgressMap
+        });
+        if(!ok)metaDirty=true;
+        return ok;
+    }catch(e){
+        console.warn('meta sync',e);
+        metaDirty=true;
+        return false;
+    }finally{
+        metaSyncInFlight=false;
+        if(metaDirty)scheduleProgressNetworkSync();
+    }
+}
+function scheduleProgressNetworkSync(immediate=false){
+    clearTimeout(readingProgressNetworkTimer);
+    if(immediate){pushUserMetaToNetwork(true);return}
+    readingProgressNetworkTimer=setTimeout(()=>pushUserMetaToNetwork(true),8000);
+}
+loadAllProgress();
 
 const providerData={
     kindle:{name:'Kindle',url:'https://www.amazon.com.br/kindle-dbs/hz/bookshelf',books:[],mangas:[],lightnovels:[]},
@@ -569,10 +814,11 @@ function exitReadingMode(){
 function showCoverOnly(){
     destroyEpub();
     if(window.__lpPdfObserver){try{window.__lpPdfObserver.disconnect()}catch(_){}window.__lpPdfObserver=null}
+    const pdfEl=document.getElementById('pdfViewer');
+    if(pdfEl)pdfEl.onscroll=null;
     exitReadingMode();
     const cover=document.getElementById('readerCover');
     const epubEl=document.getElementById('epubViewer');
-    const pdfEl=document.getElementById('pdfViewer');
     const titleOv=document.getElementById('detailTitleOverlay');
     if(cover){cover.classList.remove('hidden-cover');cover.style.display=''}
     if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
@@ -583,6 +829,7 @@ function showCoverOnly(){
     const bar=document.getElementById('epubProgressBar');if(bar)bar.style.width='0';
     if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
     updateChapterNavVisibility();
+    updateResumeUI();
 }
 function destroyEpub(){
     try{if(epubRendition){epubRendition.destroy();epubRendition=null}}catch(_){}
@@ -617,6 +864,7 @@ async function renderPdfWithPdfJs(buffer){
         try{window.__lpPdfObserver.disconnect()}catch(_){}
         window.__lpPdfObserver=null;
     }
+    pdfEl.onscroll=null;
 
     pdfEl.innerHTML='';
     const doc=await pdfjsLib.getDocument({data:buffer}).promise;
@@ -725,6 +973,44 @@ async function renderPdfWithPdfJs(buffer){
 
     pageMeta.forEach(m=>observer.observe(m.wrap));
     window.__lpPdfObserver=observer;
+
+    // Restaurar posição
+    const saved=getSavedProgress();
+    if(saved&&(saved.page!=null||saved.scrollTop!=null)){
+        requestAnimationFrame(()=>{
+            try{
+                if(saved.page!=null){
+                    const wrap=pdfEl.querySelector(`.pdf-page-wrap[data-page="${saved.page}"]`);
+                    if(wrap){wrap.scrollIntoView({block:'start',behavior:'auto'});return}
+                }
+                if(typeof saved.scrollTop==='number')pdfEl.scrollTop=saved.scrollTop;
+            }catch(_){}
+        });
+    }
+
+    // Salvar ao rolar
+    let lastSavedPage=0;
+    pdfEl.onscroll=()=>{
+        clearTimeout(window.__lpPdfScrollSave);
+        window.__lpPdfScrollSave=setTimeout(()=>{
+            const wraps=[...pdfEl.querySelectorAll('.pdf-page-wrap')];
+            let currentPage=1;
+            const top=pdfEl.scrollTop+pdfEl.clientHeight*0.25;
+            for(const w of wraps){
+                if(w.offsetTop<=top)currentPage=parseInt(w.dataset.page,10)||currentPage;
+                else break;
+            }
+            lastSavedPage=currentPage;
+            saveReadingProgress({
+                type:'pdf',
+                page:currentPage,
+                scrollTop:pdfEl.scrollTop,
+                totalPages:doc.numPages
+            });
+        },350);
+    };
+
+    updateResumeUI();
 }
 
 async function openInReader(src,ref){
@@ -734,7 +1020,7 @@ async function openInReader(src,ref){
     const titleOv=document.getElementById('detailTitleOverlay');
     destroyEpub();
     if(window.__lpPdfObserver){try{window.__lpPdfObserver.disconnect()}catch(_){}window.__lpPdfObserver=null}
-    if(pdfEl){pdfEl.classList.remove('active');pdfEl.innerHTML=''}
+    if(pdfEl){pdfEl.classList.remove('active');pdfEl.innerHTML='';pdfEl.onscroll=null}
     if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
     if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
 
@@ -749,6 +1035,37 @@ async function openInReader(src,ref){
         if(pdfEl)pdfEl.classList.add('active');
         enterReadingMode();
         updateChapterNavVisibility();
+    }
+
+    async function setupEpub(bookSource,urlLabel){
+        if(cover)cover.classList.add('hidden-cover');
+        if(titleOv)titleOv.classList.add('hidden');
+        if(epubEl)epubEl.classList.add('active');
+        epubBook=ePub(bookSource);
+        epubRendition=epubBook.renderTo('epubViewer',{width:'100%',height:'100%',spread:'none',flow:'paginated',allowScriptedContent:true});
+        const saved=getSavedProgress();
+        const startCfi=saved&&saved.cfi?saved.cfi:null;
+        await epubRendition.display(startCfi||undefined);
+        epubCurrentUrl=urlLabel;
+        document.getElementById('epubPrevBtn')?.classList.add('visible');
+        document.getElementById('epubNextBtn')?.classList.add('visible');
+        enterReadingMode();
+        updateChapterNavVisibility();
+        updateResumeUI();
+        epubRendition.on('relocated',(loc)=>{
+            try{
+                const cfi=loc?.start?.cfi;
+                if(!cfi)return;
+                let pct=null;
+                if(epubBook.locations&&typeof epubBook.locations.percentageFromCfi==='function'){
+                    pct=epubBook.locations.percentageFromCfi(cfi);
+                }
+                const bar=document.getElementById('epubProgressBar');
+                if(bar&&pct!=null)bar.style.width=((pct||0)*100)+'%';
+                saveReadingProgress({type:'epub',cfi,percentage:pct});
+            }catch(_){}
+        });
+        epubBook.ready.then(()=>{try{epubBook.locations.generate(1024)}catch(_){}}).catch(()=>{});
     }
 
     if(kindHint==='pdf'||/\.pdf(\?|#|$)/i.test(String(src))){
@@ -769,28 +1086,9 @@ async function openInReader(src,ref){
     }
 
     if(isHttp&&(kindHint==='epub'||/\.epub(\?|#|$)/i.test(src))&&window.ePub){
-        if(cover)cover.classList.add('hidden-cover');
-        if(titleOv)titleOv.classList.add('hidden');
-        if(epubEl)epubEl.classList.add('active');
         setMediaLoading(true,'Carregando EPUB...');
         try{
-            epubBook=ePub(src);
-            epubRendition=epubBook.renderTo('epubViewer',{width:'100%',height:'100%',spread:'none',flow:'paginated',allowScriptedContent:true});
-            await epubRendition.display();
-            epubCurrentUrl=src;
-            document.getElementById('epubPrevBtn')?.classList.add('visible');
-            document.getElementById('epubNextBtn')?.classList.add('visible');
-            enterReadingMode();
-            updateChapterNavVisibility();
-            epubRendition.on('relocated',(loc)=>{
-                try{
-                    if(!epubBook.locations||typeof epubBook.locations.percentageFromCfi!=='function')return;
-                    const p=epubBook.locations.percentageFromCfi(loc.start.cfi);
-                    const bar=document.getElementById('epubProgressBar');
-                    if(bar)bar.style.width=((p||0)*100)+'%';
-                }catch(_){}
-            });
-            epubBook.ready.then(()=>{try{epubBook.locations.generate(1024)}catch(_){}}).catch(()=>{});
+            await setupEpub(src,src);
             setMediaLoading(false);
             return;
         }catch(err){
@@ -834,27 +1132,8 @@ async function openInReader(src,ref){
 
     if(kind==='epub'||(kind==='unknown'&&isZipLike&&window.ePub)){
         if(!window.ePub){setMediaLoading(false);alert('epub.js não carregou. Recarregue a página.');return}
-        if(cover)cover.classList.add('hidden-cover');
-        if(titleOv)titleOv.classList.add('hidden');
-        if(epubEl)epubEl.classList.add('active');
         try{
-            epubBook=ePub(buffer);
-            epubRendition=epubBook.renderTo('epubViewer',{width:'100%',height:'100%',spread:'none',flow:'paginated',allowScriptedContent:true});
-            await epubRendition.display();
-            epubCurrentUrl='buffer';
-            document.getElementById('epubPrevBtn')?.classList.add('visible');
-            document.getElementById('epubNextBtn')?.classList.add('visible');
-            enterReadingMode();
-            updateChapterNavVisibility();
-            epubRendition.on('relocated',(loc)=>{
-                try{
-                    if(!epubBook.locations||typeof epubBook.locations.percentageFromCfi!=='function')return;
-                    const p=epubBook.locations.percentageFromCfi(loc.start.cfi);
-                    const bar=document.getElementById('epubProgressBar');
-                    if(bar)bar.style.width=((p||0)*100)+'%';
-                }catch(_){}
-            });
-            epubBook.ready.then(()=>{try{epubBook.locations.generate(1024)}catch(_){}}).catch(()=>{});
+            await setupEpub(buffer,'buffer');
         }catch(err){
             console.error(err);
             alert('EPUB inválido ou corrompido.');
@@ -925,6 +1204,7 @@ async function goToChapterAt(index){
     }
     await openCurrentFile();
     updateChapterNavVisibility();
+    updateResumeUI();
 }
 function chapterPrev(){
     const idx=getCurrentChapterIndex();
@@ -1118,6 +1398,7 @@ async function openDetailModal(title,img,desc,item=null){
     addToHistory({name:title,img,type:currentItemFullData?.type||currentMediaType,provider:currentItemFullData?.provider||currentProvider});
     if(window.refreshPartnerSlots)window.refreshPartnerSlots();
     updateChapterNavVisibility();
+    updateResumeUI();
 }
 function renderVolumesTabBar(){
     const tb=document.getElementById('volumesTabBar');if(!tb)return;
@@ -1137,19 +1418,29 @@ async function selectChapter(ch,btn){
     if(btn)btn.className='ep-btn w-12 h-12 rounded-xl bg-white text-gray-900 font-bold text-sm shrink-0 shadow-md';
     await openCurrentFile();
     updateChapterNavVisibility();
+    updateResumeUI();
 }
-async function changeVolume(v){activeVolume=v;activeChapterKey=null;renderVolumesTabBar();renderDetailChaptersUI();updateChapterNavVisibility()}
+async function changeVolume(v){activeVolume=v;activeChapterKey=null;renderVolumesTabBar();renderDetailChaptersUI();updateChapterNavVisibility();updateResumeUI()}
 function isTitleSaved(t){return savedTitles.some(i=>i.name===t)}
 async function toggleFavorite(){
     if(!currentDetailTitle)return;
     if(isTitleSaved(currentDetailTitle))savedTitles=savedTitles.filter(i=>i.name!==currentDetailTitle);
     else savedTitles.unshift({name:currentDetailTitle,type:TYPE_LABELS[currentMediaType]||'Livro',img:currentDetailImg,provider:currentProvider,savedAt:Date.now()});
     updateFavoriteUI();renderSavedModalList();
-    if(window.syncUserMetaToNetwork)await window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles});
+    metaDirty=true;
+    await pushUserMetaToNetwork(true);
 }
 function updateFavoriteUI(){const ic=document.getElementById('favoriteIcon'),tx=document.getElementById('favoriteText');const s=isTitleSaved(currentDetailTitle);if(ic)ic.className=s?'fa-solid fa-star text-yellow-400':'fa-regular fa-star';if(tx)tx.textContent=s?'Salvo':'Favorito'}
 function renderSavedModalList(){const c=document.getElementById('savedItemsList');if(!c)return;if(!isUserLoggedIn()){c.innerHTML='<p class="text-xs text-gray-400 text-center py-6">Login no Social para sincronizar.</p>';return}c.innerHTML=savedTitles.length?savedTitles.map(i=>`<div class="flex gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick='openDetailModal(${JSON.stringify(i.name)},${JSON.stringify(i.img)},${JSON.stringify(i.type)})'><div class="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100"><img src="${i.img}" class="w-full h-full object-cover"></div><div><p class="text-xs font-semibold truncate">${i.name}</p><p class="text-[11px] text-secondary">${i.type||''}</p></div></div>`).join(''):'<p class="text-xs text-gray-400 text-center py-6">Nenhum salvo.</p>'}
-async function addToHistory(entry){if(!entry?.name)return;historyTitles=historyTitles.filter(h=>h.name!==entry.name);historyTitles.unshift({...entry,viewedAt:Date.now()});if(historyTitles.length>50)historyTitles=historyTitles.slice(0,50);renderHistoryModalList();if(window.syncUserMetaToNetwork)await window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles})}
+async function addToHistory(entry){
+    if(!entry?.name)return;
+    historyTitles=historyTitles.filter(h=>h.name!==entry.name);
+    historyTitles.unshift({...entry,viewedAt:Date.now()});
+    if(historyTitles.length>50)historyTitles=historyTitles.slice(0,50);
+    renderHistoryModalList();
+    metaDirty=true;
+    scheduleProgressNetworkSync();
+}
 function renderHistoryModalList(){const c=document.getElementById('historyItemsList');if(!c)return;if(!isUserLoggedIn()){c.innerHTML='<p class="text-xs text-gray-400 text-center py-6">Login no Social para sincronizar.</p>';return}c.innerHTML=historyTitles.length?historyTitles.map(i=>`<div class="flex gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick='openDetailModal(${JSON.stringify(i.name)},${JSON.stringify(i.img||"")},${JSON.stringify(i.type||"")})'><div class="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100">${i.img?`<img src="${i.img}" class="w-full h-full object-cover">`:''}</div><div><p class="text-xs font-semibold truncate">${i.name}</p><p class="text-[11px] text-gray-400">${i.type||''}</p></div></div>`).join(''):'<p class="text-xs text-gray-400 text-center py-6">Nenhum histórico.</p>'}
 function renderCatalog(){
     if(catalogLoading){renderSkeletonGrid();return}
@@ -1308,7 +1599,6 @@ function setMediaType(t){
 }
 function selectProvider(el,k){document.querySelectorAll('#providerList .provider-card').forEach(c=>c.classList.remove('active'));if(el)el.classList.add('active');currentProvider=k;catalogPage=1;updateSearchEnginesHint();renderCatalog()}
 function setNetworkStatus(html){const el=document.getElementById('networkStatus');if(el)el.innerHTML=html}
-function applyUserMeta(meta){if(!meta)return;if(Array.isArray(meta.saved))savedTitles=meta.saved;if(Array.isArray(meta.history))historyTitles=meta.history;renderSavedModalList();renderHistoryModalList()}
 function onCatalogLoaded(){catalogLoading=false;catalogPage=1;renderCatalog();rebuildBannerFromCatalog()}
 
 loadSessionFromNostr();loadSessionAvatar();updatePostButtonVisibility();renderPostVolumesInputs(1);renderSkeletonGrid();rebuildBannerFromCatalog();updateSearchEnginesHint();
@@ -1330,6 +1620,8 @@ const pool=new NostrTools.SimplePool();
 const LEVEL_ORDER={diamante:4,ouro:3,plata:2,bronze:1};
 const SLOT_SELECTOR='[data-lp-slot]',EMPTY_LABEL='Espaço disponível';
 const TYPE_LABELS={books:'Livro',mangas:'Mangá',lightnovels:'Light Novel'};
+const CLOCK_SKEW_MS=2*60*1000;
+
 function normalizeHexKey(raw){if(!raw)return null;let s=String(raw).trim();if(s.startsWith('nsec1')){try{const d=NostrTools.nip19.decode(s);if(d.type==='nsec'&&d.data instanceof Uint8Array)return Array.from(d.data).map(b=>b.toString(16).padStart(2,'0')).join('')}catch{return null}}return s.toLowerCase().replace(/^0x/,'')}
 function getSession(){try{const p=JSON.parse(localStorage.getItem('nostr_session')||'null');if(!p)return null;const hex=normalizeHexKey(p.privateKeyHex||p.nsec||p.privateKey);if(!hex||!p.pubkey)return null;return{privateKeyHex:hex,privateKey:hexToBytes(hex),pubkey:p.pubkey}}catch{return null}}
 function currentEpoch(ts=Date.now()){return Math.floor(ts/CRYPTO_EPOCH_MS)}
@@ -1395,8 +1687,118 @@ function fillSlots(items){const slots=Array.from(document.querySelectorAll(SLOT_
 let cachedCampaigns=[];
 async function bootPartnerSlots(){cachedCampaigns=await fetchNetworkCampaigns(40);fillSlots(cachedCampaigns);setInterval(async()=>{cachedCampaigns=await fetchNetworkCampaigns(40);fillSlots(cachedCampaigns)},3*60*1000)}
 window.refreshPartnerSlots=()=>fillSlots(cachedCampaigns);
-async function syncUserMetaToNetwork(meta){const session=getSession();if(!session)return false;try{const content=await encryptUserMeta({v:1,saved:meta.saved||[],history:meta.history||[],updatedAt:Date.now()},session.privateKeyHex);const signed=NostrTools.finalizeEvent({kind:STREAM_KIND,created_at:Math.floor(Date.now()/1000),tags:[['d',USER_META_D],['client','loreplay-books'],['t','user-meta']],content},session.privateKey);await publishToRelays(signed);return true}catch(e){console.error(e);return false}}
-async function loadUserMetaFromNetwork(){const session=getSession();if(!session)return null;try{const events=await pool.querySync(RELAYS,{kinds:[STREAM_KIND],authors:[session.pubkey],'#d':[USER_META_D],limit:5})||[];events.sort((a,b)=>b.created_at-a.created_at);for(const ev of events){try{return await decryptUserMeta(ev.content,session.privateKeyHex)}catch(_){}}}catch(e){console.warn(e)}return null}
+
+/* ---- merge helpers (módulo) para fold de eventos remotos ---- */
+function progressScoreNostr(p){
+    if(!p||typeof p!=='object')return -1;
+    if(typeof p.percentage==='number'&&!Number.isNaN(p.percentage))return Math.min(1,Math.max(0,p.percentage));
+    if(p.page!=null){
+        const page=Number(p.page)||0;const total=Number(p.totalPages)||0;
+        if(total>0)return Math.min(1,Math.max(0,(page-1)/total));
+        return Math.min(1,page/5000);
+    }
+    if(typeof p.scrollTop==='number')return Math.min(1,Math.max(0,p.scrollTop/1e7));
+    if(p.cfi)return 0.001;
+    return -1;
+}
+function resolveProgressEntryNostr(a,b){
+    if(!a)return b||null;if(!b)return a;
+    const ta=Number(a.updatedAt)||0,tb=Number(b.updatedAt)||0;
+    const sa=progressScoreNostr(a),sb=progressScoreNostr(b);
+    const dt=ta-tb;
+    if(Math.abs(dt)>CLOCK_SKEW_MS)return dt>0?a:b;
+    if(Math.abs(sa-sb)>0.002)return sa>sb?a:b;
+    if(dt!==0)return dt>0?a:b;
+    return{...b,...a,cfi:a.cfi||b.cfi,page:a.page!=null?a.page:b.page,scrollTop:a.scrollTop!=null?a.scrollTop:b.scrollTop,percentage:a.percentage!=null?a.percentage:b.percentage,totalPages:a.totalPages||b.totalPages,type:a.type||b.type,title:a.title||b.title,updatedAt:Math.max(ta,tb)};
+}
+function pruneProgressMapNostr(map,max=80){
+    const keys=Object.keys(map||{}).sort((a,b)=>(map[b].updatedAt||0)-(map[a].updatedAt||0));
+    if(keys.length<=max)return map||{};
+    const next={};keys.slice(0,max).forEach(k=>{next[k]=map[k]});return next;
+}
+function mergeProgressMapsNostr(...maps){
+    const out={};
+    for(const map of maps){
+        if(!map||typeof map!=='object')continue;
+        for(const k of Object.keys(map))out[k]=resolveProgressEntryNostr(out[k],map[k]);
+    }
+    return pruneProgressMapNostr(out,80);
+}
+function itemIdentityNostr(it){return String(it?._dTag||it?.dTag||it?.name||'').toLowerCase()}
+function mergeItemListsNostr(a,b,timeField){
+    const map=new Map();
+    const put=(it)=>{
+        if(!it?.name)return;
+        const id=itemIdentityNostr(it);if(!id)return;
+        const prev=map.get(id);
+        if(!prev){map.set(id,it);return}
+        const tNew=Number(it[timeField])||Number(it.updatedAt)||0;
+        const tOld=Number(prev[timeField])||Number(prev.updatedAt)||0;
+        map.set(id,tNew>=tOld?{...prev,...it}:{...it,...prev});
+    };
+    (a||[]).forEach(put);(b||[]).forEach(put);
+    return [...map.values()].sort((x,y)=>(Number(y[timeField])||0)-(Number(x[timeField])||0));
+}
+
+async function syncUserMetaToNetwork(meta){
+    const session=getSession();
+    if(!session)return false;
+    try{
+        const content=await encryptUserMeta({
+            v:2,
+            saved:meta.saved||[],
+            history:meta.history||[],
+            progress:meta.progress&&typeof meta.progress==='object'?meta.progress:{},
+            updatedAt:Date.now()
+        },session.privateKeyHex);
+        const signed=NostrTools.finalizeEvent({
+            kind:STREAM_KIND,
+            created_at:Math.floor(Date.now()/1000),
+            tags:[['d',USER_META_D],['client','loreplay-books'],['t','user-meta'],['v','2']],
+            content
+        },session.privateKey);
+        await publishToRelays(signed);
+        return true;
+    }catch(e){
+        console.error(e);
+        return false;
+    }
+}
+async function loadUserMetaFromNetwork(){
+    const session=getSession();
+    if(!session)return null;
+    try{
+        const events=await pool.querySync(RELAYS,{
+            kinds:[STREAM_KIND],
+            authors:[session.pubkey],
+            '#d':[USER_META_D],
+            limit:12
+        })||[];
+        events.sort((a,b)=>(b.created_at||0)-(a.created_at||0));
+        const decrypted=[];
+        for(const ev of events){
+            try{
+                const data=await decryptUserMeta(ev.content,session.privateKeyHex);
+                if(data&&typeof data==='object'){
+                    decrypted.push({...data,_eventCreatedAt:ev.created_at||0,_eventId:ev.id});
+                }
+            }catch(_){}
+        }
+        if(!decrypted.length)return null;
+        let acc={saved:[],history:[],progress:{}};
+        decrypted.slice().sort((a,b)=>(a._eventCreatedAt||0)-(b._eventCreatedAt||0)).forEach(m=>{
+            acc={
+                saved:mergeItemListsNostr(acc.saved,m.saved||[],'savedAt'),
+                history:mergeItemListsNostr(acc.history,m.history||[],'viewedAt').slice(0,50),
+                progress:mergeProgressMapsNostr(acc.progress,m.progress||{})
+            };
+        });
+        return acc;
+    }catch(e){
+        console.warn(e);
+        return null;
+    }
+}
 async function publishPost({provider,type,name,coverFile,volumesFiles,bookFile,isEdit,existingDTag,basePayload}){
     const session=getSession();if(!session)throw new Error('Sessão Nostr ausente.');if(session.privateKeyHex!==ALLOWED_HEX)throw new Error('Conta não autorizada.');
     const status=msg=>{if(window.setNetworkStatus)window.setNetworkStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>${msg}</span>`)};
