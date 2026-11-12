@@ -457,7 +457,7 @@ body{background:var(--light-violet);display:flex;justify-content:center;align-it
 <div class="story-viewer-avatar" id="momentViewerAvatar"></div>
 <div class="story-viewer-meta"><div class="story-viewer-name" id="momentViewerName"></div><div class="story-viewer-time" id="momentViewerTime"></div></div>
 <button type="button" class="story-viewer-delete" id="momentViewerDelete" title="Apagar"><i class="fa-solid fa-trash"></i></button>
-<button type="button" class="story-viewer-close" id="momentViewerCloseClose"><i class="fa-solid fa-xmark"></i></button>
+<button type="button" class="story-viewer-close" id="momentViewerClose"><i class="fa-solid fa-xmark"></i></button>
 </div>
 <div class="story-viewer-content" id="momentViewerContent">
 <div class="story-viewer-placeholder" id="momentViewerPlaceholder">Momento indisponível</div>
@@ -511,12 +511,21 @@ body{background:var(--light-violet);display:flex;justify-content:center;align-it
 </div>
 <div class="modal-overlay" id="igMediaModal">
 <div class="modal-card" style="height:min(75vh,75dvh)">
-<div class="modal-header"><span id="igModalTitle">Selecionar GIF</span><i class="fa-solid fa-xmark" onclick="closeIgMediaModal()"></i></div>
-<div class="ig-tabs">
-<button class="ig-tab-btn active" id="tabGifBtn" type="button" onclick="switchIgTab('gif')">GIFs</button>
-<button class="ig-tab-btn" id="tabStickerBtn" type="button" onclick="switchIgTab('sticker')">Stickers</button>
+<div class="modal-header">
+  <span id="igModalTitle">Selecionar GIF</span>
+  <i class="fa-solid fa-xmark" onclick="closeIgMediaModal()"></i>
 </div>
-<div style="padding:12px 16px"><input type="text" id="igSearchInput" placeholder="Pesquisar..." style="width:100%;padding:10px 14px;border:1px solid var(--border-color);border-radius:20px;outline:none"></div>
+<div class="ig-tabs">
+  <button class="ig-tab-btn active" id="tabGifBtn" type="button" onclick="switchIgTab('gif')">GIFs</button>
+  <button class="ig-tab-btn" id="tabStickerBtn" type="button" onclick="switchIgTab('sticker')">Stickers</button>
+</div>
+<div style="padding:10px 16px 0;display:flex;gap:8px;align-items:center">
+  <input type="text" id="igSearchInput" placeholder="Pesquisar na rede..." style="flex:1;padding:10px 14px;border:1px solid var(--border-color);border-radius:20px;outline:none">
+  <button type="button" class="primary-btn" id="igCreateBtn" style="width:auto;padding:10px 14px;border-radius:20px;flex-shrink:0" onclick="goToCreateGifSticker()" title="Criar e postar">
+    <i class="fa-solid fa-plus"></i> Criar
+  </button>
+</div>
+<p id="igNetworkHint" style="padding:6px 16px 0;font-size:11px;color:var(--text-muted);margin:0">Conteúdo publicado pelos usuários na rede</p>
 <div class="ig-grid" id="igGridContainer"></div>
 </div>
 </div>
@@ -551,6 +560,8 @@ const PRESENCE_RELAYS=['wss://relay.damus.io','wss://nos.lol','wss://relay.prima
 const PRESENCE_KIND=29333,PRESENCE_INTERVAL_MS=45000,PRESENCE_TTL_MS=90000;
 const GIPHY_API_KEY='SUA_CHAVE_GIPHY_AQUI';
 const STORY_CREATE_PAGE='./StoryCreate.html';
+const GIF_STICKER_CREATE_PAGE='./GifStickerCreate.html';
+const CUSTOM_MEDIA_KIND=30078;
 const STORY_IMAGE_DURATION_MS=5000,STORY_MAX_TTL_MS=24*60*60*1000;
 const CONTACT_QR_PREFIX='loresocial-contact:',CHATS_STORAGE_PREFIX='loresocial_chats_';
 const STORY_KIND=30078,NOTE_KIND=30078,NOTE_MAX_TTL_MS=24*60*60*1000,NOTE_MAX_LEN=60;
@@ -997,12 +1008,111 @@ function togglePinChat(){const chat=chatsData.find(c=>c.id===currentChatId);if(!
 function toggleBlockChat(){const chat=chatsData.find(c=>c.id===currentChatId);if(!chat)return;if(chat.type==='bloqueados'||chat.status==='blocked'){chat.type='contatos';chat.status='accepted';currentTab='contatos'}else{chat.type='bloqueados';chat.status='blocked';currentTab='bloqueados'}saveChatsLocal();switchTab(currentTab);selectChat(currentChatId)}
 function deleteChat(){if(currentChatId==null)return;if(activeChatAudio){activeChatAudio.pause();activeChatAudio=null}chatsData=chatsData.filter(c=>c.id!==currentChatId);saveChatsLocal();currentChatId=null;appContainer.classList.remove('mobile-show-chat','desktop-has-chat');setInputLocked(false);activeName.textContent='Bem-vindo';activeAvatar.innerHTML='<i class="fa-solid fa-user"></i>';messagesContainer.style.justifyContent='center';messagesContainer.style.alignItems='center';messagesContainer.innerHTML='<div style="text-align:center;color:var(--text-muted);font-size:15px">Selecione um contato para conversar</div>';renderChatList()}
 function handleAttachmentSelection(type){attachmentMenu.classList.remove('show');const chat=chatsData.find(c=>c.id===currentChatId);if(!canMessageChat(chat))return;if(type==='GIF')openIgMediaModal('gif');else if(type==='Sticky')openIgMediaModal('sticker');else if(type==='Imagem'||type==='Vídeo do YouTube'){activeAttachmentType=type;document.getElementById('urlModalTitle').textContent=type==='Imagem'?'URL da Imagem':'URL do YouTube';document.getElementById('urlInput').value='';document.getElementById('urlModal').classList.add('show')}else if(type==='Música')openMusicModal()}
-function openIgMediaModal(type){igCurrentType=type;document.getElementById('igMediaModal').classList.add('show');document.getElementById('igSearchInput').value='';document.getElementById('igModalTitle').textContent=type==='gif'?'Selecionar GIF':'Selecionar Sticker';document.getElementById('tabGifBtn').classList.toggle('active',type==='gif');document.getElementById('tabStickerBtn').classList.toggle('active',type==='sticker');fetchGiphyMedia('',type)}
-function closeIgMediaModal(){document.getElementById('igMediaModal').classList.remove('show')}
-function switchIgTab(type){igCurrentType=type;document.getElementById('igModalTitle').textContent=type==='gif'?'Selecionar GIF':'Selecionar Sticker';document.getElementById('tabGifBtn').classList.toggle('active',type==='gif');document.getElementById('tabStickerBtn').classList.toggle('active',type==='sticker');fetchGiphyMedia(document.getElementById('igSearchInput').value.trim(),type)}
-document.getElementById('igSearchInput').addEventListener('input',e=>{clearTimeout(igSearchTimeout);igSearchTimeout=setTimeout(()=>fetchGiphyMedia(e.target.value.trim(),igCurrentType),400)});
-async function fetchGiphyMedia(query,type){const grid=document.getElementById('igGridContainer');grid.innerHTML=`<div style="grid-column:span 2;text-align:center;padding:20px;color:var(--text-muted)">Buscando…</div>`;const limit=20;const endpoint=type==='gif'?(query?`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g`:`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=${limit}&rating=g`):(query?`https://api.giphy.com/v1/stickers/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=${limit}&rating=g`:`https://api.giphy.com/v1/stickers/trending?api_key=${GIPHY_API_KEY}&limit=${limit}&rating=g`);try{const data=await(await fetch(endpoint)).json();grid.innerHTML='';if(!data.data?.length){grid.innerHTML=`<div style="grid-column:span 2;text-align:center;padding:20px;color:var(--text-muted)">Nenhum resultado</div>`;return}data.data.forEach(item=>{const url=item.images.fixed_height_downsampled?.url||item.images.original.url;const el=document.createElement('div');el.className='ig-media-item';el.innerHTML=`<img src="${url}" alt="" loading="lazy">`;el.onclick=()=>sendIgMediaMessage(url,type);grid.appendChild(el)})}catch{grid.innerHTML=`<div style="grid-column:span 2;text-align:center;color:#e74c3c;padding:20px">Erro Giphy</div>`}}
-function sendIgMediaMessage(url,type){const chat=chatsData.find(c=>c.id===currentChatId);if(!canMessageChat(chat))return;const mediaType=type==='gif'?'gif':'sticker';const payload=buildMediaPayload(mediaType,{url});const contentHtml=`<img src="${url}" alt=""/>`;chat.messages.push({sender:'sent',isHtml:true,content:contentHtml,text:payload});chat.lastMsg=`Você: ${mediaType==='gif'?'[GIF]':'[Sticker]'}`;saveChatsLocal();const div=document.createElement('div');div.className='message sent';div.innerHTML=contentHtml;messagesContainer.appendChild(div);closeIgMediaModal();messagesContainer.scrollTop=messagesContainer.scrollHeight;renderChatList();sendNostrDm(chat,payload)}
+
+/* ===== GIFs / STICKERS DA REDE ===== */
+function goToCreateGifSticker(){
+  closeIgMediaModal();
+  const q = igCurrentType === 'sticker' ? '?type=sticker' : '?type=gif';
+  window.location.href = GIF_STICKER_CREATE_PAGE + q;
+}
+function openIgMediaModal(type){
+  igCurrentType = type === 'sticker' ? 'sticker' : 'gif';
+  document.getElementById('igMediaModal').classList.add('show');
+  document.getElementById('igSearchInput').value = '';
+  document.getElementById('igModalTitle').textContent = igCurrentType === 'gif' ? 'Selecionar GIF' : 'Selecionar Sticker';
+  document.getElementById('tabGifBtn').classList.toggle('active', igCurrentType === 'gif');
+  document.getElementById('tabStickerBtn').classList.toggle('active', igCurrentType === 'sticker');
+  loadNetworkMedia(igCurrentType, '');
+}
+function closeIgMediaModal(){
+  document.getElementById('igMediaModal').classList.remove('show');
+}
+function switchIgTab(type){
+  igCurrentType = type === 'sticker' ? 'sticker' : 'gif';
+  document.getElementById('igModalTitle').textContent = igCurrentType === 'gif' ? 'Selecionar GIF' : 'Selecionar Sticker';
+  document.getElementById('tabGifBtn').classList.toggle('active', igCurrentType === 'gif');
+  document.getElementById('tabStickerBtn').classList.toggle('active', igCurrentType === 'sticker');
+  loadNetworkMedia(igCurrentType, document.getElementById('igSearchInput').value.trim());
+}
+document.getElementById('igSearchInput')?.addEventListener('input', e => {
+  clearTimeout(igSearchTimeout);
+  igSearchTimeout = setTimeout(() => loadNetworkMedia(igCurrentType, e.target.value.trim()), 400);
+});
+async function loadNetworkMedia(type, query){
+  const grid = document.getElementById('igGridContainer');
+  if(!grid) return;
+  grid.innerHTML = `<div style="grid-column:span 2;text-align:center;padding:20px;color:var(--text-muted)">Carregando da rede…</div>`;
+  const want = type === 'sticker' ? 'custom_sticker' : 'custom_gif';
+  const items = [];
+  try{
+    if(window.NostrTools && currentUserPubkey){
+      if(!nostrPool) nostrPool = new NostrTools.SimplePool();
+      const since = Math.floor(Date.now()/1000) - 90*24*60*60;
+      const events = await nostrPool.querySync(NORST_RELAYS, {
+        kinds: [CUSTOM_MEDIA_KIND],
+        '#t': ['loresocial-media'],
+        since,
+        limit: 120
+      });
+      const seen = new Set();
+      (events || []).forEach(ev => {
+        try{
+          const data = JSON.parse(ev.content || '{}');
+          if(data.lore !== 1 || data.type !== want || !data.url) return;
+          if(seen.has(data.url)) return;
+          seen.add(data.url);
+          const title = String(data.title || '').toLowerCase();
+          const q = (query || '').toLowerCase();
+          if(q && !title.includes(q) && !String(data.url).toLowerCase().includes(q)) return;
+          items.push({
+            url: data.url,
+            title: data.title || '',
+            time: data.createdAt || (ev.created_at * 1000),
+            pubkey: ev.pubkey,
+            eventId: ev.id
+          });
+        }catch{}
+      });
+      items.sort((a,b) => (b.time||0) - (a.time||0));
+    }
+  }catch(e){ console.warn('loadNetworkMedia', e); }
+
+  grid.innerHTML = '';
+  if(!items.length){
+    grid.innerHTML = `<div style="grid-column:span 2;text-align:center;padding:24px;color:var(--text-muted);font-size:13px;line-height:1.45">
+      Nenhum ${type === 'sticker' ? 'sticker' : 'GIF'} na rede ainda.<br>
+      Toque em <strong>Criar</strong> para publicar o primeiro.
+    </div>`;
+    return;
+  }
+  items.slice(0, 60).forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'ig-media-item';
+    el.title = item.title || '';
+    el.innerHTML = `<img src="${escapeAttr(item.url)}" alt="" loading="lazy" onerror="this.parentNode.style.display='none'">`;
+    el.onclick = () => sendIgMediaMessage(item.url, type);
+    grid.appendChild(el);
+  });
+}
+function sendIgMediaMessage(url, type){
+  const chat = chatsData.find(c => c.id === currentChatId);
+  if(!canMessageChat(chat)) return;
+  const mediaType = type === 'gif' ? 'gif' : 'sticker';
+  const payload = buildMediaPayload(mediaType, { url });
+  const contentHtml = `<img src="${escapeAttr(url)}" alt=""/>`;
+  chat.messages.push({ sender:'sent', isHtml:true, content:contentHtml, text:payload });
+  chat.lastMsg = `Você: ${mediaType === 'gif' ? '[GIF]' : '[Sticker]'}`;
+  saveChatsLocal();
+  const div = document.createElement('div');
+  div.className = 'message sent';
+  div.innerHTML = contentHtml;
+  messagesContainer.appendChild(div);
+  closeIgMediaModal();
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  renderChatList();
+  sendNostrDm(chat, payload);
+}
+
 function closeUrlModal(){document.getElementById('urlModal').classList.remove('show');activeAttachmentType=null}
 function extractYouTubeId(url){if(url.includes('youtu.be/'))return url.split('youtu.be/')[1]?.split('?')[0];if(url.includes('youtube.com/watch'))return new URLSearchParams(url.split('?')[1]||'').get('v');if(url.includes('youtube.com/embed/'))return url.split('youtube.com/embed/')[1]?.split('?')[0];return null}
 function confirmUrlModal(){const url=document.getElementById('urlInput').value.trim();const chat=chatsData.find(c=>c.id===currentChatId);if(!url||!canMessageChat(chat))return;let contentHtml='',lastMsgText='',payload='';if(activeAttachmentType==='Imagem'){contentHtml=`<img src="${url}" alt=""/>`;lastMsgText='[Imagem]';payload=buildMediaPayload('image',{url})}else{const videoId=extractYouTubeId(url);if(videoId){contentHtml=`<iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;lastMsgText='[YouTube]';payload=buildMediaPayload('youtube',{url,videoId})}else{contentHtml='[YouTube inválido]';lastMsgText=contentHtml;payload=buildMediaPayload('text',{text:contentHtml})}}chat.messages.push({sender:'sent',isHtml:true,content:contentHtml,text:payload});chat.lastMsg=`Você: ${lastMsgText}`;saveChatsLocal();const div=document.createElement('div');div.className='message sent';div.innerHTML=contentHtml;messagesContainer.appendChild(div);closeUrlModal();messagesContainer.scrollTop=messagesContainer.scrollHeight;renderChatList();sendNostrDm(chat,payload)}
@@ -1020,9 +1130,18 @@ async function handleIncomingDm(ev){if(!ev||seenMessageIds.has(ev.id)||ev.kind!=
 async function startDmListener(){if(!window.NostrTools||!currentUserPubkey)return;if(!nostrPool)nostrPool=new NostrTools.SimplePool();if(dmSubscription?.close)try{dmSubscription.close()}catch{}const since=Math.floor(Date.now()/1000)-7*24*60*60;try{const past=await nostrPool.querySync(NORST_RELAYS,{kinds:[4],authors:[currentUserPubkey],since,limit:100});const pastToMe=await nostrPool.querySync(NORST_RELAYS,{kinds:[4],'#p':[currentUserPubkey],since,limit:100});for(const ev of[...(past||[]),...(pastToMe||[])].sort((a,b)=>a.created_at-b.created_at))await handleIncomingDm(ev);dmSubscription=nostrPool.subscribeMany(NORST_RELAYS,[{kinds:[4],authors:[currentUserPubkey],since:Math.floor(Date.now()/1000)-60},{kinds:[4],'#p':[currentUserPubkey],since:Math.floor(Date.now()/1000)-60}],{onevent:ev=>handleIncomingDm(ev)})}catch(e){console.error(e)}}
 async function loadStoriesFromNetwork(){if(!window.NostrTools||!currentUserPubkey)return;try{if(!nostrPool)nostrPool=new NostrTools.SimplePool();const authors=[...new Set([String(currentUserPubkey).toLowerCase(),...getContactPubkeys()])];if(!authors.length)return;const since=Math.floor(Date.now()/1000)-24*60*60;const events=await nostrPool.querySync(NORST_RELAYS,{kinds:[STORY_KIND],authors,since,limit:120});const byAuthor=new Map(),now=Date.now();(events||[]).forEach(ev=>{try{const data=JSON.parse(ev.content||'{}');if(data.lore!==1||data.type!=='story'||!data.url)return;const expTag=(ev.tags||[]).find(t=>t[0]==='expiration')?.[1];const expiresAt=data.expiresAt||(expTag?Number(expTag)*1000:(ev.created_at*1000+STORY_MAX_TTL_MS));if(now>=expiresAt)return;const pk=ev.pubkey.toLowerCase();if(!byAuthor.has(pk))byAuthor.set(pk,[]);byAuthor.get(pk).push({url:data.url,type:data.mediaType||'image',text:data.text||data.caption||'',time:data.createdAt||(ev.created_at*1000),expiresAt,eventId:ev.id,dTag:(ev.tags||[]).find(t=>t[0]==='d')?.[1]||''})}catch{}});byAuthor.forEach((slides,pk)=>{slides.sort((a,b)=>(b.time||0)-(a.time||0));const trimmed=slides.slice(0,30);if(pk===String(currentUserPubkey).toLowerCase())saveOwnStories(trimmed);else{const chat=chatsData.find(c=>c.pubkey?.toLowerCase()===pk);if(chat)chat.stories=trimmed}});saveChatsLocal();if(listMode==='story')renderStories()}catch(e){console.warn(e)}}
 async function bootContactsOnlyLocal(){await waitForNostrTools();if(!initNostrFromSession()||!window.NostrTools){renderChatList();return}if(!nostrPool)nostrPool=new NostrTools.SimplePool();loadChatsLocal();renderChatList()}
-async function bootChatNostr(){requestNotificationPermission();await bootContactsOnlyLocal();await startDmListener();startPresenceHeartbeat();await startPresenceListener();await loadStoriesFromNetwork();await loadNotesFromNetwork();await loadMomentsFromNetwork();await startNotesMomentsListener();setListMode(listMode);updateSearchClearBtn()}
+async function bootChatNostr(){requestNotificationPermission();await bootContactsOnlyLocal();await startDmListener();startPresenceHeartbeat();await startPresenceListener();await loadStoriesFromNetwork();await loadNotesFromNetwork();await loadMomentsFromNetwork();await startNotesMomentsListener();setListMode(listMode);updateSearchClearBtn();
+  try{
+    const params = new URLSearchParams(location.search);
+    const open = params.get('openMedia');
+    if(open === 'gif' || open === 'sticker'){
+      history.replaceState({}, '', location.pathname);
+      setTimeout(() => { if(currentChatId != null) openIgMediaModal(open); }, 400);
+    }
+  }catch{}
+}
 window.addEventListener('beforeunload',()=>{stopPresenceHeartbeat();stopContactQrScanner();saveChatsLocal();if(notesMomentsSub?.close)try{notesMomentsSub.close()}catch{};stopMomentCamStream()});
 bootChatNostr();
 </script>
 </body>
-  </html>
+</html>
