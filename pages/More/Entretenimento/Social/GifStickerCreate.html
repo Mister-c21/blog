@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Criar GIF / Sticker · LoreSocial</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script type="module">
+import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+import { hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
+window.NostrTools = NostrTools;
+window.nostrHexToBytes = hexToBytes;
+</script>
+<style>
+:root {
+  --primary-bg:#fff; --secondary-color:#6c5ce7; --secondary-hover:#5b4be2;
+  --light-violet:#f3f0ff; --gray-bg:#f8f9fa; --text-main:#2d3436;
+  --text-muted:#636e72; --border-color:#dfe6e9;
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif}
+html,body{min-height:100%;height:100dvh;background:var(--light-violet)}
+body{display:flex;justify-content:center;align-items:stretch}
+.wrap{width:100%;max-width:480px;margin:0 auto;background:var(--primary-bg);min-height:100dvh;display:flex;flex-direction:column}
+.header{padding:16px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border-color);font-weight:600}
+.header button{background:none;border:none;font-size:18px;color:var(--secondary-color);cursor:pointer}
+.body{padding:20px;display:flex;flex-direction:column;gap:16px;flex:1}
+.tabs{display:flex;gap:8px;background:var(--gray-bg);border-radius:12px;padding:4px;border:1px solid var(--border-color)}
+.tab{flex:1;padding:10px;border:none;border-radius:10px;background:transparent;font-weight:600;color:var(--text-muted);cursor:pointer}
+.tab.active{background:#fff;color:var(--secondary-color);box-shadow:0 1px 4px rgba(108,92,231,.12)}
+.drop{border:2px dashed var(--border-color);border-radius:16px;padding:28px 16px;text-align:center;cursor:pointer;background:var(--gray-bg);transition:.15s}
+.drop:hover,.drop.drag{border-color:var(--secondary-color);background:var(--light-violet)}
+.drop i{font-size:32px;color:var(--secondary-color);margin-bottom:8px}
+.preview{display:none;text-align:center}
+.preview img{max-width:100%;max-height:280px;border-radius:12px;object-fit:contain;background:#f0f0f0}
+input[type=text]{width:100%;padding:12px 14px;border:1px solid var(--border-color);border-radius:10px;outline:none;font-size:14px;background:var(--gray-bg)}
+.primary-btn{width:100%;padding:14px;background:var(--secondary-color);color:#fff;border:none;border-radius:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.primary-btn:disabled{opacity:.5;cursor:not-allowed}
+.status{font-size:13px;color:var(--text-muted);text-align:center;min-height:20px}
+.hint{font-size:12px;color:var(--text-muted);line-height:1.4}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <button type="button" onclick="goBack()" aria-label="Voltar"><i class="fa-solid fa-arrow-left"></i></button>
+    <span>Criar GIF / Sticker</span>
+  </div>
+  <div class="body">
+    <p class="hint">Publique na rede Nostr. Todos os usuários do LoreSocial poderão usar no chat.</p>
+    <div class="tabs">
+      <button type="button" class="tab active" id="tabGif" onclick="setType('gif')">GIF</button>
+      <button type="button" class="tab" id="tabSticker" onclick="setType('sticker')">Sticker</button>
+    </div>
+    <div class="drop" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <i class="fa-solid fa-cloud-arrow-up"></i>
+      <div style="font-weight:600;margin-bottom:4px">Toque ou arraste a imagem</div>
+      <div class="hint">GIF, PNG, WebP ou JPG · até ~8 MB</div>
+    </div>
+    <input type="file" id="fileInput" accept="image/gif,image/png,image/webp,image/jpeg,image/*" style="display:none">
+    <div class="preview" id="previewWrap">
+      <img id="previewImg" alt="Preview">
+      <button type="button" style="margin-top:10px;background:none;border:none;color:#e74c3c;cursor:pointer;font-weight:600" onclick="clearFile()">Remover</button>
+    </div>
+    <input type="text" id="titleInput" placeholder="Título opcional (ex: dança, meme...)" maxlength="40" autocomplete="off">
+    <p class="status" id="statusEl"></p>
+    <button type="button" class="primary-btn" id="publishBtn" onclick="publish()" disabled>
+      <i class="fa-solid fa-paper-plane"></i> Publicar na rede
+    </button>
+  </div>
+</div>
+<script>
+(function(){const L='./Social.html';if(localStorage.getItem('isLoggedIn')!=='true'||!localStorage.getItem('nostr_session')){window.location.replace(L);return}try{const p=JSON.parse(localStorage.getItem('nostr_session'));if(!p.privateKeyHex||!p.pubkey)throw 0}catch{localStorage.removeItem('isLoggedIn');localStorage.removeItem('nostr_session');window.location.replace(L)}})();
+
+const NORST_RELAYS=['wss://relay.damus.io','wss://nos.lol','wss://relay.primal.net','wss://relay.nostr.band'];
+const MEDIA_KIND=30078;
+const CHAT_RETURN='./Chat.html'; // ajuste se o nome do arquivo do chat for outro
+
+let mediaType='gif', selectedFile=null, nostrPool=null, currentUserPubkey=null;
+
+function getNostrSession(){try{return JSON.parse(localStorage.getItem('nostr_session')||'null')}catch{return null}}
+function getPrivateKeyBytes(){const s=getNostrSession();if(!s?.privateKeyHex)return null;try{if(window.nostrHexToBytes)return window.nostrHexToBytes(s.privateKeyHex);const hex=s.privateKeyHex,out=new Uint8Array(hex.length/2);for(let i=0;i<out.length;i++)out[i]=parseInt(hex.substr(i*2,2),16);return out}catch{return null}}
+function goBack(){window.location.href=CHAT_RETURN}
+function setStatus(t){document.getElementById('statusEl').textContent=t||''}
+function setType(t){mediaType=t==='sticker'?'sticker':'gif';document.getElementById('tabGif').classList.toggle('active',mediaType==='gif');document.getElementById('tabSticker').classList.toggle('active',mediaType==='sticker')}
+
+const drop=document.getElementById('dropZone'), fileInput=document.getElementById('fileInput');
+drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag')});
+drop.addEventListener('dragleave',()=>drop.classList.remove('drag'));
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag');const f=e.dataTransfer.files?.[0];if(f)handleFile(f)});
+fileInput.addEventListener('change',e=>{const f=e.target.files?.[0];if(f)handleFile(f);e.target.value=''});
+
+function handleFile(file){
+  if(!file.type.startsWith('image/')){alert('Selecione uma imagem (GIF, PNG, WebP ou JPG).');return}
+  if(file.size>8*1024*1024){alert('Arquivo muito grande (máx. ~8 MB).');return}
+  selectedFile=file;
+  const url=URL.createObjectURL(file);
+  document.getElementById('previewImg').src=url;
+  document.getElementById('previewWrap').style.display='block';
+  drop.style.display='none';
+  document.getElementById('publishBtn').disabled=false;
+  if(file.type==='image/gif')setType('gif');
+}
+function clearFile(){
+  selectedFile=null;
+  document.getElementById('previewWrap').style.display='none';
+  drop.style.display='block';
+  document.getElementById('publishBtn').disabled=true;
+}
+
+function uint8ToHex(arr){return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join('')}
+async function sha256HexOfBlob(blob){const buf=await blob.arrayBuffer();const hash=await crypto.subtle.digest('SHA-256',buf);return uint8ToHex(new Uint8Array(hash))}
+function base64FromUtf8(str){return btoa(unescape(encodeURIComponent(str)))}
+async function buildNip98AuthHeader(url,method,payloadHashHex){const sk=getPrivateKeyBytes();if(!sk||!window.NostrTools)return null;const tags=[['u',url],['method',method.toUpperCase()]];if(payloadHashHex)tags.push(['payload',payloadHashHex]);const signed=NostrTools.finalizeEvent({kind:27235,created_at:Math.floor(Date.now()/1000),tags,content:''},sk);return'Nostr '+base64FromUtf8(JSON.stringify(signed))}
+async function buildBlossomAuthHeader(sha256,verb){const sk=getPrivateKeyBytes();if(!sk||!window.NostrTools)return null;const signed=NostrTools.finalizeEvent({kind:24242,created_at:Math.floor(Date.now()/1000),tags:[['t',verb||'upload'],['x',sha256],['expiration',String(Math.floor(Date.now()/1000)+300)]],content:'Upload media'},sk);return'Nostr '+base64FromUtf8(JSON.stringify(signed))}
+function extractUploadUrl(data){if(!data)return null;if(typeof data==='string'&&data.startsWith('http'))return data;if(data.url)return data.url;if(data.data?.[0]?.url)return data.data[0].url;if(data.data?.link)return data.data.link;if(Array.isArray(data)&&data[0]?.url)return data[0].url;if(data.nip94_event?.tags){const t=data.nip94_event.tags.find(x=>x[0]==='url');if(t?.[1])return t[1]}if(Array.isArray(data.tags)){const t=data.tags.find(x=>x[0]==='url');if(t?.[1])return t[1]}return null}
+
+async function uploadToNostrMedia(file){
+  const sha256=await sha256HexOfBlob(file);
+  const nbEndpoints=['https://nostr.build/api/v2/upload/files','https://nostr.build/api/v2/nip96/upload'];
+  for(const endpoint of nbEndpoints){
+    try{
+      setStatus('Enviando mídia (nostr.build)…');
+      const form=new FormData();
+      form.append('fileToUpload',file,file.name||'media.bin');
+      form.append('file',file,file.name||'media.bin');
+      const headers={};
+      const auth=await buildNip98AuthHeader(endpoint,'POST',sha256);
+      if(auth)headers['Authorization']=auth;
+      const res=await fetch(endpoint,{method:'POST',body:form,headers});
+      if(res.status!==200&&res.status!==201&&res.status!==202)continue;
+      const data=await res.json().catch(()=>null);
+      const url=extractUploadUrl(data);
+      if(url)return url;
+    }catch(e){console.warn(e)}
+  }
+  const blossomServers=['https://blossom.primal.net','https://cdn.satellite.earth','https://blossom.nostr.band','https://nostrmedia.com'];
+  for(const base of blossomServers){
+    try{
+      setStatus('Enviando mídia (Blossom)…');
+      const uploadUrl=base.replace(/\/$/,'')+'/upload';
+      const auth=await buildBlossomAuthHeader(sha256,'upload');
+      const headers={'Content-Type':file.type||'application/octet-stream'};
+      if(auth)headers['Authorization']=auth;
+      const res=await fetch(uploadUrl,{method:'PUT',body:file,headers});
+      if(!res.ok&&res.status!==202)continue;
+      const data=await res.json().catch(()=>null);
+      const url=extractUploadUrl(data)||(data?.sha256?`${base.replace(/\/$/,'')}/${data.sha256}`:null);
+      if(url)return url;
+    }catch(e){console.warn(e)}
+  }
+  if(file.size<350000){
+    setStatus('Fallback local…');
+    return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)});
+  }
+  throw new Error('Falha no upload da mídia');
+}
+
+async function publish(){
+  if(!selectedFile)return;
+  const sk=getPrivateKeyBytes();
+  const s=getNostrSession();
+  if(!sk||!window.NostrTools||!s?.pubkey){alert('Sessão inválida');return}
+  currentUserPubkey=s.pubkey;
+  const btn=document.getElementById('publishBtn');
+  btn.disabled=true;
+  try{
+    if(!nostrPool)nostrPool=new NostrTools.SimplePool();
+    const mediaUrl=await uploadToNostrMedia(selectedFile);
+    setStatus('Publicando na rede…');
+    const now=Date.now();
+    const dTag='lore-media-'+mediaType+'-'+now+'-'+Math.random().toString(36).slice(2,8);
+    const title=(document.getElementById('titleInput').value||'').trim().slice(0,40);
+    const payload={
+      lore:1,
+      type: mediaType==='sticker' ? 'custom_sticker' : 'custom_gif',
+      url: mediaUrl,
+      title: title,
+      createdAt: now
+    };
+    const signed=NostrTools.finalizeEvent({
+      kind: MEDIA_KIND,
+      created_at: Math.floor(now/1000),
+      tags: [['d', dTag], ['t', 'loresocial-'+mediaType], ['t', 'loresocial-media']],
+      content: JSON.stringify(payload)
+    }, sk);
+    await Promise.any(nostrPool.publish(NORST_RELAYS, signed));
+    setStatus('Publicado! Redirecionando…');
+    setTimeout(()=>{ window.location.href = CHAT_RETURN + '?openMedia=' + mediaType; }, 600);
+  }catch(err){
+    console.error(err);
+    setStatus('Erro: '+(err.message||'falha'));
+    alert('Erro ao publicar: '+(err.message||'falha'));
+    btn.disabled=false;
+  }
+}
+
+(function init(){
+  const s=getNostrSession();
+  if(s?.pubkey) currentUserPubkey=s.pubkey;
+})();
+</script>
+</body>
+</html>
