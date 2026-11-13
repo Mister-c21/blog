@@ -339,7 +339,11 @@
                     <i id="favoriteIcon" class="fa-regular fa-star"></i><div class="text-[11px] mt-1" id="favoriteText">Favorito</div>
                 </button>
             </div>
-            <button type="button" onclick="clearReadingProgress()" class="w-full text-[11px] text-gray-500 hover:text-white underline text-center -mt-2">Recomeçar do início</button>
+            <button type="button" id="continueReadingBtn" onclick="continueFromSavedProgress()" class="hidden w-full max-w-lg mx-auto bg-secondary text-white font-bold text-sm py-2.5 rounded-xl flex items-center justify-center gap-2">
+                <i class="fa-solid fa-play"></i>
+                <span id="continueReadingLabel">Continuar de onde parou</span>
+            </button>
+            <button type="button" onclick="clearReadingProgress()" class="w-full text-[11px] text-gray-500 hover:text-white underline text-center -mt-1">Recomeçar do início</button>
             <div>
                 <h3 class="text-sm font-bold uppercase mb-3">Volumes / Capítulos</h3>
                 <div class="flex gap-2 overflow-x-auto no-scrollbar border-b border-white/10 pb-1" id="volumesTabBar"></div>
@@ -419,7 +423,7 @@ const providerData={
 const TYPE_LABELS={books:'Livro',mangas:'Mangá',lightnovels:'Light Novel'};
 const TYPE_PLURAL={books:'Livros',mangas:'Mangás',lightnovels:'Light Novels'};
 
-/* ========== Continuar: seletor de arquivo (vol/cap) + página ========== */
+/* ========== Continuar: Vol/Cap + página — retomar só pelo botão ========== */
 function progressKeyFromItem(item,title){
   if(item&&item._dTag)return 'd:'+item._dTag;
   const prov=(item&&item.provider)||currentProvider||'';
@@ -435,11 +439,26 @@ function readingScore(entry){
   if(entry.cfi||entry.page!=null||entry.scrollTop!=null)return 0.01;
   return -1;
 }
+function ensureActiveFileSelector(){
+  if(activeVolume==null)activeVolume=Object.keys(currentVolumesData||{})[0]||1;
+  if(activeChapterKey!=null&&String(activeChapterKey)!=='')return String(activeChapterKey);
+  const chs=currentVolumesData[activeVolume]||{};
+  const k=Object.keys(chs).find(x=>hasMediaRef(chs[x]));
+  if(k){activeChapterKey=String(k);return String(k)}
+  const anyVol=Object.keys(currentVolumesData||{})[0];
+  if(anyVol!=null){
+    activeVolume=anyVol;
+    const chs2=currentVolumesData[anyVol]||{};
+    const k2=Object.keys(chs2).find(x=>hasMediaRef(chs2[x]))||Object.keys(chs2)[0];
+    if(k2!=null){activeChapterKey=String(k2);return String(k2)}
+  }
+  activeChapterKey='1';
+  return '1';
+}
 function collectCurrentProgressSnapshot(){
   if(!currentDetailTitle||!currentItemFullData)return null;
   const volume=String(activeVolume??1);
-  const chapter=activeChapterKey!=null?String(activeChapterKey):null;
-  if(chapter==null)return null;
+  const chapter=ensureActiveFileSelector();
   const base={
     name:currentDetailTitle,img:currentDetailImg||'',
     provider:currentItemFullData?.provider||currentProvider,
@@ -482,9 +501,10 @@ function collectCurrentProgressSnapshot(){
   return null;
 }
 async function saveProgressSnapshot(forceSync=false){
-  const snap=collectCurrentProgressSnapshot();if(!snap)return;
-  if(snap.chapter==null)return;
+  const snap=collectCurrentProgressSnapshot();
+  if(!snap)return;
   if(snap.page==null&&!snap.cfi&&snap.scrollTop==null)return;
+  if(snap.chapter==null)snap.chapter=ensureActiveFileSelector();
   const key=progressKeyFromItem({_dTag:snap._dTag,provider:snap.provider,name:snap.name},snap.name);
   progressMap[key]=snap;
   const histIdx=historyTitles.findIndex(h=>h.name===snap.name);
@@ -503,7 +523,10 @@ async function saveProgressSnapshot(forceSync=false){
     if(window.syncUserMetaToNetwork)await window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles,progress:Object.values(progressMap)});
   }
 }
-function scheduleProgressSave(){if(_progressSaveTimer)return;_progressSaveTimer=setTimeout(()=>{_progressSaveTimer=null;saveProgressSnapshot(false)},8000)}
+function scheduleProgressSave(){
+  if(_progressSaveTimer)return;
+  _progressSaveTimer=setTimeout(()=>{_progressSaveTimer=null;saveProgressSnapshot(false)},3000);
+}
 function applyProgressToReader(entry){
   if(!entry||entry.completed)return;
   if(entry.cfi&&epubRendition){epubRendition.display(entry.cfi).catch(()=>{});return}
@@ -511,7 +534,10 @@ function applyProgressToReader(entry){
   if(!pdfEl||!pdfEl.classList.contains('active'))return;
   requestAnimationFrame(()=>{
     try{
-      if(entry.page!=null){const wrap=pdfEl.querySelector(`.pdf-page-wrap[data-page="${entry.page}"]`);if(wrap){wrap.scrollIntoView({block:'start',behavior:'auto'});return}}
+      if(entry.page!=null){
+        const wrap=pdfEl.querySelector(`.pdf-page-wrap[data-page="${entry.page}"]`);
+        if(wrap){wrap.scrollIntoView({block:'start',behavior:'auto'});return}
+      }
       if(typeof entry.scrollTop==='number')pdfEl.scrollTop=entry.scrollTop;
     }catch(_){}
   });
@@ -522,42 +548,70 @@ function clearReadingProgress(){
   delete progressMap[key];
   const h=historyTitles.find(x=>x.name===currentDetailTitle);
   if(h&&h.progress)delete h.progress;
+  _pendingResumeProgress=null;
   renderHistoryModalList();updateResumeUI();
   if(catalogMode==='continue')renderCatalog();
   if(window.syncUserMetaToNetwork)window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles,progress:Object.values(progressMap)});
 }
 function updateResumeUI(){
-  const btn=document.getElementById('openExternalBtn');if(!btn)return;
-  const prog=getProgressEntry(currentItemFullData,currentDetailTitle);
-  const label=btn.querySelector('div');
-  const has=prog&&!prog.completed&&prog.chapter!=null&&(prog.page!=null||prog.cfi||prog.scrollTop!=null);
-  if(has){
-    if(label)label.textContent='Continuar';
-    btn.classList.add('ring-2','ring-secondary/60');
-    btn.title=`Continuar · Vol ${prog.volume} Cap ${prog.chapter}`+(prog.page!=null?` · pág. ${prog.page}`:'');
-  }else{
+  const btn=document.getElementById('openExternalBtn');
+  const cont=document.getElementById('continueReadingBtn');
+  const contLabel=document.getElementById('continueReadingLabel');
+  if(btn){
+    const label=btn.querySelector('div');
     if(label)label.textContent='Ler';
     btn.classList.remove('ring-2','ring-secondary/60');
     btn.title='Ler';
   }
+  const prog=getProgressEntry(currentItemFullData,currentDetailTitle);
+  const has=!!(prog&&!prog.completed&&(prog.page!=null||prog.cfi||prog.scrollTop!=null||(typeof prog.percentage==='number'&&prog.percentage>0)));
+  if(cont){
+    cont.classList.toggle('hidden',!has);
+    if(has&&contLabel){
+      const fileSel=`Vol ${prog.volume??1} Cap ${prog.chapter??1}`;
+      const pagePart=prog.page!=null?` · pág. ${prog.page}`:'';
+      contLabel.textContent=`Continuar · ${fileSel}${pagePart}`;
+    }
+  }
+}
+async function continueFromSavedProgress(){
+  const prog=getProgressEntry(currentItemFullData,currentDetailTitle);
+  if(!prog||prog.completed)return;
+  if(prog.volume!=null&&Object.keys(currentVolumesData||{}).map(String).includes(String(prog.volume)))activeVolume=prog.volume;
+  if(prog.chapter!=null)activeChapterKey=String(prog.chapter);
+  else ensureActiveFileSelector();
+  _pendingResumeProgress=prog;
+  renderVolumesTabBar();
+  renderDetailChaptersUI();
+  const btn=[...document.querySelectorAll('#chaptersContainer .ep-btn')].find(b=>String(b.textContent).trim()===String(activeChapterKey));
+  if(btn){
+    document.querySelectorAll('#chaptersContainer .ep-btn').forEach(b=>b.className='ep-btn w-12 h-12 rounded-xl bg-white/10 text-white font-bold text-sm shrink-0');
+    btn.className='ep-btn w-12 h-12 rounded-xl bg-white text-gray-900 font-bold text-sm shrink-0 shadow-md';
+  }
+  await openCurrentFile({resume:true});
 }
 function getProgressListForContinue(){
   const list=[];const seen=new Set();
   const pushFrom=(p)=>{
     if(!p||!p.name||p.completed)return;
-    if(p.chapter==null)return;
-    if(p.page==null&&!p.cfi&&p.scrollTop==null)return;
-    const key=(p._dTag||'')+'|'+(p.provider||'')+'|'+p.name;if(seen.has(key))return;seen.add(key);
+    const hasPos=p.page!=null||!!p.cfi||p.scrollTop!=null||(typeof p.percentage==='number'&&p.percentage>0);
+    if(!hasPos)return;
+    const key=(p._dTag||'')+'|'+(p.provider||'')+'|'+p.name;
+    if(seen.has(key))return;seen.add(key);
     let light=null;
     if(p._dTag&&window.__lpMediaIndex)light=window.__lpMediaIndex[p._dTag]||null;
     if(!light&&p.provider&&p.name)light=window.__lpMediaIndex?.['name:'+p.provider+'|'+p.name]||null;
-    const fileSel=`Vol ${p.volume} Cap ${p.chapter}`;
+    const vol=p.volume!=null?p.volume:1;
+    const ch=p.chapter!=null?p.chapter:1;
+    const fileSel=`Vol ${vol} Cap ${ch}`;
     const pagePart=p.page!=null?` · pág. ${p.page}`:'';
     const pct=formatPct(p.percentage!=null?p.percentage:readingScore(p));
     list.push({name:p.name,img:(light&&light.img)||p.img||'',status:`Continuar · ${fileSel}${pagePart}${pct?` · ${pct}`:''}`,badge:'Continuar',type:p.type||currentMediaType,provider:p.provider||currentProvider,_dTag:p._dTag||(light&&light._dTag)||null,_hasMedia:true,_progress:p});
   };
   Object.values(progressMap||{}).forEach(pushFrom);
-  (historyTitles||[]).forEach(h=>{if(h&&h.progress)pushFrom({name:h.name,img:h.img,provider:h.provider,type:h.type,_dTag:h._dTag,...h.progress,updatedAt:h.viewedAt||h.progress.updatedAt})});
+  (historyTitles||[]).forEach(h=>{
+    if(h&&h.progress)pushFrom({name:h.name,img:h.img,provider:h.provider,type:h.type,_dTag:h._dTag,...h.progress,updatedAt:h.viewedAt||h.progress.updatedAt});
+  });
   list.sort((a,b)=>((b._progress&&b._progress.updatedAt)||0)-((a._progress&&a._progress.updatedAt)||0));
   return list;
 }
@@ -759,7 +813,7 @@ async function renderPdfWithPdfJs(buffer){
   },{root:pdfEl,rootMargin:'30% 0px',threshold:0.01});
   pageMeta.forEach(m=>observer.observe(m.wrap));window.__lpPdfObserver=observer;
 
-  const saved=_pendingResumeProgress||getProgressEntry(currentItemFullData,currentDetailTitle);
+  const saved=_pendingResumeProgress||null;
   _pendingResumeProgress=null;
   if(saved&&!saved.completed&&(saved.page!=null||saved.scrollTop!=null)){
     requestAnimationFrame(()=>applyProgressToReader(saved));
@@ -785,7 +839,7 @@ async function openInReader(src,ref){
     if(epubEl)epubEl.classList.add('active');
     epubBook=ePub(bookSource);
     epubRendition=epubBook.renderTo('epubViewer',{width:'100%',height:'100%',spread:'none',flow:'paginated',allowScriptedContent:true});
-    const saved=_pendingResumeProgress||getProgressEntry(currentItemFullData,currentDetailTitle);
+    const saved=_pendingResumeProgress||null;
     _pendingResumeProgress=null;
     const startCfi=saved&&!saved.completed&&saved.cfi?saved.cfi:null;
     await epubRendition.display(startCfi||undefined);
@@ -878,12 +932,10 @@ async function goToChapterAt(index){
 }
 function chapterPrev(){const idx=getCurrentChapterIndex();if(idx>0)goToChapterAt(idx-1)}
 function chapterNext(){const idx=getCurrentChapterIndex(),seq=getChapterSequence();if(idx>=0&&idx<seq.length-1)goToChapterAt(idx+1)}
-async function openCurrentFile(){
-  if(activeChapterKey==null){
-    const chs=currentVolumesData[activeVolume]||{};
-    const k=Object.keys(chs).find(x=>hasMediaRef(chs[x]));
-    if(k)activeChapterKey=k;
-  }
+async function openCurrentFile(opts){
+  const resume=!!(opts&&opts.resume);
+  if(!resume)_pendingResumeProgress=null;
+  if(activeChapterKey==null)ensureActiveFileSelector();
   const ref=getActiveMediaRef();
   if(!ref){const data=providerData[currentItemFullData?.provider||currentProvider];if(data?.url)window.open(data.url,'_blank','noopener,noreferrer');else alert('Nenhum arquivo disponível para leitura.');return}
   setMediaLoading(true,'Preparando leitura...');
@@ -960,16 +1012,15 @@ async function openDetailModal(title,img,desc,item=null){
 
   const progFromCard=(item&&item._progress)||null;
   const prog=progFromCard||getProgressEntry(currentItemFullData,title);
-  if(prog&&!prog.completed&&prog.chapter!=null){
+  if(prog&&!prog.completed){
     if(prog.volume!=null&&Object.keys(currentVolumesData).map(String).includes(String(prog.volume)))activeVolume=prog.volume;
     else activeVolume=Object.keys(currentVolumesData)[0]||1;
-    activeChapterKey=String(prog.chapter);
-    _pendingResumeProgress=prog;
+    if(prog.chapter!=null)activeChapterKey=String(prog.chapter);
   }else{
     activeVolume=Object.keys(currentVolumesData)[0]||1;
     activeChapterKey=null;
-    _pendingResumeProgress=null;
   }
+  _pendingResumeProgress=null;
 
   renderVolumesTabBar();renderDetailChaptersUI();renderSuggestions();
   document.getElementById('detailModalTitle').textContent=title;
@@ -981,17 +1032,6 @@ async function openDetailModal(title,img,desc,item=null){
   addToHistory({name:title,img,type:currentItemFullData?.type||currentMediaType,provider:currentItemFullData?.provider||currentProvider,_dTag:currentItemFullData?._dTag||null});
   if(window.refreshPartnerSlots)window.refreshPartnerSlots();
   updateChapterNavVisibility();
-
-  const chs=currentVolumesData[activeVolume]||{};
-  let fk=null;
-  if(prog&&!prog.completed&&prog.chapter!=null&&hasMediaRef(chs[prog.chapter]))fk=String(prog.chapter);
-  if(!fk)fk=Object.keys(chs).find(k=>hasMediaRef(chs[k]));
-  if(fk&&prog&&!prog.completed){
-    activeChapterKey=fk;
-    const btn=[...document.querySelectorAll('#chaptersContainer .ep-btn')].find(b=>String(b.textContent).trim()===String(fk));
-    if(btn){document.querySelectorAll('#chaptersContainer .ep-btn').forEach(b=>b.className='ep-btn w-12 h-12 rounded-xl bg-white/10 text-white font-bold text-sm shrink-0');btn.className='ep-btn w-12 h-12 rounded-xl bg-white text-gray-900 font-bold text-sm shrink-0 shadow-md'}
-    await openCurrentFile();
-  }
 }
 function renderVolumesTabBar(){const tb=document.getElementById('volumesTabBar');if(!tb)return;const keys=Object.keys(currentVolumesData||{});tb.innerHTML=keys.map(v=>`<button type="button" onclick="changeVolume(${v})" class="shrink-0 px-4 py-2 text-xs font-bold rounded-xl border ${parseInt(v)===parseInt(activeVolume)?'bg-secondary text-white border-secondary':'bg-white/5 text-gray-300 border-white/10'}">Vol. ${v}</button>`).join('')||'<span class="text-xs text-gray-400">Nenhum</span>'}
 function renderDetailChaptersUI(){const c=document.getElementById('chaptersContainer'),l=document.getElementById('chaptersCountLabel');if(!c)return;const chs=(currentVolumesData||{})[activeVolume]||{};const keys=Object.keys(chs).filter(k=>hasMediaRef(chs[k]));if(l)l.textContent=keys.length+' arquivo(s)';c.innerHTML=keys.map((ch,i)=>`<button type="button" onclick="selectChapter('${ch}',this)" class="ep-btn w-12 h-12 rounded-xl ${String(ch)===String(activeChapterKey)||(activeChapterKey==null&&i===0)?'bg-white text-gray-900':'bg-white/10 text-white'} font-bold text-sm shrink-0">${ch}</button>`).join('')||'<p class="text-xs text-gray-400">Nenhum</p>'}
@@ -1009,8 +1049,8 @@ function renderHistoryModalList(){
   c.innerHTML=historyTitles.map(i=>{
     const prog=i.progress||getProgressEntry({name:i.name,provider:i.provider,_dTag:i._dTag},i.name);
     let sub=i.type||'';
-    if(prog&&!prog.completed&&prog.chapter!=null&&(prog.page!=null||prog.cfi||prog.scrollTop!=null)){
-      const part=`Vol ${prog.volume} Cap ${prog.chapter}`;
+    if(prog&&!prog.completed&&(prog.page!=null||prog.cfi||prog.scrollTop!=null||(typeof prog.percentage==='number'&&prog.percentage>0))){
+      const part=`Vol ${prog.volume??1} Cap ${prog.chapter??1}`;
       const pagePart=prog.page!=null?` · pág. ${prog.page}`:'';
       const pct=formatPct(prog.percentage!=null?prog.percentage:readingScore(prog));
       sub=`Continuar · ${part}${pagePart}${pct?` · ${pct}`:''}`;
