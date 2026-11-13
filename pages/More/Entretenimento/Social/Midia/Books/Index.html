@@ -460,14 +460,21 @@ function detectPdfPageFromScroll(pdfEl){
   const wraps=[...pdfEl.querySelectorAll('.pdf-page-wrap')];
   if(!wraps.length)return __lpPdfCurrentPage||1;
   try{
-    const containerRect=pdfEl.getBoundingClientRect();
-    const marker=pdfEl.scrollTop+Math.max(40,pdfEl.clientHeight*0.2);
+    const scrollTop=pdfEl.scrollTop;
+    const clientHeight=pdfEl.clientHeight;
     let best=1;
+    let maxVisible=0;
     for(const w of wraps){
-      const rect=w.getBoundingClientRect();
-      const topRel=rect.top-containerRect.top+pdfEl.scrollTop;
+      const top=w.offsetTop;
+      const height=w.offsetHeight||1;
+      const visibleTop=Math.max(top,scrollTop);
+      const visibleBottom=Math.min(top+height,scrollTop+clientHeight);
+      const visible=Math.max(0,visibleBottom-visibleTop);
       const p=parseInt(w.dataset.page,10)||1;
-      if(topRel<=marker)best=p;
+      if(visible>maxVisible){
+        maxVisible=visible;
+        best=p;
+      }
     }
     return best;
   }catch(_){
@@ -1038,8 +1045,8 @@ function renderPostVolumeChaptersInputs(){const w=document.getElementById('postV
 function changePostVolume(n){activePostVolume=parseInt(n);renderPostVolumesTabBar();renderPostVolumeChaptersInputs()}
 function updatePostVolumeChCount(v,n){const c=Math.max(1,parseInt(n)||1);const cur=postVolumesData[v]||{},neu={};for(let i=1;i<=c;i++)neu[i]=cur[i]??null;postVolumesData[v]=neu;renderPostVolumeChaptersInputs()}
 function updatePostChFile(v,c,inp){if(inp.files?.[0]){if(!postVolumesData[v])postVolumesData[v]={};postVolumesData[v][c]=inp.files[0]}}
-function resetCreationForm(){isEditMode=false;editingBasePayload=null;document.getElementById('editEventDTag').value='';document.getElementById('creationModalTitleText').textContent='Publicar Título';document.getElementById('postSubmitBtn').textContent='Publicar Título';document.getElementById('coverOptionalHint').classList.add('hidden');document.getElementById('postCover').required=true;postVolumesData={1:{1:null}};activePostVolume=1}
-function openEditCurrentContent(){if(!canPostContent()||!currentItemFullData)return;isEditMode=true;editingBasePayload=JSON.parse(JSON.stringify(currentItemFullData));document.getElementById('editEventDTag').value=currentItemFullData._dTag||'';document.getElementById('creationModalTitleText').textContent='Editar Título';document.getElementById('postSubmitBtn').textContent='Salvar alterações';document.getElementById('coverOptionalHint').classList.remove('hidden');document.getElementById('postCover').required=false;document.getElementById('postProvider').value=currentItemFullData.provider||currentProvider;document.getElementById('postType').value=currentItemFullData.type||'books';document.getElementById('postName').value=currentItemFullData.name||currentDetailTitle;togglePostFields(document.getElementById('postType').value);if(currentItemFullData.volumes){postVolumesData={};for(const v of Object.keys(currentItemFullData.volumes)){postVolumesData[v]={};for(const c of Object.keys(currentItemFullData.volumes[v]||{}))postVolumesData[v][c]=null}if(!Object.keys(postVolumesData).length)postVolumesData={1:{1:null}};const nVol=Object.keys(postVolumesData).length;document.getElementById('postVolumes').value=nVol;renderPostVolumesInputs(nVol)}closeModal('detailModal');openModal('creationModal')}
+function resetCreationForm(){isEditMode=false;editingBasePayload=null;document.getElementById('editEventDTag').value='';document.getElementById('creationModalTitleText').textContent='Publicar Título';document.getElementById('postSubmitBtn').textContent='Publicar Título';document.getElementById('coverOptionalHint').classList.add('hidden';document.getElementById('postCover').required=true;postVolumesData={1:{1:null}};activePostVolume=1}
+function openEditCurrentContent(){if(!canPostContent()||!currentItemFullData)return;isEditMode=true;editingBasePayload=JSON.parse(JSON.stringify(currentItemFullData));document.getElementById('editEventDTag').value=currentItemFullData._dTag||'';document.getElementById('creationModalTitleText').textContent='Editar Título';document.getElementById('postSubmitBtn').textContent='Salvar alterações';document.getElementById('coverOptionalHint').classList.remove('hidden';document.getElementById('postCover').required=false;document.getElementById('postProvider').value=currentItemFullData.provider||currentProvider;document.getElementById('postType').value=currentItemFullData.type||'books';document.getElementById('postName').value=currentItemFullData.name||currentDetailTitle;togglePostFields(document.getElementById('postType').value);if(currentItemFullData.volumes){postVolumesData={};for(const v of Object.keys(currentItemFullData.volumes)){postVolumesData[v]={};for(const c of Object.keys(currentItemFullData.volumes[v]||{}))postVolumesData[v][c]=null}if(!Object.keys(postVolumesData).length)postVolumesData={1:{1:null}};const nVol=Object.keys(postVolumesData).length;document.getElementById('postVolumes').value=nVol;renderPostVolumesInputs(nVol)}closeModal('detailModal');openModal('creationModal')}
 async function handleContentPost(ev){ev.preventDefault();if(!canPostContent()){alert('Sem permissão.');return}if(!window.__lpStreamNet?.publishPost){alert('Módulo de rede carregando.');return}const cover=document.getElementById('postCover');if(!isEditMode&&!cover.files?.[0]){alert('Selecione a capa.');return}const btn=document.getElementById('postSubmitBtn');if(btn){btn.disabled=true;btn.textContent=isEditMode?'Salvando...':'Enviando...'}try{await window.__lpStreamNet.publishPost({provider:document.getElementById('postProvider').value,type:document.getElementById('postType').value,name:document.getElementById('postName').value,coverFile:cover.files?.[0]||null,volumesFiles:postVolumesData,bookFile:document.getElementById('postBookFile')?.files?.[0]||null,isEdit:isEditMode,existingDTag:document.getElementById('editEventDTag').value||null,basePayload:editingBasePayload});if(window.loadPostsFromNetwork)await window.loadPostsFromNetwork();closeModal('creationModal');ev.target.reset();togglePostFields('books');resetCreationForm();renderPostVolumesInputs(1)}catch(err){console.error(err);alert('Falha: '+(err.message||err))}finally{if(btn){btn.disabled=false;btn.textContent=isEditMode?'Salvar alterações':'Publicar Título'}}}
 function openModal(id){if(id==='creationModal'&&!canPostContent()){alert('Sem permissão.');return}if(id==='creationModal'&&!isEditMode)resetCreationForm();document.getElementById(id)?.classList.remove('hidden');if(id==='savedModal')renderSavedModalList();if(id==='historyModal')renderHistoryModalList();if(id==='detailModal')document.body.style.overflow='hidden'}
 function closeModal(id){document.getElementById(id)?.classList.add('hidden');if(id==='detailModal'){saveProgressSnapshot(true);document.body.style.overflow='';showCoverOnly()}if(id==='creationModal')resetCreationForm()}
