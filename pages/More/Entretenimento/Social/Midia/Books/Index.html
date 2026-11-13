@@ -100,13 +100,11 @@
         .suggest-card .thumb{aspect-ratio:2/3;border-radius:10px;overflow:hidden;background:#1f2937;border:1px solid rgba(255,255,255,.08)}
         .suggest-card img{width:100%;height:100%;object-fit:cover}
         .suggest-card p{font-size:10px;margin-top:6px;color:#e5e7eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
         @media (max-width:1023px){
             #detailModal.reading-mode #detailShell{flex-direction:column;height:100dvh;max-height:100dvh}
             #detailModal.reading-mode #readerStage{flex:1 1 0;min-height:0;height:100%;max-height:none;padding:0}
             #detailModal.reading-mode #detailPanel{display:none}
-            #detailModal.reading-mode #epubViewer,
-            #detailModal.reading-mode #pdfViewer{width:100%;height:100%;min-height:100%}
+            #detailModal.reading-mode #epubViewer,#detailModal.reading-mode #pdfViewer{width:100%;height:100%;min-height:100%}
             #detailModal.reading-mode .epub-nav{width:2.5rem;height:2.5rem}
             #detailModal.reading-mode #exitReadingBtn{display:flex}
             #detailModal.reading-mode .chapter-nav{bottom:1.5rem}
@@ -200,9 +198,10 @@
                         <h2 class="text-sm font-bold text-gray-900 uppercase" id="catalogTitle">Recomendados · Livros</h2>
                     </div>
                     <div class="inline-flex p-1 bg-gray-200/80 rounded-xl">
-                        <button type="button" id="btnBooks" onclick="setMediaType('books')" class="px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white">Livros</button>
-                        <button type="button" id="btnMangas" onclick="setMediaType('mangas')" class="px-3 py-1 text-xs font-bold rounded-lg text-gray-600">Mangás</button>
-                        <button type="button" id="btnLightNovels" onclick="setMediaType('lightnovels')" class="px-3 py-1 text-xs font-bold rounded-lg text-gray-600">Light Novels</button>
+                        <button type="button" id="btnBooks" onclick="setCatalogMode('books')" class="px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white">Livros</button>
+                        <button type="button" id="btnMangas" onclick="setCatalogMode('mangas')" class="px-3 py-1 text-xs font-bold rounded-lg text-gray-600">Mangás</button>
+                        <button type="button" id="btnLightNovels" onclick="setCatalogMode('lightnovels')" class="px-3 py-1 text-xs font-bold rounded-lg text-gray-600">Light Novels</button>
+                        <button type="button" id="btnContinue" onclick="setCatalogMode('continue')" class="px-3 py-1 text-xs font-bold rounded-lg text-gray-600">Continuar</button>
                     </div>
                 </div>
                 <div id="networkStatus" class="text-xs text-gray-400 mb-2 flex items-center gap-2"><i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>Sincronizando...</span></div>
@@ -391,260 +390,20 @@ function loadSessionAvatar(){const el=document.getElementById('userAvatarHeader'
 
 let currentDetailTitle='',currentDetailImg='',currentItemFullData=null,activeVolume=1,activeChapterKey=null;
 let savedTitles=[],historyTitles=[];
+let progressMap={};
 let currentVolumesData={1:{1:''}};
 let activePostVolume=1;
 let postVolumesData={1:{1:null}};
-let currentProvider='kindle',currentMediaType='books',searchQuery='',currentObjectUrl=null;
+let currentProvider='kindle',currentMediaType='books',catalogMode='books',searchQuery='',currentObjectUrl=null;
 let isEditMode=false,editingBasePayload=null,catalogLoading=true;
 let slides=[...SRC_FALLBACK_SLIDES],currentSlide=0,slideInterval=null;
 window.__lpMediaIndex=window.__lpMediaIndex||Object.create(null);
 let epubBook=null,epubRendition=null,epubCurrentUrl=null;
 let catalogPage=1;
 const ITEMS_PER_PAGE=28;
-
-/* ========== Progresso de leitura + conflitos Nostr ========== */
-const READING_PROGRESS_KEY='lp_reading_progress_v1';
-const CLOCK_SKEW_MS=2*60*1000;
-let readingProgressSaveTimer=null;
-let readingProgressNetworkTimer=null;
-let readingProgressMap=Object.create(null);
-let metaSyncInFlight=false;
-let metaDirty=false;
-
-function loadAllProgress(){
-    try{
-        const raw=JSON.parse(localStorage.getItem(READING_PROGRESS_KEY)||'{}')||{};
-        readingProgressMap=raw;
-        return raw;
-    }catch(_){
-        readingProgressMap=Object.create(null);
-        return readingProgressMap;
-    }
-}
-function saveAllProgress(map){
-    readingProgressMap=map||{};
-    try{localStorage.setItem(READING_PROGRESS_KEY,JSON.stringify(readingProgressMap))}catch(e){console.warn(e)}
-}
-function getProgressStorageKey(){
-    const item=currentItemFullData;
-    if(!item)return null;
-    const id=item._dTag||((item.provider||currentProvider)+'|'+item.name);
-    const vol=String(activeVolume??1);
-    const ch=activeChapterKey!=null?String(activeChapterKey):'1';
-    return id+'|v'+vol+'|c'+ch;
-}
-function getSavedProgress(){
-    const key=getProgressStorageKey();
-    if(!key)return null;
-    if(!Object.keys(readingProgressMap).length)loadAllProgress();
-    return readingProgressMap[key]||null;
-}
-function pruneProgressMap(map,max=80){
-    const keys=Object.keys(map||{}).sort((a,b)=>(map[b].updatedAt||0)-(map[a].updatedAt||0));
-    if(keys.length<=max)return map||{};
-    const next={};
-    keys.slice(0,max).forEach(k=>{next[k]=map[k]});
-    return next;
-}
-function progressScore(p){
-    if(!p||typeof p!=='object')return -1;
-    if(typeof p.percentage==='number'&&!Number.isNaN(p.percentage))
-        return Math.min(1,Math.max(0,p.percentage));
-    if(p.type==='pdf'||p.page!=null){
-        const page=Number(p.page)||0;
-        const total=Number(p.totalPages)||0;
-        if(total>0)return Math.min(1,Math.max(0,(page-1)/total));
-        return Math.min(1,page/5000);
-    }
-    if(typeof p.scrollTop==='number')return Math.min(1,Math.max(0,p.scrollTop/1e7));
-    if(p.cfi)return 0.001;
-    return -1;
-}
-function resolveProgressEntry(a,b){
-    if(!a)return b||null;
-    if(!b)return a;
-    const ta=Number(a.updatedAt)||0;
-    const tb=Number(b.updatedAt)||0;
-    const sa=progressScore(a);
-    const sb=progressScore(b);
-    const dt=ta-tb;
-    if(Math.abs(dt)>CLOCK_SKEW_MS)return dt>0?a:b;
-    if(Math.abs(sa-sb)>0.002)return sa>sb?a:b;
-    if(dt!==0)return dt>0?a:b;
-    return{
-        ...b,...a,
-        cfi:a.cfi||b.cfi,
-        page:a.page!=null?a.page:b.page,
-        scrollTop:a.scrollTop!=null?a.scrollTop:b.scrollTop,
-        percentage:a.percentage!=null?a.percentage:b.percentage,
-        totalPages:a.totalPages||b.totalPages,
-        type:a.type||b.type,
-        title:a.title||b.title,
-        provider:a.provider||b.provider,
-        dTag:a.dTag||b.dTag,
-        vol:a.vol||b.vol,
-        ch:a.ch||b.ch,
-        updatedAt:Math.max(ta,tb)
-    };
-}
-function mergeProgressMaps(...maps){
-    const out={};
-    for(const map of maps){
-        if(!map||typeof map!=='object')continue;
-        for(const k of Object.keys(map))out[k]=resolveProgressEntry(out[k],map[k]);
-    }
-    return pruneProgressMap(out,80);
-}
-function itemIdentity(it){
-    if(!it)return '';
-    return String(it._dTag||it.dTag||it.name||'').toLowerCase();
-}
-function mergeItemLists(localList,remoteList,timeField){
-    const map=new Map();
-    const put=(it)=>{
-        if(!it||!it.name)return;
-        const id=itemIdentity(it);
-        if(!id)return;
-        const prev=map.get(id);
-        if(!prev){map.set(id,it);return}
-        const tNew=Number(it[timeField])||Number(it.updatedAt)||0;
-        const tOld=Number(prev[timeField])||Number(prev.updatedAt)||0;
-        map.set(id,tNew>=tOld?{...prev,...it}:{...it,...prev});
-    };
-    (remoteList||[]).forEach(put);
-    (localList||[]).forEach(put);
-    return [...map.values()].sort((a,b)=>{
-        const ta=Number(a[timeField])||Number(a.updatedAt)||0;
-        const tb=Number(b[timeField])||Number(b.updatedAt)||0;
-        return tb-ta;
-    });
-}
-function resolveUserMetaConflict(localMeta,remoteMeta){
-    const local={
-        saved:Array.isArray(localMeta?.saved)?localMeta.saved:[],
-        history:Array.isArray(localMeta?.history)?localMeta.history:[],
-        progress:(localMeta?.progress&&typeof localMeta.progress==='object')?localMeta.progress:{}
-    };
-    const remote={
-        saved:Array.isArray(remoteMeta?.saved)?remoteMeta.saved:[],
-        history:Array.isArray(remoteMeta?.history)?remoteMeta.history:[],
-        progress:(remoteMeta?.progress&&typeof remoteMeta.progress==='object')?remoteMeta.progress:{}
-    };
-    const saved=mergeItemLists(local.saved,remote.saved,'savedAt');
-    const history=mergeItemLists(local.history,remote.history,'viewedAt').slice(0,50);
-    const progress=mergeProgressMaps(local.progress,remote.progress);
-    const remoteFlat=JSON.stringify({saved:remote.saved,history:remote.history,progress:remote.progress});
-    const mergedFlat=JSON.stringify({saved,history,progress});
-    return{saved,history,progress,changed:remoteFlat!==mergedFlat,updatedAt:Date.now()};
-}
-function saveReadingProgress(partial){
-    const key=getProgressStorageKey();
-    if(!key||!partial)return;
-    clearTimeout(readingProgressSaveTimer);
-    readingProgressSaveTimer=setTimeout(()=>{
-        if(!Object.keys(readingProgressMap).length)loadAllProgress();
-        const prev=readingProgressMap[key]||{};
-        const next={
-            ...prev,
-            ...partial,
-            title:currentDetailTitle||prev.title||'',
-            provider:currentItemFullData?.provider||currentProvider||prev.provider||'',
-            type:currentItemFullData?.type||currentMediaType||prev.type||'',
-            dTag:currentItemFullData?._dTag||prev.dTag||null,
-            vol:String(activeVolume??1),
-            ch:activeChapterKey!=null?String(activeChapterKey):'1',
-            updatedAt:Date.now()
-        };
-        readingProgressMap[key]=resolveProgressEntry(prev,next);
-        readingProgressMap=pruneProgressMap(readingProgressMap,80);
-        saveAllProgress(readingProgressMap);
-        metaDirty=true;
-        updateResumeUI();
-        scheduleProgressNetworkSync();
-    },400);
-}
-function clearReadingProgress(){
-    const key=getProgressStorageKey();
-    if(!key)return;
-    if(!Object.keys(readingProgressMap).length)loadAllProgress();
-    delete readingProgressMap[key];
-    saveAllProgress(readingProgressMap);
-    metaDirty=true;
-    updateResumeUI();
-    scheduleProgressNetworkSync(true);
-}
-function updateResumeUI(){
-    const btn=document.getElementById('openExternalBtn');
-    if(!btn)return;
-    const prog=getSavedProgress();
-    const label=btn.querySelector('div');
-    const has=prog&&(prog.cfi||prog.page!=null||prog.scrollTop!=null);
-    if(has){
-        if(label)label.textContent='Continuar';
-        btn.classList.add('ring-2','ring-secondary/60');
-        btn.title='Continuar de onde parou';
-    }else{
-        if(label)label.textContent='Ler';
-        btn.classList.remove('ring-2','ring-secondary/60');
-        btn.title='Ler';
-    }
-}
-function getLocalUserMeta(){
-    if(!Object.keys(readingProgressMap).length)loadAllProgress();
-    return{saved:savedTitles,history:historyTitles,progress:readingProgressMap};
-}
-function applyResolvedMeta(resolved,{fromNetwork=false}={}){
-    if(!resolved)return;
-    if(Array.isArray(resolved.saved))savedTitles=resolved.saved;
-    if(Array.isArray(resolved.history))historyTitles=resolved.history;
-    if(resolved.progress&&typeof resolved.progress==='object'){
-        readingProgressMap=pruneProgressMap(resolved.progress,80);
-        saveAllProgress(readingProgressMap);
-    }
-    renderSavedModalList();
-    renderHistoryModalList();
-    updateResumeUI();
-    if(fromNetwork&&resolved.changed&&isUserLoggedIn()&&window.syncUserMetaToNetwork){
-        metaDirty=true;
-        scheduleProgressNetworkSync(true);
-    }
-}
-function applyUserMeta(meta){
-    if(!meta)return;
-    const local=getLocalUserMeta();
-    const resolved=resolveUserMetaConflict(local,meta);
-    applyResolvedMeta(resolved,{fromNetwork:true});
-}
-async function pushUserMetaToNetwork(force=false){
-    if(!window.syncUserMetaToNetwork)return false;
-    if(!isUserLoggedIn())return false;
-    if(metaSyncInFlight){metaDirty=true;return false}
-    if(!force&&!metaDirty)return false;
-    metaSyncInFlight=true;
-    metaDirty=false;
-    try{
-        const ok=await window.syncUserMetaToNetwork({
-            saved:savedTitles,
-            history:historyTitles,
-            progress:readingProgressMap
-        });
-        if(!ok)metaDirty=true;
-        return ok;
-    }catch(e){
-        console.warn('meta sync',e);
-        metaDirty=true;
-        return false;
-    }finally{
-        metaSyncInFlight=false;
-        if(metaDirty)scheduleProgressNetworkSync();
-    }
-}
-function scheduleProgressNetworkSync(immediate=false){
-    clearTimeout(readingProgressNetworkTimer);
-    if(immediate){pushUserMetaToNetwork(true);return}
-    readingProgressNetworkTimer=setTimeout(()=>pushUserMetaToNetwork(true),8000);
-}
-loadAllProgress();
+let _progressSaveTimer=null;
+let _lastProgressSavedAt=0;
+let _pendingResumeProgress=null;
 
 const providerData={
     kindle:{name:'Kindle',url:'https://www.amazon.com.br/kindle-dbs/hz/bookshelf',books:[],mangas:[],lightnovels:[]},
@@ -659,6 +418,125 @@ const providerData={
 };
 const TYPE_LABELS={books:'Livro',mangas:'Mangá',lightnovels:'Light Novel'};
 const TYPE_PLURAL={books:'Livros',mangas:'Mangás',lightnovels:'Light Novels'};
+
+/* ========== Continuar (igual Streaming) ========== */
+function progressKeyFromItem(item,title){
+  if(item&&item._dTag)return 'd:'+item._dTag;
+  const prov=(item&&item.provider)||currentProvider||'';
+  const name=(item&&item.name)||title||currentDetailTitle||'';
+  return 'n:'+prov+'|'+name;
+}
+function getProgressEntry(item,title){return progressMap[progressKeyFromItem(item,title)]||null}
+function formatPct(p){if(p==null||Number.isNaN(Number(p)))return '';return Math.min(100,Math.max(0,Math.round(Number(p)*100)))+'%'}
+function readingScore(entry){
+  if(!entry||entry.completed)return -1;
+  if(typeof entry.percentage==='number')return entry.percentage;
+  if(entry.page!=null&&entry.totalPages>0)return Math.min(1,Math.max(0,(Number(entry.page)-1)/Number(entry.totalPages)));
+  if(entry.cfi||entry.page!=null||entry.scrollTop!=null)return 0.01;
+  return -1;
+}
+function collectCurrentProgressSnapshot(){
+  if(!currentDetailTitle||!currentItemFullData)return null;
+  const base={
+    name:currentDetailTitle,img:currentDetailImg||'',
+    provider:currentItemFullData?.provider||currentProvider,
+    type:currentItemFullData?.type||currentMediaType,
+    _dTag:currentItemFullData?._dTag||null,
+    volume:String(activeVolume??1),
+    chapter:activeChapterKey!=null?String(activeChapterKey):'1',
+    updatedAt:Date.now(),completed:false
+  };
+  if(epubRendition){
+    try{
+      const loc=epubRendition.currentLocation?.()||epubRendition.location;
+      const cfi=loc?.start?.cfi;if(!cfi)return null;
+      let percentage=null;
+      if(epubBook?.locations&&typeof epubBook.locations.percentageFromCfi==='function'){
+        percentage=epubBook.locations.percentageFromCfi(cfi);
+      }
+      const completed=percentage!=null&&percentage>=0.98;
+      return{...base,reader:'epub',cfi,percentage:percentage!=null?percentage:undefined,completed,currentTime:percentage!=null?percentage:0.01,duration:1};
+    }catch(_){return null}
+  }
+  const pdfEl=document.getElementById('pdfViewer');
+  if(pdfEl&&pdfEl.classList.contains('active')){
+    const wraps=[...pdfEl.querySelectorAll('.pdf-page-wrap')];
+    let page=1;const top=pdfEl.scrollTop+pdfEl.clientHeight*0.25;
+    for(const w of wraps){if(w.offsetTop<=top)page=parseInt(w.dataset.page,10)||page;else break}
+    const totalPages=wraps.length||0;
+    if(page<1&&(pdfEl.scrollTop||0)<8)return null;
+    const percentage=totalPages>0?Math.min(1,(page-1)/totalPages):0;
+    const completed=totalPages>0&&page>=totalPages;
+    return{...base,reader:'pdf',page,scrollTop:pdfEl.scrollTop||0,totalPages,percentage,completed,currentTime:percentage,duration:1};
+  }
+  return null;
+}
+async function saveProgressSnapshot(forceSync=false){
+  const snap=collectCurrentProgressSnapshot();if(!snap)return;
+  const key=progressKeyFromItem({_dTag:snap._dTag,provider:snap.provider,name:snap.name},snap.name);
+  progressMap[key]=snap;
+  const histIdx=historyTitles.findIndex(h=>h.name===snap.name);
+  const histEntry={name:snap.name,img:snap.img,type:snap.type,provider:snap.provider,_dTag:snap._dTag,viewedAt:Date.now(),progress:{volume:snap.volume,chapter:snap.chapter,reader:snap.reader,cfi:snap.cfi,page:snap.page,scrollTop:snap.scrollTop,totalPages:snap.totalPages,percentage:snap.percentage,currentTime:snap.currentTime,duration:snap.duration,completed:!!snap.completed}};
+  if(histIdx>=0)historyTitles[histIdx]={...historyTitles[histIdx],...histEntry};
+  else{historyTitles.unshift(histEntry);if(historyTitles.length>50)historyTitles=historyTitles.slice(0,50)}
+  renderHistoryModalList();
+  if(catalogMode==='continue')renderCatalog();
+  updateResumeUI();
+  const now=Date.now();
+  if(forceSync||now-_lastProgressSavedAt>15000){
+    _lastProgressSavedAt=now;
+    if(window.syncUserMetaToNetwork)await window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles,progress:Object.values(progressMap)});
+  }
+}
+function scheduleProgressSave(){if(_progressSaveTimer)return;_progressSaveTimer=setTimeout(()=>{_progressSaveTimer=null;saveProgressSnapshot(false)},8000)}
+function applyProgressToReader(entry){
+  if(!entry||entry.completed)return;
+  if(entry.cfi&&epubRendition){epubRendition.display(entry.cfi).catch(()=>{});return}
+  const pdfEl=document.getElementById('pdfViewer');
+  if(!pdfEl||!pdfEl.classList.contains('active'))return;
+  requestAnimationFrame(()=>{
+    try{
+      if(entry.page!=null){const wrap=pdfEl.querySelector(`.pdf-page-wrap[data-page="${entry.page}"]`);if(wrap){wrap.scrollIntoView({block:'start',behavior:'auto'});return}}
+      if(typeof entry.scrollTop==='number')pdfEl.scrollTop=entry.scrollTop;
+    }catch(_){}
+  });
+}
+function clearReadingProgress(){
+  if(!currentDetailTitle)return;
+  const key=progressKeyFromItem(currentItemFullData,currentDetailTitle);
+  delete progressMap[key];
+  const h=historyTitles.find(x=>x.name===currentDetailTitle);
+  if(h&&h.progress)delete h.progress;
+  renderHistoryModalList();updateResumeUI();
+  if(catalogMode==='continue')renderCatalog();
+  if(window.syncUserMetaToNetwork)window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles,progress:Object.values(progressMap)});
+}
+function updateResumeUI(){
+  const btn=document.getElementById('openExternalBtn');if(!btn)return;
+  const prog=getProgressEntry(currentItemFullData,currentDetailTitle);
+  const label=btn.querySelector('div');
+  const has=prog&&!prog.completed&&(prog.cfi||prog.page!=null||prog.scrollTop!=null||readingScore(prog)>0);
+  if(has){if(label)label.textContent='Continuar';btn.classList.add('ring-2','ring-secondary/60');btn.title='Continuar de onde parou'}
+  else{if(label)label.textContent='Ler';btn.classList.remove('ring-2','ring-secondary/60');btn.title='Ler'}
+}
+function getProgressListForContinue(){
+  const list=[];const seen=new Set();
+  const pushFrom=(p)=>{
+    if(!p||!p.name||p.completed)return;
+    const started=readingScore(p)>0||p.cfi||p.page!=null||p.volume!=null||p.chapter!=null;if(!started)return;
+    const key=(p._dTag||'')+'|'+(p.provider||'')+'|'+p.name;if(seen.has(key))return;seen.add(key);
+    let light=null;
+    if(p._dTag&&window.__lpMediaIndex)light=window.__lpMediaIndex[p._dTag]||null;
+    if(!light&&p.provider&&p.name)light=window.__lpMediaIndex?.['name:'+p.provider+'|'+p.name]||null;
+    const volCap=(p.volume!=null&&p.chapter!=null)?`Vol ${p.volume} Cap ${p.chapter} · `:'';
+    const pct=formatPct(p.percentage!=null?p.percentage:readingScore(p));
+    list.push({name:p.name,img:(light&&light.img)||p.img||'',status:'Continuar · '+volCap+(pct||'em andamento'),badge:'Continuar',type:p.type||currentMediaType,provider:p.provider||currentProvider,_dTag:p._dTag||(light&&light._dTag)||null,_hasMedia:true,_progress:p});
+  };
+  Object.values(progressMap||{}).forEach(pushFrom);
+  (historyTitles||[]).forEach(h=>{if(h&&h.progress)pushFrom({name:h.name,img:h.img,provider:h.provider,type:h.type,_dTag:h._dTag,...h.progress,updatedAt:h.viewedAt||h.progress.updatedAt})});
+  list.sort((a,b)=>((b._progress&&b._progress.updatedAt)||0)-((a._progress&&a._progress.updatedAt)||0));
+  return list;
+}
 
 function lightCatalogEntry(entry){
   return{name:entry.name,status:entry.status||'',badge:entry.badge||null,img:entry.img||'',type:entry.type,provider:entry.provider,_dTag:entry._dTag||null,_author:entry._author||null,_eventId:entry._eventId||null,_created_at:entry._created_at||null,_hasMedia:true};
@@ -675,579 +553,331 @@ function getFullEntry(item){
   const key=item._dTag||(item.provider+'|'+item.name);
   return window.__lpMediaIndex[key]||window.__lpMediaIndex['name:'+(item.provider||currentProvider)+'|'+item.name]||item;
 }
-function scrollRail(id,dir){
-    const el=document.getElementById(id);if(!el)return;
-    const step=Math.max(220,Math.floor(el.clientWidth*0.72));
-    el.scrollBy({left:dir*step,behavior:'smooth'});
-}
-function buildSmartSearchQuery(){
-    return `${TYPE_PLURAL[currentMediaType]||'livros'} lançamentos catálogo`;
-}
+function scrollRail(id,dir){const el=document.getElementById(id);if(!el)return;el.scrollBy({left:dir*Math.max(220,Math.floor(el.clientWidth*0.72)),behavior:'smooth'})}
+function buildSmartSearchQuery(){return `${TYPE_PLURAL[currentMediaType]||'livros'} lançamentos catálogo`}
 function updateSearchEnginesHint(){
-    const label=TYPE_PLURAL[currentMediaType]||'Livros';
-    const d=document.getElementById('searchEnginesHintDesktop');
-    const m=document.getElementById('searchEnginesHintMobile');
-    if(d)d.textContent=label;if(m)m.textContent=label;
+  const label=catalogMode==='continue'?'Continuar':(TYPE_PLURAL[currentMediaType]||'Livros');
+  const d=document.getElementById('searchEnginesHintDesktop'),m=document.getElementById('searchEnginesHintMobile');
+  if(d)d.textContent=label;if(m)m.textContent=label;
 }
 function openSearchEngine(engine){
-    const q=encodeURIComponent(buildSmartSearchQuery());
-    const map={google:`https://www.google.com/search?q=${q}`,duckduckgo:`https://duckduckgo.com/?q=${q}`,bing:`https://www.bing.com/search?q=${q}`,youtube:`https://www.youtube.com/results?search_query=${q}`,startpage:`https://www.startpage.com/sp/search?query=${q}`,brave:`https://search.brave.com/search?q=${q}`};
-    if(map[engine])window.open(map[engine],'_blank','noopener,noreferrer');
+  const q=encodeURIComponent(buildSmartSearchQuery());
+  const map={google:`https://www.google.com/search?q=${q}`,duckduckgo:`https://duckduckgo.com/?q=${q}`,bing:`https://www.bing.com/search?q=${q}`,youtube:`https://www.youtube.com/results?search_query=${q}`,startpage:`https://www.startpage.com/sp/search?query=${q}`,brave:`https://search.brave.com/search?q=${q}`};
+  if(map[engine])window.open(map[engine],'_blank','noopener,noreferrer');
 }
-
 function getStreamingSearchUrl(query){
-    const q=encodeURIComponent(String(query||'').trim());
-    if(!q)return '';
-    const byProvider={
-        kindle:`https://www.amazon.com.br/s?k=${q}&i=digital-text`,
-        bookwalker:`https://global.bookwalker.jp/search/?qword=${q}`,
-        mangaplus:`https://mangaplus.shueisha.co.jp/app/search/result?keyword=${q}`,
-        webtoon:`https://www.webtoons.com/en/search?keyword=${q}`,
-        crunchyroll:`https://www.crunchyroll.com/search?q=${q}`,
-        googlebooks:`https://www.google.com/search?tbm=bks&q=${q}`,
-        kobo:`https://www.kobo.com/search?query=${q}`,
-        jnovel:`https://j-novel.club/series?search=${q}`,
-        yenpress:`https://yenpress.com/?s=${q}`
-    };
-    const prov=currentItemFullData?.provider||currentProvider;
-    if(prov&&byProvider[prov])return byProvider[prov];
-    if(currentMediaType==='mangas')return byProvider.mangaplus||byProvider.webtoon;
-    if(currentMediaType==='lightnovels')return byProvider.bookwalker||byProvider.jnovel;
-    return byProvider.kindle||byProvider.googlebooks;
+  const q=encodeURIComponent(String(query||'').trim());if(!q)return '';
+  const byProvider={kindle:`https://www.amazon.com.br/s?k=${q}&i=digital-text`,bookwalker:`https://global.bookwalker.jp/search/?qword=${q}`,mangaplus:`https://mangaplus.shueisha.co.jp/app/search/result?keyword=${q}`,webtoon:`https://www.webtoons.com/en/search?keyword=${q}`,crunchyroll:`https://www.crunchyroll.com/search?q=${q}`,googlebooks:`https://www.google.com/search?tbm=bks&q=${q}`,kobo:`https://www.kobo.com/search?query=${q}`,jnovel:`https://j-novel.club/series?search=${q}`,yenpress:`https://yenpress.com/?s=${q}`};
+  const prov=currentItemFullData?.provider||currentProvider;
+  if(prov&&byProvider[prov])return byProvider[prov];
+  if(currentMediaType==='mangas')return byProvider.mangaplus||byProvider.webtoon;
+  if(currentMediaType==='lightnovels')return byProvider.bookwalker||byProvider.jnovel;
+  return byProvider.kindle||byProvider.googlebooks;
 }
 function countCatalogMatches(q){
-    const query=String(q||'').trim().toLowerCase();
-    if(!query)return 0;
-    let n=0;
-    Object.keys(providerData).forEach(k=>{
-        (providerData[k][currentMediaType]||[]).forEach(it=>{
-            if(it&&it.name&&it.name.toLowerCase().includes(query))n++;
-        });
-    });
-    return n;
+  const query=String(q||'').trim().toLowerCase();if(!query)return 0;let n=0;
+  Object.keys(providerData).forEach(k=>{(providerData[k][currentMediaType]||[]).forEach(it=>{if(it&&it.name&&it.name.toLowerCase().includes(query))n++})});
+  return n;
 }
 function performSearch(){
-    const input=document.getElementById('searchInput');
-    const raw=(input&&input.value)?input.value:searchQuery;
-    const q=String(raw||'').trim();
-    searchQuery=q;
-    catalogPage=1;
-    document.getElementById('clearSearchBtn')?.classList.toggle('hidden',!q);
-    renderCatalog();
-    if(!q)return;
-    if(countCatalogMatches(q)===0){
-        const url=getStreamingSearchUrl(q);
-        if(url)window.location.href=url;
-    }
+  const input=document.getElementById('searchInput');
+  const raw=(input&&input.value)?input.value:searchQuery;
+  const q=String(raw||'').trim();searchQuery=q;catalogPage=1;
+  document.getElementById('clearSearchBtn')?.classList.toggle('hidden',!q);
+  renderCatalog();
+  if(!q||catalogMode==='continue')return;
+  if(countCatalogMatches(q)===0){const url=getStreamingSearchUrl(q);if(url)window.location.href=url}
 }
-
 function isChunkedRef(r){return !!(r&&r.chunked&&Array.isArray(r.chunks)&&r.chunks.length)}
 function hasMediaRef(r){if(!r)return false;if(typeof r==='string')return!!r;if(r.publicUrl||r.playbackUrl||r.url)return true;return isChunkedRef(r)}
 function getPublicMediaUrl(ref){
-    if(!ref)return '';
-    if(typeof ref==='string'){if(/^https?:\/\//i.test(ref)||ref.startsWith('blob:'))return ref;return ''}
-    if(ref.publicUrl&&/^https?:\/\//i.test(ref.publicUrl))return ref.publicUrl;
-    if(ref.playbackUrl&&/^https?:\/\//i.test(ref.playbackUrl))return ref.playbackUrl;
-    if(ref.url&&/^https?:\/\//i.test(ref.url)&&!ref.chunked)return ref.url;
-    if(ref.chunked&&Array.isArray(ref.chunks)&&ref.chunks.length===1){const u=ref.chunks[0]?.url;if(u&&/^https?:\/\//i.test(u))return u}
-    return '';
+  if(!ref)return '';
+  if(typeof ref==='string'){if(/^https?:\/\//i.test(ref)||ref.startsWith('blob:'))return ref;return ''}
+  if(ref.publicUrl&&/^https?:\/\//i.test(ref.publicUrl))return ref.publicUrl;
+  if(ref.playbackUrl&&/^https?:\/\//i.test(ref.playbackUrl))return ref.playbackUrl;
+  if(ref.url&&/^https?:\/\//i.test(ref.url)&&!ref.chunked)return ref.url;
+  if(ref.chunked&&Array.isArray(ref.chunks)&&ref.chunks.length===1){const u=ref.chunks[0]?.url;if(u&&/^https?:\/\//i.test(u))return u}
+  return '';
 }
 async function lookupBlossomPublicUrl(shaHex){
-    if(!shaHex||typeof shaHex!=='string'||shaHex.length<32)return '';
-    const hash=shaHex.toLowerCase().replace(/^0x/,'');
-    for(const base of BLOSSOM_LOOKUP){
-        const url=base.replace(/\/$/,'')+'/'+hash;
-        try{const res=await fetch(url,{method:'HEAD',mode:'cors'});if(res.ok)return url}catch(_){}
-        try{const res=await fetch(url,{method:'GET',headers:{Range:'bytes=0-0'},mode:'cors'});if(res.ok||res.status===206)return url}catch(_){}
-    }
-    return '';
+  if(!shaHex||typeof shaHex!=='string'||shaHex.length<32)return '';
+  const hash=shaHex.toLowerCase().replace(/^0x/,'');
+  for(const base of BLOSSOM_LOOKUP){
+    const url=base.replace(/\/$/,'')+'/'+hash;
+    try{const res=await fetch(url,{method:'HEAD',mode:'cors'});if(res.ok)return url}catch(_){}
+    try{const res=await fetch(url,{method:'GET',headers:{Range:'bytes=0-0'},mode:'cors'});if(res.ok||res.status===206)return url}catch(_){}
+  }
+  return '';
 }
 function setMediaLoading(show,text){const o=document.getElementById('mediaLoadingOverlay'),t=document.getElementById('mediaLoadingText');if(t&&text)t.textContent=text;if(o)o.classList.toggle('hidden',!show)}
 function getActiveMediaRef(){
-    if(currentItemFullData?.volumes){
-        const chs=currentVolumesData[activeVolume]||{};
-        if(activeChapterKey&&hasMediaRef(chs[activeChapterKey]))return chs[activeChapterKey];
-        const k=Object.keys(chs).find(x=>hasMediaRef(chs[x]));
-        if(k)return chs[k];
-        for(const vol of Object.keys(currentVolumesData||{})){
-            const chs2=currentVolumesData[vol]||{};
-            const k2=Object.keys(chs2).find(x=>hasMediaRef(chs2[x]));
-            if(k2){
-                activeVolume=vol;
-                return chs2[k2];
-            }
-        }
+  if(currentItemFullData?.volumes){
+    const chs=currentVolumesData[activeVolume]||{};
+    if(activeChapterKey&&hasMediaRef(chs[activeChapterKey]))return chs[activeChapterKey];
+    const k=Object.keys(chs).find(x=>hasMediaRef(chs[x]));
+    if(k)return chs[k];
+    for(const vol of Object.keys(currentVolumesData||{})){
+      const chs2=currentVolumesData[vol]||{};
+      const k2=Object.keys(chs2).find(x=>hasMediaRef(chs2[x]));
+      if(k2){activeVolume=vol;return chs2[k2]}
     }
-    if(hasMediaRef(currentItemFullData?.fileUrl))return currentItemFullData.fileUrl;
-    return null;
+  }
+  if(hasMediaRef(currentItemFullData?.fileUrl))return currentItemFullData.fileUrl;
+  return null;
 }
 async function resolveMediaSrc(ref,{showLoading=true}={}){
-    if(!ref)return '';
-    let publicUrl=getPublicMediaUrl(ref);
-    if(publicUrl)return publicUrl;
-    const sha=ref&&ref.encSha256;
-    if(sha){
-        if(showLoading)setMediaLoading(true,'Buscando na rede...');
-        try{
-            publicUrl=await lookupBlossomPublicUrl(sha);
-            if(publicUrl){
-                if(typeof ref==='object'){ref.publicUrl=publicUrl;ref.playbackUrl=publicUrl}
-                return publicUrl;
-            }
-        }finally{if(showLoading)setMediaLoading(false)}
-    }
-    if(typeof ref==='string')return ref;
-    if(isChunkedRef(ref)&&window.reconstructMediaFromChunks){
-        if(showLoading)setMediaLoading(true,'Reconstruindo...');
-        try{return await window.reconstructMediaFromChunks(ref)||''}finally{if(showLoading)setMediaLoading(false)}
-    }
-    return '';
+  if(!ref)return '';
+  let publicUrl=getPublicMediaUrl(ref);
+  if(publicUrl)return publicUrl;
+  const sha=ref&&ref.encSha256;
+  if(sha){
+    if(showLoading)setMediaLoading(true,'Buscando na rede...');
+    try{publicUrl=await lookupBlossomPublicUrl(sha);if(publicUrl){if(typeof ref==='object'){ref.publicUrl=publicUrl;ref.playbackUrl=publicUrl}return publicUrl}}
+    finally{if(showLoading)setMediaLoading(false)}
+  }
+  if(typeof ref==='string')return ref;
+  if(isChunkedRef(ref)&&window.reconstructMediaFromChunks){
+    if(showLoading)setMediaLoading(true,'Reconstruindo...');
+    try{return await window.reconstructMediaFromChunks(ref)||''}finally{if(showLoading)setMediaLoading(false)}
+  }
+  return '';
 }
-
-function enterReadingMode(){
-    const modal=document.getElementById('detailModal');
-    if(modal&&window.matchMedia('(max-width:1023px)').matches)modal.classList.add('reading-mode');
-}
-function exitReadingMode(){
-    document.getElementById('detailModal')?.classList.remove('reading-mode');
-}
+function enterReadingMode(){const modal=document.getElementById('detailModal');if(modal&&window.matchMedia('(max-width:1023px)').matches)modal.classList.add('reading-mode')}
+function exitReadingMode(){document.getElementById('detailModal')?.classList.remove('reading-mode')}
 function showCoverOnly(){
-    destroyEpub();
-    if(window.__lpPdfObserver){try{window.__lpPdfObserver.disconnect()}catch(_){}window.__lpPdfObserver=null}
-    const pdfEl=document.getElementById('pdfViewer');
-    if(pdfEl)pdfEl.onscroll=null;
-    exitReadingMode();
-    const cover=document.getElementById('readerCover');
-    const epubEl=document.getElementById('epubViewer');
-    const titleOv=document.getElementById('detailTitleOverlay');
-    if(cover){cover.classList.remove('hidden-cover');cover.style.display=''}
-    if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
-    if(pdfEl){pdfEl.classList.remove('active');pdfEl.innerHTML='';pdfEl.removeAttribute('src')}
-    if(titleOv)titleOv.classList.remove('hidden');
-    document.getElementById('epubPrevBtn')?.classList.remove('visible');
-    document.getElementById('epubNextBtn')?.classList.remove('visible');
-    const bar=document.getElementById('epubProgressBar');if(bar)bar.style.width='0';
-    if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
-    updateChapterNavVisibility();
-    updateResumeUI();
+  destroyEpub();
+  if(window.__lpPdfObserver){try{window.__lpPdfObserver.disconnect()}catch(_){}window.__lpPdfObserver=null}
+  const pdfEl=document.getElementById('pdfViewer');if(pdfEl)pdfEl.onscroll=null;
+  exitReadingMode();
+  const cover=document.getElementById('readerCover'),epubEl=document.getElementById('epubViewer'),titleOv=document.getElementById('detailTitleOverlay');
+  if(cover){cover.classList.remove('hidden-cover');cover.style.display=''}
+  if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
+  if(pdfEl){pdfEl.classList.remove('active');pdfEl.innerHTML='';pdfEl.removeAttribute('src')}
+  if(titleOv)titleOv.classList.remove('hidden');
+  document.getElementById('epubPrevBtn')?.classList.remove('visible');
+  document.getElementById('epubNextBtn')?.classList.remove('visible');
+  const bar=document.getElementById('epubProgressBar');if(bar)bar.style.width='0';
+  if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
+  updateChapterNavVisibility();updateResumeUI();
 }
 function destroyEpub(){
-    try{if(epubRendition){epubRendition.destroy();epubRendition=null}}catch(_){}
-    try{if(epubBook){epubBook.destroy();epubBook=null}}catch(_){}
-    epubCurrentUrl=null;
+  try{if(epubRendition){epubRendition.destroy();epubRendition=null}}catch(_){}
+  try{if(epubBook){epubBook.destroy();epubBook=null}}catch(_){}
+  epubCurrentUrl=null;
 }
 function guessFileKind(url,ref,mimeFromResponse){
-    const mime=((ref&&ref.mime)||mimeFromResponse||'').toLowerCase();
-    const u=String(url||'').toLowerCase();
-    if(mime.includes('epub')||u.includes('.epub')||u.endsWith('epub'))return 'epub';
-    if(mime.includes('pdf')||u.includes('.pdf')||u.endsWith('pdf'))return 'pdf';
-    if(mime.includes('zip')||u.includes('.zip')||u.includes('.cbz')||u.includes('.cbr'))return 'zip';
-    return 'unknown';
+  const mime=((ref&&ref.mime)||mimeFromResponse||'').toLowerCase();
+  const u=String(url||'').toLowerCase();
+  if(mime.includes('epub')||u.includes('.epub')||u.endsWith('epub'))return 'epub';
+  if(mime.includes('pdf')||u.includes('.pdf')||u.endsWith('pdf'))return 'pdf';
+  if(mime.includes('zip')||u.includes('.zip')||u.includes('.cbz')||u.includes('.cbr'))return 'zip';
+  return 'unknown';
 }
 async function fetchFileBuffer(src){
-    if(src.startsWith('blob:')){
-        const res=await fetch(src);
-        if(!res.ok)throw new Error('Falha ao ler blob');
-        return{buffer:await res.arrayBuffer(),mime:res.headers.get('content-type')||''};
-    }
-    const res=await fetch(src,{method:'GET',mode:'cors',credentials:'omit',cache:'force-cache'});
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    return{buffer:await res.arrayBuffer(),mime:res.headers.get('content-type')||''};
+  if(src.startsWith('blob:')){const res=await fetch(src);if(!res.ok)throw new Error('Falha ao ler blob');return{buffer:await res.arrayBuffer(),mime:res.headers.get('content-type')||''}}
+  const res=await fetch(src,{method:'GET',mode:'cors',credentials:'omit',cache:'force-cache'});
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  return{buffer:await res.arrayBuffer(),mime:res.headers.get('content-type')||''};
 }
-
 async function renderPdfWithPdfJs(buffer){
-    if(!window.pdfjsLib)throw new Error('PDF.js não carregou');
-    const pdfEl=document.getElementById('pdfViewer');
-    if(!pdfEl)throw new Error('pdfViewer ausente');
-
-    if(window.__lpPdfObserver){
-        try{window.__lpPdfObserver.disconnect()}catch(_){}
-        window.__lpPdfObserver=null;
-    }
-    pdfEl.onscroll=null;
-
-    pdfEl.innerHTML='';
-    const doc=await pdfjsLib.getDocument({data:buffer}).promise;
-
-    const containerW=Math.max(pdfEl.clientWidth||0,Math.min(window.innerWidth||360,1200));
-    const dpr=Math.min(Math.max(window.devicePixelRatio||1,1),3);
-
-    const LOW_SCALE=Math.min(Math.max(dpr*1.12,1.15),1.55);
-    const HIGH_SCALE=Math.min(LOW_SCALE*2,4);
-    const MAX_CANVAS_EDGE=4096;
-    const LOW_CONCURRENCY=3;
-
-    const pageMeta=[];
-
-    async function paintPage(pageNum,quality){
-        const meta=pageMeta[pageNum-1];
-        if(!meta)return;
-        const token=++meta.token;
-        try{
-            const page=await doc.getPage(pageNum);
-            const baseViewport=page.getViewport({scale:1});
-            const cssScale=containerW/baseViewport.width;
-            const viewport=page.getViewport({scale:cssScale});
-            const outputScale=quality==='high'?HIGH_SCALE:LOW_SCALE;
-
-            let safeScale=outputScale;
-            let bw=Math.floor(viewport.width*safeScale);
-            let bh=Math.floor(viewport.height*safeScale);
-            const maxEdge=Math.max(bw,bh);
-            if(maxEdge>MAX_CANVAS_EDGE){
-                safeScale=outputScale*(MAX_CANVAS_EDGE/maxEdge);
-                bw=Math.floor(viewport.width*safeScale);
-                bh=Math.floor(viewport.height*safeScale);
-            }
-
-            const canvas=document.createElement('canvas');
-            canvas.className='pdf-page';
-            canvas.dataset.page=String(pageNum);
-            canvas.dataset.quality=quality;
-            canvas.width=bw;
-            canvas.height=bh;
-            canvas.style.width=Math.floor(viewport.width)+'px';
-            canvas.style.height=Math.floor(viewport.height)+'px';
-
-            const ctx=canvas.getContext('2d',{alpha:false});
-            if(ctx){
-                const transform=safeScale!==1?[safeScale,0,0,safeScale,0,0]:null;
-                ctx.imageSmoothingEnabled=true;
-                ctx.imageSmoothingQuality=quality==='high'?'high':'medium';
-                await page.render({canvasContext:ctx,viewport,transform}).promise;
-            }
-
-            if(token!==meta.token)return;
-
-            if(meta.canvas&&meta.canvas.parentNode){
-                meta.canvas.replaceWith(canvas);
-            }else{
-                meta.wrap.appendChild(canvas);
-            }
-            meta.canvas=canvas;
-            meta.quality=quality;
-        }catch(err){
-            if(token===meta.token)console.warn('PDF page',pageNum,err);
-        }
-    }
-
-    for(let i=1;i<=doc.numPages;i++){
-        const wrap=document.createElement('div');
-        wrap.className='pdf-page-wrap';
-        wrap.dataset.page=String(i);
-        wrap.style.cssText='margin:0 auto 8px;width:100%;display:flex;justify-content:center;';
-        pdfEl.appendChild(wrap);
-        pageMeta.push({pageNum:i,wrap,canvas:null,quality:null,token:0});
-    }
-
-    let next=1;
-    async function paintLowBatch(){
-        const jobs=[];
-        while(next<=doc.numPages&&jobs.length<LOW_CONCURRENCY){
-            const n=next++;
-            jobs.push(paintPage(n,'low'));
-        }
-        if(!jobs.length)return;
-        await Promise.all(jobs);
-        if(next<=doc.numPages)await paintLowBatch();
-    }
-    await paintLowBatch();
-
-    const observer=new IntersectionObserver((entries)=>{
-        for(const entry of entries){
-            const pageNum=parseInt(entry.target.dataset.page,10);
-            if(!pageNum)continue;
-            const meta=pageMeta[pageNum-1];
-            if(!meta)continue;
-            if(entry.isIntersecting){
-                if(meta.quality!=='high')paintPage(pageNum,'high');
-            }else{
-                if(meta.quality==='high')paintPage(pageNum,'low');
-            }
-        }
-    },{
-        root:pdfEl,
-        rootMargin:'30% 0px',
-        threshold:0.01
-    });
-
-    pageMeta.forEach(m=>observer.observe(m.wrap));
-    window.__lpPdfObserver=observer;
-
-    // Restaurar posição
-    const saved=getSavedProgress();
-    if(saved&&(saved.page!=null||saved.scrollTop!=null)){
-        requestAnimationFrame(()=>{
-            try{
-                if(saved.page!=null){
-                    const wrap=pdfEl.querySelector(`.pdf-page-wrap[data-page="${saved.page}"]`);
-                    if(wrap){wrap.scrollIntoView({block:'start',behavior:'auto'});return}
-                }
-                if(typeof saved.scrollTop==='number')pdfEl.scrollTop=saved.scrollTop;
-            }catch(_){}
-        });
-    }
-
-    // Salvar ao rolar
-    let lastSavedPage=0;
-    pdfEl.onscroll=()=>{
-        clearTimeout(window.__lpPdfScrollSave);
-        window.__lpPdfScrollSave=setTimeout(()=>{
-            const wraps=[...pdfEl.querySelectorAll('.pdf-page-wrap')];
-            let currentPage=1;
-            const top=pdfEl.scrollTop+pdfEl.clientHeight*0.25;
-            for(const w of wraps){
-                if(w.offsetTop<=top)currentPage=parseInt(w.dataset.page,10)||currentPage;
-                else break;
-            }
-            lastSavedPage=currentPage;
-            saveReadingProgress({
-                type:'pdf',
-                page:currentPage,
-                scrollTop:pdfEl.scrollTop,
-                totalPages:doc.numPages
-            });
-        },350);
-    };
-
-    updateResumeUI();
-}
-
-async function openInReader(src,ref){
-    const cover=document.getElementById('readerCover');
-    const epubEl=document.getElementById('epubViewer');
-    const pdfEl=document.getElementById('pdfViewer');
-    const titleOv=document.getElementById('detailTitleOverlay');
-    destroyEpub();
-    if(window.__lpPdfObserver){try{window.__lpPdfObserver.disconnect()}catch(_){}window.__lpPdfObserver=null}
-    if(pdfEl){pdfEl.classList.remove('active');pdfEl.innerHTML='';pdfEl.onscroll=null}
-    if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
-    if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
-
-    const kindHint=guessFileKind(src,ref,'');
-    const isHttp=/^https?:\/\//i.test(src);
-
-    function showPdfStage(){
-        if(cover)cover.classList.add('hidden-cover');
-        if(titleOv)titleOv.classList.add('hidden');
-        document.getElementById('epubPrevBtn')?.classList.remove('visible');
-        document.getElementById('epubNextBtn')?.classList.remove('visible');
-        if(pdfEl)pdfEl.classList.add('active');
-        enterReadingMode();
-        updateChapterNavVisibility();
-    }
-
-    async function setupEpub(bookSource,urlLabel){
-        if(cover)cover.classList.add('hidden-cover');
-        if(titleOv)titleOv.classList.add('hidden');
-        if(epubEl)epubEl.classList.add('active');
-        epubBook=ePub(bookSource);
-        epubRendition=epubBook.renderTo('epubViewer',{width:'100%',height:'100%',spread:'none',flow:'paginated',allowScriptedContent:true});
-        const saved=getSavedProgress();
-        const startCfi=saved&&saved.cfi?saved.cfi:null;
-        await epubRendition.display(startCfi||undefined);
-        epubCurrentUrl=urlLabel;
-        document.getElementById('epubPrevBtn')?.classList.add('visible');
-        document.getElementById('epubNextBtn')?.classList.add('visible');
-        enterReadingMode();
-        updateChapterNavVisibility();
-        updateResumeUI();
-        epubRendition.on('relocated',(loc)=>{
-            try{
-                const cfi=loc?.start?.cfi;
-                if(!cfi)return;
-                let pct=null;
-                if(epubBook.locations&&typeof epubBook.locations.percentageFromCfi==='function'){
-                    pct=epubBook.locations.percentageFromCfi(cfi);
-                }
-                const bar=document.getElementById('epubProgressBar');
-                if(bar&&pct!=null)bar.style.width=((pct||0)*100)+'%';
-                saveReadingProgress({type:'epub',cfi,percentage:pct});
-            }catch(_){}
-        });
-        epubBook.ready.then(()=>{try{epubBook.locations.generate(1024)}catch(_){}}).catch(()=>{});
-    }
-
-    if(kindHint==='pdf'||/\.pdf(\?|#|$)/i.test(String(src))){
-        setMediaLoading(true,'Abrindo PDF...');
-        try{
-            const{buffer}=await fetchFileBuffer(src);
-            showPdfStage();
-            await renderPdfWithPdfJs(buffer);
-            setMediaLoading(false);
-            updateChapterNavVisibility();
-            return;
-        }catch(err){
-            console.error(err);
-            setMediaLoading(false);
-            alert('Não foi possível abrir o PDF na página.');
-            return;
-        }
-    }
-
-    if(isHttp&&(kindHint==='epub'||/\.epub(\?|#|$)/i.test(src))&&window.ePub){
-        setMediaLoading(true,'Carregando EPUB...');
-        try{
-            await setupEpub(src,src);
-            setMediaLoading(false);
-            return;
-        }catch(err){
-            console.warn('EPUB por URL falhou, tentando buffer...',err);
-            destroyEpub();
-            if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
-        }
-    }
-
-    setMediaLoading(true,'Carregando arquivo...');
-    let buffer,mime='';
+  if(!window.pdfjsLib)throw new Error('PDF.js não carregou');
+  const pdfEl=document.getElementById('pdfViewer');if(!pdfEl)throw new Error('pdfViewer ausente');
+  if(window.__lpPdfObserver){try{window.__lpPdfObserver.disconnect()}catch(_){}window.__lpPdfObserver=null}
+  pdfEl.onscroll=null;pdfEl.innerHTML='';
+  const doc=await pdfjsLib.getDocument({data:buffer}).promise;
+  const containerW=Math.max(pdfEl.clientWidth||0,Math.min(window.innerWidth||360,1200));
+  const dpr=Math.min(Math.max(window.devicePixelRatio||1,1),3);
+  const LOW_SCALE=Math.min(Math.max(dpr*1.12,1.15),1.55);
+  const HIGH_SCALE=Math.min(LOW_SCALE*2,4);
+  const MAX_CANVAS_EDGE=4096,LOW_CONCURRENCY=3;
+  const pageMeta=[];
+  async function paintPage(pageNum,quality){
+    const meta=pageMeta[pageNum-1];if(!meta)return;const token=++meta.token;
     try{
-        const fetched=await fetchFileBuffer(src);
-        buffer=fetched.buffer;
-        mime=fetched.mime;
-    }catch(err){
-        console.error(err);
-        setMediaLoading(false);
-        if(isHttp){window.open(src,'_blank','noopener,noreferrer');return}
-        alert('Não foi possível carregar o arquivo para leitura (CORS ou rede).');
-        return;
+      const page=await doc.getPage(pageNum);
+      const baseViewport=page.getViewport({scale:1});
+      const cssScale=containerW/baseViewport.width;
+      const viewport=page.getViewport({scale:cssScale});
+      const outputScale=quality==='high'?HIGH_SCALE:LOW_SCALE;
+      let safeScale=outputScale;let bw=Math.floor(viewport.width*safeScale);let bh=Math.floor(viewport.height*safeScale);
+      const maxEdge=Math.max(bw,bh);
+      if(maxEdge>MAX_CANVAS_EDGE){safeScale=outputScale*(MAX_CANVAS_EDGE/maxEdge);bw=Math.floor(viewport.width*safeScale);bh=Math.floor(viewport.height*safeScale)}
+      const canvas=document.createElement('canvas');
+      canvas.className='pdf-page';canvas.dataset.page=String(pageNum);canvas.dataset.quality=quality;
+      canvas.width=bw;canvas.height=bh;
+      canvas.style.width=Math.floor(viewport.width)+'px';canvas.style.height=Math.floor(viewport.height)+'px';
+      const ctx=canvas.getContext('2d',{alpha:false});
+      if(ctx){const transform=safeScale!==1?[safeScale,0,0,safeScale,0,0]:null;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality=quality==='high'?'high':'medium';await page.render({canvasContext:ctx,viewport,transform}).promise}
+      if(token!==meta.token)return;
+      if(meta.canvas&&meta.canvas.parentNode)meta.canvas.replaceWith(canvas);else meta.wrap.appendChild(canvas);
+      meta.canvas=canvas;meta.quality=quality;
+    }catch(err){if(token===meta.token)console.warn('PDF page',pageNum,err)}
+  }
+  for(let i=1;i<=doc.numPages;i++){
+    const wrap=document.createElement('div');wrap.className='pdf-page-wrap';wrap.dataset.page=String(i);
+    wrap.style.cssText='margin:0 auto 8px;width:100%;display:flex;justify-content:center;';
+    pdfEl.appendChild(wrap);pageMeta.push({pageNum:i,wrap,canvas:null,quality:null,token:0});
+  }
+  let next=1;
+  async function paintLowBatch(){
+    const jobs=[];
+    while(next<=doc.numPages&&jobs.length<LOW_CONCURRENCY){const n=next++;jobs.push(paintPage(n,'low'))}
+    if(!jobs.length)return;await Promise.all(jobs);if(next<=doc.numPages)await paintLowBatch();
+  }
+  await paintLowBatch();
+  const observer=new IntersectionObserver((entries)=>{
+    for(const entry of entries){
+      const pageNum=parseInt(entry.target.dataset.page,10);if(!pageNum)continue;
+      const meta=pageMeta[pageNum-1];if(!meta)continue;
+      if(entry.isIntersecting){if(meta.quality!=='high')paintPage(pageNum,'high')}
+      else{if(meta.quality==='high')paintPage(pageNum,'low')}
     }
+  },{root:pdfEl,rootMargin:'30% 0px',threshold:0.01});
+  pageMeta.forEach(m=>observer.observe(m.wrap));window.__lpPdfObserver=observer;
 
-    const kind=guessFileKind(src,ref,mime);
-    const head=new Uint8Array(buffer.slice(0,4));
-    const isZipLike=head[0]===0x50&&head[1]===0x4B;
-    const isPdfMagic=head[0]===0x25&&head[1]===0x50&&head[2]===0x44&&head[3]===0x46;
-
-    if(kind==='pdf'||isPdfMagic||(mime&&String(mime).toLowerCase().includes('pdf'))){
-        try{
-            showPdfStage();
-            await renderPdfWithPdfJs(buffer);
-            updateChapterNavVisibility();
-        }catch(err){
-            console.error(err);
-            alert('Não foi possível renderizar o PDF.');
-            showCoverOnly();
-        }finally{setMediaLoading(false)}
-        return;
-    }
-
-    if(kind==='epub'||(kind==='unknown'&&isZipLike&&window.ePub)){
-        if(!window.ePub){setMediaLoading(false);alert('epub.js não carregou. Recarregue a página.');return}
-        try{
-            await setupEpub(buffer,'buffer');
-        }catch(err){
-            console.error(err);
-            alert('EPUB inválido ou corrompido.');
-            showCoverOnly();
-            if(cover){cover.classList.remove('hidden-cover');cover.src=currentDetailImg||''}
-        }finally{setMediaLoading(false)}
-        return;
-    }
-
-    setMediaLoading(false);
-    const blob=new Blob([buffer],{type:mime||'application/octet-stream'});
-    currentObjectUrl=URL.createObjectURL(blob);
-    const w=window.open(currentObjectUrl,'_blank','noopener,noreferrer');
-    if(!w)alert('Não foi possível abrir este formato no leitor.');
+  const saved=_pendingResumeProgress||getProgressEntry(currentItemFullData,currentDetailTitle);
+  _pendingResumeProgress=null;
+  if(saved&&!saved.completed&&(saved.page!=null||saved.scrollTop!=null)){
+    requestAnimationFrame(()=>applyProgressToReader(saved));
+  }
+  pdfEl.onscroll=()=>{scheduleProgressSave()};
+  updateResumeUI();
+}
+async function openInReader(src,ref){
+  const cover=document.getElementById('readerCover'),epubEl=document.getElementById('epubViewer'),pdfEl=document.getElementById('pdfViewer'),titleOv=document.getElementById('detailTitleOverlay');
+  destroyEpub();
+  if(window.__lpPdfObserver){try{window.__lpPdfObserver.disconnect()}catch(_){}window.__lpPdfObserver=null}
+  if(pdfEl){pdfEl.classList.remove('active');pdfEl.innerHTML='';pdfEl.onscroll=null}
+  if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
+  if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
+  const kindHint=guessFileKind(src,ref,''),isHttp=/^https?:\/\//i.test(src);
+  function showPdfStage(){
+    if(cover)cover.classList.add('hidden-cover');if(titleOv)titleOv.classList.add('hidden');
+    document.getElementById('epubPrevBtn')?.classList.remove('visible');document.getElementById('epubNextBtn')?.classList.remove('visible');
+    if(pdfEl)pdfEl.classList.add('active');enterReadingMode();updateChapterNavVisibility();
+  }
+  async function setupEpub(bookSource,urlLabel){
+    if(cover)cover.classList.add('hidden-cover');if(titleOv)titleOv.classList.add('hidden');
+    if(epubEl)epubEl.classList.add('active');
+    epubBook=ePub(bookSource);
+    epubRendition=epubBook.renderTo('epubViewer',{width:'100%',height:'100%',spread:'none',flow:'paginated',allowScriptedContent:true});
+    const saved=_pendingResumeProgress||getProgressEntry(currentItemFullData,currentDetailTitle);
+    _pendingResumeProgress=null;
+    const startCfi=saved&&!saved.completed&&saved.cfi?saved.cfi:null;
+    await epubRendition.display(startCfi||undefined);
+    epubCurrentUrl=urlLabel;
+    document.getElementById('epubPrevBtn')?.classList.add('visible');
+    document.getElementById('epubNextBtn')?.classList.add('visible');
+    enterReadingMode();updateChapterNavVisibility();updateResumeUI();
+    epubRendition.on('relocated',(loc)=>{
+      try{
+        const cfi=loc?.start?.cfi;if(!cfi)return;
+        let pct=null;
+        if(epubBook.locations&&typeof epubBook.locations.percentageFromCfi==='function')pct=epubBook.locations.percentageFromCfi(cfi);
+        const bar=document.getElementById('epubProgressBar');if(bar&&pct!=null)bar.style.width=((pct||0)*100)+'%';
+        scheduleProgressSave();
+      }catch(_){}
+    });
+    epubBook.ready.then(()=>{try{epubBook.locations.generate(1024)}catch(_){}}).catch(()=>{});
+  }
+  if(kindHint==='pdf'||/\.pdf(\?|#|$)/i.test(String(src))){
+    setMediaLoading(true,'Abrindo PDF...');
+    try{const{buffer}=await fetchFileBuffer(src);showPdfStage();await renderPdfWithPdfJs(buffer);setMediaLoading(false);updateChapterNavVisibility();return}
+    catch(err){console.error(err);setMediaLoading(false);alert('Não foi possível abrir o PDF na página.');return}
+  }
+  if(isHttp&&(kindHint==='epub'||/\.epub(\?|#|$)/i.test(src))&&window.ePub){
+    setMediaLoading(true,'Carregando EPUB...');
+    try{await setupEpub(src,src);setMediaLoading(false);return}
+    catch(err){console.warn('EPUB por URL falhou, tentando buffer...',err);destroyEpub();if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}}
+  }
+  setMediaLoading(true,'Carregando arquivo...');
+  let buffer,mime='';
+  try{const fetched=await fetchFileBuffer(src);buffer=fetched.buffer;mime=fetched.mime}
+  catch(err){console.error(err);setMediaLoading(false);if(isHttp){window.open(src,'_blank','noopener,noreferrer');return}alert('Não foi possível carregar o arquivo para leitura (CORS ou rede).');return}
+  const kind=guessFileKind(src,ref,mime);
+  const head=new Uint8Array(buffer.slice(0,4));
+  const isZipLike=head[0]===0x50&&head[1]===0x4B;
+  const isPdfMagic=head[0]===0x25&&head[1]===0x50&&head[2]===0x44&&head[3]===0x46;
+  if(kind==='pdf'||isPdfMagic||(mime&&String(mime).toLowerCase().includes('pdf'))){
+    try{showPdfStage();await renderPdfWithPdfJs(buffer);updateChapterNavVisibility()}
+    catch(err){console.error(err);alert('Não foi possível renderizar o PDF.');showCoverOnly()}
+    finally{setMediaLoading(false)}
+    return;
+  }
+  if(kind==='epub'||(kind==='unknown'&&isZipLike&&window.ePub)){
+    if(!window.ePub){setMediaLoading(false);alert('epub.js não carregou. Recarregue a página.');return}
+    try{await setupEpub(buffer,'buffer')}
+    catch(err){console.error(err);alert('EPUB inválido ou corrompido.');showCoverOnly();if(cover){cover.classList.remove('hidden-cover');cover.src=currentDetailImg||''}}
+    finally{setMediaLoading(false)}
+    return;
+  }
+  setMediaLoading(false);
+  const blob=new Blob([buffer],{type:mime||'application/octet-stream'});
+  currentObjectUrl=URL.createObjectURL(blob);
+  const w=window.open(currentObjectUrl,'_blank','noopener,noreferrer');
+  if(!w)alert('Não foi possível abrir este formato no leitor.');
 }
 function epubPrev(){if(epubRendition)epubRendition.prev()}
 function epubNext(){if(epubRendition)epubRendition.next()}
-
 function getChapterSequence(){
-    const seq=[];
-    const vols=Object.keys(currentVolumesData||{}).sort((a,b)=>Number(a)-Number(b)||String(a).localeCompare(String(b)));
-    for(const vol of vols){
-        const chs=currentVolumesData[vol]||{};
-        const keys=Object.keys(chs).filter(k=>hasMediaRef(chs[k]))
-            .sort((a,b)=>Number(a)-Number(b)||String(a).localeCompare(String(b)));
-        for(const ch of keys)seq.push({vol,ch});
-    }
-    return seq;
+  const seq=[];
+  const vols=Object.keys(currentVolumesData||{}).sort((a,b)=>Number(a)-Number(b)||String(a).localeCompare(String(b)));
+  for(const vol of vols){
+    const chs=currentVolumesData[vol]||{};
+    const keys=Object.keys(chs).filter(k=>hasMediaRef(chs[k])).sort((a,b)=>Number(a)-Number(b)||String(a).localeCompare(String(b)));
+    for(const ch of keys)seq.push({vol,ch});
+  }
+  return seq;
 }
 function getCurrentChapterIndex(){
-    const seq=getChapterSequence();
-    if(!seq.length)return -1;
-    const vol=String(activeVolume);
-    const ch=activeChapterKey!=null?String(activeChapterKey):null;
-    if(ch!=null){
-        const i=seq.findIndex(x=>String(x.vol)===vol&&String(x.ch)===ch);
-        if(i>=0)return i;
-    }
-    const firstInVol=seq.findIndex(x=>String(x.vol)===vol);
-    return firstInVol>=0?firstInVol:(seq.length?0:-1);
+  const seq=getChapterSequence();if(!seq.length)return -1;
+  const vol=String(activeVolume),ch=activeChapterKey!=null?String(activeChapterKey):null;
+  if(ch!=null){const i=seq.findIndex(x=>String(x.vol)===vol&&String(x.ch)===ch);if(i>=0)return i}
+  const firstInVol=seq.findIndex(x=>String(x.vol)===vol);
+  return firstInVol>=0?firstInVol:(seq.length?0:-1);
 }
 function updateChapterNavVisibility(){
-    const prevBtn=document.getElementById('chapterPrevBtn');
-    const nextBtn=document.getElementById('chapterNextBtn');
-    if(!prevBtn||!nextBtn)return;
-    const cover=document.getElementById('readerCover');
-    const reading=!!(cover&&cover.classList.contains('hidden-cover'));
-    const seq=getChapterSequence();
-    const idx=getCurrentChapterIndex();
-    const showPrev=reading&&seq.length>1&&idx>0;
-    const showNext=reading&&seq.length>1&&idx>=0&&idx<seq.length-1;
-    prevBtn.classList.toggle('visible',showPrev);
-    nextBtn.classList.toggle('visible',showNext);
+  const prevBtn=document.getElementById('chapterPrevBtn'),nextBtn=document.getElementById('chapterNextBtn');if(!prevBtn||!nextBtn)return;
+  const cover=document.getElementById('readerCover');
+  const reading=!!(cover&&cover.classList.contains('hidden-cover'));
+  const seq=getChapterSequence(),idx=getCurrentChapterIndex();
+  prevBtn.classList.toggle('visible',reading&&seq.length>1&&idx>0);
+  nextBtn.classList.toggle('visible',reading&&seq.length>1&&idx>=0&&idx<seq.length-1);
 }
 async function goToChapterAt(index){
-    const seq=getChapterSequence();
-    if(index<0||index>=seq.length)return;
-    const target=seq[index];
-    activeVolume=target.vol;
-    activeChapterKey=target.ch;
-    renderVolumesTabBar();
-    renderDetailChaptersUI();
-    const btn=[...document.querySelectorAll('#chaptersContainer .ep-btn')]
-        .find(b=>String(b.textContent).trim()===String(target.ch));
-    if(btn){
-        document.querySelectorAll('#chaptersContainer .ep-btn').forEach(b=>b.className='ep-btn w-12 h-12 rounded-xl bg-white/10 text-white font-bold text-sm shrink-0');
-        btn.className='ep-btn w-12 h-12 rounded-xl bg-white text-gray-900 font-bold text-sm shrink-0 shadow-md';
-    }
-    await openCurrentFile();
-    updateChapterNavVisibility();
-    updateResumeUI();
+  const seq=getChapterSequence();if(index<0||index>=seq.length)return;
+  const target=seq[index];activeVolume=target.vol;activeChapterKey=target.ch;
+  renderVolumesTabBar();renderDetailChaptersUI();
+  const btn=[...document.querySelectorAll('#chaptersContainer .ep-btn')].find(b=>String(b.textContent).trim()===String(target.ch));
+  if(btn){document.querySelectorAll('#chaptersContainer .ep-btn').forEach(b=>b.className='ep-btn w-12 h-12 rounded-xl bg-white/10 text-white font-bold text-sm shrink-0');btn.className='ep-btn w-12 h-12 rounded-xl bg-white text-gray-900 font-bold text-sm shrink-0 shadow-md'}
+  await openCurrentFile();updateChapterNavVisibility();updateResumeUI();
 }
-function chapterPrev(){
-    const idx=getCurrentChapterIndex();
-    if(idx>0)goToChapterAt(idx-1);
-}
-function chapterNext(){
-    const idx=getCurrentChapterIndex();
-    const seq=getChapterSequence();
-    if(idx>=0&&idx<seq.length-1)goToChapterAt(idx+1);
-}
-
+function chapterPrev(){const idx=getCurrentChapterIndex();if(idx>0)goToChapterAt(idx-1)}
+function chapterNext(){const idx=getCurrentChapterIndex(),seq=getChapterSequence();if(idx>=0&&idx<seq.length-1)goToChapterAt(idx+1)}
 async function openCurrentFile(){
-    const ref=getActiveMediaRef();
-    if(!ref){
-        const data=providerData[currentItemFullData?.provider||currentProvider];
-        if(data?.url)window.open(data.url,'_blank','noopener,noreferrer');
-        else alert('Nenhum arquivo disponível para leitura.');
-        return;
-    }
-    setMediaLoading(true,'Preparando leitura...');
-    try{
-        const src=await resolveMediaSrc(ref,{showLoading:false});
-        if(!src){alert('Não foi possível obter o arquivo.');return}
-        await openInReader(src,typeof ref==='object'?ref:null);
-    }catch(err){
-        console.error(err);
-        alert('Falha ao abrir: '+(err.message||err));
-    }finally{setMediaLoading(false)}
+  const ref=getActiveMediaRef();
+  if(!ref){const data=providerData[currentItemFullData?.provider||currentProvider];if(data?.url)window.open(data.url,'_blank','noopener,noreferrer');else alert('Nenhum arquivo disponível para leitura.');return}
+  setMediaLoading(true,'Preparando leitura...');
+  try{const src=await resolveMediaSrc(ref,{showLoading:false});if(!src){alert('Não foi possível obter o arquivo.');return}await openInReader(src,typeof ref==='object'?ref:null)}
+  catch(err){console.error(err);alert('Falha ao abrir: '+(err.message||err))}
+  finally{setMediaLoading(false)}
 }
-
 function openStreamingForCurrent(){
-    const q=String(currentDetailTitle||currentItemFullData?.name||'').trim();
-    if(!q){
-        alert('Nenhum título para buscar.');
-        return;
-    }
-    const url=getStreamingSearchUrl(q);
-    if(url)window.open(url,'_blank','noopener,noreferrer');
-    else alert('Não foi possível abrir a busca no streaming.');
+  const q=String(currentDetailTitle||currentItemFullData?.name||'').trim();
+  if(!q){alert('Nenhum título para buscar.');return}
+  const url=getStreamingSearchUrl(q);
+  if(url)window.open(url,'_blank','noopener,noreferrer');else alert('Não foi possível abrir a busca no streaming.');
 }
-
 function renderSkeletonGrid(count=8){const g=document.getElementById('contentGrid');if(!g)return;g.innerHTML=Array.from({length:count}).map(()=>`<div class="content-card skeleton-card pointer-events-none"><div class="content-thumb skeleton"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>`).join('')}
-function collectBannerSlidesFromCatalog(){const items=[];Object.keys(providerData).forEach(k=>{const fulls=Object.values(window.__lpMediaIndex||{}).filter(it=>it&&it.provider===k&&it.img);if(fulls.length){fulls.forEach(it=>{if(it.img&&it.name)items.push({img:it.img,title:it.name,desc:it.status||'',item:lightCatalogEntry(it)})})}else{['books','mangas','lightnovels'].forEach(t=>{(providerData[k][t]||[]).forEach(it=>{if(it.img)items.push({img:it.img,title:it.name,desc:it.status||TYPE_LABELS[t],item:it})})})}});return items.length?items.slice(0,12):[...SRC_FALLBACK_SLIDES]}
+function collectBannerSlidesFromCatalog(){
+  const items=[];
+  Object.keys(providerData).forEach(k=>{
+    const fulls=Object.values(window.__lpMediaIndex||{}).filter(it=>it&&it.provider===k&&it.img);
+    if(fulls.length)fulls.forEach(it=>{if(it.img&&it.name)items.push({img:it.img,title:it.name,desc:it.status||'',item:lightCatalogEntry(it)})});
+    else['books','mangas','lightnovels'].forEach(t=>{(providerData[k][t]||[]).forEach(it=>{if(it.img)items.push({img:it.img,title:it.name,desc:it.status||TYPE_LABELS[t],item:it})})});
+  });
+  return items.length?items.slice(0,12):[...SRC_FALLBACK_SLIDES];
+}
 function rebuildBannerFromCatalog(){slides=collectBannerSlidesFromCatalog();currentSlide=0;const dots=document.getElementById('carouselDots');if(dots)dots.innerHTML=slides.map((_,i)=>`<span onclick="event.stopPropagation();setSlide(${i})" class="carousel-dot ${i===0?'w-2 h-2 rounded-full bg-secondary':'w-1.5 h-1.5 rounded-full bg-white/50'}"></span>`).join('');updateSlideUI();clearInterval(slideInterval);slideInterval=setInterval(nextSlide,5000)}
 function updateSlideUI(){if(!slides.length)return;const s=slides[currentSlide];const img=document.getElementById('bannerImg'),t=document.getElementById('bannerTitle'),d=document.getElementById('bannerDesc'),h=document.getElementById('heroBanner');img.style.opacity='.3';setTimeout(()=>{img.src=s.img;t.textContent=s.title;d.textContent=s.desc||'';h.onclick=()=>{if(s.item)openDetailModal(s.title,s.img,s.desc||'',s.item);else openDetailModal(s.title,s.img,s.desc||'')};img.style.opacity='.75'},200);document.querySelectorAll('#carouselDots .carousel-dot').forEach((dot,i)=>{dot.className=i===currentSlide?'carousel-dot w-2 h-2 rounded-full bg-secondary':'carousel-dot w-1.5 h-1.5 rounded-full bg-white/50'})}
 function nextSlide(){if(!slides.length)return;currentSlide=(currentSlide+1)%slides.length;updateSlideUI()}
@@ -1255,350 +885,187 @@ function prevSlide(){if(!slides.length)return;currentSlide=(currentSlide-1+slide
 function setSlide(i){currentSlide=i;updateSlideUI();clearInterval(slideInterval);slideInterval=setInterval(nextSlide,5000)}
 (function setupHeroSwipe(){const h=document.getElementById('heroBanner');if(!h)return;let startX=0,startY=0,tracking=false;h.addEventListener('touchstart',e=>{if(!e.touches[0])return;tracking=true;startX=e.touches[0].clientX;startY=e.touches[0].clientY;clearInterval(slideInterval)},{passive:true});h.addEventListener('touchend',e=>{if(!tracking)return;tracking=false;const t=e.changedTouches&&e.changedTouches[0];if(!t)return;const dx=t.clientX-startX,dy=t.clientY-startY;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)){if(dx<0)nextSlide();else prevSlide()}slideInterval=setInterval(nextSlide,5000)},{passive:true})})();
 
-function togglePostFields(type){
-    const multi=type==='mangas'||type==='lightnovels';
-    document.getElementById('volumeFields').classList.toggle('hidden',!multi&&type!=='books');
-    document.getElementById('singleFileFields').classList.toggle('hidden',multi);
-}
-function renderPostVolumesInputs(n){
-    const count=Math.max(1,parseInt(n)||1);
-    const cur=postVolumesData,neu={};
-    for(let v=1;v<=count;v++){const p=cur[v]?Object.keys(cur[v]).length:1;neu[v]={};for(let i=1;i<=p;i++)neu[v][i]=cur[v]?.[i]??null}
-    postVolumesData=neu;if(activePostVolume>count)activePostVolume=1;
-    renderPostVolumesTabBar();renderPostVolumeChaptersInputs();
-}
-function renderPostVolumesTabBar(){
-    const tb=document.getElementById('postVolumesTabBar');if(!tb)return;
-    tb.innerHTML=Object.keys(postVolumesData).map(v=>{
-        const a=parseInt(v)===activePostVolume;
-        return `<button type="button" onclick="changePostVolume(${v})" class="shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg border ${a?'bg-secondary text-white border-secondary':'bg-gray-100 text-gray-700 border-gray-200'}">Vol. ${v}</button>`;
-    }).join('');
-}
-function renderPostVolumeChaptersInputs(){
-    const w=document.getElementById('postVolumesContentWrapper');if(!w)return;
-    const chs=postVolumesData[activePostVolume]||{};
-    const n=Object.keys(chs).length;
-    let h=`<div class="p-3 bg-gray-50 border rounded-xl space-y-3 mt-2"><div class="flex justify-between"><span class="text-xs font-bold text-secondary uppercase">Vol. ${activePostVolume}</span><input type="number" min="1" value="${n}" onchange="updatePostVolumeChCount(${activePostVolume},this.value)" class="w-16 bg-white border rounded-lg px-2 py-1 text-xs text-center"></div><div class="space-y-2 max-h-44 overflow-y-auto no-scrollbar">`;
-    for(let i=1;i<=n;i++){
-        const hasExisting=isEditMode&&editingBasePayload?.volumes?.[activePostVolume]?.[i];
-        h+=`<div class="flex gap-2 items-center"><span class="text-[10px] w-10">Cap ${i}</span><input type="file" accept=".pdf,.epub,.zip,.cbz,image/*,application/pdf,application/epub+zip,application/vnd.comicbook+zip,application/x-cbz" onchange="updatePostChFile(${activePostVolume},${i},this)" class="w-full text-xs file:mr-2 file:px-2 file:py-0.5 file:rounded file:border-0 file:bg-gray-200">${hasExisting?'<span class="text-[10px] text-green-600 shrink-0">ok</span>':''}</div>`;
-    }
-    w.innerHTML=h+'</div></div>';
-}
+function togglePostFields(type){const multi=type==='mangas'||type==='lightnovels';document.getElementById('volumeFields').classList.toggle('hidden',!multi&&type!=='books');document.getElementById('singleFileFields').classList.toggle('hidden',multi)}
+function renderPostVolumesInputs(n){const count=Math.max(1,parseInt(n)||1);const cur=postVolumesData,neu={};for(let v=1;v<=count;v++){const p=cur[v]?Object.keys(cur[v]).length:1;neu[v]={};for(let i=1;i<=p;i++)neu[v][i]=cur[v]?.[i]??null}postVolumesData=neu;if(activePostVolume>count)activePostVolume=1;renderPostVolumesTabBar();renderPostVolumeChaptersInputs()}
+function renderPostVolumesTabBar(){const tb=document.getElementById('postVolumesTabBar');if(!tb)return;tb.innerHTML=Object.keys(postVolumesData).map(v=>{const a=parseInt(v)===activePostVolume;return `<button type="button" onclick="changePostVolume(${v})" class="shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg border ${a?'bg-secondary text-white border-secondary':'bg-gray-100 text-gray-700 border-gray-200'}">Vol. ${v}</button>`}).join('')}
+function renderPostVolumeChaptersInputs(){const w=document.getElementById('postVolumesContentWrapper');if(!w)return;const chs=postVolumesData[activePostVolume]||{};const n=Object.keys(chs).length;let h=`<div class="p-3 bg-gray-50 border rounded-xl space-y-3 mt-2"><div class="flex justify-between"><span class="text-xs font-bold text-secondary uppercase">Vol. ${activePostVolume}</span><input type="number" min="1" value="${n}" onchange="updatePostVolumeChCount(${activePostVolume},this.value)" class="w-16 bg-white border rounded-lg px-2 py-1 text-xs text-center"></div><div class="space-y-2 max-h-44 overflow-y-auto no-scrollbar">`;for(let i=1;i<=n;i++){const hasExisting=isEditMode&&editingBasePayload?.volumes?.[activePostVolume]?.[i];h+=`<div class="flex gap-2 items-center"><span class="text-[10px] w-10">Cap ${i}</span><input type="file" accept=".pdf,.epub,.zip,.cbz,image/*,application/pdf,application/epub+zip,application/vnd.comicbook+zip,application/x-cbz" onchange="updatePostChFile(${activePostVolume},${i},this)" class="w-full text-xs file:mr-2 file:px-2 file:py-0.5 file:rounded file:border-0 file:bg-gray-200">${hasExisting?'<span class="text-[10px] text-green-600 shrink-0">ok</span>':''}</div>`}w.innerHTML=h+'</div></div>'}
 function changePostVolume(n){activePostVolume=parseInt(n);renderPostVolumesTabBar();renderPostVolumeChaptersInputs()}
 function updatePostVolumeChCount(v,n){const c=Math.max(1,parseInt(n)||1);const cur=postVolumesData[v]||{},neu={};for(let i=1;i<=c;i++)neu[i]=cur[i]??null;postVolumesData[v]=neu;renderPostVolumeChaptersInputs()}
 function updatePostChFile(v,c,inp){if(inp.files?.[0]){if(!postVolumesData[v])postVolumesData[v]={};postVolumesData[v][c]=inp.files[0]}}
-function resetCreationForm(){
-    isEditMode=false;editingBasePayload=null;
-    document.getElementById('editEventDTag').value='';
-    document.getElementById('creationModalTitleText').textContent='Publicar Título';
-    document.getElementById('postSubmitBtn').textContent='Publicar Título';
-    document.getElementById('coverOptionalHint').classList.add('hidden');
-    document.getElementById('postCover').required=true;
-    postVolumesData={1:{1:null}};activePostVolume=1;
-}
-function openEditCurrentContent(){
-    if(!canPostContent()||!currentItemFullData)return;
-    isEditMode=true;editingBasePayload=JSON.parse(JSON.stringify(currentItemFullData));
-    document.getElementById('editEventDTag').value=currentItemFullData._dTag||'';
-    document.getElementById('creationModalTitleText').textContent='Editar Título';
-    document.getElementById('postSubmitBtn').textContent='Salvar alterações';
-    document.getElementById('coverOptionalHint').classList.remove('hidden');
-    document.getElementById('postCover').required=false;
-    document.getElementById('postProvider').value=currentItemFullData.provider||currentProvider;
-    document.getElementById('postType').value=currentItemFullData.type||'books';
-    document.getElementById('postName').value=currentItemFullData.name||currentDetailTitle;
-    togglePostFields(document.getElementById('postType').value);
-    if(currentItemFullData.volumes){
-        postVolumesData={};
-        for(const v of Object.keys(currentItemFullData.volumes)){
-            postVolumesData[v]={};
-            for(const c of Object.keys(currentItemFullData.volumes[v]||{}))postVolumesData[v][c]=null;
-        }
-        if(!Object.keys(postVolumesData).length)postVolumesData={1:{1:null}};
-        const nVol=Object.keys(postVolumesData).length;
-        document.getElementById('postVolumes').value=nVol;
-        renderPostVolumesInputs(nVol);
-    }
-    closeModal('detailModal');openModal('creationModal');
-}
-async function handleContentPost(ev){
-    ev.preventDefault();
-    if(!canPostContent()){alert('Sem permissão.');return}
-    if(!window.__lpStreamNet?.publishPost){alert('Módulo de rede carregando.');return}
-    const cover=document.getElementById('postCover');
-    if(!isEditMode&&!cover.files?.[0]){alert('Selecione a capa.');return}
-    const btn=document.getElementById('postSubmitBtn');
-    if(btn){btn.disabled=true;btn.textContent=isEditMode?'Salvando...':'Enviando...'}
-    try{
-        await window.__lpStreamNet.publishPost({
-            provider:document.getElementById('postProvider').value,
-            type:document.getElementById('postType').value,
-            name:document.getElementById('postName').value,
-            coverFile:cover.files?.[0]||null,
-            volumesFiles:postVolumesData,
-            bookFile:document.getElementById('postBookFile')?.files?.[0]||null,
-            isEdit:isEditMode,
-            existingDTag:document.getElementById('editEventDTag').value||null,
-            basePayload:editingBasePayload
-        });
-        if(window.loadPostsFromNetwork)await window.loadPostsFromNetwork();
-        closeModal('creationModal');ev.target.reset();togglePostFields('books');resetCreationForm();renderPostVolumesInputs(1);
-    }catch(err){console.error(err);alert('Falha: '+(err.message||err))}
-    finally{if(btn){btn.disabled=false;btn.textContent=isEditMode?'Salvar alterações':'Publicar Título'}}
-}
+function resetCreationForm(){isEditMode=false;editingBasePayload=null;document.getElementById('editEventDTag').value='';document.getElementById('creationModalTitleText').textContent='Publicar Título';document.getElementById('postSubmitBtn').textContent='Publicar Título';document.getElementById('coverOptionalHint').classList.add('hidden');document.getElementById('postCover').required=true;postVolumesData={1:{1:null}};activePostVolume=1}
+function openEditCurrentContent(){if(!canPostContent()||!currentItemFullData)return;isEditMode=true;editingBasePayload=JSON.parse(JSON.stringify(currentItemFullData));document.getElementById('editEventDTag').value=currentItemFullData._dTag||'';document.getElementById('creationModalTitleText').textContent='Editar Título';document.getElementById('postSubmitBtn').textContent='Salvar alterações';document.getElementById('coverOptionalHint').classList.remove('hidden');document.getElementById('postCover').required=false;document.getElementById('postProvider').value=currentItemFullData.provider||currentProvider;document.getElementById('postType').value=currentItemFullData.type||'books';document.getElementById('postName').value=currentItemFullData.name||currentDetailTitle;togglePostFields(document.getElementById('postType').value);if(currentItemFullData.volumes){postVolumesData={};for(const v of Object.keys(currentItemFullData.volumes)){postVolumesData[v]={};for(const c of Object.keys(currentItemFullData.volumes[v]||{}))postVolumesData[v][c]=null}if(!Object.keys(postVolumesData).length)postVolumesData={1:{1:null}};const nVol=Object.keys(postVolumesData).length;document.getElementById('postVolumes').value=nVol;renderPostVolumesInputs(nVol)}closeModal('detailModal');openModal('creationModal')}
+async function handleContentPost(ev){ev.preventDefault();if(!canPostContent()){alert('Sem permissão.');return}if(!window.__lpStreamNet?.publishPost){alert('Módulo de rede carregando.');return}const cover=document.getElementById('postCover');if(!isEditMode&&!cover.files?.[0]){alert('Selecione a capa.');return}const btn=document.getElementById('postSubmitBtn');if(btn){btn.disabled=true;btn.textContent=isEditMode?'Salvando...':'Enviando...'}try{await window.__lpStreamNet.publishPost({provider:document.getElementById('postProvider').value,type:document.getElementById('postType').value,name:document.getElementById('postName').value,coverFile:cover.files?.[0]||null,volumesFiles:postVolumesData,bookFile:document.getElementById('postBookFile')?.files?.[0]||null,isEdit:isEditMode,existingDTag:document.getElementById('editEventDTag').value||null,basePayload:editingBasePayload});if(window.loadPostsFromNetwork)await window.loadPostsFromNetwork();closeModal('creationModal');ev.target.reset();togglePostFields('books');resetCreationForm();renderPostVolumesInputs(1)}catch(err){console.error(err);alert('Falha: '+(err.message||err))}finally{if(btn){btn.disabled=false;btn.textContent=isEditMode?'Salvar alterações':'Publicar Título'}}}
 function openModal(id){if(id==='creationModal'&&!canPostContent()){alert('Sem permissão.');return}if(id==='creationModal'&&!isEditMode)resetCreationForm();document.getElementById(id)?.classList.remove('hidden');if(id==='savedModal')renderSavedModalList();if(id==='historyModal')renderHistoryModalList();if(id==='detailModal')document.body.style.overflow='hidden'}
-function closeModal(id){
-    document.getElementById(id)?.classList.add('hidden');
-    if(id==='detailModal'){document.body.style.overflow='';showCoverOnly()}
-    if(id==='creationModal')resetCreationForm();
-}
+function closeModal(id){document.getElementById(id)?.classList.add('hidden');if(id==='detailModal'){saveProgressSnapshot(true);document.body.style.overflow='';showCoverOnly()}if(id==='creationModal')resetCreationForm()}
 function closeModalOnBackdrop(e,id){if(e.target.id===id)closeModal(id)}
 function collectSuggestions(current){
-    const list=[];const seen=new Set([current?.name||currentDetailTitle]);
-    const push=(it)=>{if(!it||!it.name||seen.has(it.name))return;seen.add(it.name);list.push(it)};
-    const prov=current?.provider||currentProvider;
-    Object.values(window.__lpMediaIndex||{}).forEach(it=>{if(it&&it.provider===prov)push(lightCatalogEntry(it))});
-    ['books','mangas','lightnovels'].forEach(t=>{(providerData[prov]?.[t]||[]).forEach(push)});
-    Object.keys(providerData).forEach(k=>{if(k===prov)return;['books','mangas','lightnovels'].forEach(t=>{(providerData[k][t]||[]).forEach(push)})});
-    return list.slice(0,24);
+  const list=[];const seen=new Set([current?.name||currentDetailTitle]);
+  const push=(it)=>{if(!it||!it.name||seen.has(it.name))return;seen.add(it.name);list.push(it)};
+  const prov=current?.provider||currentProvider;
+  Object.values(window.__lpMediaIndex||{}).forEach(it=>{if(it&&it.provider===prov)push(lightCatalogEntry(it))});
+  ['books','mangas','lightnovels'].forEach(t=>{(providerData[prov]?.[t]||[]).forEach(push)});
+  Object.keys(providerData).forEach(k=>{if(k===prov)return;['books','mangas','lightnovels'].forEach(t=>{(providerData[k][t]||[]).forEach(push)})});
+  return list.slice(0,24);
 }
 function renderSuggestions(){
-    const c=document.getElementById('suggestionsContainer');if(!c)return;
-    const items=collectSuggestions(currentItemFullData);
-    if(!items.length){c.innerHTML='<p class="text-xs text-gray-500">Sem sugestões no momento.</p>';return}
-    c.innerHTML=items.map(item=>{const j=JSON.stringify(item).replace(/'/g,'&#39;');return `<div class="suggest-card" onclick='openDetailModal(${JSON.stringify(item.name)},${JSON.stringify(item.img||"")},${JSON.stringify(item.status||"")},${j})'><div class="thumb"><img src="${item.img||''}" alt="" loading="lazy"></div><p>${item.name}</p></div>`}).join('');
+  const c=document.getElementById('suggestionsContainer');if(!c)return;
+  const items=collectSuggestions(currentItemFullData);
+  if(!items.length){c.innerHTML='<p class="text-xs text-gray-500">Sem sugestões no momento.</p>';return}
+  c.innerHTML=items.map(item=>{const j=JSON.stringify(item).replace(/'/g,'&#39;');return `<div class="suggest-card" onclick='openDetailModal(${JSON.stringify(item.name)},${JSON.stringify(item.img||"")},${JSON.stringify(item.status||"")},${j})'><div class="thumb"><img src="${item.img||''}" alt="" loading="lazy"></div><p>${item.name}</p></div>`}).join('');
 }
 async function openDetailModal(title,img,desc,item=null){
-    showCoverOnly();
-    currentDetailTitle=title;currentDetailImg=img;
-    let full=getFullEntry(item);
-    if((!full||(!full.volumes&&!full.fileUrl))&&item?._dTag&&window.__lpStreamNet?.fetchPostByDTag){
-        setMediaLoading(true,'Carregando título...');
-        try{const remote=await window.__lpStreamNet.fetchPostByDTag(item._dTag);if(remote){storeFullEntry(remote);full=remote}}catch(e){console.warn(e)}finally{setMediaLoading(false)}
-    }
-    currentItemFullData=full||item;
-    activeChapterKey=null;
-    const vols=currentItemFullData?.volumes;
-    const hasVolMedia=vols&&Object.values(vols).some(chs=>Object.values(chs||{}).some(hasMediaRef));
-    if(hasVolMedia)currentVolumesData=vols;
-    else if(hasMediaRef(currentItemFullData?.fileUrl))currentVolumesData={1:{1:currentItemFullData.fileUrl}};
-    else if(vols&&Object.keys(vols).length)currentVolumesData=vols;
-    else currentVolumesData={1:{1:''}};
+  showCoverOnly();
+  currentDetailTitle=title;currentDetailImg=img;
+  let full=getFullEntry(item);
+  if((!full||(!full.volumes&&!full.fileUrl))&&item?._dTag&&window.__lpStreamNet?.fetchPostByDTag){
+    setMediaLoading(true,'Carregando título...');
+    try{const remote=await window.__lpStreamNet.fetchPostByDTag(item._dTag);if(remote){storeFullEntry(remote);full=remote}}catch(e){console.warn(e)}finally{setMediaLoading(false)}
+  }
+  currentItemFullData=full||item;activeChapterKey=null;
+  const vols=currentItemFullData?.volumes;
+  const hasVolMedia=vols&&Object.values(vols).some(chs=>Object.values(chs||{}).some(hasMediaRef));
+  if(hasVolMedia)currentVolumesData=vols;
+  else if(hasMediaRef(currentItemFullData?.fileUrl))currentVolumesData={1:{1:currentItemFullData.fileUrl}};
+  else if(vols&&Object.keys(vols).length)currentVolumesData=vols;
+  else currentVolumesData={1:{1:''}};
+
+  const progFromCard=(item&&item._progress)||null;
+  const prog=progFromCard||getProgressEntry(currentItemFullData,title);
+  if(prog&&!prog.completed){
+    if(prog.volume!=null&&Object.keys(currentVolumesData).map(String).includes(String(prog.volume)))activeVolume=prog.volume;
+    else activeVolume=Object.keys(currentVolumesData)[0]||1;
+    if(prog.chapter!=null)activeChapterKey=String(prog.chapter);
+    _pendingResumeProgress=prog;
+  }else{
     activeVolume=Object.keys(currentVolumesData)[0]||1;
-    renderVolumesTabBar();renderDetailChaptersUI();renderSuggestions();
-    document.getElementById('detailModalTitle').textContent=title;
-    const cover=document.getElementById('readerCover');
-    if(cover){cover.src=img||'';cover.classList.remove('hidden-cover')}
-    const badge=document.getElementById('typeBadge');
-    if(badge)badge.textContent='['+(TYPE_LABELS[currentItemFullData?.type]||TYPE_LABELS[currentMediaType]||'Livro')+']';
-    updateFavoriteUI();
-    document.getElementById('editContentBtn')?.classList.toggle('hidden',!(canPostContent()&&currentItemFullData&&(currentItemFullData._dTag||currentItemFullData.volumes||currentItemFullData.fileUrl)));
-    document.getElementById('detailModal').classList.remove('hidden');document.body.style.overflow='hidden';
-    addToHistory({name:title,img,type:currentItemFullData?.type||currentMediaType,provider:currentItemFullData?.provider||currentProvider});
-    if(window.refreshPartnerSlots)window.refreshPartnerSlots();
-    updateChapterNavVisibility();
-    updateResumeUI();
-}
-function renderVolumesTabBar(){
-    const tb=document.getElementById('volumesTabBar');if(!tb)return;
-    const keys=Object.keys(currentVolumesData||{});
-    tb.innerHTML=keys.map(v=>`<button type="button" onclick="changeVolume(${v})" class="shrink-0 px-4 py-2 text-xs font-bold rounded-xl border ${parseInt(v)===parseInt(activeVolume)?'bg-secondary text-white border-secondary':'bg-white/5 text-gray-300 border-white/10'}">Vol. ${v}</button>`).join('')||'<span class="text-xs text-gray-400">Nenhum</span>';
-}
-function renderDetailChaptersUI(){
-    const c=document.getElementById('chaptersContainer'),l=document.getElementById('chaptersCountLabel');if(!c)return;
-    const chs=(currentVolumesData||{})[activeVolume]||{};
-    const keys=Object.keys(chs).filter(k=>hasMediaRef(chs[k]));
-    if(l)l.textContent=keys.length+' arquivo(s)';
-    c.innerHTML=keys.map((ch,i)=>`<button type="button" onclick="selectChapter('${ch}',this)" class="ep-btn w-12 h-12 rounded-xl ${i===0?'bg-white text-gray-900':'bg-white/10 text-white'} font-bold text-sm shrink-0">${ch}</button>`).join('')||'<p class="text-xs text-gray-400">Nenhum</p>';
-}
-async function selectChapter(ch,btn){
-    activeChapterKey=ch;
-    document.querySelectorAll('#chaptersContainer .ep-btn').forEach(b=>b.className='ep-btn w-12 h-12 rounded-xl bg-white/10 text-white font-bold text-sm shrink-0');
-    if(btn)btn.className='ep-btn w-12 h-12 rounded-xl bg-white text-gray-900 font-bold text-sm shrink-0 shadow-md';
+    _pendingResumeProgress=null;
+  }
+
+  renderVolumesTabBar();renderDetailChaptersUI();renderSuggestions();
+  document.getElementById('detailModalTitle').textContent=title;
+  const cover=document.getElementById('readerCover');if(cover){cover.src=img||'';cover.classList.remove('hidden-cover')}
+  const badge=document.getElementById('typeBadge');if(badge)badge.textContent='['+(TYPE_LABELS[currentItemFullData?.type]||TYPE_LABELS[currentMediaType]||'Livro')+']';
+  updateFavoriteUI();updateResumeUI();
+  document.getElementById('editContentBtn')?.classList.toggle('hidden',!(canPostContent()&&currentItemFullData&&(currentItemFullData._dTag||currentItemFullData.volumes||currentItemFullData.fileUrl)));
+  document.getElementById('detailModal').classList.remove('hidden');document.body.style.overflow='hidden';
+  addToHistory({name:title,img,type:currentItemFullData?.type||currentMediaType,provider:currentItemFullData?.provider||currentProvider,_dTag:currentItemFullData?._dTag||null});
+  if(window.refreshPartnerSlots)window.refreshPartnerSlots();
+  updateChapterNavVisibility();
+
+  // Auto-abrir capítulo do progresso (Continuar)
+  const chs=currentVolumesData[activeVolume]||{};
+  let fk=null;
+  if(prog&&!prog.completed&&prog.chapter!=null&&hasMediaRef(chs[prog.chapter]))fk=String(prog.chapter);
+  if(!fk)fk=Object.keys(chs).find(k=>hasMediaRef(chs[k]));
+  if(fk&&prog&&!prog.completed){
+    activeChapterKey=fk;
+    const btn=[...document.querySelectorAll('#chaptersContainer .ep-btn')].find(b=>String(b.textContent).trim()===String(fk));
+    if(btn){document.querySelectorAll('#chaptersContainer .ep-btn').forEach(b=>b.className='ep-btn w-12 h-12 rounded-xl bg-white/10 text-white font-bold text-sm shrink-0');btn.className='ep-btn w-12 h-12 rounded-xl bg-white text-gray-900 font-bold text-sm shrink-0 shadow-md'}
     await openCurrentFile();
-    updateChapterNavVisibility();
-    updateResumeUI();
+  }
 }
+function renderVolumesTabBar(){const tb=document.getElementById('volumesTabBar');if(!tb)return;const keys=Object.keys(currentVolumesData||{});tb.innerHTML=keys.map(v=>`<button type="button" onclick="changeVolume(${v})" class="shrink-0 px-4 py-2 text-xs font-bold rounded-xl border ${parseInt(v)===parseInt(activeVolume)?'bg-secondary text-white border-secondary':'bg-white/5 text-gray-300 border-white/10'}">Vol. ${v}</button>`).join('')||'<span class="text-xs text-gray-400">Nenhum</span>'}
+function renderDetailChaptersUI(){const c=document.getElementById('chaptersContainer'),l=document.getElementById('chaptersCountLabel');if(!c)return;const chs=(currentVolumesData||{})[activeVolume]||{};const keys=Object.keys(chs).filter(k=>hasMediaRef(chs[k]));if(l)l.textContent=keys.length+' arquivo(s)';c.innerHTML=keys.map((ch,i)=>`<button type="button" onclick="selectChapter('${ch}',this)" class="ep-btn w-12 h-12 rounded-xl ${String(ch)===String(activeChapterKey)||(activeChapterKey==null&&i===0)?'bg-white text-gray-900':'bg-white/10 text-white'} font-bold text-sm shrink-0">${ch}</button>`).join('')||'<p class="text-xs text-gray-400">Nenhum</p>'}
+async function selectChapter(ch,btn){activeChapterKey=ch;document.querySelectorAll('#chaptersContainer .ep-btn').forEach(b=>b.className='ep-btn w-12 h-12 rounded-xl bg-white/10 text-white font-bold text-sm shrink-0');if(btn)btn.className='ep-btn w-12 h-12 rounded-xl bg-white text-gray-900 font-bold text-sm shrink-0 shadow-md';await openCurrentFile();updateChapterNavVisibility();updateResumeUI()}
 async function changeVolume(v){activeVolume=v;activeChapterKey=null;renderVolumesTabBar();renderDetailChaptersUI();updateChapterNavVisibility();updateResumeUI()}
 function isTitleSaved(t){return savedTitles.some(i=>i.name===t)}
-async function toggleFavorite(){
-    if(!currentDetailTitle)return;
-    if(isTitleSaved(currentDetailTitle))savedTitles=savedTitles.filter(i=>i.name!==currentDetailTitle);
-    else savedTitles.unshift({name:currentDetailTitle,type:TYPE_LABELS[currentMediaType]||'Livro',img:currentDetailImg,provider:currentProvider,savedAt:Date.now()});
-    updateFavoriteUI();renderSavedModalList();
-    metaDirty=true;
-    await pushUserMetaToNetwork(true);
-}
+async function toggleFavorite(){if(!currentDetailTitle)return;if(isTitleSaved(currentDetailTitle))savedTitles=savedTitles.filter(i=>i.name!==currentDetailTitle);else savedTitles.unshift({name:currentDetailTitle,type:TYPE_LABELS[currentMediaType]||'Livro',img:currentDetailImg,provider:currentProvider,savedAt:Date.now()});updateFavoriteUI();renderSavedModalList();if(window.syncUserMetaToNetwork)await window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles,progress:Object.values(progressMap)})}
 function updateFavoriteUI(){const ic=document.getElementById('favoriteIcon'),tx=document.getElementById('favoriteText');const s=isTitleSaved(currentDetailTitle);if(ic)ic.className=s?'fa-solid fa-star text-yellow-400':'fa-regular fa-star';if(tx)tx.textContent=s?'Salvo':'Favorito'}
 function renderSavedModalList(){const c=document.getElementById('savedItemsList');if(!c)return;if(!isUserLoggedIn()){c.innerHTML='<p class="text-xs text-gray-400 text-center py-6">Login no Social para sincronizar.</p>';return}c.innerHTML=savedTitles.length?savedTitles.map(i=>`<div class="flex gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick='openDetailModal(${JSON.stringify(i.name)},${JSON.stringify(i.img)},${JSON.stringify(i.type)})'><div class="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100"><img src="${i.img}" class="w-full h-full object-cover"></div><div><p class="text-xs font-semibold truncate">${i.name}</p><p class="text-[11px] text-secondary">${i.type||''}</p></div></div>`).join(''):'<p class="text-xs text-gray-400 text-center py-6">Nenhum salvo.</p>'}
-async function addToHistory(entry){
-    if(!entry?.name)return;
-    historyTitles=historyTitles.filter(h=>h.name!==entry.name);
-    historyTitles.unshift({...entry,viewedAt:Date.now()});
-    if(historyTitles.length>50)historyTitles=historyTitles.slice(0,50);
-    renderHistoryModalList();
-    metaDirty=true;
-    scheduleProgressNetworkSync();
+async function addToHistory(entry){if(!entry?.name)return;const prev=historyTitles.find(h=>h.name===entry.name);historyTitles=historyTitles.filter(h=>h.name!==entry.name);historyTitles.unshift({...entry,viewedAt:Date.now(),progress:prev?.progress});if(historyTitles.length>50)historyTitles=historyTitles.slice(0,50);renderHistoryModalList();if(window.syncUserMetaToNetwork)await window.syncUserMetaToNetwork({saved:savedTitles,history:historyTitles,progress:Object.values(progressMap)})}
+function renderHistoryModalList(){
+  const c=document.getElementById('historyItemsList');if(!c)return;
+  if(!isUserLoggedIn()){c.innerHTML='<p class="text-xs text-gray-400 text-center py-6">Login no Social para sincronizar.</p>';return}
+  if(!historyTitles.length){c.innerHTML='<p class="text-xs text-gray-400 text-center py-6">Nenhum histórico.</p>';return}
+  c.innerHTML=historyTitles.map(i=>{
+    const prog=i.progress||getProgressEntry({name:i.name,provider:i.provider,_dTag:i._dTag},i.name);
+    let sub=i.type||'';
+    if(prog&&!prog.completed&&(readingScore(prog)>0||prog.cfi||prog.page!=null||prog.volume||prog.chapter)){
+      const part=(prog.volume!=null&&prog.chapter!=null)?`Vol ${prog.volume} Cap ${prog.chapter} · `:'';
+      const pct=formatPct(prog.percentage!=null?prog.percentage:readingScore(prog));
+      sub=`Continuar · ${part}${pct||'em andamento'}`;
+    }else if(prog&&prog.completed)sub=(i.type||'')+' · Concluído';
+    const itemJson=JSON.stringify({name:i.name,img:i.img||'',type:i.type||'',provider:i.provider||currentProvider,_dTag:i._dTag||null,_progress:prog||null}).replace(/'/g,'&#39;');
+    const pctBar=(prog&&!prog.completed)?Math.min(100,Math.round((prog.percentage!=null?prog.percentage:Math.max(0,readingScore(prog)))*100)):0;
+    return `<div class="flex gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick='openDetailModal(${JSON.stringify(i.name)},${JSON.stringify(i.img||"")},${JSON.stringify(i.type||"")},${itemJson})'><div class="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100 relative">${i.img?`<img src="${i.img}" class="w-full h-full object-cover">`:''}${pctBar?`<div class="absolute bottom-0 left-0 right-0 h-1 bg-black/40"><div class="h-full bg-secondary" style="width:${pctBar}%"></div></div>`:''}</div><div class="min-w-0 flex-1"><p class="text-xs font-semibold truncate">${i.name}</p><p class="text-[11px] ${prog&&!prog.completed?'text-secondary font-semibold':'text-gray-400'}">${sub}</p></div></div>`;
+  }).join('');
 }
-function renderHistoryModalList(){const c=document.getElementById('historyItemsList');if(!c)return;if(!isUserLoggedIn()){c.innerHTML='<p class="text-xs text-gray-400 text-center py-6">Login no Social para sincronizar.</p>';return}c.innerHTML=historyTitles.length?historyTitles.map(i=>`<div class="flex gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick='openDetailModal(${JSON.stringify(i.name)},${JSON.stringify(i.img||"")},${JSON.stringify(i.type||"")})'><div class="w-14 aspect-[2/3] rounded-lg overflow-hidden bg-gray-100">${i.img?`<img src="${i.img}" class="w-full h-full object-cover">`:''}</div><div><p class="text-xs font-semibold truncate">${i.name}</p><p class="text-[11px] text-gray-400">${i.type||''}</p></div></div>`).join(''):'<p class="text-xs text-gray-400 text-center py-6">Nenhum histórico.</p>'}
+function getFilteredCatalogItems(){
+  if(catalogMode==='continue'){
+    let items=getProgressListForContinue();
+    if(searchQuery.trim()){const q=searchQuery.toLowerCase();items=items.filter(i=>i.name.toLowerCase().includes(q))}
+    return items;
+  }
+  let items=[];
+  Object.keys(providerData).forEach(k=>{(providerData[k][currentMediaType]||[]).forEach(it=>items.push(it))});
+  items.sort((a,b)=>(b._created_at||0)-(a._created_at||0));
+  if(searchQuery.trim()){const q=searchQuery.toLowerCase();items=items.filter(i=>i.name.toLowerCase().includes(q))}
+  return items;
+}
 function renderCatalog(){
-    if(catalogLoading){renderSkeletonGrid();return}
-    let items=[];
-    Object.keys(providerData).forEach(k=>{
-        (providerData[k][currentMediaType]||[]).forEach(it=>items.push(it));
-    });
-    items.sort((a,b)=>(b._created_at||0)-(a._created_at||0));
-    if(searchQuery.trim()){
-        const q=searchQuery.toLowerCase();
-        items=items.filter(i=>i.name.toLowerCase().includes(q));
-    }
-    const ct=document.getElementById('catalogTitle'),g=document.getElementById('contentGrid');
-    if(ct)ct.textContent=`Recomendados · ${TYPE_PLURAL[currentMediaType]||'Livros'}`;
-    if(!g)return;
-
-    const oldPag=document.getElementById('catalogPagination');
-    if(oldPag)oldPag.remove();
-    const oldFull=document.getElementById('catalogFullLink');
-    if(oldFull)oldFull.remove();
-
-    if(!items.length){
-        g.innerHTML=searchQuery.trim()
-            ?'<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título no catálogo. Use Enter ou a lupa para buscar na plataforma de streaming…</div>'
-            :'<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título publicado neste catálogo.</div>';
-        return;
-    }
-
-    const totalPages=Math.max(1,Math.ceil(items.length/ITEMS_PER_PAGE));
-    if(catalogPage>totalPages)catalogPage=totalPages;
-    if(catalogPage<1)catalogPage=1;
-
-    const start=(catalogPage-1)*ITEMS_PER_PAGE;
-    const pageItems=items.slice(start,start+ITEMS_PER_PAGE);
-
-    g.innerHTML=pageItems.map(item=>{
-        const j=JSON.stringify(item).replace(/'/g,'&#39;');
-        return`<div class="content-card" onclick='openDetailModal(${JSON.stringify(item.name)},${JSON.stringify(item.img)},${JSON.stringify(item.status||"")},${j})'><div class="content-thumb shadow-sm"><img src="${item.img}" alt="" loading="lazy">${item.badge?`<span class="absolute bottom-2 left-2 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">${item.badge}</span>`:''}</div><p class="text-xs font-semibold mt-2 truncate">${item.name}</p><p class="text-[11px] text-gray-400">${item.status||''}</p></div>`;
-    }).join('');
-
-    if(totalPages>1){
-        const pag=document.createElement('div');
-        pag.id='catalogPagination';
-        pag.className='flex flex-wrap items-center justify-center gap-1 mt-6 pt-4 border-t border-gray-200 select-none';
-
-        const prevBtn=document.createElement('button');
-        prevBtn.type='button';
-        prevBtn.className=`px-3 py-2 text-sm rounded-lg ${catalogPage<=1?'text-gray-300 cursor-default':'text-secondary hover:bg-violet-50 font-medium'}`;
-        prevBtn.innerHTML='<i class="fa-solid fa-chevron-left text-xs mr-1"></i>Anterior';
-        prevBtn.disabled=catalogPage<=1;
-        if(catalogPage>1)prevBtn.onclick=()=>{catalogPage--;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})};
-        pag.appendChild(prevBtn);
-
-        const windowSize=2;
-        let startPage=Math.max(1,catalogPage-windowSize);
-        let endPage=Math.min(totalPages,catalogPage+windowSize);
-        if(catalogPage<=windowSize+1)endPage=Math.min(totalPages,windowSize*2+1);
-        if(catalogPage>=totalPages-windowSize)startPage=Math.max(1,totalPages-windowSize*2);
-
-        if(startPage>1){
-            const b=document.createElement('button');
-            b.type='button';
-            b.className='w-9 h-9 text-sm rounded-lg text-gray-700 hover:bg-gray-100 font-medium';
-            b.textContent='1';
-            b.onclick=()=>{catalogPage=1;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})};
-            pag.appendChild(b);
-            if(startPage>2){
-                const dots=document.createElement('span');
-                dots.className='px-1 text-gray-400 text-sm';
-                dots.textContent='…';
-                pag.appendChild(dots);
-            }
-        }
-
-        for(let p=startPage;p<=endPage;p++){
-            const b=document.createElement('button');
-            b.type='button';
-            const isActive=p===catalogPage;
-            b.className=isActive
-                ?'w-9 h-9 text-sm rounded-lg bg-secondary text-white font-bold shadow-sm'
-                :'w-9 h-9 text-sm rounded-lg text-gray-700 hover:bg-gray-100 font-medium';
-            b.textContent=String(p);
-            if(!isActive){
-                b.onclick=(function(page){return function(){catalogPage=page;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})}})(p);
-            }
-            pag.appendChild(b);
-        }
-
-        if(endPage<totalPages){
-            if(endPage<totalPages-1){
-                const dots=document.createElement('span');
-                dots.className='px-1 text-gray-400 text-sm';
-                dots.textContent='…';
-                pag.appendChild(dots);
-            }
-            const b=document.createElement('button');
-            b.type='button';
-            b.className='w-9 h-9 text-sm rounded-lg text-gray-700 hover:bg-gray-100 font-medium';
-            b.textContent=String(totalPages);
-            b.onclick=()=>{catalogPage=totalPages;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})};
-            pag.appendChild(b);
-        }
-
-        const nextBtn=document.createElement('button');
-        nextBtn.type='button';
-        nextBtn.className=`px-3 py-2 text-sm rounded-lg ${catalogPage>=totalPages?'text-gray-300 cursor-default':'text-secondary hover:bg-violet-50 font-medium'}`;
-        nextBtn.innerHTML='Próxima<i class="fa-solid fa-chevron-right text-xs ml-1"></i>';
-        nextBtn.disabled=catalogPage>=totalPages;
-        if(catalogPage<totalPages)nextBtn.onclick=()=>{catalogPage++;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})};
-        pag.appendChild(nextBtn);
-
-        const info=document.createElement('div');
-        info.className='w-full text-center text-[11px] text-gray-400 mt-2';
-        info.textContent=`Página ${catalogPage} de ${totalPages} · ${items.length} título(s)`;
-        pag.appendChild(info);
-
-        g.parentNode.insertBefore(pag,g.nextSibling);
-    }
-
-    if(catalogPage===totalPages){
-        const homeByType={
-            books:'https://www.amazon.com.br/kindle-dbs/hz/bookshelf',
-            mangas:'https://mangaplus.shueisha.co.jp',
-            lightnovels:'https://global.bookwalker.jp'
-        };
-        const labelByType={
-            books:'Kindle',
-            mangas:'Manga Plus',
-            lightnovels:'BookWalker'
-        };
-        const url=homeByType[currentMediaType]||homeByType.books;
-        const platform=labelByType[currentMediaType]||'streaming';
-        const full=document.createElement('div');
-        full.id='catalogFullLink';
-        full.className='mt-6 pt-4 border-t border-gray-200 flex justify-center';
-        full.innerHTML=`<a href="${url}" target="_blank" rel="noopener noreferrer"
-            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-secondary text-white text-sm font-bold shadow-sm hover:opacity-90 transition">
-            <i class="fa-solid fa-book-open"></i>
-            Ver todo o catálogo · ${platform}
-            <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-80"></i>
-        </a>`;
-        const anchor=document.getElementById('catalogPagination')||g;
-        anchor.parentNode.insertBefore(full,anchor.nextSibling);
-    }
+  if(catalogLoading){renderSkeletonGrid();return}
+  const items=getFilteredCatalogItems();
+  const ct=document.getElementById('catalogTitle'),g=document.getElementById('contentGrid');
+  if(ct)ct.textContent=catalogMode==='continue'?`Continuar · Leitura`:`Recomendados · ${TYPE_PLURAL[currentMediaType]||'Livros'}`;
+  if(!g)return;
+  document.getElementById('catalogPagination')?.remove();
+  document.getElementById('catalogFullLink')?.remove();
+  if(!items.length){
+    if(catalogMode==='continue'){g.innerHTML='<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título em andamento.<br>Comece a ler para aparecer aqui.</div>';return}
+    g.innerHTML=searchQuery.trim()
+      ?'<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título no catálogo. Use Enter ou a lupa para buscar na plataforma…</div>'
+      :'<div class="col-span-full py-10 text-center text-gray-400 text-sm">Nenhum título publicado neste catálogo.</div>';
+    return;
+  }
+  const totalPages=Math.max(1,Math.ceil(items.length/ITEMS_PER_PAGE));
+  if(catalogPage>totalPages)catalogPage=totalPages;if(catalogPage<1)catalogPage=1;
+  const start=(catalogPage-1)*ITEMS_PER_PAGE,pageItems=items.slice(start,start+ITEMS_PER_PAGE);
+  g.innerHTML=pageItems.map(item=>{
+    const j=JSON.stringify(item).replace(/'/g,'&#39;');
+    const pct=(item._progress&&!item._progress.completed)?Math.min(100,Math.round((item._progress.percentage!=null?item._progress.percentage:Math.max(0,readingScore(item._progress)))*100)):0;
+    return`<div class="content-card" onclick='openDetailModal(${JSON.stringify(item.name)},${JSON.stringify(item.img)},${JSON.stringify(item.status||"")},${j})'><div class="content-thumb shadow-sm"><img src="${item.img}" alt="" loading="lazy">${item.badge?`<span class="absolute bottom-2 left-2 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">${item.badge}</span>`:''}${pct?`<div class="absolute bottom-0 left-0 right-0 h-1 bg-black/40"><div class="h-full bg-secondary" style="width:${pct}%"></div></div>`:''}</div><p class="text-xs font-semibold mt-2 truncate">${item.name}</p><p class="text-[11px] text-gray-400">${item.status||''}</p></div>`;
+  }).join('');
+  if(totalPages>1){
+    const pag=document.createElement('div');pag.id='catalogPagination';pag.className='flex flex-wrap items-center justify-center gap-1 mt-6 pt-4 border-t border-gray-200 select-none';
+    const prevBtn=document.createElement('button');prevBtn.type='button';prevBtn.className=`px-3 py-2 text-sm rounded-lg ${catalogPage<=1?'text-gray-300 cursor-default':'text-secondary hover:bg-violet-50 font-medium'}`;prevBtn.innerHTML='<i class="fa-solid fa-chevron-left text-xs mr-1"></i>Anterior';prevBtn.disabled=catalogPage<=1;if(catalogPage>1)prevBtn.onclick=()=>{catalogPage--;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})};pag.appendChild(prevBtn);
+    const windowSize=2;let startPage=Math.max(1,catalogPage-windowSize),endPage=Math.min(totalPages,catalogPage+windowSize);
+    if(catalogPage<=windowSize+1)endPage=Math.min(totalPages,windowSize*2+1);if(catalogPage>=totalPages-windowSize)startPage=Math.max(1,totalPages-windowSize*2);
+    if(startPage>1){const b=document.createElement('button');b.type='button';b.className='w-9 h-9 text-sm rounded-lg text-gray-700 hover:bg-gray-100 font-medium';b.textContent='1';b.onclick=()=>{catalogPage=1;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})};pag.appendChild(b);if(startPage>2){const dots=document.createElement('span');dots.className='px-1 text-gray-400 text-sm';dots.textContent='…';pag.appendChild(dots)}}
+    for(let p=startPage;p<=endPage;p++){const b=document.createElement('button');b.type='button';const isActive=p===catalogPage;b.className=isActive?'w-9 h-9 text-sm rounded-lg bg-secondary text-white font-bold shadow-sm':'w-9 h-9 text-sm rounded-lg text-gray-700 hover:bg-gray-100 font-medium';b.textContent=String(p);if(!isActive)b.onclick=(function(page){return function(){catalogPage=page;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})}})(p);pag.appendChild(b)}
+    if(endPage<totalPages){if(endPage<totalPages-1){const dots=document.createElement('span');dots.className='px-1 text-gray-400 text-sm';dots.textContent='…';pag.appendChild(dots)}const b=document.createElement('button');b.type='button';b.className='w-9 h-9 text-sm rounded-lg text-gray-700 hover:bg-gray-100 font-medium';b.textContent=String(totalPages);b.onclick=()=>{catalogPage=totalPages;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})};pag.appendChild(b)}
+    const nextBtn=document.createElement('button');nextBtn.type='button';nextBtn.className=`px-3 py-2 text-sm rounded-lg ${catalogPage>=totalPages?'text-gray-300 cursor-default':'text-secondary hover:bg-violet-50 font-medium'}`;nextBtn.innerHTML='Próxima<i class="fa-solid fa-chevron-right text-xs ml-1"></i>';nextBtn.disabled=catalogPage>=totalPages;if(catalogPage<totalPages)nextBtn.onclick=()=>{catalogPage++;renderCatalog();window.scrollTo({top:g.offsetTop-80,behavior:'smooth'})};pag.appendChild(nextBtn);
+    const info=document.createElement('div');info.className='w-full text-center text-[11px] text-gray-400 mt-2';info.textContent=`Página ${catalogPage} de ${totalPages} · ${items.length} título(s)`;pag.appendChild(info);
+    g.parentNode.insertBefore(pag,g.nextSibling);
+  }
+  if(catalogPage===totalPages&&catalogMode!=='continue'){
+    const homeByType={books:'https://www.amazon.com.br/kindle-dbs/hz/bookshelf',mangas:'https://mangaplus.shueisha.co.jp',lightnovels:'https://global.bookwalker.jp'};
+    const labelByType={books:'Kindle',mangas:'Manga Plus',lightnovels:'BookWalker'};
+    const url=homeByType[currentMediaType]||homeByType.books,platform=labelByType[currentMediaType]||'streaming';
+    const full=document.createElement('div');full.id='catalogFullLink';full.className='mt-6 pt-4 border-t border-gray-200 flex justify-center';
+    full.innerHTML=`<a href="${url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-secondary text-white text-sm font-bold shadow-sm hover:opacity-90 transition"><i class="fa-solid fa-book-open"></i> Ver todo o catálogo · ${platform} <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-80"></i></a>`;
+    (document.getElementById('catalogPagination')||g).parentNode.insertBefore(full,(document.getElementById('catalogPagination')||g).nextSibling);
+  }
 }
 function handleSearchInput(v){searchQuery=v;catalogPage=1;document.getElementById('clearSearchBtn')?.classList.toggle('hidden',!v.trim());renderCatalog()}
 function clearSearch(){document.getElementById('searchInput').value='';searchQuery='';catalogPage=1;document.getElementById('clearSearchBtn')?.classList.add('hidden');renderCatalog()}
-function setMediaType(t){
-    currentMediaType=t;
-    catalogPage=1;
-    ['books','mangas','lightnovels'].forEach(k=>{
-        const btn=document.getElementById('btn'+({books:'Books',mangas:'Mangas',lightnovels:'LightNovels'}[k]));
-        if(btn)btn.className=t===k?'px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white':'px-3 py-1 text-xs font-bold rounded-lg text-gray-600';
-    });
-    updateSearchEnginesHint();renderCatalog();
+function setCatalogMode(mode){
+  catalogMode=mode;
+  if(mode==='books'||mode==='mangas'||mode==='lightnovels')currentMediaType=mode;
+  const active='px-3 py-1 text-xs font-bold rounded-lg bg-secondary text-white',idle='px-3 py-1 text-xs font-bold rounded-lg text-gray-600';
+  const map={books:'btnBooks',mangas:'btnMangas',lightnovels:'btnLightNovels',continue:'btnContinue'};
+  Object.keys(map).forEach(k=>{const b=document.getElementById(map[k]);if(b)b.className=mode===k?active:idle});
+  catalogPage=1;updateSearchEnginesHint();renderCatalog();
 }
+function setMediaType(t){if(t==='books'||t==='mangas'||t==='lightnovels')setCatalogMode(t)}
 function selectProvider(el,k){document.querySelectorAll('#providerList .provider-card').forEach(c=>c.classList.remove('active'));if(el)el.classList.add('active');currentProvider=k;catalogPage=1;updateSearchEnginesHint();renderCatalog()}
 function setNetworkStatus(html){const el=document.getElementById('networkStatus');if(el)el.innerHTML=html}
+function applyUserMeta(meta){
+  if(!meta)return;
+  if(Array.isArray(meta.saved))savedTitles=meta.saved;
+  if(Array.isArray(meta.history))historyTitles=meta.history;
+  if(Array.isArray(meta.progress)){progressMap={};meta.progress.forEach(p=>{if(!p||!p.name)return;progressMap[progressKeyFromItem(p,p.name)]=p})}
+  renderSavedModalList();renderHistoryModalList();if(catalogMode==='continue')renderCatalog();
+}
 function onCatalogLoaded(){catalogLoading=false;catalogPage=1;renderCatalog();rebuildBannerFromCatalog()}
 
 loadSessionFromNostr();loadSessionAvatar();updatePostButtonVisibility();renderPostVolumesInputs(1);renderSkeletonGrid();rebuildBannerFromCatalog();updateSearchEnginesHint();
@@ -1620,7 +1087,6 @@ const pool=new NostrTools.SimplePool();
 const LEVEL_ORDER={diamante:4,ouro:3,plata:2,bronze:1};
 const SLOT_SELECTOR='[data-lp-slot]',EMPTY_LABEL='Espaço disponível';
 const TYPE_LABELS={books:'Livro',mangas:'Mangá',lightnovels:'Light Novel'};
-const CLOCK_SKEW_MS=2*60*1000;
 
 function normalizeHexKey(raw){if(!raw)return null;let s=String(raw).trim();if(s.startsWith('nsec1')){try{const d=NostrTools.nip19.decode(s);if(d.type==='nsec'&&d.data instanceof Uint8Array)return Array.from(d.data).map(b=>b.toString(16).padStart(2,'0')).join('')}catch{return null}}return s.toLowerCase().replace(/^0x/,'')}
 function getSession(){try{const p=JSON.parse(localStorage.getItem('nostr_session')||'null');if(!p)return null;const hex=normalizeHexKey(p.privateKeyHex||p.nsec||p.privateKey);if(!hex||!p.pubkey)return null;return{privateKeyHex:hex,privateKey:hexToBytes(hex),pubkey:p.pubkey}}catch{return null}}
@@ -1648,20 +1114,13 @@ function splitBufferIntoChunks(arrayBuffer,chunkSize=CHUNK_SIZE){const bytes=new
 function concatArrayBuffers(buffers){const total=buffers.reduce((s,b)=>s+b.byteLength,0);const out=new Uint8Array(total);let o=0;for(const b of buffers){out.set(new Uint8Array(b),o);o+=b.byteLength}return out.buffer}
 function isChunkedFile(f){return !!(f&&f.chunked&&Array.isArray(f.chunks)&&f.chunks.length)}
 async function uploadMediaDriveStyle(file,privateKeyBytes,onStatus){
-  const buf=await file.arrayBuffer();
-  const fileSha=await sha256Hex(buf);
-  const size=buf.byteLength;
+  const buf=await file.arrayBuffer();const fileSha=await sha256Hex(buf);const size=buf.byteLength;
   if(onStatus)onStatus('Enviando arquivo...');
-  let fullUrl='';
-  try{const up=await uploadSingleBuffer(buf,file.name,privateKeyBytes);fullUrl=up?.url||''}catch(e){console.warn(e)}
+  let fullUrl='';try{const up=await uploadSingleBuffer(buf,file.name,privateKeyBytes);fullUrl=up?.url||''}catch(e){console.warn(e)}
   if(fullUrl&&/^https?:\/\//i.test(fullUrl)){
     if(size>MAX_FREE_BYTES){
-      const parts=splitBufferIntoChunks(buf,CHUNK_SIZE);
-      const chunkMeta=[];let backend='cloud';
-      for(let i=0;i<parts.length;i++){
-        if(onStatus)onStatus(`Backup fatia ${i+1}/${parts.length}...`);
-        try{const{url,backend:b}=await uploadSingleBuffer(parts[i],`${file.name}.part${String(i).padStart(4,'0')}`,privateKeyBytes);if(b==='local')backend='local';else if(backend!=='local')backend=b||backend;chunkMeta.push({url,index:i,size:parts[i].byteLength})}catch(_){}
-      }
+      const parts=splitBufferIntoChunks(buf,CHUNK_SIZE);const chunkMeta=[];let backend='cloud';
+      for(let i=0;i<parts.length;i++){if(onStatus)onStatus(`Backup fatia ${i+1}/${parts.length}...`);try{const{url,backend:b}=await uploadSingleBuffer(parts[i],`${file.name}.part${String(i).padStart(4,'0')}`,privateKeyBytes);if(b==='local')backend='local';else if(backend!=='local')backend=b||backend;chunkMeta.push({url,index:i,size:parts[i].byteLength})}catch(_){}}
       return{chunked:chunkMeta.length>1,chunks:chunkMeta.length?chunkMeta:[{url:fullUrl,index:0,size}],mime:file.type||'application/octet-stream',size,encSize:size,encSha256:fileSha,backend,url:fullUrl,publicUrl:fullUrl,playbackUrl:fullUrl};
     }
     return fullUrl;
@@ -1688,146 +1147,46 @@ let cachedCampaigns=[];
 async function bootPartnerSlots(){cachedCampaigns=await fetchNetworkCampaigns(40);fillSlots(cachedCampaigns);setInterval(async()=>{cachedCampaigns=await fetchNetworkCampaigns(40);fillSlots(cachedCampaigns)},3*60*1000)}
 window.refreshPartnerSlots=()=>fillSlots(cachedCampaigns);
 
-/* ---- merge helpers (módulo) para fold de eventos remotos ---- */
-function progressScoreNostr(p){
-    if(!p||typeof p!=='object')return -1;
-    if(typeof p.percentage==='number'&&!Number.isNaN(p.percentage))return Math.min(1,Math.max(0,p.percentage));
-    if(p.page!=null){
-        const page=Number(p.page)||0;const total=Number(p.totalPages)||0;
-        if(total>0)return Math.min(1,Math.max(0,(page-1)/total));
-        return Math.min(1,page/5000);
-    }
-    if(typeof p.scrollTop==='number')return Math.min(1,Math.max(0,p.scrollTop/1e7));
-    if(p.cfi)return 0.001;
-    return -1;
-}
-function resolveProgressEntryNostr(a,b){
-    if(!a)return b||null;if(!b)return a;
-    const ta=Number(a.updatedAt)||0,tb=Number(b.updatedAt)||0;
-    const sa=progressScoreNostr(a),sb=progressScoreNostr(b);
-    const dt=ta-tb;
-    if(Math.abs(dt)>CLOCK_SKEW_MS)return dt>0?a:b;
-    if(Math.abs(sa-sb)>0.002)return sa>sb?a:b;
-    if(dt!==0)return dt>0?a:b;
-    return{...b,...a,cfi:a.cfi||b.cfi,page:a.page!=null?a.page:b.page,scrollTop:a.scrollTop!=null?a.scrollTop:b.scrollTop,percentage:a.percentage!=null?a.percentage:b.percentage,totalPages:a.totalPages||b.totalPages,type:a.type||b.type,title:a.title||b.title,updatedAt:Math.max(ta,tb)};
-}
-function pruneProgressMapNostr(map,max=80){
-    const keys=Object.keys(map||{}).sort((a,b)=>(map[b].updatedAt||0)-(map[a].updatedAt||0));
-    if(keys.length<=max)return map||{};
-    const next={};keys.slice(0,max).forEach(k=>{next[k]=map[k]});return next;
-}
-function mergeProgressMapsNostr(...maps){
-    const out={};
-    for(const map of maps){
-        if(!map||typeof map!=='object')continue;
-        for(const k of Object.keys(map))out[k]=resolveProgressEntryNostr(out[k],map[k]);
-    }
-    return pruneProgressMapNostr(out,80);
-}
-function itemIdentityNostr(it){return String(it?._dTag||it?.dTag||it?.name||'').toLowerCase()}
-function mergeItemListsNostr(a,b,timeField){
-    const map=new Map();
-    const put=(it)=>{
-        if(!it?.name)return;
-        const id=itemIdentityNostr(it);if(!id)return;
-        const prev=map.get(id);
-        if(!prev){map.set(id,it);return}
-        const tNew=Number(it[timeField])||Number(it.updatedAt)||0;
-        const tOld=Number(prev[timeField])||Number(prev.updatedAt)||0;
-        map.set(id,tNew>=tOld?{...prev,...it}:{...it,...prev});
-    };
-    (a||[]).forEach(put);(b||[]).forEach(put);
-    return [...map.values()].sort((x,y)=>(Number(y[timeField])||0)-(Number(x[timeField])||0));
-}
-
 async function syncUserMetaToNetwork(meta){
-    const session=getSession();
-    if(!session)return false;
-    try{
-        const content=await encryptUserMeta({
-            v:2,
-            saved:meta.saved||[],
-            history:meta.history||[],
-            progress:meta.progress&&typeof meta.progress==='object'?meta.progress:{},
-            updatedAt:Date.now()
-        },session.privateKeyHex);
-        const signed=NostrTools.finalizeEvent({
-            kind:STREAM_KIND,
-            created_at:Math.floor(Date.now()/1000),
-            tags:[['d',USER_META_D],['client','loreplay-books'],['t','user-meta'],['v','2']],
-            content
-        },session.privateKey);
-        await publishToRelays(signed);
-        return true;
-    }catch(e){
-        console.error(e);
-        return false;
-    }
+  const session=getSession();if(!session)return false;
+  try{
+    const content=await encryptUserMeta({v:1,saved:meta.saved||[],history:meta.history||[],progress:meta.progress||[],updatedAt:Date.now()},session.privateKeyHex);
+    const signed=NostrTools.finalizeEvent({kind:STREAM_KIND,created_at:Math.floor(Date.now()/1000),tags:[['d',USER_META_D],['client','loreplay-books'],['t','user-meta']],content},session.privateKey);
+    await publishToRelays(signed);return true;
+  }catch(e){console.error(e);return false}
 }
 async function loadUserMetaFromNetwork(){
-    const session=getSession();
-    if(!session)return null;
-    try{
-        const events=await pool.querySync(RELAYS,{
-            kinds:[STREAM_KIND],
-            authors:[session.pubkey],
-            '#d':[USER_META_D],
-            limit:12
-        })||[];
-        events.sort((a,b)=>(b.created_at||0)-(a.created_at||0));
-        const decrypted=[];
-        for(const ev of events){
-            try{
-                const data=await decryptUserMeta(ev.content,session.privateKeyHex);
-                if(data&&typeof data==='object'){
-                    decrypted.push({...data,_eventCreatedAt:ev.created_at||0,_eventId:ev.id});
-                }
-            }catch(_){}
-        }
-        if(!decrypted.length)return null;
-        let acc={saved:[],history:[],progress:{}};
-        decrypted.slice().sort((a,b)=>(a._eventCreatedAt||0)-(b._eventCreatedAt||0)).forEach(m=>{
-            acc={
-                saved:mergeItemListsNostr(acc.saved,m.saved||[],'savedAt'),
-                history:mergeItemListsNostr(acc.history,m.history||[],'viewedAt').slice(0,50),
-                progress:mergeProgressMapsNostr(acc.progress,m.progress||{})
-            };
-        });
-        return acc;
-    }catch(e){
-        console.warn(e);
-        return null;
-    }
+  const session=getSession();if(!session)return null;
+  try{
+    const events=await pool.querySync(RELAYS,{kinds:[STREAM_KIND],authors:[session.pubkey],'#d':[USER_META_D],limit:5})||[];
+    events.sort((a,b)=>b.created_at-a.created_at);
+    for(const ev of events){try{return await decryptUserMeta(ev.content,session.privateKeyHex)}catch(_){}}
+  }catch(e){console.warn(e)}
+  return null;
 }
 async function publishPost({provider,type,name,coverFile,volumesFiles,bookFile,isEdit,existingDTag,basePayload}){
-    const session=getSession();if(!session)throw new Error('Sessão Nostr ausente.');if(session.privateKeyHex!==ALLOWED_HEX)throw new Error('Conta não autorizada.');
-    const status=msg=>{if(window.setNetworkStatus)window.setNetworkStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>${msg}</span>`)};
-    let coverUrl=basePayload?.img||'';
-    if(coverFile){status('Enviando capa...');const coverRef=await uploadMediaDriveStyle(coverFile,session.privateKey,status);coverUrl=typeof coverRef==='string'?coverRef:(coverRef.publicUrl||coverRef.url||coverUrl)}
-    if(!coverUrl)throw new Error('Capa obrigatória.');
-    const payload={name,provider,type,img:coverUrl,status:TYPE_LABELS[type]||'Livro',badge:TYPE_LABELS[type]||'Livro',created_at:basePayload?.created_at||Math.floor(Date.now()/1000),updated_at:Math.floor(Date.now()/1000)};
-    if(type==='mangas'||type==='lightnovels'||(type==='books'&&volumesFiles)){
-        payload.volumes=basePayload?.volumes?JSON.parse(JSON.stringify(basePayload.volumes)):{};
-        for(const v of Object.keys(volumesFiles||{})){
-            if(!payload.volumes[v])payload.volumes[v]={};
-            for(const c of Object.keys(volumesFiles[v]||{})){
-                const f=volumesFiles[v][c];
-                if(f instanceof File||f instanceof Blob){status(`Vol ${v} Cap ${c}...`);payload.volumes[v][c]=await uploadMediaDriveStyle(f,session.privateKey,status)}
-            }
-        }
-        const has=Object.values(payload.volumes).some(chs=>Object.values(chs||{}).some(Boolean));
-        if(!has&&!basePayload?.volumes)throw new Error('É preciso haver ao menos um arquivo.');
-    }else{
-        let fileRef=basePayload?.fileUrl||null;
-        if(bookFile)fileRef=await uploadMediaDriveStyle(bookFile,session.privateKey,status);
-        if(!fileRef)throw new Error('Envie o arquivo do livro.');
-        payload.fileUrl=fileRef;
-    }
-    const epoch=currentEpoch(),salt=randomSalt(16);
-    const encrypted=await encryptPayload(payload,epoch,salt);
-    const dTag=(isEdit&&existingDTag)?existingDTag:('lp-book-'+(crypto.randomUUID?.()||Date.now()));
-    const signed=NostrTools.finalizeEvent({kind:STREAM_KIND,created_at:Math.floor(Date.now()/1000),tags:[['d',dTag],['t',TAG_APP],['t','books-post'],['provider',provider],['media',type],['crypto_v','1'],['crypto_epoch',String(epoch)],['crypto_salt',salt],['title',String(name).slice(0,80)],['p',session.pubkey],['author',session.pubkey]],content:encrypted},session.privateKey);
-    status(isEdit?'Atualizando...':'Publicando...');await publishToRelays(signed);return payload;
+  const session=getSession();if(!session)throw new Error('Sessão Nostr ausente.');if(session.privateKeyHex!==ALLOWED_HEX)throw new Error('Conta não autorizada.');
+  const status=msg=>{if(window.setNetworkStatus)window.setNetworkStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>${msg}</span>`)};
+  let coverUrl=basePayload?.img||'';
+  if(coverFile){status('Enviando capa...');const coverRef=await uploadMediaDriveStyle(coverFile,session.privateKey,status);coverUrl=typeof coverRef==='string'?coverRef:(coverRef.publicUrl||coverRef.url||coverUrl)}
+  if(!coverUrl)throw new Error('Capa obrigatória.');
+  const payload={name,provider,type,img:coverUrl,status:TYPE_LABELS[type]||'Livro',badge:TYPE_LABELS[type]||'Livro',created_at:basePayload?.created_at||Math.floor(Date.now()/1000),updated_at:Math.floor(Date.now()/1000)};
+  if(type==='mangas'||type==='lightnovels'||(type==='books'&&volumesFiles)){
+    payload.volumes=basePayload?.volumes?JSON.parse(JSON.stringify(basePayload.volumes)):{};
+    for(const v of Object.keys(volumesFiles||{})){if(!payload.volumes[v])payload.volumes[v]={};for(const c of Object.keys(volumesFiles[v]||{})){const f=volumesFiles[v][c];if(f instanceof File||f instanceof Blob){status(`Vol ${v} Cap ${c}...`);payload.volumes[v][c]=await uploadMediaDriveStyle(f,session.privateKey,status)}}}
+    const has=Object.values(payload.volumes).some(chs=>Object.values(chs||{}).some(Boolean));
+    if(!has&&!basePayload?.volumes)throw new Error('É preciso haver ao menos um arquivo.');
+  }else{
+    let fileRef=basePayload?.fileUrl||null;
+    if(bookFile)fileRef=await uploadMediaDriveStyle(bookFile,session.privateKey,status);
+    if(!fileRef)throw new Error('Envie o arquivo do livro.');
+    payload.fileUrl=fileRef;
+  }
+  const epoch=currentEpoch(),salt=randomSalt(16);
+  const encrypted=await encryptPayload(payload,epoch,salt);
+  const dTag=(isEdit&&existingDTag)?existingDTag:('lp-book-'+(crypto.randomUUID?.()||Date.now()));
+  const signed=NostrTools.finalizeEvent({kind:STREAM_KIND,created_at:Math.floor(Date.now()/1000),tags:[['d',dTag],['t',TAG_APP],['t','books-post'],['provider',provider],['media',type],['crypto_v','1'],['crypto_epoch',String(epoch)],['crypto_salt',salt],['title',String(name).slice(0,80)],['p',session.pubkey],['author',session.pubkey]],content:encrypted},session.privateKey);
+  status(isEdit?'Atualizando...':'Publicando...');await publishToRelays(signed);return payload;
 }
 function mediaPresent(r){if(!r)return false;if(typeof r==='string')return!!r;if(r.publicUrl||r.playbackUrl||r.url)return true;return isChunkedFile(r)}
 async function queryAllStreamEvents(){
@@ -1875,38 +1234,37 @@ async function fetchPostByDTag(dTag){
   return null;
 }
 async function loadPostsFromNetwork(){
-    const pd=window.providerData;if(!pd)return 0;
-    if(window.setNetworkStatus)window.setNetworkStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>Sincronizando...</span>`);
-    Object.keys(pd).forEach(k=>{pd[k].books=[];pd[k].mangas=[];pd[k].lightnovels=[]});
-    let events=[];try{events=await queryAllStreamEvents()}catch(e){if(window.onCatalogLoaded)window.onCatalogLoaded();return 0}
-    const seen=new Set();let count=0;
-    for(const ev of events.sort((a,b)=>b.created_at-a.created_at)){
-        try{
-            const tags={};(ev.tags||[]).forEach(t=>{if(t[0]&&t[1]!==undefined)tags[t[0]]=t[1]});
-            if(!tags.crypto_epoch||!tags.crypto_salt||!ev.content)continue;
-            if(AUTHOR_PUBKEY&&ev.pubkey&&ev.pubkey!==AUTHOR_PUBKEY)continue;
-            const data=await decryptPayload(ev.content,tags.crypto_epoch,tags.crypto_salt);
-            if(!data?.name||!data?.provider||!pd[data.provider])continue;
-            const key=(tags.d||ev.id)+'|'+data.name;if(seen.has(key))continue;seen.add(key);
-            const entry={name:data.name,status:data.status||'',badge:data.badge||null,img:data.img,volumes:data.volumes,fileUrl:data.fileUrl,type:data.type,provider:data.provider,_dTag:tags.d||null,_author:ev.pubkey||null,_eventId:ev.id||null,_created_at:ev.created_at||null};
-            if(typeof window.storeFullEntry==='function')window.storeFullEntry(entry);
-            else{window.__lpMediaIndex=window.__lpMediaIndex||Object.create(null);window.__lpMediaIndex[entry._dTag||(entry.provider+'|'+entry.name)]=entry}
-            const light=typeof window.lightCatalogEntry==='function'?window.lightCatalogEntry(entry):{name:entry.name,status:entry.status,badge:entry.badge,img:entry.img,type:entry.type,provider:entry.provider,_dTag:entry._dTag,_author:entry._author,_eventId:entry._eventId,_created_at:entry._created_at,_hasMedia:true};
-            const t=data.type||'books';
-            if(t==='mangas'||t==='lightnovels'){
-                const ok=entry.volumes&&Object.values(entry.volumes).some(chs=>Object.values(chs||{}).some(mediaPresent));
-                if(!ok)continue;
-                pd[data.provider][t].push(light);
-            }else{
-                if(!mediaPresent(entry.fileUrl)&&!(entry.volumes&&Object.values(entry.volumes).some(chs=>Object.values(chs||{}).some(mediaPresent))))continue;
-                pd[data.provider].books.push(light);
-            }
-            count++;
-        }catch(_){}
-    }
-    if(window.onCatalogLoaded)window.onCatalogLoaded();
-    if(window.setNetworkStatus)window.setNetworkStatus(count?`<span class="text-gray-500">${count} título(s)</span>`:`<span class="text-gray-400">Nenhum título ainda.</span>`);
-    return count;
+  const pd=window.providerData;if(!pd)return 0;
+  if(window.setNetworkStatus)window.setNetworkStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>Sincronizando...</span>`);
+  Object.keys(pd).forEach(k=>{pd[k].books=[];pd[k].mangas=[];pd[k].lightnovels=[]});
+  let events=[];try{events=await queryAllStreamEvents()}catch(e){if(window.onCatalogLoaded)window.onCatalogLoaded();return 0}
+  const seen=new Set();let count=0;
+  for(const ev of events.sort((a,b)=>b.created_at-a.created_at)){
+    try{
+      const tags={};(ev.tags||[]).forEach(t=>{if(t[0]&&t[1]!==undefined)tags[t[0]]=t[1]});
+      if(!tags.crypto_epoch||!tags.crypto_salt||!ev.content)continue;
+      if(AUTHOR_PUBKEY&&ev.pubkey&&ev.pubkey!==AUTHOR_PUBKEY)continue;
+      const data=await decryptPayload(ev.content,tags.crypto_epoch,tags.crypto_salt);
+      if(!data?.name||!data?.provider||!pd[data.provider])continue;
+      const key=(tags.d||ev.id)+'|'+data.name;if(seen.has(key))continue;seen.add(key);
+      const entry={name:data.name,status:data.status||'',badge:data.badge||null,img:data.img,volumes:data.volumes,fileUrl:data.fileUrl,type:data.type,provider:data.provider,_dTag:tags.d||null,_author:ev.pubkey||null,_eventId:ev.id||null,_created_at:ev.created_at||null};
+      if(typeof window.storeFullEntry==='function')window.storeFullEntry(entry);
+      else{window.__lpMediaIndex=window.__lpMediaIndex||Object.create(null);window.__lpMediaIndex[entry._dTag||(entry.provider+'|'+entry.name)]=entry}
+      const light=typeof window.lightCatalogEntry==='function'?window.lightCatalogEntry(entry):{name:entry.name,status:entry.status,badge:entry.badge,img:entry.img,type:entry.type,provider:entry.provider,_dTag:entry._dTag,_author:entry._author,_eventId:entry._eventId,_created_at:entry._created_at,_hasMedia:true};
+      const t=data.type||'books';
+      if(t==='mangas'||t==='lightnovels'){
+        const ok=entry.volumes&&Object.values(entry.volumes).some(chs=>Object.values(chs||{}).some(mediaPresent));
+        if(!ok)continue;pd[data.provider][t].push(light);
+      }else{
+        if(!mediaPresent(entry.fileUrl)&&!(entry.volumes&&Object.values(entry.volumes).some(chs=>Object.values(chs||{}).some(mediaPresent))))continue;
+        pd[data.provider].books.push(light);
+      }
+      count++;
+    }catch(_){}
+  }
+  if(window.onCatalogLoaded)window.onCatalogLoaded();
+  if(window.setNetworkStatus)window.setNetworkStatus(count?`<span class="text-gray-500">${count} título(s)</span>`:`<span class="text-gray-400">Nenhum título ainda.</span>`);
+  return count;
 }
 window.__lpStreamNet={publishPost,fetchPostByDTag};
 window.loadPostsFromNetwork=loadPostsFromNetwork;
