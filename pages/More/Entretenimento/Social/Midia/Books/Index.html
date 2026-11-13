@@ -419,7 +419,7 @@ const providerData={
 const TYPE_LABELS={books:'Livro',mangas:'Mangá',lightnovels:'Light Novel'};
 const TYPE_PLURAL={books:'Livros',mangas:'Mangás',lightnovels:'Light Novels'};
 
-/* ========== Continuar (igual Streaming) ========== */
+/* ========== Continuar: seletor de arquivo (vol/cap) + página ========== */
 function progressKeyFromItem(item,title){
   if(item&&item._dTag)return 'd:'+item._dTag;
   const prov=(item&&item.provider)||currentProvider||'';
@@ -430,21 +430,22 @@ function getProgressEntry(item,title){return progressMap[progressKeyFromItem(ite
 function formatPct(p){if(p==null||Number.isNaN(Number(p)))return '';return Math.min(100,Math.max(0,Math.round(Number(p)*100)))+'%'}
 function readingScore(entry){
   if(!entry||entry.completed)return -1;
+  if(entry.page!=null&&entry.totalPages>0)return Math.min(1,Math.max(0,(Number(entry.page)-1)/Math.max(1,Number(entry.totalPages))));
   if(typeof entry.percentage==='number')return entry.percentage;
-  if(entry.page!=null&&entry.totalPages>0)return Math.min(1,Math.max(0,(Number(entry.page)-1)/Number(entry.totalPages)));
   if(entry.cfi||entry.page!=null||entry.scrollTop!=null)return 0.01;
   return -1;
 }
 function collectCurrentProgressSnapshot(){
   if(!currentDetailTitle||!currentItemFullData)return null;
+  const volume=String(activeVolume??1);
+  const chapter=activeChapterKey!=null?String(activeChapterKey):null;
+  if(chapter==null)return null;
   const base={
     name:currentDetailTitle,img:currentDetailImg||'',
     provider:currentItemFullData?.provider||currentProvider,
     type:currentItemFullData?.type||currentMediaType,
     _dTag:currentItemFullData?._dTag||null,
-    volume:String(activeVolume??1),
-    chapter:activeChapterKey!=null?String(activeChapterKey):'1',
-    updatedAt:Date.now(),completed:false
+    volume,chapter,updatedAt:Date.now(),completed:false
   };
   if(epubRendition){
     try{
@@ -454,18 +455,27 @@ function collectCurrentProgressSnapshot(){
       if(epubBook?.locations&&typeof epubBook.locations.percentageFromCfi==='function'){
         percentage=epubBook.locations.percentageFromCfi(cfi);
       }
+      let page=null,totalPages=null;
+      try{
+        if(epubBook?.locations&&typeof epubBook.locations.locationFromCfi==='function'){
+          page=(epubBook.locations.locationFromCfi(cfi)||0)+1;
+          totalPages=epubBook.locations.length()||null;
+        }
+      }catch(_){}
       const completed=percentage!=null&&percentage>=0.98;
-      return{...base,reader:'epub',cfi,percentage:percentage!=null?percentage:undefined,completed,currentTime:percentage!=null?percentage:0.01,duration:1};
+      return{...base,reader:'epub',cfi,page:page!=null?page:undefined,totalPages:totalPages!=null?totalPages:undefined,percentage:percentage!=null?percentage:undefined,completed,currentTime:percentage!=null?percentage:0.01,duration:1};
     }catch(_){return null}
   }
   const pdfEl=document.getElementById('pdfViewer');
   if(pdfEl&&pdfEl.classList.contains('active')){
     const wraps=[...pdfEl.querySelectorAll('.pdf-page-wrap')];
-    let page=1;const top=pdfEl.scrollTop+pdfEl.clientHeight*0.25;
+    if(!wraps.length)return null;
+    let page=1;
+    const top=pdfEl.scrollTop+pdfEl.clientHeight*0.25;
     for(const w of wraps){if(w.offsetTop<=top)page=parseInt(w.dataset.page,10)||page;else break}
-    const totalPages=wraps.length||0;
-    if(page<1&&(pdfEl.scrollTop||0)<8)return null;
-    const percentage=totalPages>0?Math.min(1,(page-1)/totalPages):0;
+    const totalPages=wraps.length;
+    if(page<1)page=1;
+    const percentage=totalPages>0?Math.min(1,Math.max(0,(page-1)/totalPages)):0;
     const completed=totalPages>0&&page>=totalPages;
     return{...base,reader:'pdf',page,scrollTop:pdfEl.scrollTop||0,totalPages,percentage,completed,currentTime:percentage,duration:1};
   }
@@ -473,10 +483,15 @@ function collectCurrentProgressSnapshot(){
 }
 async function saveProgressSnapshot(forceSync=false){
   const snap=collectCurrentProgressSnapshot();if(!snap)return;
+  if(snap.chapter==null)return;
+  if(snap.page==null&&!snap.cfi&&snap.scrollTop==null)return;
   const key=progressKeyFromItem({_dTag:snap._dTag,provider:snap.provider,name:snap.name},snap.name);
   progressMap[key]=snap;
   const histIdx=historyTitles.findIndex(h=>h.name===snap.name);
-  const histEntry={name:snap.name,img:snap.img,type:snap.type,provider:snap.provider,_dTag:snap._dTag,viewedAt:Date.now(),progress:{volume:snap.volume,chapter:snap.chapter,reader:snap.reader,cfi:snap.cfi,page:snap.page,scrollTop:snap.scrollTop,totalPages:snap.totalPages,percentage:snap.percentage,currentTime:snap.currentTime,duration:snap.duration,completed:!!snap.completed}};
+  const histEntry={
+    name:snap.name,img:snap.img,type:snap.type,provider:snap.provider,_dTag:snap._dTag,viewedAt:Date.now(),
+    progress:{volume:snap.volume,chapter:snap.chapter,reader:snap.reader,page:snap.page,totalPages:snap.totalPages,scrollTop:snap.scrollTop,cfi:snap.cfi,percentage:snap.percentage,currentTime:snap.currentTime,duration:snap.duration,completed:!!snap.completed}
+  };
   if(histIdx>=0)historyTitles[histIdx]={...historyTitles[histIdx],...histEntry};
   else{historyTitles.unshift(histEntry);if(historyTitles.length>50)historyTitles=historyTitles.slice(0,50)}
   renderHistoryModalList();
@@ -515,22 +530,31 @@ function updateResumeUI(){
   const btn=document.getElementById('openExternalBtn');if(!btn)return;
   const prog=getProgressEntry(currentItemFullData,currentDetailTitle);
   const label=btn.querySelector('div');
-  const has=prog&&!prog.completed&&(prog.cfi||prog.page!=null||prog.scrollTop!=null||readingScore(prog)>0);
-  if(has){if(label)label.textContent='Continuar';btn.classList.add('ring-2','ring-secondary/60');btn.title='Continuar de onde parou'}
-  else{if(label)label.textContent='Ler';btn.classList.remove('ring-2','ring-secondary/60');btn.title='Ler'}
+  const has=prog&&!prog.completed&&prog.chapter!=null&&(prog.page!=null||prog.cfi||prog.scrollTop!=null);
+  if(has){
+    if(label)label.textContent='Continuar';
+    btn.classList.add('ring-2','ring-secondary/60');
+    btn.title=`Continuar · Vol ${prog.volume} Cap ${prog.chapter}`+(prog.page!=null?` · pág. ${prog.page}`:'');
+  }else{
+    if(label)label.textContent='Ler';
+    btn.classList.remove('ring-2','ring-secondary/60');
+    btn.title='Ler';
+  }
 }
 function getProgressListForContinue(){
   const list=[];const seen=new Set();
   const pushFrom=(p)=>{
     if(!p||!p.name||p.completed)return;
-    const started=readingScore(p)>0||p.cfi||p.page!=null||p.volume!=null||p.chapter!=null;if(!started)return;
+    if(p.chapter==null)return;
+    if(p.page==null&&!p.cfi&&p.scrollTop==null)return;
     const key=(p._dTag||'')+'|'+(p.provider||'')+'|'+p.name;if(seen.has(key))return;seen.add(key);
     let light=null;
     if(p._dTag&&window.__lpMediaIndex)light=window.__lpMediaIndex[p._dTag]||null;
     if(!light&&p.provider&&p.name)light=window.__lpMediaIndex?.['name:'+p.provider+'|'+p.name]||null;
-    const volCap=(p.volume!=null&&p.chapter!=null)?`Vol ${p.volume} Cap ${p.chapter} · `:'';
+    const fileSel=`Vol ${p.volume} Cap ${p.chapter}`;
+    const pagePart=p.page!=null?` · pág. ${p.page}`:'';
     const pct=formatPct(p.percentage!=null?p.percentage:readingScore(p));
-    list.push({name:p.name,img:(light&&light.img)||p.img||'',status:'Continuar · '+volCap+(pct||'em andamento'),badge:'Continuar',type:p.type||currentMediaType,provider:p.provider||currentProvider,_dTag:p._dTag||(light&&light._dTag)||null,_hasMedia:true,_progress:p});
+    list.push({name:p.name,img:(light&&light.img)||p.img||'',status:`Continuar · ${fileSel}${pagePart}${pct?` · ${pct}`:''}`,badge:'Continuar',type:p.type||currentMediaType,provider:p.provider||currentProvider,_dTag:p._dTag||(light&&light._dTag)||null,_hasMedia:true,_progress:p});
   };
   Object.values(progressMap||{}).forEach(pushFrom);
   (historyTitles||[]).forEach(h=>{if(h&&h.progress)pushFrom({name:h.name,img:h.img,provider:h.provider,type:h.type,_dTag:h._dTag,...h.progress,updatedAt:h.viewedAt||h.progress.updatedAt})});
@@ -855,6 +879,11 @@ async function goToChapterAt(index){
 function chapterPrev(){const idx=getCurrentChapterIndex();if(idx>0)goToChapterAt(idx-1)}
 function chapterNext(){const idx=getCurrentChapterIndex(),seq=getChapterSequence();if(idx>=0&&idx<seq.length-1)goToChapterAt(idx+1)}
 async function openCurrentFile(){
+  if(activeChapterKey==null){
+    const chs=currentVolumesData[activeVolume]||{};
+    const k=Object.keys(chs).find(x=>hasMediaRef(chs[x]));
+    if(k)activeChapterKey=k;
+  }
   const ref=getActiveMediaRef();
   if(!ref){const data=providerData[currentItemFullData?.provider||currentProvider];if(data?.url)window.open(data.url,'_blank','noopener,noreferrer');else alert('Nenhum arquivo disponível para leitura.');return}
   setMediaLoading(true,'Preparando leitura...');
@@ -931,13 +960,14 @@ async function openDetailModal(title,img,desc,item=null){
 
   const progFromCard=(item&&item._progress)||null;
   const prog=progFromCard||getProgressEntry(currentItemFullData,title);
-  if(prog&&!prog.completed){
+  if(prog&&!prog.completed&&prog.chapter!=null){
     if(prog.volume!=null&&Object.keys(currentVolumesData).map(String).includes(String(prog.volume)))activeVolume=prog.volume;
     else activeVolume=Object.keys(currentVolumesData)[0]||1;
-    if(prog.chapter!=null)activeChapterKey=String(prog.chapter);
+    activeChapterKey=String(prog.chapter);
     _pendingResumeProgress=prog;
   }else{
     activeVolume=Object.keys(currentVolumesData)[0]||1;
+    activeChapterKey=null;
     _pendingResumeProgress=null;
   }
 
@@ -952,7 +982,6 @@ async function openDetailModal(title,img,desc,item=null){
   if(window.refreshPartnerSlots)window.refreshPartnerSlots();
   updateChapterNavVisibility();
 
-  // Auto-abrir capítulo do progresso (Continuar)
   const chs=currentVolumesData[activeVolume]||{};
   let fk=null;
   if(prog&&!prog.completed&&prog.chapter!=null&&hasMediaRef(chs[prog.chapter]))fk=String(prog.chapter);
@@ -980,10 +1009,11 @@ function renderHistoryModalList(){
   c.innerHTML=historyTitles.map(i=>{
     const prog=i.progress||getProgressEntry({name:i.name,provider:i.provider,_dTag:i._dTag},i.name);
     let sub=i.type||'';
-    if(prog&&!prog.completed&&(readingScore(prog)>0||prog.cfi||prog.page!=null||prog.volume||prog.chapter)){
-      const part=(prog.volume!=null&&prog.chapter!=null)?`Vol ${prog.volume} Cap ${prog.chapter} · `:'';
+    if(prog&&!prog.completed&&prog.chapter!=null&&(prog.page!=null||prog.cfi||prog.scrollTop!=null)){
+      const part=`Vol ${prog.volume} Cap ${prog.chapter}`;
+      const pagePart=prog.page!=null?` · pág. ${prog.page}`:'';
       const pct=formatPct(prog.percentage!=null?prog.percentage:readingScore(prog));
-      sub=`Continuar · ${part}${pct||'em andamento'}`;
+      sub=`Continuar · ${part}${pagePart}${pct?` · ${pct}`:''}`;
     }else if(prog&&prog.completed)sub=(i.type||'')+' · Concluído';
     const itemJson=JSON.stringify({name:i.name,img:i.img||'',type:i.type||'',provider:i.provider||currentProvider,_dTag:i._dTag||null,_progress:prog||null}).replace(/'/g,'&#39;');
     const pctBar=(prog&&!prog.completed)?Math.min(100,Math.round((prog.percentage!=null?prog.percentage:Math.max(0,readingScore(prog)))*100)):0;
