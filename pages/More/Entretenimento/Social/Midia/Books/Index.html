@@ -62,10 +62,10 @@
         #readerCover.hidden-cover{display:none!important}
         #epubViewer{width:100%;height:100%;background:#fafafa;display:none}
         #epubViewer.active{display:block}
-        #pdfViewer{width:100%;height:100%;border:0;background:#111;display:none;overflow:auto;-webkit-overflow-scrolling:touch}
+        #pdfViewer{width:100%;height:100%;border:0;background:#111;display:none;overflow:auto;-webkit-overflow-scrolling:touch;position:relative}
         #pdfViewer.active{display:block}
         #pdfViewer .pdf-page{display:block;margin:0 auto 8px;max-width:100%;height:auto;box-shadow:0 2px 12px rgba(0,0,0,.35)}
-        #pdfViewer .pdf-page-wrap{margin:0 auto 8px;width:100%;display:flex;justify-content:center}
+        #pdfViewer .pdf-page-wrap{margin:0 auto 8px;width:100%;display:flex;justify-content:center;position:relative}
         .epub-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:25;width:2.75rem;height:2.75rem;border-radius:9999px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);color:#fff;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);cursor:pointer}
         .epub-nav.visible{display:flex}
         .epub-nav:hover{background:rgba(124,58,237,.85)}
@@ -408,6 +408,8 @@ const ITEMS_PER_PAGE=28;
 let _progressSaveTimer=null;
 let _lastProgressSavedAt=0;
 let _pendingResumeProgress=null;
+let __lpPdfCurrentPage=1;
+let __lpPdfTotalPages=0;
 
 const providerData={
     kindle:{name:'Kindle',url:'https://www.amazon.com.br/kindle-dbs/hz/bookshelf',books:[],mangas:[],lightnovels:[]},
@@ -423,7 +425,6 @@ const providerData={
 const TYPE_LABELS={books:'Livro',mangas:'Mangá',lightnovels:'Light Novel'};
 const TYPE_PLURAL={books:'Livros',mangas:'Mangás',lightnovels:'Light Novels'};
 
-/* ========== Continuar: Vol/Cap + página — retomar só pelo botão ========== */
 function progressKeyFromItem(item,title){
   if(item&&item._dTag)return 'd:'+item._dTag;
   const prov=(item&&item.provider)||currentProvider||'';
@@ -454,6 +455,24 @@ function ensureActiveFileSelector(){
   }
   activeChapterKey='1';
   return '1';
+}
+function detectPdfPageFromScroll(pdfEl){
+  const wraps=[...pdfEl.querySelectorAll('.pdf-page-wrap')];
+  if(!wraps.length)return __lpPdfCurrentPage||1;
+  try{
+    const containerRect=pdfEl.getBoundingClientRect();
+    const marker=pdfEl.scrollTop+Math.max(40,pdfEl.clientHeight*0.2);
+    let best=1;
+    for(const w of wraps){
+      const rect=w.getBoundingClientRect();
+      const topRel=rect.top-containerRect.top+pdfEl.scrollTop;
+      const p=parseInt(w.dataset.page,10)||1;
+      if(topRel<=marker)best=p;
+    }
+    return best;
+  }catch(_){
+    return __lpPdfCurrentPage||1;
+  }
 }
 function collectCurrentProgressSnapshot(){
   if(!currentDetailTitle||!currentItemFullData)return null;
@@ -488,15 +507,18 @@ function collectCurrentProgressSnapshot(){
   const pdfEl=document.getElementById('pdfViewer');
   if(pdfEl&&pdfEl.classList.contains('active')){
     const wraps=[...pdfEl.querySelectorAll('.pdf-page-wrap')];
-    if(!wraps.length)return null;
-    let page=1;
-    const top=pdfEl.scrollTop+pdfEl.clientHeight*0.25;
-    for(const w of wraps){if(w.offsetTop<=top)page=parseInt(w.dataset.page,10)||page;else break}
-    const totalPages=wraps.length;
+    const totalPages=wraps.length||__lpPdfTotalPages||0;
+    let page=detectPdfPageFromScroll(pdfEl);
+    __lpPdfCurrentPage=page;
     if(page<1)page=1;
-    const percentage=totalPages>0?Math.min(1,Math.max(0,(page-1)/totalPages)):0;
-    const completed=totalPages>0&&page>=totalPages;
-    return{...base,reader:'pdf',page,scrollTop:pdfEl.scrollTop||0,totalPages,percentage,completed,currentTime:percentage,duration:1};
+    if(!totalPages&&!wraps.length)return null;
+    const tp=totalPages||wraps.length||1;
+    const percentage=Math.min(1,Math.max(0,(page-1)/Math.max(1,tp)));
+    const completed=tp>0&&page>=tp;
+    return{
+      ...base,reader:'pdf',page,scrollTop:pdfEl.scrollTop||0,totalPages:tp,
+      percentage,completed,currentTime:percentage,duration:1
+    };
   }
   return null;
 }
@@ -532,15 +554,28 @@ function applyProgressToReader(entry){
   if(entry.cfi&&epubRendition){epubRendition.display(entry.cfi).catch(()=>{});return}
   const pdfEl=document.getElementById('pdfViewer');
   if(!pdfEl||!pdfEl.classList.contains('active'))return;
-  requestAnimationFrame(()=>{
+  const targetPage=entry.page!=null?Number(entry.page):null;
+  const targetScroll=typeof entry.scrollTop==='number'?entry.scrollTop:null;
+  const tryApply=(attempt)=>{
     try{
-      if(entry.page!=null){
-        const wrap=pdfEl.querySelector(`.pdf-page-wrap[data-page="${entry.page}"]`);
-        if(wrap){wrap.scrollIntoView({block:'start',behavior:'auto'});return}
+      if(targetPage!=null){
+        const wrap=pdfEl.querySelector(`.pdf-page-wrap[data-page="${targetPage}"]`);
+        if(wrap&&wrap.offsetHeight>0){
+          pdfEl.scrollTop=Math.max(0,(wrap.offsetTop||0)-8);
+          __lpPdfCurrentPage=targetPage;
+          return true;
+        }
       }
-      if(typeof entry.scrollTop==='number')pdfEl.scrollTop=entry.scrollTop;
+      if(targetScroll!=null&&(attempt>2||targetPage==null)){
+        pdfEl.scrollTop=targetScroll;
+        return true;
+      }
     }catch(_){}
-  });
+    return false;
+  };
+  let n=0;
+  const tick=()=>{if(tryApply(n))return;n++;if(n<12)setTimeout(tick,n<4?50:120)};
+  requestAnimationFrame(()=>requestAnimationFrame(tick));
 }
 function clearReadingProgress(){
   if(!currentDetailTitle)return;
@@ -725,6 +760,8 @@ function exitReadingMode(){document.getElementById('detailModal')?.classList.rem
 function showCoverOnly(){
   destroyEpub();
   if(window.__lpPdfObserver){try{window.__lpPdfObserver.disconnect()}catch(_){}window.__lpPdfObserver=null}
+  if(window.__lpPdfPageObserver){try{window.__lpPdfPageObserver.disconnect()}catch(_){}window.__lpPdfPageObserver=null}
+  __lpPdfCurrentPage=1;__lpPdfTotalPages=0;
   const pdfEl=document.getElementById('pdfViewer');if(pdfEl)pdfEl.onscroll=null;
   exitReadingMode();
   const cover=document.getElementById('readerCover'),epubEl=document.getElementById('epubViewer'),titleOv=document.getElementById('detailTitleOverlay');
@@ -761,6 +798,7 @@ async function renderPdfWithPdfJs(buffer){
   if(!window.pdfjsLib)throw new Error('PDF.js não carregou');
   const pdfEl=document.getElementById('pdfViewer');if(!pdfEl)throw new Error('pdfViewer ausente');
   if(window.__lpPdfObserver){try{window.__lpPdfObserver.disconnect()}catch(_){}window.__lpPdfObserver=null}
+  if(window.__lpPdfPageObserver){try{window.__lpPdfPageObserver.disconnect()}catch(_){}window.__lpPdfPageObserver=null}
   pdfEl.onscroll=null;pdfEl.innerHTML='';
   const doc=await pdfjsLib.getDocument({data:buffer}).promise;
   const containerW=Math.max(pdfEl.clientWidth||0,Math.min(window.innerWidth||360,1200));
@@ -793,7 +831,7 @@ async function renderPdfWithPdfJs(buffer){
   }
   for(let i=1;i<=doc.numPages;i++){
     const wrap=document.createElement('div');wrap.className='pdf-page-wrap';wrap.dataset.page=String(i);
-    wrap.style.cssText='margin:0 auto 8px;width:100%;display:flex;justify-content:center;';
+    wrap.style.cssText='margin:0 auto 8px;width:100%;display:flex;justify-content:center;position:relative;';
     pdfEl.appendChild(wrap);pageMeta.push({pageNum:i,wrap,canvas:null,quality:null,token:0});
   }
   let next=1;
@@ -803,6 +841,10 @@ async function renderPdfWithPdfJs(buffer){
     if(!jobs.length)return;await Promise.all(jobs);if(next<=doc.numPages)await paintLowBatch();
   }
   await paintLowBatch();
+
+  __lpPdfTotalPages=doc.numPages;
+  __lpPdfCurrentPage=1;
+
   const observer=new IntersectionObserver((entries)=>{
     for(const entry of entries){
       const pageNum=parseInt(entry.target.dataset.page,10);if(!pageNum)continue;
@@ -811,20 +853,43 @@ async function renderPdfWithPdfJs(buffer){
       else{if(meta.quality==='high')paintPage(pageNum,'low')}
     }
   },{root:pdfEl,rootMargin:'30% 0px',threshold:0.01});
-  pageMeta.forEach(m=>observer.observe(m.wrap));window.__lpPdfObserver=observer;
+  pageMeta.forEach(m=>observer.observe(m.wrap));
+  window.__lpPdfObserver=observer;
+
+  window.__lpPdfPageObserver=new IntersectionObserver((entries)=>{
+    let best=null,bestRatio=-1;
+    for(const e of entries){
+      if(!e.isIntersecting)continue;
+      const p=parseInt(e.target.dataset.page,10);if(!p)continue;
+      if(e.intersectionRatio>bestRatio){bestRatio=e.intersectionRatio;best=p}
+    }
+    if(best!=null){
+      __lpPdfCurrentPage=best;
+      scheduleProgressSave();
+    }
+  },{root:pdfEl,rootMargin:'0px',threshold:[0.15,0.3,0.5,0.7]});
+  pageMeta.forEach(m=>window.__lpPdfPageObserver.observe(m.wrap));
 
   const saved=_pendingResumeProgress||null;
   _pendingResumeProgress=null;
   if(saved&&!saved.completed&&(saved.page!=null||saved.scrollTop!=null)){
-    requestAnimationFrame(()=>applyProgressToReader(saved));
+    if(saved.page!=null)__lpPdfCurrentPage=Number(saved.page)||1;
+    applyProgressToReader(saved);
   }
-  pdfEl.onscroll=()=>{scheduleProgressSave()};
+
+  pdfEl.onscroll=()=>{
+    __lpPdfCurrentPage=detectPdfPageFromScroll(pdfEl);
+    scheduleProgressSave();
+  };
+
+  setTimeout(()=>saveProgressSnapshot(false),500);
   updateResumeUI();
 }
 async function openInReader(src,ref){
   const cover=document.getElementById('readerCover'),epubEl=document.getElementById('epubViewer'),pdfEl=document.getElementById('pdfViewer'),titleOv=document.getElementById('detailTitleOverlay');
   destroyEpub();
   if(window.__lpPdfObserver){try{window.__lpPdfObserver.disconnect()}catch(_){}window.__lpPdfObserver=null}
+  if(window.__lpPdfPageObserver){try{window.__lpPdfPageObserver.disconnect()}catch(_){}window.__lpPdfPageObserver=null}
   if(pdfEl){pdfEl.classList.remove('active');pdfEl.innerHTML='';pdfEl.onscroll=null}
   if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}
   if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}
