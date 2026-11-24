@@ -56,7 +56,7 @@
             </div>
             <span class="font-bold text-xl tracking-tight text-gray-900">Impulso</span>
         </div>
-        <a href="../../Index.html" class="flex items-center gap-2 px-4 py-2 rounded-xl glass-card hover:bg-gray-100 transition-all duration-300 text-sm font-medium border border-gray-200 hover:border-secondary">
+        <a href="../../Index.html" id="btn-home" class="flex items-center gap-2 px-4 py-2 rounded-xl glass-card hover:bg-gray-100 transition-all duration-300 text-sm font-medium border border-gray-200 hover:border-secondary">
             <i data-lucide="arrow-left" class="w-4 h-4"></i>
             <span>Página Inicial</span>
         </a>
@@ -206,7 +206,7 @@
         </div>
     </main>
 
-    <!-- Modal: mobile full-width na extremidade inferior | desktop centralizado -->
+    <!-- Modal: pagamento -->
     <div id="modal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden z-50 items-end md:items-center justify-center p-0 md:p-4">
         <div class="glass-card w-full max-w-md md:w-full p-6 rounded-t-3xl md:rounded-3xl border border-gray-200 text-center relative shadow-2xl bg-white">
             <div class="w-14 h-14 bg-secondary/15 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-secondary/30 text-secondary">
@@ -225,10 +225,95 @@
         </div>
     </div>
 
+    <!-- ========== Modal de Login / Criar Conta ========== -->
+    <div id="authModal" class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-end md:items-center md:justify-center opacity-0 pointer-events-none p-0 md:p-4 transition-opacity duration-300">
+        <div id="authModalContent" class="bg-white w-full md:max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl md:rounded-3xl p-6 flex flex-col shadow-2xl transform translate-y-full transition-transform duration-300 space-y-5">
+            <div class="text-center space-y-1">
+                <div class="w-12 h-12 bg-secondary/10 text-secondary rounded-2xl flex items-center justify-center mx-auto text-xl mb-2">
+                    <i data-lucide="user" class="w-6 h-6"></i>
+                </div>
+                <h2 id="authModalTitle" class="font-bold text-xl text-gray-900">Entre com sua Chave</h2>
+                <p id="authModalSubtitle" class="text-xs text-gray-500">nsec ou e-mail e senha vinculados</p>
+            </div>
+
+            <div class="flex bg-gray-100 p-1 rounded-xl">
+                <button type="button" onclick="switchAuthTab('login')" id="tabLoginBtn" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-gray-900 shadow-sm">Entrar</button>
+                <button type="button" onclick="switchAuthTab('register')" id="tabRegisterBtn" class="flex-1 py-2 text-xs font-medium text-gray-500">Criar Identidade</button>
+            </div>
+
+            <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div id="registerFieldsContainer" class="space-y-4 hidden">
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-gray-700">Nome de Usuário</label>
+                        <input type="text" id="registerUsernameInput" placeholder="ex: meu_usuario" maxlength="30" class="w-full text-xs px-3.5 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-secondary">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-gray-700">E-mail</label>
+                        <input type="email" id="registerEmailInput" placeholder="seu@email.com" autocomplete="email" class="w-full text-xs px-3.5 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-secondary">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-gray-700">Senha</label>
+                        <input type="password" id="registerPasswordInput" placeholder="Mín. 6 caracteres" autocomplete="new-password" class="w-full text-xs px-3.5 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-secondary">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-gray-700">Gerar Nsec</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="generatedKeyOutput" readonly placeholder="Clique para gerar" class="w-full text-xs px-3.5 py-3 bg-gray-50 border border-gray-200 rounded-xl font-mono">
+                            <button type="button" onclick="generateNewAccessKey()" class="px-4 py-2 bg-secondary/10 text-secondary text-xs font-semibold rounded-xl flex-shrink-0">Gerar</button>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-gray-400">Guarde a nsec como backup.</p>
+                </div>
+
+                <div id="loginFieldsContainer" class="space-y-3">
+                    <div class="flex bg-gray-50 border border-gray-200 p-1 rounded-xl gap-1">
+                        <button type="button" id="loginMethodNsecBtn" onclick="switchLoginMethod('nsec')" class="flex-1 py-1.5 text-[11px] font-semibold rounded-lg bg-white shadow-sm">Chave (nsec)</button>
+                        <button type="button" id="loginMethodEmailBtn" onclick="switchLoginMethod('email')" class="flex-1 py-1.5 text-[11px] font-medium text-gray-500">E-mail e senha</button>
+                    </div>
+
+                    <div id="loginNsecFields" class="space-y-1">
+                        <label class="text-xs font-semibold text-gray-700">Sua Chave (nsec...)</label>
+                        <input type="password" id="authKeyInput" placeholder="nsec1..." class="w-full text-xs px-3.5 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-secondary">
+                    </div>
+
+                    <div id="loginEmailFields" class="space-y-3 hidden">
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-gray-700">E-mail</label>
+                            <input type="email" id="authEmailInput" placeholder="seu@email.com" autocomplete="username" class="w-full text-xs px-3.5 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-secondary">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-gray-700">Senha</label>
+                            <div class="relative">
+                                <input type="password" id="authPasswordInput" placeholder="••••••••" autocomplete="current-password" class="w-full text-xs px-3.5 py-3 pr-10 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-secondary">
+                                <button type="button" id="toggleAuthPassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">👁</button>
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-gray-700">npub <span class="text-gray-400 font-normal">(opcional)</span></label>
+                            <input type="text" id="authNpubInput" placeholder="npub1... (opcional)" class="w-full text-xs px-3.5 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-secondary">
+                        </div>
+                        <p class="text-[11px] text-gray-400">Use o e-mail e a senha cadastrados.</p>
+                    </div>
+                </div>
+
+                <button type="submit" id="authSubmitBtn" class="w-full py-3 bg-secondary hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition">Entrar na Conta</button>
+            </form>
+
+            <button type="button" id="authCancelBtn" onclick="cancelAuthAndGoBack()"
+                class="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold transition border border-gray-200">
+                Cancelar e voltar
+            </button>
+        </div>
+    </div>
+    <!-- ========== Fim Modal Auth ========== -->
+
     <script type="module">
         import * as NostrTools from 'https://esm.sh/nostr-tools@2.10.4';
+        import { bytesToHex, hexToBytes } from 'https://esm.sh/@noble/hashes@1.4.0/utils';
 
         /* ========== CONFIGURAÇÃO ========== */
+        const HOME_URL = '../../Index.html';
+
         const RELAYS = [
             'wss://relay.damus.io',
             'wss://nos.lol',
@@ -244,6 +329,7 @@
 
         const PENDING_BOOST_KEY = 'marketads_pending_boost';
         const ACTIVE_BOOST_KEY = 'marketads_active_boost';
+        const EMAIL_INDEX_D_PREFIX = 'loreplay-email-v1-';
         /* ================================= */
 
         const pool = new NostrTools.SimplePool();
@@ -257,6 +343,437 @@
 
         let pendingSelection = null;
         let countdownInterval = null;
+
+        // Auth state
+        let currentAuthMode = 'login';
+        let currentLoginMethod = 'nsec';
+        window.__tempGeneratedSk = null;
+
+        /* ========== Helpers de criptografia (login e-mail) ========== */
+        async function deriveKeyFromPassword(password, salt = 'loresocial-salt-v1') {
+            const enc = new TextEncoder();
+            const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+            return crypto.subtle.deriveKey(
+                { name: 'PBKDF2', salt: enc.encode(salt), iterations: 100000, hash: 'SHA-256' },
+                keyMaterial,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        }
+        async function encryptPrivateKey(privateKeyHex, password) {
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const key = await deriveKeyFromPassword(password);
+            const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(String(privateKeyHex)));
+            const combined = new Uint8Array(iv.length + encrypted.byteLength);
+            combined.set(iv, 0);
+            combined.set(new Uint8Array(encrypted), iv.length);
+            let binary = '';
+            combined.forEach(b => { binary += String.fromCharCode(b); });
+            return btoa(binary);
+        }
+        async function decryptPrivateKey(encryptedBase64, password) {
+            try {
+                const buff = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+                const iv = buff.slice(0, 12);
+                const data = buff.slice(12);
+                const key = await deriveKeyFromPassword(password);
+                return new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data));
+            } catch {
+                return null;
+            }
+        }
+        async function hashEmailForIndex(email) {
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(email || '').trim().toLowerCase()));
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        async function emailIndexDTag(email) {
+            return EMAIL_INDEX_D_PREFIX + await hashEmailForIndex(email);
+        }
+        async function publishEmailLoginIndex(privKeyBytes, pubkey, email) {
+            if (!pool || !privKeyBytes || !email) return;
+            const dTag = await emailIndexDTag(email);
+            const content = JSON.stringify({
+                app: 'LorePlay',
+                type: 'email-login-index',
+                email: String(email).trim().toLowerCase(),
+                pubkey,
+                updatedAt: Math.floor(Date.now() / 1000)
+            });
+            const signedEvent = NostrTools.finalizeEvent({
+                kind: 30078,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [['d', dTag], ['client', 'LorePlay']],
+                content
+            }, privKeyBytes);
+            await Promise.any(pool.publish(RELAYS, signedEvent)).catch(() => {});
+        }
+        async function lookupPubkeyByEmail(email) {
+            if (!pool || !email) return null;
+            const dTag = await emailIndexDTag(email);
+            try {
+                const events = await pool.querySync(RELAYS, { kinds: [30078], '#d': [dTag], limit: 10 });
+                if (events?.length) {
+                    events.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+                    const ev = events[0];
+                    try {
+                        const data = JSON.parse(ev.content || '{}');
+                        if (data.pubkey && /^[0-9a-f]{64}$/i.test(data.pubkey)) return data.pubkey.toLowerCase();
+                    } catch (_) {}
+                    if (ev.pubkey) return ev.pubkey.toLowerCase();
+                }
+            } catch (e) {
+                console.error(e);
+            }
+            return null;
+        }
+
+        /* ========== Modal Auth ========== */
+        function openAuthModal() {
+            const modal = document.getElementById('authModal');
+            const content = document.getElementById('authModalContent');
+            if (!modal || !content) return;
+            modal.classList.remove('pointer-events-none', 'opacity-0');
+            modal.classList.add('opacity-100');
+            content.classList.remove('translate-y-full');
+            switchAuthTab('login');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeAuthModal() {
+            const modal = document.getElementById('authModal');
+            const content = document.getElementById('authModalContent');
+            if (!modal || !content) return;
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            content.classList.add('translate-y-full');
+        }
+
+        function cancelAuthAndGoBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = HOME_URL;
+            }
+        }
+
+        window.switchAuthTab = function(mode) {
+            currentAuthMode = mode;
+            const title = document.getElementById('authModalTitle');
+            const subtitle = document.getElementById('authModalSubtitle');
+            const registerFields = document.getElementById('registerFieldsContainer');
+            const loginFields = document.getElementById('loginFieldsContainer');
+            const submitBtn = document.getElementById('authSubmitBtn');
+            const loginBtn = document.getElementById('tabLoginBtn');
+            const registerBtn = document.getElementById('tabRegisterBtn');
+
+            if (mode === 'login') {
+                if (title) title.innerText = 'Entre com sua Chave';
+                if (subtitle) subtitle.innerText = 'nsec ou e-mail e senha vinculados';
+                registerFields?.classList.add('hidden');
+                loginFields?.classList.remove('hidden');
+                if (submitBtn) submitBtn.innerText = 'Entrar na Conta';
+                if (loginBtn) loginBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-gray-900 shadow-sm';
+                if (registerBtn) registerBtn.className = 'flex-1 py-2 text-xs font-medium text-gray-500';
+                switchLoginMethod(currentLoginMethod || 'nsec');
+            } else {
+                if (title) title.innerText = 'Criar Nova Identidade';
+                if (subtitle) subtitle.innerText = 'Gere suas chaves Nostr e vincule e-mail';
+                registerFields?.classList.remove('hidden');
+                loginFields?.classList.add('hidden');
+                if (submitBtn) submitBtn.innerText = 'Criar e Entrar';
+                if (registerBtn) registerBtn.className = 'flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-gray-900 shadow-sm';
+                if (loginBtn) loginBtn.className = 'flex-1 py-2 text-xs font-medium text-gray-500';
+            }
+        };
+
+        window.switchLoginMethod = function(method) {
+            currentLoginMethod = method === 'email' ? 'email' : 'nsec';
+            const nsecFields = document.getElementById('loginNsecFields');
+            const emailFields = document.getElementById('loginEmailFields');
+            const nsecBtn = document.getElementById('loginMethodNsecBtn');
+            const emailBtn = document.getElementById('loginMethodEmailBtn');
+            const title = document.getElementById('authModalTitle');
+            const subtitle = document.getElementById('authModalSubtitle');
+
+            nsecFields?.classList.add('hidden');
+            emailFields?.classList.add('hidden');
+
+            const inactive = 'flex-1 py-1.5 text-[11px] font-medium text-gray-500 rounded-lg';
+            const active = 'flex-1 py-1.5 text-[11px] font-semibold rounded-lg bg-white shadow-sm';
+
+            if (nsecBtn) nsecBtn.className = inactive;
+            if (emailBtn) emailBtn.className = inactive;
+
+            if (currentLoginMethod === 'email') {
+                emailFields?.classList.remove('hidden');
+                if (emailBtn) emailBtn.className = active;
+                if (title) title.innerText = 'Entrar com E-mail';
+                if (subtitle) subtitle.innerText = 'Busca automática do perfil';
+            } else {
+                nsecFields?.classList.remove('hidden');
+                if (nsecBtn) nsecBtn.className = active;
+                if (title) title.innerText = 'Entre com sua Chave';
+                if (subtitle) subtitle.innerText = 'Insira sua chave privada (nsec)';
+            }
+        };
+
+        window.generateNewAccessKey = function() {
+            try {
+                const sk = NostrTools.generateSecretKey();
+                document.getElementById('generatedKeyOutput').value = NostrTools.nip19.nsecEncode(sk);
+                window.__tempGeneratedSk = sk;
+                alert('Chave gerada! Guarde-a com segurança.');
+            } catch {
+                alert('Erro ao gerar chave.');
+            }
+        };
+
+        window.handleAuthSubmit = async function(event) {
+            event.preventDefault();
+            let privKeyToUse = null;
+            let customUsername = '';
+            let regEmail = '';
+            let regPassword = '';
+
+            if (currentAuthMode === 'register') {
+                const nsec = document.getElementById('generatedKeyOutput').value.trim();
+                customUsername = document.getElementById('registerUsernameInput').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+                regEmail = String(document.getElementById('registerEmailInput')?.value || '').trim().toLowerCase();
+                regPassword = String(document.getElementById('registerPasswordInput')?.value ?? '');
+
+                if (!nsec) { alert('Gere sua chave primeiro.'); return; }
+                if (!customUsername) { alert('Escolha um nome de usuário.'); return; }
+                if (!regEmail || !regEmail.includes('@')) { alert('Informe um e-mail válido.'); return; }
+                if (!regPassword || regPassword.length < 6) { alert('A senha deve ter no mínimo 6 caracteres.'); return; }
+
+                try {
+                    if (window.__tempGeneratedSk) {
+                        privKeyToUse = window.__tempGeneratedSk;
+                    } else {
+                        const decoded = NostrTools.nip19.decode(nsec);
+                        if (decoded.type !== 'nsec') throw new Error('invalid');
+                        privKeyToUse = decoded.data;
+                    }
+                } catch {
+                    alert('Chave inválida.');
+                    return;
+                }
+            } else if (currentLoginMethod === 'email') {
+                const email = String(document.getElementById('authEmailInput')?.value || '').trim().toLowerCase();
+                const password = String(document.getElementById('authPasswordInput')?.value ?? '');
+                const npubInput = String(document.getElementById('authNpubInput')?.value || '').trim();
+
+                if (!email || !password) { alert('Preencha e-mail e senha.'); return; }
+
+                let session = {};
+                let backup = {};
+                try { session = JSON.parse(localStorage.getItem('nostr_session') || '{}'); } catch (_) {}
+                try { backup = JSON.parse(localStorage.getItem('loresocial_login_credentials') || '{}'); } catch (_) {}
+
+                const savedEmail = String(session.loginEmail || session.email || backup.loginEmail || backup.email || '').trim().toLowerCase();
+                const savedPassword = String(session.loginPassword || session.password || backup.loginPassword || backup.password || '');
+                let privateKeyHex = session.privateKeyHex || backup.privateKeyHex || '';
+
+                const localEmailOk = savedEmail && savedEmail === email;
+                const localPassOk = savedPassword && (savedPassword === password || savedPassword.trim() === password.trim());
+
+                if (localEmailOk && localPassOk && privateKeyHex) {
+                    try {
+                        privKeyToUse = hexToBytes(privateKeyHex);
+                        const nick = session.nickname || backup.nickname || '';
+                        if (nick) customUsername = String(nick).replace(/^@/, '');
+                        if (session.avatarUrl || backup.avatarUrl) currentUserData.avatarUrl = session.avatarUrl || backup.avatarUrl;
+                    } catch {
+                        alert('Sessão local inválida. Tente com nsec.');
+                        return;
+                    }
+                } else {
+                    let targetPubkey = null;
+                    if (npubInput) {
+                        try {
+                            if (npubInput.startsWith('npub')) {
+                                const decoded = NostrTools.nip19.decode(npubInput);
+                                if (decoded.type === 'npub') targetPubkey = decoded.data;
+                            } else if (/^[0-9a-f]{64}$/i.test(npubInput)) {
+                                targetPubkey = npubInput.toLowerCase();
+                            }
+                        } catch {
+                            alert('npub inválido.');
+                            return;
+                        }
+                    }
+                    if (!targetPubkey) {
+                        const maybe = session.pubkey || backup.pubkey || '';
+                        if (maybe) {
+                            if (String(maybe).startsWith('npub')) {
+                                try {
+                                    const d = NostrTools.nip19.decode(maybe);
+                                    if (d.type === 'npub') targetPubkey = d.data;
+                                } catch (_) {}
+                            } else {
+                                targetPubkey = maybe;
+                            }
+                        }
+                    }
+                    if (!targetPubkey) {
+                        targetPubkey = await lookupPubkeyByEmail(email);
+                    }
+                    if (!targetPubkey) {
+                        alert('Conta não encontrada com este e-mail.');
+                        return;
+                    }
+                    try {
+                        const events = await pool.querySync(RELAYS, { kinds: [0], authors: [targetPubkey], limit: 5 });
+                        if (!events?.length) { alert('Perfil não encontrado.'); return; }
+                        events.sort((a, b) => b.created_at - a.created_at);
+                        const profile = JSON.parse(events[0].content || '{}');
+                        if ((profile.login_email || '').toLowerCase() !== email) {
+                            alert('E-mail não confere.');
+                            return;
+                        }
+                        if (!profile.encrypted_private_key) {
+                            alert('Conta sem chave protegida. Entre com nsec.');
+                            return;
+                        }
+                        privateKeyHex = await decryptPrivateKey(profile.encrypted_private_key, password);
+                        if (!privateKeyHex) { alert('Senha incorreta.'); return; }
+                        privKeyToUse = hexToBytes(privateKeyHex);
+                        if (profile.name) customUsername = String(profile.name).replace(/^@/, '');
+                        if (profile.picture) currentUserData.avatarUrl = profile.picture;
+                    } catch (err) {
+                        console.error(err);
+                        alert('Erro ao logar.');
+                        return;
+                    }
+                }
+            } else {
+                const inputVal = document.getElementById('authKeyInput').value.trim();
+                if (!inputVal) { alert('Insira sua chave.'); return; }
+                try {
+                    if (inputVal.startsWith('nsec')) {
+                        const decoded = NostrTools.nip19.decode(inputVal);
+                        if (decoded.type !== 'nsec') throw new Error('not nsec');
+                        privKeyToUse = decoded.data;
+                    } else {
+                        privKeyToUse = hexToBytes(inputVal);
+                    }
+                } catch {
+                    alert('Chave inválida.');
+                    return;
+                }
+            }
+
+            try {
+                const pubKey = NostrTools.getPublicKey(privKeyToUse);
+                const npub = NostrTools.nip19.npubEncode(pubKey);
+                const privateKeyHexStr = bytesToHex(privKeyToUse);
+
+                currentUserData.privateKeyHex = privateKeyHexStr;
+                currentUserData.pubkey = pubKey;
+                currentUserData.nickname = customUsername
+                    ? customUsername
+                    : (npub.substring(0, 12) + '...');
+
+                let prevSession = {};
+                let backup = {};
+                try { prevSession = JSON.parse(localStorage.getItem('nostr_session') || '{}'); } catch (_) {}
+                try { backup = JSON.parse(localStorage.getItem('loresocial_login_credentials') || '{}'); } catch (_) {}
+
+                let keepEmail = prevSession.loginEmail || prevSession.email || backup.loginEmail || backup.email || '';
+                let keepPassword = prevSession.loginPassword || prevSession.password || backup.loginPassword || backup.password || '';
+                if (currentAuthMode === 'register' && regEmail && regPassword) {
+                    keepEmail = regEmail;
+                    keepPassword = regPassword;
+                }
+
+                const nextSession = {
+                    pubkey: currentUserData.pubkey,
+                    privateKeyHex: privateKeyHexStr,
+                    nickname: currentUserData.nickname ? '@' + currentUserData.nickname.replace(/^@/, '') : '',
+                    avatarUrl: currentUserData.avatarUrl || prevSession.avatarUrl || backup.avatarUrl || '',
+                    about: prevSession.about || ''
+                };
+                if (keepEmail) nextSession.loginEmail = String(keepEmail).trim();
+                if (keepPassword) nextSession.loginPassword = String(keepPassword);
+
+                localStorage.setItem('nostr_session', JSON.stringify(nextSession));
+                localStorage.setItem('isLoggedIn', 'true');
+
+                if (keepEmail && keepPassword) {
+                    localStorage.setItem('loresocial_login_credentials', JSON.stringify({
+                        email: keepEmail,
+                        password: keepPassword,
+                        loginEmail: keepEmail,
+                        loginPassword: keepPassword,
+                        privateKeyHex: privateKeyHexStr,
+                        pubkey: pubKey,
+                        nickname: nextSession.nickname,
+                        avatarUrl: nextSession.avatarUrl
+                    }));
+                }
+
+                if (currentAuthMode === 'register' && customUsername) {
+                    let encrypted_private_key = '';
+                    try {
+                        if (regEmail && regPassword) {
+                            encrypted_private_key = await encryptPrivateKey(privateKeyHexStr, regPassword);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                    const metadata = {
+                        name: customUsername,
+                        picture: '',
+                        about: '',
+                        login_email: regEmail || undefined,
+                        encrypted_private_key: encrypted_private_key || undefined
+                    };
+                    const signedEvent = NostrTools.finalizeEvent({
+                        kind: 0,
+                        created_at: Math.floor(Date.now() / 1000),
+                        tags: [],
+                        content: JSON.stringify(metadata)
+                    }, privKeyToUse);
+                    try {
+                        await Promise.any(pool.publish(RELAYS, signedEvent));
+                    } catch (e) {
+                        console.error(e);
+                    }
+                    if (regEmail && regPassword) {
+                        try {
+                            await publishEmailLoginIndex(privKeyToUse, pubKey, regEmail);
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }
+                }
+
+                alert('Autenticado com sucesso!');
+                closeAuthModal();
+            } catch (e) {
+                console.error(e);
+                alert('Erro ao processar o login.');
+            }
+        };
+
+        window.cancelAuthAndGoBack = cancelAuthAndGoBack;
+
+        document.getElementById('toggleAuthPassword')?.addEventListener('click', () => {
+            const input = document.getElementById('authPasswordInput');
+            if (!input) return;
+            input.type = input.type === 'password' ? 'text' : 'password';
+        });
+
+        function isUserLoggedIn() {
+            try {
+                const session = JSON.parse(localStorage.getItem('nostr_session') || 'null');
+                if (!session) return false;
+                return !!(session.pubkey && session.privateKeyHex);
+            } catch {
+                return false;
+            }
+        }
 
         function loadSessionFromNostr() {
             try {
@@ -273,14 +790,11 @@
             }
         }
 
-        function hexToBytes(hex) {
+        function hexToBytesLocal(hex) {
             if (typeof NostrTools.hexToBytes === 'function') {
                 return NostrTools.hexToBytes(hex);
             }
-            const h = String(hex).replace(/^0x/, '');
-            const out = new Uint8Array(h.length / 2);
-            for (let i = 0; i < out.length; i++) out[i] = parseInt(h.substr(i * 2, 2), 16);
-            return out;
+            return hexToBytes(hex);
         }
 
         async function postBoostToRelays(boost, status) {
@@ -289,7 +803,7 @@
                 return null;
             }
             try {
-                const skBytes = hexToBytes(currentUserData.privateKeyHex);
+                const skBytes = hexToBytesLocal(currentUserData.privateKeyHex);
                 const payload = { ...boost, status, app: 'MarketAds', type: 'boost' };
 
                 const eventTemplate = {
@@ -320,8 +834,9 @@
         }
 
         function selectPlan(planName, durationDays, price) {
-            if (!currentUserData.pubkey) {
+            if (!currentUserData.pubkey || !currentUserData.privateKeyHex) {
                 alert('Faça login com sua conta Nostr antes de contratar um impulso.');
+                openAuthModal();
                 return;
             }
             pendingSelection = { planName, durationDays, price };
@@ -343,6 +858,12 @@
 
         async function goToPayment() {
             if (!pendingSelection) return;
+
+            if (!currentUserData.privateKeyHex) {
+                alert('Faça login para continuar.');
+                openAuthModal();
+                return;
+            }
 
             const { planName, durationDays, price } = pendingSelection;
             const linkData = INFINITEPAY_BOOST_LINKS.find(
@@ -589,6 +1110,11 @@
         loadSessionFromNostr();
         loadActiveBoostFromStorage();
         checkPaymentConfirmationAndActivate();
+
+        // Se não estiver logado, abre o formulário de login/criação
+        if (!isUserLoggedIn()) {
+            openAuthModal();
+        }
     </script>
 </body>
 </html>
