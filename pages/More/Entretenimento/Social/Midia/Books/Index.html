@@ -74,43 +74,13 @@ body{background:#fff;color:#1f2937}
 .suggest-card .thumb{aspect-ratio:2/3;border-radius:10px;overflow:hidden;background:#1f2937;border:1px solid rgba(255,255,255,.08)}
 .suggest-card img{width:100%;height:100%;object-fit:cover}
 .suggest-card p{font-size:10px;margin-top:6px;color:#e5e7eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-/* Slot de anúncio no leitor: oculto por padrão */
-.reader-ad-slot{
-  display:none;
-  flex:0 0 auto;
-  width:100%;
-  margin:0;
-  border-radius:0;
-  border-left:none;
-  border-right:none;
-  border-bottom:none;
-  min-height:72px;
-  max-height:96px;
-  background:#0f0f12;
-  border-top:1px solid rgba(255,255,255,.08);
-  z-index:30;
-}
-.reader-ad-slot.is-ready{
-  border-color:rgba(255,255,255,.08);
-  background:#0f0f12;
-  justify-content:center;
-}
-.reader-ad-slot .lp-slot-body{
-  min-height:72px;
-  max-height:96px;
-  padding:8px 12px;
-  gap:10px;
-}
-.reader-ad-slot .lp-slot-media{
-  width:64px;
-  height:52px;
-  border-radius:8px;
-}
+.reader-ad-slot{display:none;flex:0 0 auto;width:100%;margin:0;border-radius:0;border-left:none;border-right:none;border-bottom:none;min-height:72px;max-height:96px;background:#0f0f12;border-top:1px solid rgba(255,255,255,.08);z-index:30}
+.reader-ad-slot.is-ready{border-color:rgba(255,255,255,.08);background:#0f0f12;justify-content:center}
+.reader-ad-slot .lp-slot-body{min-height:72px;max-height:96px;padding:8px 12px;gap:10px}
+.reader-ad-slot .lp-slot-media{width:64px;height:52px;border-radius:8px}
 .reader-ad-slot .lp-slot-heading{color:#f8fafc;font-size:12px}
 .reader-ad-slot .lp-slot-text{color:#94a3b8;font-size:10px;-webkit-line-clamp:1}
 .reader-ad-slot .lp-slot-tag{font-size:8px}
-
 @media (max-width:1023px){
 #detailModal.reading-mode #detailShell{flex-direction:column;height:100dvh;max-height:100dvh}
 #detailModal.reading-mode #readerStage{flex:1 1 0;min-height:0;height:100%;max-height:none;padding:0}
@@ -312,7 +282,6 @@ main{max-width:1400px}.desktop-stream-layout{grid-template-columns:1fr 340px;gap
 <div class="absolute bottom-4 left-4 z-10 max-w-[70%] pointer-events-none" id="detailTitleOverlay"><h2 id="detailModalTitle" class="text-lg sm:text-2xl lg:text-3xl font-black text-white drop-shadow-lg">Título</h2></div>
 </div>
 
-<!-- Anúncio ponta a ponta no leitor (mobile / reading-mode) -->
 <div id="readerAdSlot" class="lp-slot reader-ad-slot" data-lp-slot>Espaço disponível</div>
 
 <div id="detailPanel" class="p-4 sm:p-6 space-y-5 no-scrollbar">
@@ -455,7 +424,13 @@ async function lookupBlossomPublicUrl(shaHex){if(!shaHex||typeof shaHex!=='strin
 function setMediaLoading(show,text){const o=document.getElementById('mediaLoadingOverlay'),t=document.getElementById('mediaLoadingText');if(t&&text)t.textContent=text;if(o)o.classList.toggle('hidden',!show)}
 function getActiveMediaRef(){if(currentItemFullData?.volumes){const chs=currentVolumesData[activeVolume]||{};if(activeChapterKey&&hasMediaRef(chs[activeChapterKey]))return chs[activeChapterKey];const k=Object.keys(chs).find(x=>hasMediaRef(chs[x]));if(k)return chs[k];for(const vol of Object.keys(currentVolumesData||{})){const chs2=currentVolumesData[vol]||{},k2=Object.keys(chs2).find(x=>hasMediaRef(chs2[x]));if(k2){activeVolume=vol;return chs2[k2]}}}if(hasMediaRef(currentItemFullData?.fileUrl))return currentItemFullData.fileUrl;return null}
 async function resolveMediaSrc(ref,{showLoading=true}={}){if(!ref)return '';let publicUrl=getPublicMediaUrl(ref);if(publicUrl)return publicUrl;const sha=ref&&ref.encSha256;if(sha){if(showLoading)setMediaLoading(true,'Buscando na rede...');try{publicUrl=await lookupBlossomPublicUrl(sha);if(publicUrl){if(typeof ref==='object'){ref.publicUrl=publicUrl;ref.playbackUrl=publicUrl}return publicUrl}}finally{if(showLoading)setMediaLoading(false)}}if(typeof ref==='string')return ref;if(isChunkedRef(ref)&&window.reconstructMediaFromChunks){if(showLoading)setMediaLoading(true,'Reconstruindo...');try{return await window.reconstructMediaFromChunks(ref)||''}finally{if(showLoading)setMediaLoading(false)}}return ''}
-function enterReadingMode(){const modal=document.getElementById('detailModal');if(modal&&window.matchMedia('(max-width:1023px)').matches)modal.classList.add('reading-mode')}
+function enterReadingMode(){
+  const modal=document.getElementById('detailModal');
+  if(modal&&window.matchMedia('(max-width:1023px)').matches){
+    modal.classList.add('reading-mode');
+    if(window.refreshPartnerSlots)window.refreshPartnerSlots();
+  }
+}
 function exitReadingMode(){document.getElementById('detailModal')?.classList.remove('reading-mode')}
 function showCoverOnly(){destroyEpub();if(window.__lpPdfObserver){try{window.__lpPdfObserver.disconnect()}catch(_){}window.__lpPdfObserver=null}if(window.__lpPdfPageObserver){try{window.__lpPdfPageObserver.disconnect()}catch(_){}window.__lpPdfPageObserver=null}__lpPdfCurrentPage=1;__lpPdfTotalPages=0;const pdfEl=document.getElementById('pdfViewer');if(pdfEl)pdfEl.onscroll=null;exitReadingMode();const cover=document.getElementById('readerCover'),epubEl=document.getElementById('epubViewer'),titleOv=document.getElementById('detailTitleOverlay');if(cover){cover.classList.remove('hidden-cover');cover.style.display=''}if(epubEl){epubEl.classList.remove('active');epubEl.innerHTML=''}if(pdfEl){pdfEl.classList.remove('active');pdfEl.innerHTML='';pdfEl.removeAttribute('src')}if(titleOv)titleOv.classList.remove('hidden');document.getElementById('epubPrevBtn')?.classList.remove('visible');document.getElementById('epubNextBtn')?.classList.remove('visible');const bar=document.getElementById('epubProgressBar');if(bar)bar.style.width='0';if(currentObjectUrl){try{URL.revokeObjectURL(currentObjectUrl)}catch(_){}currentObjectUrl=null}updateChapterNavVisibility();updateResumeUI()}
 function destroyEpub(){try{if(epubRendition){epubRendition.destroy();epubRendition=null}}catch(_){}try{if(epubBook){epubBook.destroy();epubBook=null}}catch(_){}epubCurrentUrl=null}
@@ -566,7 +541,7 @@ async function syncUserMetaToNetwork(meta){const session=getSession();if(!sessio
 async function loadUserMetaFromNetwork(){const session=getSession();if(!session)return null;try{const events=await pool.querySync(RELAYS,{kinds:[STREAM_KIND],authors:[session.pubkey],'#d':[USER_META_D],limit:5})||[];events.sort((a,b)=>b.created_at-a.created_at);for(const ev of events){try{return await decryptUserMeta(ev.content,session.privateKeyHex)}catch(_){}}}catch(e){console.warn(e)}return null}
 async function publishPost({provider,type,name,coverFile,volumesFiles,bookFile,isEdit,existingDTag,basePayload}){const session=getSession();if(!session)throw new Error('Sessão Nostr ausente.');if(session.privateKeyHex!==ALLOWED_HEX)throw new Error('Conta não autorizada.');const status=msg=>{if(window.setNetworkStatus)window.setNetworkStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>${msg}</span>`)};let coverUrl=basePayload?.img||'';if(coverFile){status('Enviando capa...');const coverRef=await uploadMediaDriveStyle(coverFile,session.privateKey,status);coverUrl=typeof coverRef==='string'?coverRef:(coverRef.publicUrl||coverRef.url||coverUrl)}if(!coverUrl)throw new Error('Capa obrigatória.');const payload={name,provider,type,img:coverUrl,status:TYPE_LABELS[type]||'Livro',badge:TYPE_LABELS[type]||'Livro',created_at:basePayload?.created_at||Math.floor(Date.now()/1000),updated_at:Math.floor(Date.now()/1000)};if(VOLUME_TYPES.has(type)||(type==='books'&&volumesFiles)){payload.volumes=basePayload?.volumes?JSON.parse(JSON.stringify(basePayload.volumes)):{};for(const v of Object.keys(volumesFiles||{})){if(!payload.volumes[v])payload.volumes[v]={};for(const c of Object.keys(volumesFiles[v]||{})){const f=volumesFiles[v][c];if(f instanceof File||f instanceof Blob){status(`Vol ${v} Cap ${c}...`);payload.volumes[v][c]=await uploadMediaDriveStyle(f,session.privateKey,status)}}}const has=Object.values(payload.volumes).some(chs=>Object.values(chs||{}).some(Boolean));if(!has&&!basePayload?.volumes)throw new Error('É preciso haver ao menos um arquivo.')}else{let fileRef=basePayload?.fileUrl||null;if(bookFile)fileRef=await uploadMediaDriveStyle(bookFile,session.privateKey,status);if(!fileRef)throw new Error('Envie o arquivo do livro.');payload.fileUrl=fileRef}const epoch=currentEpoch(),salt=randomSalt(16),encrypted=await encryptPayload(payload,epoch,salt),dTag=(isEdit&&existingDTag)?existingDTag:('lp-book-'+(crypto.randomUUID?.()||Date.now())),signed=NostrTools.finalizeEvent({kind:STREAM_KIND,created_at:Math.floor(Date.now()/1000),tags:[['d',dTag],['t',TAG_APP],['t','books-post'],['provider',provider],['media',type],['crypto_v','1'],['crypto_epoch',String(epoch)],['crypto_salt',salt],['title',String(name).slice(0,80)],['p',session.pubkey],['author',session.pubkey]],content:encrypted},session.privateKey);status(isEdit?'Atualizando...':'Publicando...');await publishToRelays(signed);return payload}
 function mediaPresent(r){if(!r)return false;if(typeof r==='string')return!!r;if(r.publicUrl||r.playbackUrl||r.url)return true;return isChunkedFile(r)}
-async function queryAllStreamEvents(){const all=[],seenIds=new Set();let until=undefined;for(let page=0;page<30;page++){const filter={kinds:[STREAM_KIND],'#t':[TAG_APP],limit:500};if(AUTHOR_PUBKEY)filter.authors=[AUTHOR_PUBKEY];if(until!=null)filter.until=until;let batch=[];try{batch=await pool.querySync(RELAYS,filter)||[]}catch(_){break}if(!batch.length)break;let oldest=Infinity;for(const ev of batch){if(seenIds.has(ev.id))continue;seenIds.add(ev.id);all.push(ev);if(typeof ev.created_at==='number'&&ev.created_at<oldest)oldest=ev.created_at}if(batch.length<500)break;until=oldest-1;if(!Number.isFinite(until))break}if(!all.length){until=undefined;for(let page=0;page<30;page++){const filter={kinds:[STREAM_KIND],'#t':[TAG_APP],limit:500};if(until!=null)filter.until=until;let batch=[];try{batch=await pool.querySync(RELAYS,filter)||[]}catch(_){break}if(!batch.length)break;let oldest=Infinity;for(const ev of batch){if(seenIds.has(ev.id))continue;seenIds.add(ev.id);all.push(ev);if(typeof ev.created_at==='number'&&ev.created_at<oldest)oldest=ev.created_at}if(batch.length<500)break;until=oldest-1;if(!Number.isFinite(until))break}}return all}
+async function queryAllStreamEvents(){const all=[],seenIds=new Set();let until=undefined;for(let page=0;page<30;page++){const filter={kinds:[STREAM_KIND],'#t':[TAG_APP],limit:500];if(AUTHOR_PUBKEY)filter.authors=[AUTHOR_PUBKEY];if(until!=null)filter.until=until;let batch=[];try{batch=await pool.querySync(RELAYS,filter)||[]}catch(_){break}if(!batch.length)break;let oldest=Infinity;for(const ev of batch){if(seenIds.has(ev.id))continue;seenIds.add(ev.id);all.push(ev);if(typeof ev.created_at==='number'&&ev.created_at<oldest)oldest=ev.created_at}if(batch.length<500)break;until=oldest-1;if(!Number.isFinite(until))break}if(!all.length){until=undefined;for(let page=0;page<30;page++){const filter={kinds:[STREAM_KIND],'#t':[TAG_APP],limit:500};if(until!=null)filter.until=until;let batch=[];try{batch=await pool.querySync(RELAYS,filter)||[]}catch(_){break}if(!batch.length)break;let oldest=Infinity;for(const ev of batch){if(seenIds.has(ev.id))continue;seenIds.add(ev.id);all.push(ev);if(typeof ev.created_at==='number'&&ev.created_at<oldest)oldest=ev.created_at}if(batch.length<500)break;until=oldest-1;if(!Number.isFinite(until))break}}return all}
 async function fetchPostByDTag(dTag){if(!dTag)return null;try{const filter={kinds:[STREAM_KIND],'#d':[dTag],'#t':[TAG_APP],limit:5};if(AUTHOR_PUBKEY)filter.authors=[AUTHOR_PUBKEY];const events=await pool.querySync(RELAYS,filter)||[];events.sort((a,b)=>b.created_at-a.created_at);for(const ev of events){try{if(AUTHOR_PUBKEY&&ev.pubkey&&ev.pubkey!==AUTHOR_PUBKEY)continue;const tags={};(ev.tags||[]).forEach(t=>{if(t[0]&&t[1]!==undefined)tags[t[0]]=t[1]});if(!tags.crypto_epoch||!tags.crypto_salt||!ev.content)continue;const data=await decryptPayload(ev.content,tags.crypto_epoch,tags.crypto_salt);if(!data?.name)continue;return{name:data.name,status:data.status||'',badge:data.badge||null,img:data.img,volumes:data.volumes,fileUrl:data.fileUrl,type:data.type,provider:data.provider,_dTag:tags.d||dTag,_author:ev.pubkey||null,_eventId:ev.id||null,_created_at:ev.created_at||null}}catch(_){}}}catch(e){console.warn(e)}return null}
 async function loadPostsFromNetwork(){const pd=window.providerData;if(!pd)return 0;if(window.setNetworkStatus)window.setNetworkStatus(`<i class="fa-solid fa-spinner fa-spin text-secondary"></i><span>Sincronizando...</span>`);Object.keys(pd).forEach(k=>{pd[k].books=[];pd[k].mangas=[];pd[k].manhua=[];pd[k].manhwa=[];pd[k].hq=[];pd[k].lightnovels=[]});let events=[];try{events=await queryAllStreamEvents()}catch(e){if(window.onCatalogLoaded)window.onCatalogLoaded();return 0}const seen=new Set();let count=0;for(const ev of events.sort((a,b)=>b.created_at-a.created_at)){try{const tags={};(ev.tags||[]).forEach(t=>{if(t[0]&&t[1]!==undefined)tags[t[0]]=t[1]});if(!tags.crypto_epoch||!tags.crypto_salt||!ev.content)continue;if(AUTHOR_PUBKEY&&ev.pubkey&&ev.pubkey!==AUTHOR_PUBKEY)continue;const data=await decryptPayload(ev.content,tags.crypto_epoch,tags.crypto_salt);if(!data?.name||!data?.provider||!pd[data.provider])continue;const key=(tags.d||ev.id)+'|'+data.name;if(seen.has(key))continue;seen.add(key);const entry={name:data.name,status:data.status||'',badge:data.badge||null,img:data.img,volumes:data.volumes,fileUrl:data.fileUrl,type:data.type,provider:data.provider,_dTag:tags.d||null,_author:ev.pubkey||null,_eventId:ev.id||null,_created_at:ev.created_at||null};if(typeof window.storeFullEntry==='function')window.storeFullEntry(entry);else{window.__lpMediaIndex=window.__lpMediaIndex||Object.create(null);window.__lpMediaIndex[entry._dTag||(entry.provider+'|'+entry.name)]=entry}const light=typeof window.lightCatalogEntry==='function'?window.lightCatalogEntry(entry):{name:entry.name,status:entry.status,badge:entry.badge,img:entry.img,type:entry.type,provider:entry.provider,_dTag:entry._dTag,_author:entry._author,_eventId:entry._eventId,_created_at:entry._created_at,_hasMedia:true},t=data.type||'books';if(VOLUME_TYPES.has(t)){const ok=entry.volumes&&Object.values(entry.volumes).some(chs=>Object.values(chs||{}).some(mediaPresent));if(!ok)continue;if(!pd[data.provider][t])pd[data.provider][t]=[];pd[data.provider][t].push(light)}else{if(!mediaPresent(entry.fileUrl)&&!(entry.volumes&&Object.values(entry.volumes).some(chs=>Object.values(chs||{}).some(mediaPresent))))continue;pd[data.provider].books.push(light)}count++}catch(_){}}if(window.onCatalogLoaded)window.onCatalogLoaded();if(window.setNetworkStatus)window.setNetworkStatus(count?`<span class="text-gray-500">${count} título(s)</span>`:`<span class="text-gray-400">Nenhum título ainda.</span>`);return count}
 window.__lpStreamNet={publishPost,fetchPostByDTag};window.loadPostsFromNetwork=loadPostsFromNetwork;window.reconstructMediaFromChunks=reconstructMediaFromChunks;window.syncUserMetaToNetwork=syncUserMetaToNetwork;
